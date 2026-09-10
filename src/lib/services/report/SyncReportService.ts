@@ -97,6 +97,16 @@ export class SyncReportService {
       maxDrawdownEntries: data.maxDrawdown.pnlEntries,
       maxDrawdownPriceOpen: data.maxDrawdown.priceOpen,
       maxDrawdownPriceClose: data.maxDrawdown.priceClose,
+      worstStalePercentage: data.worstStale.pnlPercentage,
+      worstStaleCost: data.worstStale.pnlCost,
+      worstStaleEntries: data.worstStale.pnlEntries,
+      worstStalePriceOpen: data.worstStale.priceOpen,
+      worstStalePriceClose: data.worstStale.priceClose,
+      worstStalePeakPercentage: data.worstStale.peakPnlPercentage,
+      worstStaleGivebackPercentage: data.worstStale.peakPnlPercentage - data.worstStale.pnlPercentage,
+      worstStaleMinutes: Math.floor((data.worstStale.timestamp - data.worstStale.peakTimestamp) / 60000),
+      worstStaleBreakevenPrice: data.worstStale.breakevenPrice,
+      worstStaleBreakevenTimestamp: data.worstStale.breakevenTimestamp,
       currentPrice: data.currentPrice,
     };
 

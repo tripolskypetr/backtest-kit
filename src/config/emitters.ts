@@ -25,6 +25,7 @@ import OrderContinueContract from "../contract/OrderContinue.contract";
 import OrderStopContract from "../contract/OrderStop.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
 import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
+import { WorstStaleContract } from "../contract/WorstStale.contract";
 import { PauseContract } from "../contract/Pause.contract";
 import { SignalInfoContract } from "../contract/SignalInfo.contract";
 import { BeforeStartContract } from "../contract/BeforeStart.contract";
@@ -289,6 +290,13 @@ export const highestProfitSubject = new Subject<HighestProfitContract>();
  * Allows users to track drawdown levels and implement custom risk management logic based on drawdown thresholds.
  */
 export const maxDrawdownSubject = new Subject<MaxDrawdownContract>();
+
+/**
+ * Worst peak-rollback (stale) episode emitter for real-time giveback tracking.
+ * Emits when the worst giveback from a profit peak recorded for an open position grows to a new record.
+ * Allows users to calibrate trailing-take, profit-lock, hold-time and peak-staleness thresholds from observed rollbacks.
+ */
+export const worstStaleSubject = new Subject<WorstStaleContract>();
 
 /**
  * Pause state emitter for strategy pause/resume tracking.

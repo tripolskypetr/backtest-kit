@@ -136,6 +136,16 @@ export class LiveReportService {
         maxDrawdownPercentage: data.signal?.maxDrawdown?.pnlPercentage,
         maxDrawdownCost: data.signal?.maxDrawdown?.pnlCost,
         maxDrawdownEntries: data.signal?.maxDrawdown?.pnlEntries,
+        worstStalePriceOpen: data.signal?.worstStale?.priceOpen,
+        worstStalePriceClose: data.signal?.worstStale?.priceClose,
+        worstStalePercentage: data.signal?.worstStale?.pnlPercentage,
+        worstStaleCost: data.signal?.worstStale?.pnlCost,
+        worstStaleEntries: data.signal?.worstStale?.pnlEntries,
+        worstStalePeakPercentage: data.signal?.worstStale?.peakPnlPercentage,
+        worstStaleGivebackPercentage: data.signal?.worstStale ? data.signal.worstStale.peakPnlPercentage - data.signal.worstStale.pnlPercentage : undefined,
+        worstStaleMinutes: data.signal?.worstStale ? Math.floor((data.signal.worstStale.timestamp - data.signal.worstStale.peakTimestamp) / 60000) : undefined,
+        worstStaleBreakevenPrice: data.signal?.worstStale?.breakevenPrice,
+        worstStaleBreakevenTimestamp: data.signal?.worstStale?.breakevenTimestamp,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "opened") {
       await ReportWriter.writeData("live", {
@@ -198,6 +208,16 @@ export class LiveReportService {
         maxDrawdownPercentage: data.signal?.maxDrawdown?.pnlPercentage,
         maxDrawdownCost: data.signal?.maxDrawdown?.pnlCost,
         maxDrawdownEntries: data.signal?.maxDrawdown?.pnlEntries,
+        worstStalePriceOpen: data.signal?.worstStale?.priceOpen,
+        worstStalePriceClose: data.signal?.worstStale?.priceClose,
+        worstStalePercentage: data.signal?.worstStale?.pnlPercentage,
+        worstStaleCost: data.signal?.worstStale?.pnlCost,
+        worstStaleEntries: data.signal?.worstStale?.pnlEntries,
+        worstStalePeakPercentage: data.signal?.worstStale?.peakPnlPercentage,
+        worstStaleGivebackPercentage: data.signal?.worstStale ? data.signal.worstStale.peakPnlPercentage - data.signal.worstStale.pnlPercentage : undefined,
+        worstStaleMinutes: data.signal?.worstStale ? Math.floor((data.signal.worstStale.timestamp - data.signal.worstStale.peakTimestamp) / 60000) : undefined,
+        worstStaleBreakevenPrice: data.signal?.worstStale?.breakevenPrice,
+        worstStaleBreakevenTimestamp: data.signal?.worstStale?.breakevenTimestamp,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "closed") {
       const durationMs = data.closeTimestamp - data.signal?.pendingAt;
@@ -242,6 +262,16 @@ export class LiveReportService {
         maxDrawdownPercentage: data.signal?.maxDrawdown?.pnlPercentage,
         maxDrawdownCost: data.signal?.maxDrawdown?.pnlCost,
         maxDrawdownEntries: data.signal?.maxDrawdown?.pnlEntries,
+        worstStalePriceOpen: data.signal?.worstStale?.priceOpen,
+        worstStalePriceClose: data.signal?.worstStale?.priceClose,
+        worstStalePercentage: data.signal?.worstStale?.pnlPercentage,
+        worstStaleCost: data.signal?.worstStale?.pnlCost,
+        worstStaleEntries: data.signal?.worstStale?.pnlEntries,
+        worstStalePeakPercentage: data.signal?.worstStale?.peakPnlPercentage,
+        worstStaleGivebackPercentage: data.signal?.worstStale ? data.signal.worstStale.peakPnlPercentage - data.signal.worstStale.pnlPercentage : undefined,
+        worstStaleMinutes: data.signal?.worstStale ? Math.floor((data.signal.worstStale.timestamp - data.signal.worstStale.peakTimestamp) / 60000) : undefined,
+        worstStaleBreakevenPrice: data.signal?.worstStale?.breakevenPrice,
+        worstStaleBreakevenTimestamp: data.signal?.worstStale?.breakevenTimestamp,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "cancelled") {
       await ReportWriter.writeData("live", {

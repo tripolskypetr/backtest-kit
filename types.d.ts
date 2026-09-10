@@ -1608,6 +1608,8 @@ interface OrderOpenContract extends OrderSyncBase {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+    worstStale: IStrategyStale;
     /** Cost of the position at close (sum of all entry costs) */
     cost: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
@@ -1663,6 +1665,8 @@ interface OrderCloseContract extends OrderSyncBase {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+    worstStale: IStrategyStale;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Effective entry price at time of close (may differ from priceOpen after DCA averaging) */
@@ -1776,6 +1780,8 @@ interface OrderCheckContract {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to this event */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+    worstStale: IStrategyStale;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Effective entry price (may differ from priceOpen after DCA averaging) */
@@ -2653,6 +2659,8 @@ interface CancelScheduledCommit extends SignalCommitBase {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+    worstStale: IStrategyStale;
 }
 /**
  * Close pending signal event.
@@ -2668,6 +2676,8 @@ interface ClosePendingCommit extends SignalCommitBase {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+    worstStale: IStrategyStale;
 }
 /**
  * Partial profit event.
@@ -2685,6 +2695,8 @@ interface PartialProfitCommit extends SignalCommitBase {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+    worstStale: IStrategyStale;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Entry price for the position */
@@ -2718,6 +2730,8 @@ interface PartialLossCommit extends SignalCommitBase {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+    worstStale: IStrategyStale;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Entry price for the position */
@@ -2751,6 +2765,8 @@ interface TrailingStopCommit extends SignalCommitBase {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+    worstStale: IStrategyStale;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Entry price for the position */
@@ -2784,6 +2800,8 @@ interface TrailingTakeCommit extends SignalCommitBase {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+    worstStale: IStrategyStale;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Entry price for the position */
@@ -2815,6 +2833,8 @@ interface BreakevenCommit extends SignalCommitBase {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+    worstStale: IStrategyStale;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Entry price for the position */
@@ -2851,6 +2871,8 @@ interface AverageBuyCommit extends SignalCommitBase {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+    worstStale: IStrategyStale;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Original entry price (signal.priceOpen, unchanged by averaging) */
@@ -2884,6 +2906,8 @@ interface ActivateScheduledCommit extends SignalCommitBase {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+    worstStale: IStrategyStale;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Entry price for the position */
@@ -2971,6 +2995,8 @@ interface OrderContinueContract {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to this event */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+    worstStale: IStrategyStale;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Effective entry price (may differ from priceOpen after DCA averaging) */
@@ -3047,6 +3073,8 @@ interface OrderStopContract {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to this event */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+    worstStale: IStrategyStale;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Effective entry price (may differ from priceOpen after DCA averaging) */
@@ -3473,8 +3501,89 @@ interface ISignalRow extends ISignalDto {
         price: number;
         timestamp: number;
     } & IStrategyPnL;
+    /**
+     * Worst SURVIVED peak-rollback episode recorded during the life of this
+     * position: the largest giveback from a profit peak that the position came
+     * back from (price recovered to a new peak, or the position closed in
+     * profit). Initialized at position open with a zero episode (trough ==
+     * peak == entry). A rollback in progress lives in `_staleCandidate` and is
+     * committed here at the recovery moment (or at a profitable close) when its
+     * giveback exceeds the stored episode's. A terminal collapse into
+     * stop_loss/liquidation is NOT committed — that failure is already
+     * described by `_fall`/pnl. The breakeven* pair inside is tracked
+     * independently on every tick: the last moment realizable PNL was >= 0.
+     * Calibration analytics (see IStrategyStale): effective trailingTake =
+     * giveback, effective profitLock = trough PNL, effective hold time =
+     * peakTimestamp - pendingAt, staleness duration = timestamp - peakTimestamp.
+     */
+    _stale: IStrategyStale;
+    /**
+     * Rollback currently in progress (episode-in-flight): the trough since the
+     * peak it fell from, snapshotted in the same IStrategyStale shape (its
+     * breakeven* fields stay 0 — the global breakeven point lives on `_stale`).
+     * Created when the realizable PNL drops below a positive `_peak`, deepened
+     * while the rollback lasts, and either committed into `_stale` at the
+     * recovery moment / profitable close or discarded when the position dies
+     * (stop_loss/liquidation) — an unfinished rollback is not a survived one.
+     * Absent while no rollback from a positive peak is running.
+     */
+    _staleCandidate?: IStrategyStale;
     /** Unix timestamp in milliseconds when this signal was created/scheduled in backtest context or when getSignal was called in live context (before validation) */
     timestamp: number;
+}
+/**
+ * Worst SURVIVED peak-rollback episode of a position — the analytics record
+ * behind `_stale` (mirrors the `_peak`/`_fall` snapshot idiom).
+ *
+ * An episode is committed only when the position OUTLIVES the rollback: the
+ * price recovers back to (a new) peak, or the position closes in profit. A
+ * terminal collapse into stop_loss/liquidation is NOT an episode — that
+ * failure is already described by `maxDrawdown`/`pnl`, so `worstStale` stays
+ * on the deepest shakeout the position actually came back from.
+ *
+ * The IStrategyPnL part plus price/timestamp describe the TROUGH of the
+ * episode; the peak* fields snapshot the peak the rollback fell from.
+ * Derived calibration values for strategy knobs:
+ * - trailingTake: `peakPnlPercentage - pnlPercentage` (max survived giveback —
+ *   a trailing distance below it would have been shaken out on noise);
+ * - profitLock: `pnlPercentage` (PNL at the rollback bottom; >= 0 means a
+ *   breakeven-or-better exit stayed reachable through the worst rollback);
+ * - holdMinutes: `(peakTimestamp - pendingAt) / 60000` (time to the peak
+ *   the worst rollback started from);
+ * - staleness: `(timestamp - peakTimestamp) / 60000` (how long the rollback
+ *   ran from the peak to its worst point).
+ *
+ * The breakeven* pair is tracked INDEPENDENTLY of episodes across the whole
+ * position life: the last moment the realizable PNL was >= 0. For a
+ * stopped-out trade it answers "until when would a profit-lock exit still
+ * have saved the position". Both are 0 while the PNL has never covered the
+ * round-trip costs.
+ *
+ * NOTE — one-sided by construction (survivorship is the definition, not a
+ * bias): a survived episode says holding through it was RIGHT (the price
+ * exceeded its peak afterwards), so its giveback is the LOWER bound for a
+ * trailing-take distance. The UPPER bound comes from the trades that died:
+ * their fatal rollback stays in `_staleCandidate` (episode-in-flight at
+ * close). Calibrate from the pair: d > worstStale giveback of profitable
+ * trades AND d < candidate giveback of stopped-out ones.
+ */
+interface IStrategyStale extends IStrategyPnL {
+    /** VWAP price at the trough of the worst survived rollback episode */
+    price: number;
+    /** Unix timestamp in milliseconds when the trough was recorded */
+    timestamp: number;
+    /** Price of the peak snapshot this episode rolled back from */
+    peakPrice: number;
+    /** Unix timestamp in milliseconds when that peak was set */
+    peakTimestamp: number;
+    /** Realizable PNL percentage at that peak (leveraged, costs included) */
+    peakPnlPercentage: number;
+    /** Realizable PNL cost (USD) at that peak */
+    peakPnlCost: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    breakevenPrice: number;
+    /** Unix timestamp in milliseconds of the last moment realizable PNL was >= 0 (0 = never) */
+    breakevenTimestamp: number;
 }
 /**
  * Scheduled signal row for delayed entry at specific price.
@@ -3550,6 +3659,16 @@ interface IPublicSignalRow extends ISignalRow {
      * Calculated using the worst unfavorable price reached (for long: min price below entry, for short: max price above entry) and the original entry price.
      */
     maxDrawdown: IStrategyPnL;
+    /**
+     * Worst SURVIVED peak-rollback episode recorded up to the moment this public signal
+     * was created. Mirrors `_stale`: the trough snapshot of the largest giveback the
+     * position came back from, paired with the peak it fell from, plus the last-breakeven
+     * point (last moment realizable PNL was >= 0). A zero episode (trough == peak, zero
+     * PNL) means no rollback from a positive peak has been survived yet.
+     * Used to calibrate trailingTake (giveback), profitLock (trough PNL), holdMinutes
+     * (entry -> peak) and peak-staleness duration (peak -> trough) per trade.
+     */
+    worstStale: IStrategyStale;
 }
 /**
  * Base storage signal row fields shared by all status variants.
@@ -5016,6 +5135,75 @@ interface IStrategy {
      * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
      */
     getMaxDrawdownDistancePnlCost: (symbol: string, currentPrice: number) => Promise<number | null>;
+    /**
+     * Returns the VWAP price at the trough of the worst peak-rollback episode (`_stale`).
+     *
+     * @param symbol - Trading pair symbol
+     * @returns Promise resolving to price or null when no pending signal exists
+     */
+    getPositionWorstStalePrice: (symbol: string) => Promise<number | null>;
+    /**
+     * Returns the timestamp when the trough of the worst peak-rollback episode was recorded.
+     *
+     * @param symbol - Trading pair symbol
+     * @returns Promise resolving to timestamp in milliseconds or null when no pending signal exists
+     */
+    getPositionWorstStaleTimestamp: (symbol: string) => Promise<number | null>;
+    /**
+     * Returns the realizable PnL percentage at the trough of the worst peak-rollback episode.
+     * Effective profitLock: >= 0 means a breakeven-or-better exit was reachable during the worst rollback.
+     *
+     * @param symbol - Trading pair symbol
+     * @returns Promise resolving to PnL percentage or null when no pending signal exists
+     */
+    getPositionWorstStalePnlPercentage: (symbol: string) => Promise<number | null>;
+    /**
+     * Returns the realizable PnL cost (USD) at the trough of the worst peak-rollback episode.
+     *
+     * @param symbol - Trading pair symbol
+     * @returns Promise resolving to PnL cost or null when no pending signal exists
+     */
+    getPositionWorstStalePnlCost: (symbol: string) => Promise<number | null>;
+    /**
+     * Returns the giveback of the worst peak-rollback episode in PnL percentage.
+     * Computed as: stale.peakPnlPercentage - stale.pnlPercentage. Effective trailingTake distance.
+     *
+     * @param symbol - Trading pair symbol
+     * @returns Promise resolving to giveback PnL% (>= 0) or null when no pending signal exists
+     */
+    getPositionWorstStaleGivebackPnlPercentage: (symbol: string) => Promise<number | null>;
+    /**
+     * Returns the giveback of the worst peak-rollback episode in PnL cost (USD).
+     * Computed as: stale.peakPnlCost - stale.pnlCost.
+     *
+     * @param symbol - Trading pair symbol
+     * @returns Promise resolving to giveback PnL cost (>= 0) or null when no pending signal exists
+     */
+    getPositionWorstStaleGivebackPnlCost: (symbol: string) => Promise<number | null>;
+    /**
+     * Returns the duration of the worst peak-rollback episode in minutes (peak -> trough).
+     * Effective peak-staleness duration for calibrating hold/staleness thresholds.
+     *
+     * @param symbol - Trading pair symbol
+     * @returns Promise resolving to minutes (>= 0) or null when no pending signal exists
+     */
+    getPositionWorstStaleMinutes: (symbol: string) => Promise<number | null>;
+    /**
+     * Returns the minutes from position open (pendingAt) to the peak the worst rollback fell from.
+     * Effective holdMinutes: how long the position had to be held to reach that peak.
+     *
+     * @param symbol - Trading pair symbol
+     * @returns Promise resolving to minutes (>= 0) or null when no pending signal exists
+     */
+    getPositionWorstStaleHoldMinutes: (symbol: string) => Promise<number | null>;
+    /**
+     * Returns the realizable PnL percentage at the peak the worst rollback fell from.
+     * Effective peak-staleness profit threshold (the profit level that later went stale).
+     *
+     * @param symbol - Trading pair symbol
+     * @returns Promise resolving to PnL percentage (>= 0) or null when no pending signal exists
+     */
+    getPositionWorstStalePeakPnlPercentage: (symbol: string) => Promise<number | null>;
     /**
      * Disposes the strategy instance and cleans up resources.
      *
@@ -8115,6 +8303,159 @@ declare function getMaxDrawdownDistancePnlPercentage(symbol: string): Promise<nu
  */
 declare function getMaxDrawdownDistancePnlCost(symbol: string): Promise<number>;
 /**
+ * Returns the VWAP price at the trough of the worst peak-rollback episode (`_stale`).
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to price or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStalePrice } from "backtest-kit";
+ *
+ * const troughPrice = await getPositionWorstStalePrice("BTCUSDT");
+ * // e.g. 43800
+ * ```
+ */
+declare function getPositionWorstStalePrice(symbol: string): Promise<number>;
+/**
+ * Returns the timestamp when the trough of the worst peak-rollback episode was recorded.
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to timestamp in milliseconds or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStaleTimestamp } from "backtest-kit";
+ *
+ * const ts = await getPositionWorstStaleTimestamp("BTCUSDT");
+ * // e.g. 1700000000000
+ * ```
+ */
+declare function getPositionWorstStaleTimestamp(symbol: string): Promise<number>;
+/**
+ * Returns the realizable PnL percentage at the trough of the worst peak-rollback episode (effective profitLock; ≥ 0 means a breakeven-or-better exit stayed reachable).
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to PnL percentage or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStalePnlPercentage } from "backtest-kit";
+ *
+ * const profitLock = await getPositionWorstStalePnlPercentage("BTCUSDT");
+ * // e.g. 0.8 (rollback bottom stayed above breakeven)
+ * ```
+ */
+declare function getPositionWorstStalePnlPercentage(symbol: string): Promise<number>;
+/**
+ * Returns the realizable PnL cost (in quote currency) at the trough of the worst peak-rollback episode.
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to PnL cost or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStalePnlCost } from "backtest-kit";
+ *
+ * const troughCost = await getPositionWorstStalePnlCost("BTCUSDT");
+ * // e.g. 1.6
+ * ```
+ */
+declare function getPositionWorstStalePnlCost(symbol: string): Promise<number>;
+/**
+ * Returns the giveback of the worst peak-rollback episode in PnL percentage (effective trailingTake distance).
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to giveback PnL% (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStaleGivebackPnlPercentage } from "backtest-kit";
+ *
+ * const giveback = await getPositionWorstStaleGivebackPnlPercentage("BTCUSDT");
+ * // e.g. 2.7 (fell 2.7% from the peak)
+ * ```
+ */
+declare function getPositionWorstStaleGivebackPnlPercentage(symbol: string): Promise<number>;
+/**
+ * Returns the giveback of the worst peak-rollback episode in PnL cost (quote currency).
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to giveback PnL cost (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStaleGivebackPnlCost } from "backtest-kit";
+ *
+ * const giveback = await getPositionWorstStaleGivebackPnlCost("BTCUSDT");
+ * // e.g. 5.4 (fell $5.4 from the peak)
+ * ```
+ */
+declare function getPositionWorstStaleGivebackPnlCost(symbol: string): Promise<number>;
+/**
+ * Returns the duration of the worst peak-rollback episode in minutes (peak -> trough, effective staleness duration).
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to minutes (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStaleMinutes } from "backtest-kit";
+ *
+ * const minutes = await getPositionWorstStaleMinutes("BTCUSDT");
+ * // e.g. 45 (rollback ran 45 minutes from peak to trough)
+ * ```
+ */
+declare function getPositionWorstStaleMinutes(symbol: string): Promise<number>;
+/**
+ * Returns the minutes from position open to the peak the worst rollback fell from (effective holdMinutes).
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to minutes (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStaleHoldMinutes } from "backtest-kit";
+ *
+ * const minutes = await getPositionWorstStaleHoldMinutes("BTCUSDT");
+ * // e.g. 120 (peak was set 2 hours after open)
+ * ```
+ */
+declare function getPositionWorstStaleHoldMinutes(symbol: string): Promise<number>;
+/**
+ * Returns the realizable PnL percentage at the peak the worst rollback fell from (effective staleness profit threshold).
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to PnL percentage (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStalePeakPnlPercentage } from "backtest-kit";
+ *
+ * const peakPnl = await getPositionWorstStalePeakPnlPercentage("BTCUSDT");
+ * // e.g. 3.5 (rollback started from +3.5%)
+ * ```
+ */
+declare function getPositionWorstStalePeakPnlPercentage(symbol: string): Promise<number>;
+/**
  * Checks whether the current price falls within the tolerance zone of any existing DCA entry level.
  * Use this to prevent duplicate DCA entries at the same price area.
  *
@@ -10428,6 +10769,8 @@ interface OrderFillBase {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position so far */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+    worstStale: IStrategyStale;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Effective entry price (DCA-averaged when entries exist) */
@@ -10540,6 +10883,8 @@ interface OrderRejectBase {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position so far */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+    worstStale: IStrategyStale;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Effective entry price (DCA-averaged when entries exist) */
@@ -10644,6 +10989,34 @@ interface MaxDrawdownContract {
     /** Frame name for context (e.g. "1m", "5m") */
     frameName: FrameName;
     /** Public signal data for the position associated with this max drawdown update */
+    signal: IPublicSignalRow;
+    /** Indicates if the update is from a backtest or live trading (true for backtest, false for live) */
+    backtest: boolean;
+}
+
+/**
+ * Contract for worst peak-rollback (stale) episode updates emitted by the framework.
+ * This contract defines the structure of the data emitted when the worst giveback from
+ * a profit peak recorded for an open position grows to a new record (see IStrategyStale).
+ * It includes contextual information about the strategy, exchange, frame, and the associated signal.
+ * Consumers can use this information to calibrate trailing-take distance, profit-lock level,
+ * hold time and peak-staleness thresholds from live observations.
+ * The backtest flag allows consumers to differentiate between live and backtest updates for appropriate handling.
+ */
+interface WorstStaleContract {
+    /** Trading symbol (e.g. "BTC/USDT") */
+    symbol: string;
+    /** Current price at the time of the worst-stale update */
+    currentPrice: number;
+    /** Timestamp of the worst-stale update (milliseconds since epoch) */
+    timestamp: number;
+    /** Strategy name for context */
+    strategyName: StrategyName;
+    /** Exchange name for context */
+    exchangeName: ExchangeName;
+    /** Frame name for context (e.g. "1m", "5m") */
+    frameName: FrameName;
+    /** Public signal data for the position associated with this worst-stale update (carries the episode in `worstStale`) */
     signal: IPublicSignalRow;
     /** Indicates if the update is from a backtest or live trading (true for backtest, false for live) */
     backtest: boolean;
@@ -12211,6 +12584,25 @@ declare function listenMaxDrawdown(fn: (event: MaxDrawdownContract) => void): ()
  */
 declare function listenMaxDrawdownOnce(filterFn: (event: MaxDrawdownContract) => boolean, fn: (event: MaxDrawdownContract) => void): () => void;
 /**
+ * Subscribes to worst stale (peak-rollback) events with queued async processing.
+ * Emits when the worst giveback from a profit peak recorded for a signal grows to a new record during its lifecycle.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ * Useful for calibrating trailingTake, profitLock, holdMinutes and peak-staleness thresholds from live observations.
+ * @param fn - Callback function to handle worst stale events
+ * @return Unsubscribe function to stop listening to events
+ */
+declare function listenWorstStale(fn: (event: WorstStaleContract) => void): () => void;
+/**
+ * Subscribes to filtered worst stale events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific rollback conditions.
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @return Unsubscribe function to cancel the listener before it fires
+ */
+declare function listenWorstStaleOnce(filterFn: (event: WorstStaleContract) => boolean, fn: (event: WorstStaleContract) => void): () => void;
+/**
  * Subscribes to signal info events with queued async processing.
  * Emits when a strategy calls commitSignalInfo() to broadcast a user-defined note for an open position.
  * Events are processed sequentially in order received, even if callback is async.
@@ -12515,6 +12907,17 @@ declare function listenHighestProfitPerSignal(filterFn: (event: HighestProfitCon
  * @returns Unsubscribe function to stop listening
  */
 declare function listenMaxDrawdownPerSignal(filterFn: (event: MaxDrawdownContract) => boolean, fn: (event: MaxDrawdownContract) => void): () => void;
+/**
+ * Subscribes to worst stale (peak-rollback) events, delivering the callback once per new signal id.
+ *
+ * Deduplicates on `event.signal.id` — the first rollback matching the predicate
+ * is reported, later deeper rollbacks of the same signal are suppressed.
+ *
+ * @param filterFn - Predicate selecting which events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenWorstStalePerSignal(filterFn: (event: WorstStaleContract) => boolean, fn: (event: WorstStaleContract) => void): () => void;
 /**
  * Subscribes to signal info events, delivering the callback once per new signal id.
  *
@@ -14750,6 +15153,8 @@ interface SignalOpenedNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -14780,6 +15185,26 @@ interface SignalOpenedNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -14846,6 +15271,8 @@ interface SignalClosedNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
     pnlPriceOpen: number;
     /** Exit price from PNL calculation (adjusted with slippage and fees) */
@@ -14874,6 +15301,26 @@ interface SignalClosedNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Why signal closed (time_expired | take_profit | stop_loss | closed) */
     closeReason: string;
     /** Duration of position in minutes (from pendingAt to closeTimestamp) */
@@ -14942,6 +15389,8 @@ interface PartialProfitAvailableNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -14972,6 +15421,26 @@ interface PartialProfitAvailableNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -15036,6 +15505,8 @@ interface PartialLossAvailableNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -15066,6 +15537,26 @@ interface PartialLossAvailableNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -15128,6 +15619,8 @@ interface BreakevenAvailableNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -15158,6 +15651,26 @@ interface BreakevenAvailableNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -15222,6 +15735,8 @@ interface PartialProfitCommitNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -15252,6 +15767,26 @@ interface PartialProfitCommitNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -15316,6 +15851,8 @@ interface PartialLossCommitNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -15346,6 +15883,26 @@ interface PartialLossCommitNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -15408,6 +15965,8 @@ interface BreakevenCommitNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -15438,6 +15997,26 @@ interface BreakevenCommitNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -15502,6 +16081,8 @@ interface AverageBuyCommitNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -15532,6 +16113,26 @@ interface AverageBuyCommitNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -15594,6 +16195,8 @@ interface ActivateScheduledCommitNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -15624,6 +16227,26 @@ interface ActivateScheduledCommitNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -15690,6 +16313,8 @@ interface TrailingStopCommitNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -15720,6 +16345,26 @@ interface TrailingStopCommitNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -15784,6 +16429,8 @@ interface TrailingTakeCommitNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -15814,6 +16461,26 @@ interface TrailingTakeCommitNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -15860,6 +16527,8 @@ interface OrderSyncOpenNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage */
     pnlPercentage: number;
     /** Entry price from PNL calculation */
@@ -15890,6 +16559,26 @@ interface OrderSyncOpenNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Cost of the position entry in USD */
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
@@ -15954,6 +16643,8 @@ interface OrderSyncCloseNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage */
     pnlPercentage: number;
     /** Entry price from PNL calculation */
@@ -15984,6 +16675,26 @@ interface OrderSyncCloseNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Effective entry price at close */
@@ -16083,6 +16794,8 @@ interface OrderSyncCheckNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment of the ping */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -16113,6 +16826,26 @@ interface OrderSyncCheckNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -16190,6 +16923,8 @@ interface OrderContinueCheckNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment of the check */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -16220,6 +16955,26 @@ interface OrderContinueCheckNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -16298,6 +17053,8 @@ interface OrderStopCheckNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment of the check */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -16328,6 +17085,26 @@ interface OrderStopCheckNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -16378,6 +17155,8 @@ interface OrderFillOpenNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage */
     pnlPercentage: number;
     /** Entry price from PNL calculation */
@@ -16408,6 +17187,26 @@ interface OrderFillOpenNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Cost of the position entry in USD */
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
@@ -16478,6 +17277,8 @@ interface OrderFillCloseNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage */
     pnlPercentage: number;
     /** Entry price from PNL calculation */
@@ -16508,6 +17309,26 @@ interface OrderFillCloseNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Effective entry price at close */
@@ -16587,6 +17408,8 @@ interface OrderRejectOpenNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage */
     pnlPercentage: number;
     /** Entry price from PNL calculation */
@@ -16617,6 +17440,26 @@ interface OrderRejectOpenNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Cost of the position entry in USD */
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
@@ -16689,6 +17532,8 @@ interface OrderRejectCloseNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage */
     pnlPercentage: number;
     /** Entry price from PNL calculation */
@@ -16719,6 +17564,26 @@ interface OrderRejectCloseNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Effective entry price at close */
@@ -16853,6 +17718,8 @@ interface SignalScheduledNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -16883,6 +17750,26 @@ interface SignalScheduledNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Unix timestamp in milliseconds when signal was scheduled */
     scheduledAt: number;
     /** Current market price when signal was scheduled */
@@ -16948,6 +17835,8 @@ interface SignalCancelledNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown snapshot (zero for a signal cancelled before activation) */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode snapshot (zero for a signal cancelled before activation) */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -16978,6 +17867,26 @@ interface SignalCancelledNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Why signal was cancelled (timeout | price_reject | user) */
     cancelReason: string;
     /** Optional cancellation identifier (provided when user calls cancel()) */
@@ -17129,6 +18038,8 @@ interface CancelScheduledCommitNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -17159,6 +18070,26 @@ interface CancelScheduledCommitNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Unix timestamp in milliseconds when the notification was created */
@@ -17223,6 +18154,8 @@ interface ClosePendingCommitNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -17253,6 +18186,26 @@ interface ClosePendingCommitNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Unix timestamp in milliseconds when the notification was created */
@@ -17311,6 +18264,8 @@ interface SignalInfoNotification {
     peakProfit: IStrategyPnL;
     /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
     maxDrawdown: IStrategyPnL;
+    /** Worst peak-rollback episode recorded during the life of this position up to the moment this public signal was created */
+    worstStale: IStrategyStale;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -17341,6 +18296,26 @@ interface SignalInfoNotification {
     maxDrawdownPercentage: number;
     /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
     maxDrawdownEntries: number;
+    /** Entry price from PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceOpen: number;
+    /** Exit price for PNL calculation at the trough of the worst peak-rollback episode */
+    worstStalePriceClose: number;
+    /** Absolute profit/loss in USD at the trough of the worst peak-rollback episode */
+    worstStaleCost: number;
+    /** Profit/loss as percentage at the trough of the worst peak-rollback episode */
+    worstStalePercentage: number;
+    /** Number of entries executed at the trough of the worst peak-rollback episode */
+    worstStaleEntries: number;
+    /** Profit/loss as percentage at the peak the worst rollback episode fell from */
+    worstStalePeakPercentage: number;
+    /** Giveback from peak to trough of the worst rollback episode (peak PNL percentage minus trough PNL percentage, effective trailing-take distance) */
+    worstStaleGivebackPercentage: number;
+    /** Duration in minutes from the peak to the trough of the worst rollback episode */
+    worstStaleMinutes: number;
+    /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenPrice: number;
+    /** Timestamp (ms) of the last moment realizable PNL was >= 0 (0 = never) */
+    worstStaleBreakevenTimestamp: number;
     /** User-defined informational note provided by the strategy */
     note: string;
     /** Optional user-defined identifier for correlating this notification with external systems */
@@ -17445,6 +18420,10 @@ interface TickEvent {
     peakPnl?: number;
     /** Fall PNL percentage at worst price during position (_fall.pnlPercentage, only for closed) */
     fallPnl?: number;
+    /** Giveback percentage of the worst peak-rollback episode (_stale.peakPnlPercentage - _stale.pnlPercentage, only for closed) */
+    staleGiveback?: number;
+    /** Staleness duration in minutes of the worst peak-rollback episode (_stale, peak to trough, only for closed) */
+    staleMinutes?: number;
 }
 /**
  * Statistical data calculated from live trading results.
@@ -28701,6 +29680,222 @@ declare class ReflectUtils {
         exchangeName: ExchangeName;
         frameName: FrameName;
     }, backtest?: boolean) => Promise<number>;
+    /**
+     * Returns the VWAP price at the trough of the worst peak-rollback episode (`_stale`).
+     *
+     * Throws if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to price
+     *
+     * @example
+     * ```typescript
+     * const troughPrice = await Reflect.getPositionWorstStalePrice(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Stale trough price: ${troughPrice}`);
+     * ```
+     */
+    getPositionWorstStalePrice: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number>;
+    /**
+     * Returns the timestamp when the trough of the worst peak-rollback episode was recorded.
+     *
+     * Throws if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to timestamp in milliseconds
+     *
+     * @example
+     * ```typescript
+     * const ts = await Reflect.getPositionWorstStaleTimestamp(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Stale trough at: ${new Date(ts).toISOString()}`);
+     * ```
+     */
+    getPositionWorstStaleTimestamp: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number>;
+    /**
+     * Returns the realizable PnL percentage at the trough of the worst peak-rollback episode (effective profitLock; ≥ 0 means a breakeven-or-better exit stayed reachable).
+     *
+     * Throws if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to PnL percentage
+     *
+     * @example
+     * ```typescript
+     * const profitLock = await Reflect.getPositionWorstStalePnlPercentage(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Effective profitLock: ${profitLock}%`);
+     * ```
+     */
+    getPositionWorstStalePnlPercentage: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number>;
+    /**
+     * Returns the realizable PnL cost (in quote currency) at the trough of the worst peak-rollback episode.
+     *
+     * Throws if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to PnL cost
+     *
+     * @example
+     * ```typescript
+     * const troughCost = await Reflect.getPositionWorstStalePnlCost(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Stale trough PnL: $${troughCost}`);
+     * ```
+     */
+    getPositionWorstStalePnlCost: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number>;
+    /**
+     * Returns the giveback of the worst peak-rollback episode in PnL percentage (effective trailingTake distance).
+     *
+     * Throws if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to giveback PnL% (≥ 0)
+     *
+     * @example
+     * ```typescript
+     * const giveback = await Reflect.getPositionWorstStaleGivebackPnlPercentage(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Effective trailingTake: ${giveback}%`);
+     * ```
+     */
+    getPositionWorstStaleGivebackPnlPercentage: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number>;
+    /**
+     * Returns the giveback of the worst peak-rollback episode in PnL cost (quote currency).
+     *
+     * Throws if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to giveback PnL cost (≥ 0)
+     *
+     * @example
+     * ```typescript
+     * const giveback = await Reflect.getPositionWorstStaleGivebackPnlCost(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Gave back $${giveback} from peak`);
+     * ```
+     */
+    getPositionWorstStaleGivebackPnlCost: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number>;
+    /**
+     * Returns the duration of the worst peak-rollback episode in minutes (peak -> trough, effective staleness duration).
+     *
+     * Throws if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to minutes (≥ 0)
+     *
+     * @example
+     * ```typescript
+     * const minutes = await Reflect.getPositionWorstStaleMinutes(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Rollback ran ${minutes} minutes`);
+     * ```
+     */
+    getPositionWorstStaleMinutes: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number>;
+    /**
+     * Returns the minutes from position open to the peak the worst rollback fell from (effective holdMinutes).
+     *
+     * Throws if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to minutes (≥ 0)
+     *
+     * @example
+     * ```typescript
+     * const minutes = await Reflect.getPositionWorstStaleHoldMinutes(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Effective holdMinutes: ${minutes}`);
+     * ```
+     */
+    getPositionWorstStaleHoldMinutes: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number>;
+    /**
+     * Returns the realizable PnL percentage at the peak the worst rollback fell from (effective staleness profit threshold).
+     *
+     * Throws if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to PnL percentage (≥ 0)
+     *
+     * @example
+     * ```typescript
+     * const peakPnl = await Reflect.getPositionWorstStalePeakPnlPercentage(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Rollback started from +${peakPnl}%`);
+     * ```
+     */
+    getPositionWorstStalePeakPnlPercentage: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number>;
 }
 /**
  * Singleton instance of ReflectUtils for convenient position state queries.
@@ -36436,6 +37631,12 @@ declare const highestProfitSubject: Subject<HighestProfitContract>;
  */
 declare const maxDrawdownSubject: Subject<MaxDrawdownContract>;
 /**
+ * Worst peak-rollback (stale) episode emitter for real-time giveback tracking.
+ * Emits when the worst giveback from a profit peak recorded for an open position grows to a new record.
+ * Allows users to calibrate trailing-take, profit-lock, hold-time and peak-staleness thresholds from observed rollbacks.
+ */
+declare const worstStaleSubject: Subject<WorstStaleContract>;
+/**
  * Pause state emitter for strategy pause/resume tracking.
  * Emits when setPaused toggles the pause flag of a strategy (new position
  * opening suspended/resumed; existing signals keep closing normally).
@@ -36505,8 +37706,9 @@ declare const emitters_validationSubject: typeof validationSubject;
 declare const emitters_walkerCompleteSubject: typeof walkerCompleteSubject;
 declare const emitters_walkerEmitter: typeof walkerEmitter;
 declare const emitters_walkerStopSubject: typeof walkerStopSubject;
+declare const emitters_worstStaleSubject: typeof worstStaleSubject;
 declare namespace emitters {
-  export { emitters_activePingSubject as activePingSubject, emitters_afterEndSubject as afterEndSubject, emitters_backtestScheduleOpenSubject as backtestScheduleOpenSubject, emitters_beforeStartSubject as beforeStartSubject, emitters_breakevenSubject as breakevenSubject, emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_entrySubject as entrySubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_highestProfitSubject as highestProfitSubject, emitters_idlePingSubject as idlePingSubject, emitters_maxDrawdownSubject as maxDrawdownSubject, emitters_orderContinueSubject as orderContinueSubject, emitters_orderFillSubject as orderFillSubject, emitters_orderRejectSubject as orderRejectSubject, emitters_orderStopSubject as orderStopSubject, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_pauseSubject as pauseSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_scheduleEventSubject as scheduleEventSubject, emitters_schedulePingSubject as schedulePingSubject, emitters_shutdownEmitter as shutdownEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalEventSubject as signalEventSubject, emitters_signalLiveEmitter as signalLiveEmitter, emitters_signalNotifySubject as signalNotifySubject, emitters_strategyCommitSubject as strategyCommitSubject, emitters_syncPendingSubject as syncPendingSubject, emitters_syncSubject as syncSubject, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
+  export { emitters_activePingSubject as activePingSubject, emitters_afterEndSubject as afterEndSubject, emitters_backtestScheduleOpenSubject as backtestScheduleOpenSubject, emitters_beforeStartSubject as beforeStartSubject, emitters_breakevenSubject as breakevenSubject, emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_entrySubject as entrySubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_highestProfitSubject as highestProfitSubject, emitters_idlePingSubject as idlePingSubject, emitters_maxDrawdownSubject as maxDrawdownSubject, emitters_orderContinueSubject as orderContinueSubject, emitters_orderFillSubject as orderFillSubject, emitters_orderRejectSubject as orderRejectSubject, emitters_orderStopSubject as orderStopSubject, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_pauseSubject as pauseSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_scheduleEventSubject as scheduleEventSubject, emitters_schedulePingSubject as schedulePingSubject, emitters_shutdownEmitter as shutdownEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalEventSubject as signalEventSubject, emitters_signalLiveEmitter as signalLiveEmitter, emitters_signalNotifySubject as signalNotifySubject, emitters_strategyCommitSubject as strategyCommitSubject, emitters_syncPendingSubject as syncPendingSubject, emitters_syncSubject as syncSubject, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject, emitters_worstStaleSubject as worstStaleSubject };
 }
 
 /**
@@ -39171,6 +40373,150 @@ declare class StrategyConnectionService implements TStrategy$1 {
         frameName: FrameName;
     }) => Promise<number | null>;
     /**
+     * Returns the VWAP price at the trough of the worst peak-rollback episode.
+     *
+     * Delegates to ClientStrategy.getPositionWorstStalePrice().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to price or null
+     */
+    getPositionWorstStalePrice: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the timestamp when the trough of the worst peak-rollback episode was recorded.
+     *
+     * Delegates to ClientStrategy.getPositionWorstStaleTimestamp().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to timestamp in milliseconds or null
+     */
+    getPositionWorstStaleTimestamp: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the realizable PnL percentage at the trough of the worst peak-rollback episode (effective profitLock).
+     *
+     * Delegates to ClientStrategy.getPositionWorstStalePnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to PnL percentage or null
+     */
+    getPositionWorstStalePnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the realizable PnL cost (in quote currency) at the trough of the worst peak-rollback episode.
+     *
+     * Delegates to ClientStrategy.getPositionWorstStalePnlCost().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to PnL cost or null
+     */
+    getPositionWorstStalePnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the giveback of the worst peak-rollback episode in PnL percentage (effective trailingTake distance).
+     *
+     * Delegates to ClientStrategy.getPositionWorstStaleGivebackPnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to giveback PnL% (≥ 0) or null
+     */
+    getPositionWorstStaleGivebackPnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the giveback of the worst peak-rollback episode in PnL cost (quote currency).
+     *
+     * Delegates to ClientStrategy.getPositionWorstStaleGivebackPnlCost().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to giveback PnL cost (≥ 0) or null
+     */
+    getPositionWorstStaleGivebackPnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the duration of the worst peak-rollback episode in minutes (peak -> trough, effective staleness duration).
+     *
+     * Delegates to ClientStrategy.getPositionWorstStaleMinutes().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to minutes (≥ 0) or null
+     */
+    getPositionWorstStaleMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the minutes from position open to the peak the worst rollback fell from (effective holdMinutes).
+     *
+     * Delegates to ClientStrategy.getPositionWorstStaleHoldMinutes().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to minutes (≥ 0) or null
+     */
+    getPositionWorstStaleHoldMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the realizable PnL percentage at the peak the worst rollback fell from (effective staleness profit threshold).
+     *
+     * Delegates to ClientStrategy.getPositionWorstStalePeakPnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to PnL percentage (≥ 0) or null
+     */
+    getPositionWorstStalePeakPnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
      * Disposes the ClientStrategy instance for the given context.
      *
      * Calls dispose callback, then removes strategy from cache.
@@ -41792,6 +43138,150 @@ declare class StrategyCoreService implements TStrategy {
      * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
      */
     getMaxDrawdownDistancePnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the VWAP price at the trough of the worst peak-rollback episode.
+     *
+     * Delegates to StrategyConnectionService.getPositionWorstStalePrice().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to price or null
+     */
+    getPositionWorstStalePrice: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the timestamp when the trough of the worst peak-rollback episode was recorded.
+     *
+     * Delegates to StrategyConnectionService.getPositionWorstStaleTimestamp().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to timestamp in milliseconds or null
+     */
+    getPositionWorstStaleTimestamp: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the realizable PnL percentage at the trough of the worst peak-rollback episode (effective profitLock).
+     *
+     * Delegates to StrategyConnectionService.getPositionWorstStalePnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to PnL percentage or null
+     */
+    getPositionWorstStalePnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the realizable PnL cost (in quote currency) at the trough of the worst peak-rollback episode.
+     *
+     * Delegates to StrategyConnectionService.getPositionWorstStalePnlCost().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to PnL cost or null
+     */
+    getPositionWorstStalePnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the giveback of the worst peak-rollback episode in PnL percentage (effective trailingTake distance).
+     *
+     * Delegates to StrategyConnectionService.getPositionWorstStaleGivebackPnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to giveback PnL% (≥ 0) or null
+     */
+    getPositionWorstStaleGivebackPnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the giveback of the worst peak-rollback episode in PnL cost (quote currency).
+     *
+     * Delegates to StrategyConnectionService.getPositionWorstStaleGivebackPnlCost().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to giveback PnL cost (≥ 0) or null
+     */
+    getPositionWorstStaleGivebackPnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the duration of the worst peak-rollback episode in minutes (peak -> trough, effective staleness duration).
+     *
+     * Delegates to StrategyConnectionService.getPositionWorstStaleMinutes().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to minutes (≥ 0) or null
+     */
+    getPositionWorstStaleMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the minutes from position open to the peak the worst rollback fell from (effective holdMinutes).
+     *
+     * Delegates to StrategyConnectionService.getPositionWorstStaleHoldMinutes().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to minutes (≥ 0) or null
+     */
+    getPositionWorstStaleHoldMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the realizable PnL percentage at the peak the worst rollback fell from (effective staleness profit threshold).
+     *
+     * Delegates to StrategyConnectionService.getPositionWorstStalePeakPnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to PnL percentage (≥ 0) or null
+     */
+    getPositionWorstStalePeakPnlPercentage: (backtest: boolean, symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -45636,4 +47126,4 @@ declare class OrderTransientError extends Error {
     static fromError(error: object): OrderTransientError;
 }
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAgentLogger, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMCPAverageBuyCommand, type IMCPContext, type IMCPImageMessage, type IMCPMessage, type IMCPPositionCloseCommand, type IMCPPositionOpenCommand, type IMCPSchema, type IMCPSignalNotifyCommand, type IMCPTextMessage, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ISweepBest, type ISweepGridAxes, type ISweepGridPoint, type ISweepIdea, type ISweepMetricReport, type ISweepPointReport, type ISweepResult, type ISweepSchema, type ISweepTrack, type ISweepTrade, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Lookup, MCP, type MCPMessageId, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, type OrderContinueContract, OrderDeletedError, type OrderFillCloseContract, type OrderFillContract, type OrderFillOpenContract, type OrderOpenContract, type OrderRejectCloseContract, type OrderRejectContract, type OrderRejectOpenContract, OrderRejectedError, type OrderStopContract, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, OrderTransientError, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, type PauseContract, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyPauseNotification, type StrategyStatisticsModel, type StrategyStatus, Sweep, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addMCPSchema, addRiskSchema, addSizingSchema, addStrategySchema, addSweepSchema, addWalkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, createSignalState, dumpAgentAnswer, dumpError, dumpJson, dumpMCPStatus, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getLiquidationPrice, getMCPSchema, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSignalState, getSizingSchema, getStrategyPaused, getStrategySchema, getStrategyStatus, getSweepSchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getTotalPercentHeld, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStart, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMCPSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listSweepSchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenActivePingPerSignal, listenAfterEnd, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenBreakevenAvailablePerSignal, listenCheck, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenHighestProfitPerSignal, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenMaxDrawdownPerSignal, listenOrderContinue, listenOrderFill, listenOrderReject, listenOrderSchedule, listenOrderSchedulePerSignal, listenOrderStop, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialLossAvailablePerSignal, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPartialProfitAvailablePerSignal, listenPause, listenPauseOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSchedulePingPerSignal, listenSignal, listenSignalActive, listenSignalActivePerSignal, listenSignalBacktest, listenSignalBacktestActive, listenSignalBacktestActivePerSignal, listenSignalBacktestCancelled, listenSignalBacktestCancelledPerSignal, listenSignalBacktestClosed, listenSignalBacktestClosedPerSignal, listenSignalBacktestIdle, listenSignalBacktestOnce, listenSignalBacktestOpened, listenSignalBacktestOpenedPerSignal, listenSignalBacktestPerSignal, listenSignalBacktestScheduled, listenSignalBacktestScheduledPerSignal, listenSignalBacktestWaiting, listenSignalBacktestWaitingPerSignal, listenSignalCancelled, listenSignalCancelledPerSignal, listenSignalClosed, listenSignalClosedPerSignal, listenSignalEvent, listenSignalEventOnce, listenSignalEventPerSignal, listenSignalIdle, listenSignalLive, listenSignalLiveActive, listenSignalLiveActivePerSignal, listenSignalLiveCancelled, listenSignalLiveCancelledPerSignal, listenSignalLiveClosed, listenSignalLiveClosedPerSignal, listenSignalLiveIdle, listenSignalLiveOnce, listenSignalLiveOpened, listenSignalLiveOpenedPerSignal, listenSignalLivePerSignal, listenSignalLiveScheduled, listenSignalLiveScheduledPerSignal, listenSignalLiveWaiting, listenSignalLiveWaitingPerSignal, listenSignalNotify, listenSignalNotifyOnce, listenSignalNotifyPerSignal, listenSignalOnce, listenSignalOpened, listenSignalOpenedPerSignal, listenSignalPerSignal, listenSignalScheduled, listenSignalScheduledPerSignal, listenSignalWaiting, listenSignalWaitingPerSignal, listenStrategyCommit, listenStrategyCommitOnce, listenStrategyCommitPerSignal, listenSync, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideMCPSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideSweepSchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setSignalState, setStrategyPaused, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAgentLogger, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMCPAverageBuyCommand, type IMCPContext, type IMCPImageMessage, type IMCPMessage, type IMCPPositionCloseCommand, type IMCPPositionOpenCommand, type IMCPSchema, type IMCPSignalNotifyCommand, type IMCPTextMessage, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyStale, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ISweepBest, type ISweepGridAxes, type ISweepGridPoint, type ISweepIdea, type ISweepMetricReport, type ISweepPointReport, type ISweepResult, type ISweepSchema, type ISweepTrack, type ISweepTrade, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Lookup, MCP, type MCPMessageId, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, type OrderContinueContract, OrderDeletedError, type OrderFillCloseContract, type OrderFillContract, type OrderFillOpenContract, type OrderOpenContract, type OrderRejectCloseContract, type OrderRejectContract, type OrderRejectOpenContract, OrderRejectedError, type OrderStopContract, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, OrderTransientError, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, type PauseContract, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyPauseNotification, type StrategyStatisticsModel, type StrategyStatus, Sweep, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, type WorstStaleContract, addActionSchema, addExchangeSchema, addFrameSchema, addMCPSchema, addRiskSchema, addSizingSchema, addStrategySchema, addSweepSchema, addWalkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, createSignalState, dumpAgentAnswer, dumpError, dumpJson, dumpMCPStatus, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getLiquidationPrice, getMCPSchema, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPositionWorstStaleGivebackPnlCost, getPositionWorstStaleGivebackPnlPercentage, getPositionWorstStaleHoldMinutes, getPositionWorstStaleMinutes, getPositionWorstStalePeakPnlPercentage, getPositionWorstStalePnlCost, getPositionWorstStalePnlPercentage, getPositionWorstStalePrice, getPositionWorstStaleTimestamp, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSignalState, getSizingSchema, getStrategyPaused, getStrategySchema, getStrategyStatus, getSweepSchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getTotalPercentHeld, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStart, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMCPSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listSweepSchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenActivePingPerSignal, listenAfterEnd, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenBreakevenAvailablePerSignal, listenCheck, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenHighestProfitPerSignal, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenMaxDrawdownPerSignal, listenOrderContinue, listenOrderFill, listenOrderReject, listenOrderSchedule, listenOrderSchedulePerSignal, listenOrderStop, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialLossAvailablePerSignal, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPartialProfitAvailablePerSignal, listenPause, listenPauseOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSchedulePingPerSignal, listenSignal, listenSignalActive, listenSignalActivePerSignal, listenSignalBacktest, listenSignalBacktestActive, listenSignalBacktestActivePerSignal, listenSignalBacktestCancelled, listenSignalBacktestCancelledPerSignal, listenSignalBacktestClosed, listenSignalBacktestClosedPerSignal, listenSignalBacktestIdle, listenSignalBacktestOnce, listenSignalBacktestOpened, listenSignalBacktestOpenedPerSignal, listenSignalBacktestPerSignal, listenSignalBacktestScheduled, listenSignalBacktestScheduledPerSignal, listenSignalBacktestWaiting, listenSignalBacktestWaitingPerSignal, listenSignalCancelled, listenSignalCancelledPerSignal, listenSignalClosed, listenSignalClosedPerSignal, listenSignalEvent, listenSignalEventOnce, listenSignalEventPerSignal, listenSignalIdle, listenSignalLive, listenSignalLiveActive, listenSignalLiveActivePerSignal, listenSignalLiveCancelled, listenSignalLiveCancelledPerSignal, listenSignalLiveClosed, listenSignalLiveClosedPerSignal, listenSignalLiveIdle, listenSignalLiveOnce, listenSignalLiveOpened, listenSignalLiveOpenedPerSignal, listenSignalLivePerSignal, listenSignalLiveScheduled, listenSignalLiveScheduledPerSignal, listenSignalLiveWaiting, listenSignalLiveWaitingPerSignal, listenSignalNotify, listenSignalNotifyOnce, listenSignalNotifyPerSignal, listenSignalOnce, listenSignalOpened, listenSignalOpenedPerSignal, listenSignalPerSignal, listenSignalScheduled, listenSignalScheduledPerSignal, listenSignalWaiting, listenSignalWaitingPerSignal, listenStrategyCommit, listenStrategyCommitOnce, listenStrategyCommitPerSignal, listenSync, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, listenWorstStale, listenWorstStaleOnce, listenWorstStalePerSignal, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideMCPSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideSweepSchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setSignalState, setStrategyPaused, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };

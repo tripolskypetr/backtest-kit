@@ -69,6 +69,15 @@ const GET_POSITION_HIGHEST_MAX_DRAWDOWN_PNL_PERCENTAGE_METHOD_NAME = "strategy.g
 const GET_POSITION_HIGHEST_MAX_DRAWDOWN_PNL_COST_METHOD_NAME = "strategy.getPositionHighestMaxDrawdownPnlCost";
 const GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE_METHOD_NAME = "strategy.getMaxDrawdownDistancePnlPercentage";
 const GET_MAX_DRAWDOWN_DISTANCE_PNL_COST_METHOD_NAME = "strategy.getMaxDrawdownDistancePnlCost";
+const GET_POSITION_WORST_STALE_PRICE_METHOD_NAME = "strategy.getPositionWorstStalePrice";
+const GET_POSITION_WORST_STALE_TIMESTAMP_METHOD_NAME = "strategy.getPositionWorstStaleTimestamp";
+const GET_POSITION_WORST_STALE_PNL_PERCENTAGE_METHOD_NAME = "strategy.getPositionWorstStalePnlPercentage";
+const GET_POSITION_WORST_STALE_PNL_COST_METHOD_NAME = "strategy.getPositionWorstStalePnlCost";
+const GET_POSITION_WORST_STALE_GIVEBACK_PNL_PERCENTAGE_METHOD_NAME = "strategy.getPositionWorstStaleGivebackPnlPercentage";
+const GET_POSITION_WORST_STALE_GIVEBACK_PNL_COST_METHOD_NAME = "strategy.getPositionWorstStaleGivebackPnlCost";
+const GET_POSITION_WORST_STALE_MINUTES_METHOD_NAME = "strategy.getPositionWorstStaleMinutes";
+const GET_POSITION_WORST_STALE_HOLD_MINUTES_METHOD_NAME = "strategy.getPositionWorstStaleHoldMinutes";
+const GET_POSITION_WORST_STALE_PEAK_PNL_PERCENTAGE_METHOD_NAME = "strategy.getPositionWorstStalePeakPnlPercentage";
 const GET_POSITION_ENTRY_OVERLAP_METHOD_NAME = "strategy.getPositionEntryOverlap";
 const GET_POSITION_PARTIAL_OVERLAP_METHOD_NAME = "strategy.getPositionPartialOverlap";
 const HAS_NO_PENDING_SIGNAL_METHOD_NAME = "strategy.hasNoPendingSignal";
@@ -2667,6 +2676,303 @@ export async function getMaxDrawdownDistancePnlCost(symbol: string) {
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
   return await backtest.strategyCoreService.getMaxDrawdownDistancePnlCost(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the VWAP price at the trough of the worst peak-rollback episode (`_stale`).
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to price or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStalePrice } from "backtest-kit";
+ *
+ * const troughPrice = await getPositionWorstStalePrice("BTCUSDT");
+ * // e.g. 43800
+ * ```
+ */
+export async function getPositionWorstStalePrice(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_WORST_STALE_PRICE_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionWorstStalePrice requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionWorstStalePrice requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionWorstStalePrice(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the timestamp when the trough of the worst peak-rollback episode was recorded.
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to timestamp in milliseconds or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStaleTimestamp } from "backtest-kit";
+ *
+ * const ts = await getPositionWorstStaleTimestamp("BTCUSDT");
+ * // e.g. 1700000000000
+ * ```
+ */
+export async function getPositionWorstStaleTimestamp(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_WORST_STALE_TIMESTAMP_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionWorstStaleTimestamp requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionWorstStaleTimestamp requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionWorstStaleTimestamp(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the realizable PnL percentage at the trough of the worst peak-rollback episode (effective profitLock; ≥ 0 means a breakeven-or-better exit stayed reachable).
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to PnL percentage or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStalePnlPercentage } from "backtest-kit";
+ *
+ * const profitLock = await getPositionWorstStalePnlPercentage("BTCUSDT");
+ * // e.g. 0.8 (rollback bottom stayed above breakeven)
+ * ```
+ */
+export async function getPositionWorstStalePnlPercentage(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_WORST_STALE_PNL_PERCENTAGE_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionWorstStalePnlPercentage requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionWorstStalePnlPercentage requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionWorstStalePnlPercentage(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the realizable PnL cost (in quote currency) at the trough of the worst peak-rollback episode.
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to PnL cost or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStalePnlCost } from "backtest-kit";
+ *
+ * const troughCost = await getPositionWorstStalePnlCost("BTCUSDT");
+ * // e.g. 1.6
+ * ```
+ */
+export async function getPositionWorstStalePnlCost(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_WORST_STALE_PNL_COST_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionWorstStalePnlCost requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionWorstStalePnlCost requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionWorstStalePnlCost(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the giveback of the worst peak-rollback episode in PnL percentage (effective trailingTake distance).
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to giveback PnL% (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStaleGivebackPnlPercentage } from "backtest-kit";
+ *
+ * const giveback = await getPositionWorstStaleGivebackPnlPercentage("BTCUSDT");
+ * // e.g. 2.7 (fell 2.7% from the peak)
+ * ```
+ */
+export async function getPositionWorstStaleGivebackPnlPercentage(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_WORST_STALE_GIVEBACK_PNL_PERCENTAGE_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionWorstStaleGivebackPnlPercentage requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionWorstStaleGivebackPnlPercentage requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionWorstStaleGivebackPnlPercentage(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the giveback of the worst peak-rollback episode in PnL cost (quote currency).
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to giveback PnL cost (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStaleGivebackPnlCost } from "backtest-kit";
+ *
+ * const giveback = await getPositionWorstStaleGivebackPnlCost("BTCUSDT");
+ * // e.g. 5.4 (fell $5.4 from the peak)
+ * ```
+ */
+export async function getPositionWorstStaleGivebackPnlCost(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_WORST_STALE_GIVEBACK_PNL_COST_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionWorstStaleGivebackPnlCost requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionWorstStaleGivebackPnlCost requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionWorstStaleGivebackPnlCost(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the duration of the worst peak-rollback episode in minutes (peak -> trough, effective staleness duration).
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to minutes (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStaleMinutes } from "backtest-kit";
+ *
+ * const minutes = await getPositionWorstStaleMinutes("BTCUSDT");
+ * // e.g. 45 (rollback ran 45 minutes from peak to trough)
+ * ```
+ */
+export async function getPositionWorstStaleMinutes(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_WORST_STALE_MINUTES_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionWorstStaleMinutes requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionWorstStaleMinutes requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionWorstStaleMinutes(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the minutes from position open to the peak the worst rollback fell from (effective holdMinutes).
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to minutes (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStaleHoldMinutes } from "backtest-kit";
+ *
+ * const minutes = await getPositionWorstStaleHoldMinutes("BTCUSDT");
+ * // e.g. 120 (peak was set 2 hours after open)
+ * ```
+ */
+export async function getPositionWorstStaleHoldMinutes(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_WORST_STALE_HOLD_MINUTES_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionWorstStaleHoldMinutes requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionWorstStaleHoldMinutes requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionWorstStaleHoldMinutes(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the realizable PnL percentage at the peak the worst rollback fell from (effective staleness profit threshold).
+ *
+ * Throws if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to PnL percentage (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWorstStalePeakPnlPercentage } from "backtest-kit";
+ *
+ * const peakPnl = await getPositionWorstStalePeakPnlPercentage("BTCUSDT");
+ * // e.g. 3.5 (rollback started from +3.5%)
+ * ```
+ */
+export async function getPositionWorstStalePeakPnlPercentage(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_WORST_STALE_PEAK_PNL_PERCENTAGE_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionWorstStalePeakPnlPercentage requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionWorstStalePeakPnlPercentage requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionWorstStalePeakPnlPercentage(
     isBacktest,
     symbol,
     { exchangeName, frameName, strategyName },

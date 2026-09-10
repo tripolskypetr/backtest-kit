@@ -1,4 +1,4 @@
-import { StrategyName, IStrategyPnL, IPublicSignalRow } from "../interfaces/Strategy.interface";
+import { StrategyName, IStrategyPnL, IStrategyStale, IPublicSignalRow } from "../interfaces/Strategy.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
 
@@ -52,6 +52,8 @@ export interface CancelScheduledCommit extends SignalCommitBase {
   peakProfit: IStrategyPnL;
   /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
   maxDrawdown: IStrategyPnL;
+  /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+  worstStale: IStrategyStale;
 }
 
 /**
@@ -68,6 +70,8 @@ export interface ClosePendingCommit extends SignalCommitBase {
   peakProfit: IStrategyPnL;
   /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
   maxDrawdown: IStrategyPnL;
+  /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+  worstStale: IStrategyStale;
 }
 
 /**
@@ -86,6 +90,8 @@ export interface PartialProfitCommit extends SignalCommitBase {
   peakProfit: IStrategyPnL;
   /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
   maxDrawdown: IStrategyPnL;
+  /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+  worstStale: IStrategyStale;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
   /** Entry price for the position */
@@ -120,6 +126,8 @@ export interface PartialLossCommit extends SignalCommitBase {
   peakProfit: IStrategyPnL;
   /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
   maxDrawdown: IStrategyPnL;
+  /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+  worstStale: IStrategyStale;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
   /** Entry price for the position */
@@ -154,6 +162,8 @@ export interface TrailingStopCommit extends SignalCommitBase {
   peakProfit: IStrategyPnL;
   /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
   maxDrawdown: IStrategyPnL;
+  /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+  worstStale: IStrategyStale;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
   /** Entry price for the position */
@@ -188,6 +198,8 @@ export interface TrailingTakeCommit extends SignalCommitBase {
   peakProfit: IStrategyPnL;
   /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
   maxDrawdown: IStrategyPnL;
+  /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+  worstStale: IStrategyStale;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
   /** Entry price for the position */
@@ -220,6 +232,8 @@ export interface BreakevenCommit extends SignalCommitBase {
   peakProfit: IStrategyPnL;
   /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
   maxDrawdown: IStrategyPnL;
+  /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+  worstStale: IStrategyStale;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
   /** Entry price for the position */
@@ -257,6 +271,8 @@ export interface AverageBuyCommit extends SignalCommitBase {
   peakProfit: IStrategyPnL;
   /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
   maxDrawdown: IStrategyPnL;
+  /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+  worstStale: IStrategyStale;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
   /** Original entry price (signal.priceOpen, unchanged by averaging) */
@@ -291,6 +307,8 @@ export interface ActivateScheduledCommit extends SignalCommitBase {
   peakProfit: IStrategyPnL;
   /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
   maxDrawdown: IStrategyPnL;
+  /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+  worstStale: IStrategyStale;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
   /** Entry price for the position */

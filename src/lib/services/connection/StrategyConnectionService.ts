@@ -44,6 +44,7 @@ import {
   backtestScheduleOpenSubject,
   highestProfitSubject,
   maxDrawdownSubject,
+  worstStaleSubject,
   pauseSubject,
   idlePingSubject,
 } from "../../../config/emitters";
@@ -101,6 +102,7 @@ const TO_ORDER_FILL_FN = (event: OrderSyncContract): OrderFillContract => {
     pnl: event.pnl,
     peakProfit: event.peakProfit,
     maxDrawdown: event.maxDrawdown,
+    worstStale: event.worstStale,
     position: event.position,
     priceOpen: event.priceOpen,
     priceTakeProfit: event.priceTakeProfit,
@@ -140,6 +142,7 @@ const TO_ORDER_REJECT_FN = (event: OrderSyncContract, message: string): OrderRej
     pnl: event.pnl,
     peakProfit: event.peakProfit,
     maxDrawdown: event.maxDrawdown,
+    worstStale: event.worstStale,
     position: event.position,
     priceOpen: event.priceOpen,
     priceTakeProfit: event.priceTakeProfit,
@@ -876,6 +879,46 @@ const CREATE_MAX_DRAWDOWN_FN = (self: StrategyConnectionService, strategyName: S
 );
 
 /**
+ * Creates a callback function for emitting worst peak-rollback (stale) episode updates to worstStaleSubject.
+ * Called by ClientStrategy when the worst giveback from a profit peak recorded for an open position grows to a new record.
+ * Emits WorstStaleContract event to all subscribers with the current price and timestamp.
+ * Used to calibrate trailing-take, profit-lock, hold-time and peak-staleness thresholds from observed rollbacks.
+ * @param self - Reference to StrategyConnectionService instance
+ * @param strategyName - Name of the strategy
+ * @param exchangeName - Name of the exchange
+ * @param frameName - Name of the frame
+ * @param isBacktest - Flag indicating if the operation is for backtesting
+ * @return Callback function for worst-stale updates
+ */
+const CREATE_WORST_STALE_FN = (self: StrategyConnectionService, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, isBacktest: boolean) => trycatch(
+  async (signal: IPublicSignalRow, currentPrice: number, timestamp: number) => {
+    await worstStaleSubject.next({
+      symbol: signal.symbol,
+      signal,
+      currentPrice,
+      timestamp,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest: isBacktest,
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_WORST_STALE_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
+
+/**
  * Creates a callback function for emitting pause state changes to pauseSubject.
  * Called by ClientStrategy.setPaused when the pause flag actually flips.
  * Emits PauseContract event to all subscribers with the new state and timestamp.
@@ -1172,6 +1215,7 @@ export class StrategyConnectionService implements TStrategy {
         onBacktestScheduleOpen: CREATE_BACKTEST_SCHEDULE_OPEN_FN(this),
         onHighestProfit: CREATE_HIGHEST_PROFIT_FN(this, strategyName, exchangeName, frameName, backtest),
         onMaxDrawdown: CREATE_MAX_DRAWDOWN_FN(this, strategyName, exchangeName, frameName, backtest),
+        onWorstStale: CREATE_WORST_STALE_FN(this, strategyName, exchangeName, frameName, backtest),
         onPause: CREATE_PAUSE_FN(this, strategyName, exchangeName, frameName, backtest),
       });
     }
@@ -2339,6 +2383,222 @@ export class StrategyConnectionService implements TStrategy {
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     const currentPrice = await this.priceMetaService.getCurrentPrice(symbol, context, backtest);
     return await strategy.getMaxDrawdownDistancePnlCost(symbol, currentPrice);
+  };
+
+  /**
+   * Returns the VWAP price at the trough of the worst peak-rollback episode.
+   *
+   * Delegates to ClientStrategy.getPositionWorstStalePrice().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to price or null
+   */
+  public getPositionWorstStalePrice = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionWorstStalePrice", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPositionWorstStalePrice(symbol);
+  };
+
+  /**
+   * Returns the timestamp when the trough of the worst peak-rollback episode was recorded.
+   *
+   * Delegates to ClientStrategy.getPositionWorstStaleTimestamp().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to timestamp in milliseconds or null
+   */
+  public getPositionWorstStaleTimestamp = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionWorstStaleTimestamp", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPositionWorstStaleTimestamp(symbol);
+  };
+
+  /**
+   * Returns the realizable PnL percentage at the trough of the worst peak-rollback episode (effective profitLock).
+   *
+   * Delegates to ClientStrategy.getPositionWorstStalePnlPercentage().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to PnL percentage or null
+   */
+  public getPositionWorstStalePnlPercentage = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionWorstStalePnlPercentage", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPositionWorstStalePnlPercentage(symbol);
+  };
+
+  /**
+   * Returns the realizable PnL cost (in quote currency) at the trough of the worst peak-rollback episode.
+   *
+   * Delegates to ClientStrategy.getPositionWorstStalePnlCost().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to PnL cost or null
+   */
+  public getPositionWorstStalePnlCost = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionWorstStalePnlCost", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPositionWorstStalePnlCost(symbol);
+  };
+
+  /**
+   * Returns the giveback of the worst peak-rollback episode in PnL percentage (effective trailingTake distance).
+   *
+   * Delegates to ClientStrategy.getPositionWorstStaleGivebackPnlPercentage().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to giveback PnL% (≥ 0) or null
+   */
+  public getPositionWorstStaleGivebackPnlPercentage = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionWorstStaleGivebackPnlPercentage", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPositionWorstStaleGivebackPnlPercentage(symbol);
+  };
+
+  /**
+   * Returns the giveback of the worst peak-rollback episode in PnL cost (quote currency).
+   *
+   * Delegates to ClientStrategy.getPositionWorstStaleGivebackPnlCost().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to giveback PnL cost (≥ 0) or null
+   */
+  public getPositionWorstStaleGivebackPnlCost = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionWorstStaleGivebackPnlCost", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPositionWorstStaleGivebackPnlCost(symbol);
+  };
+
+  /**
+   * Returns the duration of the worst peak-rollback episode in minutes (peak -> trough, effective staleness duration).
+   *
+   * Delegates to ClientStrategy.getPositionWorstStaleMinutes().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to minutes (≥ 0) or null
+   */
+  public getPositionWorstStaleMinutes = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionWorstStaleMinutes", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPositionWorstStaleMinutes(symbol);
+  };
+
+  /**
+   * Returns the minutes from position open to the peak the worst rollback fell from (effective holdMinutes).
+   *
+   * Delegates to ClientStrategy.getPositionWorstStaleHoldMinutes().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to minutes (≥ 0) or null
+   */
+  public getPositionWorstStaleHoldMinutes = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionWorstStaleHoldMinutes", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPositionWorstStaleHoldMinutes(symbol);
+  };
+
+  /**
+   * Returns the realizable PnL percentage at the peak the worst rollback fell from (effective staleness profit threshold).
+   *
+   * Delegates to ClientStrategy.getPositionWorstStalePeakPnlPercentage().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to PnL percentage (≥ 0) or null
+   */
+  public getPositionWorstStalePeakPnlPercentage = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionWorstStalePeakPnlPercentage", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPositionWorstStalePeakPnlPercentage(symbol);
   };
 
   /**

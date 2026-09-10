@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, syncPendingSubject, orderFillSubject, orderRejectSubject, orderContinueSubject, orderStopSubject, highestProfitSubject, maxDrawdownSubject, pauseSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, syncPendingSubject, orderFillSubject, orderRejectSubject, orderContinueSubject, orderStopSubject, highestProfitSubject, maxDrawdownSubject, worstStaleSubject, pauseSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -26,6 +26,7 @@ import OrderStopContract from "../contract/OrderStop.contract";
 import OrderCheckContract from "../contract/OrderCheck.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
 import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
+import { WorstStaleContract } from "../contract/WorstStale.contract";
 import { PauseContract } from "../contract/Pause.contract";
 import { SignalInfoContract } from "../contract/SignalInfo.contract";
 import { BeforeStartContract } from "../contract/BeforeStart.contract";
@@ -81,6 +82,8 @@ const LISTEN_HIGHEST_PROFIT_METHOD_NAME = "event.listenHighestProfit";
 const LISTEN_HIGHEST_PROFIT_ONCE_METHOD_NAME = "event.listenHighestProfitOnce";
 const LISTEN_MAX_DRAWDOWN_METHOD_NAME = "event.listenMaxDrawdown";
 const LISTEN_MAX_DRAWDOWN_ONCE_METHOD_NAME = "event.listenMaxDrawdownOnce";
+const LISTEN_WORST_STALE_METHOD_NAME = "event.listenWorstStale";
+const LISTEN_WORST_STALE_ONCE_METHOD_NAME = "event.listenWorstStaleOnce";
 const LISTEN_PAUSE_METHOD_NAME = "event.listenPause";
 const LISTEN_PAUSE_ONCE_METHOD_NAME = "event.listenPauseOnce";
 const LISTEN_SIGNAL_NOTIFY_METHOD_NAME = "event.listenSignalNotify";
@@ -113,6 +116,7 @@ const LISTEN_PARTIAL_LOSS_PER_SIGNAL_METHOD_NAME = "event.listenPartialLossAvail
 const LISTEN_BREAKEVEN_PER_SIGNAL_METHOD_NAME = "event.listenBreakevenAvailablePerSignal";
 const LISTEN_HIGHEST_PROFIT_PER_SIGNAL_METHOD_NAME = "event.listenHighestProfitPerSignal";
 const LISTEN_MAX_DRAWDOWN_PER_SIGNAL_METHOD_NAME = "event.listenMaxDrawdownPerSignal";
+const LISTEN_WORST_STALE_PER_SIGNAL_METHOD_NAME = "event.listenWorstStalePerSignal";
 const LISTEN_SIGNAL_NOTIFY_PER_SIGNAL_METHOD_NAME = "event.listenSignalNotifyPerSignal";
 const LISTEN_STRATEGY_COMMIT_PER_SIGNAL_METHOD_NAME = "event.listenStrategyCommitPerSignal";
 
@@ -2029,6 +2033,62 @@ export function listenMaxDrawdownOnce(
 }
 
 /**
+ * Subscribes to worst stale (peak-rollback) events with queued async processing.
+ * Emits when the worst giveback from a profit peak recorded for a signal grows to a new record during its lifecycle.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ * Useful for calibrating trailingTake, profitLock, holdMinutes and peak-staleness thresholds from live observations.
+ * @param fn - Callback function to handle worst stale events
+ * @return Unsubscribe function to stop listening to events
+ */
+export function listenWorstStale(fn: (event: WorstStaleContract) => void) {
+  backtest.loggerService.log(LISTEN_WORST_STALE_METHOD_NAME);
+
+  const wrappedFn = async (event: WorstStaleContract) => {
+    if (
+      await backtest.strategyCoreService.hasPendingSignal(
+        event.backtest,
+        event.symbol,
+        {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+      )
+    ) {
+      await fn(event);
+    }
+  };
+
+  return worstStaleSubject.subscribe(queued(wrappedFn));
+}
+
+/**
+ * Subscribes to filtered worst stale events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific rollback conditions.
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @return Unsubscribe function to cancel the listener before it fires
+ */
+export function listenWorstStaleOnce(
+  filterFn: (event: WorstStaleContract) => boolean,
+  fn: (event: WorstStaleContract) => void
+) {
+  backtest.loggerService.log(LISTEN_WORST_STALE_ONCE_METHOD_NAME);
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: WorstStaleContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenWorstStale(wrappedFn);
+}
+
+/**
  * Subscribes to signal info events with queued async processing.
  * Emits when a strategy calls commitSignalInfo() to broadcast a user-defined note for an open position.
  * Events are processed sequentially in order received, even if callback is async.
@@ -2858,6 +2918,52 @@ export function listenMaxDrawdownPerSignal(
   };
 
   return listenMaxDrawdown(wrappedFn);
+}
+
+/**
+ * Subscribes to worst stale (peak-rollback) events, delivering the callback once per new signal id.
+ *
+ * Deduplicates on `event.signal.id` — the first rollback matching the predicate
+ * is reported, later deeper rollbacks of the same signal are suppressed.
+ *
+ * @param filterFn - Predicate selecting which events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+export function listenWorstStalePerSignal(
+  filterFn: (event: WorstStaleContract) => boolean,
+  fn: (event: WorstStaleContract) => void
+) {
+  backtest.loggerService.log(LISTEN_WORST_STALE_PER_SIGNAL_METHOD_NAME);
+
+  // Last delivered signal id per execution identity. Bounded so a long-lived
+  // subscription over many strategies/symbols cannot grow without limit.
+  const seenMap = new LimitedMap<string, string>(SEEN_MAP_LIMIT);
+
+  // Delegated to the plain listener on purpose: that one owns the single queued()
+  // wrapper, so the dedup decision below runs INSIDE the queue, in step with the
+  // callback. Building a private .filter().connect(queued()) chain instead would
+  // evaluate every dedup decision up front, at emit time, while earlier callbacks
+  // were still pending - advancing the remembered id before the subscriber had
+  // actually been handed the event it stands for.
+  const wrappedFn = async (event: WorstStaleContract) => {
+    if (!filterFn(event)) {
+      return;
+    }
+    const parts = [event.strategyName, event.exchangeName];
+    if (event.frameName) parts.push(event.frameName);
+    parts.push(event.backtest ? "backtest" : "live");
+    parts.push(event.symbol);
+    const key = parts.join(":");
+    const signalId = event.signal.id;
+    if (seenMap.get(key) === signalId) {
+      return;
+    }
+    seenMap.set(key, signalId);
+    await fn(event);
+  };
+
+  return listenWorstStale(wrappedFn);
 }
 
 /**

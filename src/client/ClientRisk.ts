@@ -112,6 +112,9 @@ const TO_RISK_SIGNAL = <T extends ISignalRow>(signal: T, currentPrice: number, t
     pnl,
     maxDrawdown,
     peakProfit,
+    // The DTO is risk-checked BEFORE GET_SIGNAL_FN applies row defaults (see
+    // multiplier above) — a candidate without _stale reports the zero episode.
+    worstStale: signal._stale ?? { price: signal.priceOpen ?? currentPrice, timestamp: signal.timestamp ?? timestamp, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0, peakPrice: signal.priceOpen ?? currentPrice, peakTimestamp: signal.timestamp ?? timestamp, peakPnlPercentage: 0, peakPnlCost: 0, breakevenPrice: 0, breakevenTimestamp: 0 },
   };
 };
 

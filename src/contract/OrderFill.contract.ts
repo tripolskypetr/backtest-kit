@@ -1,4 +1,4 @@
-import { IPublicSignalRow, StrategyName, StrategyCloseReason, IStrategyPnL } from "../interfaces/Strategy.interface";
+import { IPublicSignalRow, StrategyName, StrategyCloseReason, IStrategyPnL, IStrategyStale } from "../interfaces/Strategy.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
 
@@ -61,6 +61,8 @@ interface OrderFillBase {
   peakProfit: IStrategyPnL;
   /** Maximum drawdown experienced during the life of this position so far */
   maxDrawdown: IStrategyPnL;
+  /** Worst peak-rollback (stale) episode recorded up to this event (see IStrategyStale) */
+  worstStale: IStrategyStale;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
   /** Effective entry price (DCA-averaged when entries exist) */

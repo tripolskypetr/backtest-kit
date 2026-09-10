@@ -63,6 +63,10 @@ export interface TickEvent {
   peakPnl?: number;
   /** Fall PNL percentage at worst price during position (_fall.pnlPercentage, only for closed) */
   fallPnl?: number;
+  /** Giveback percentage of the worst peak-rollback episode (_stale.peakPnlPercentage - _stale.pnlPercentage, only for closed) */
+  staleGiveback?: number;
+  /** Staleness duration in minutes of the worst peak-rollback episode (_stale, peak to trough, only for closed) */
+  staleMinutes?: number;
 }
 
 /**

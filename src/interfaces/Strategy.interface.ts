@@ -308,8 +308,90 @@ export interface ISignalRow extends ISignalDto {
    * - For SHORT: maximum VWAP price seen above effective entry
    */
   _fall: { price: number; timestamp: number; } & IStrategyPnL;
+  /**
+   * Worst SURVIVED peak-rollback episode recorded during the life of this
+   * position: the largest giveback from a profit peak that the position came
+   * back from (price recovered to a new peak, or the position closed in
+   * profit). Initialized at position open with a zero episode (trough ==
+   * peak == entry). A rollback in progress lives in `_staleCandidate` and is
+   * committed here at the recovery moment (or at a profitable close) when its
+   * giveback exceeds the stored episode's. A terminal collapse into
+   * stop_loss/liquidation is NOT committed — that failure is already
+   * described by `_fall`/pnl. The breakeven* pair inside is tracked
+   * independently on every tick: the last moment realizable PNL was >= 0.
+   * Calibration analytics (see IStrategyStale): effective trailingTake =
+   * giveback, effective profitLock = trough PNL, effective hold time =
+   * peakTimestamp - pendingAt, staleness duration = timestamp - peakTimestamp.
+   */
+  _stale: IStrategyStale;
+  /**
+   * Rollback currently in progress (episode-in-flight): the trough since the
+   * peak it fell from, snapshotted in the same IStrategyStale shape (its
+   * breakeven* fields stay 0 — the global breakeven point lives on `_stale`).
+   * Created when the realizable PNL drops below a positive `_peak`, deepened
+   * while the rollback lasts, and either committed into `_stale` at the
+   * recovery moment / profitable close or discarded when the position dies
+   * (stop_loss/liquidation) — an unfinished rollback is not a survived one.
+   * Absent while no rollback from a positive peak is running.
+   */
+  _staleCandidate?: IStrategyStale;
   /** Unix timestamp in milliseconds when this signal was created/scheduled in backtest context or when getSignal was called in live context (before validation) */
   timestamp: number;
+}
+
+/**
+ * Worst SURVIVED peak-rollback episode of a position — the analytics record
+ * behind `_stale` (mirrors the `_peak`/`_fall` snapshot idiom).
+ *
+ * An episode is committed only when the position OUTLIVES the rollback: the
+ * price recovers back to (a new) peak, or the position closes in profit. A
+ * terminal collapse into stop_loss/liquidation is NOT an episode — that
+ * failure is already described by `maxDrawdown`/`pnl`, so `worstStale` stays
+ * on the deepest shakeout the position actually came back from.
+ *
+ * The IStrategyPnL part plus price/timestamp describe the TROUGH of the
+ * episode; the peak* fields snapshot the peak the rollback fell from.
+ * Derived calibration values for strategy knobs:
+ * - trailingTake: `peakPnlPercentage - pnlPercentage` (max survived giveback —
+ *   a trailing distance below it would have been shaken out on noise);
+ * - profitLock: `pnlPercentage` (PNL at the rollback bottom; >= 0 means a
+ *   breakeven-or-better exit stayed reachable through the worst rollback);
+ * - holdMinutes: `(peakTimestamp - pendingAt) / 60000` (time to the peak
+ *   the worst rollback started from);
+ * - staleness: `(timestamp - peakTimestamp) / 60000` (how long the rollback
+ *   ran from the peak to its worst point).
+ *
+ * The breakeven* pair is tracked INDEPENDENTLY of episodes across the whole
+ * position life: the last moment the realizable PNL was >= 0. For a
+ * stopped-out trade it answers "until when would a profit-lock exit still
+ * have saved the position". Both are 0 while the PNL has never covered the
+ * round-trip costs.
+ *
+ * NOTE — one-sided by construction (survivorship is the definition, not a
+ * bias): a survived episode says holding through it was RIGHT (the price
+ * exceeded its peak afterwards), so its giveback is the LOWER bound for a
+ * trailing-take distance. The UPPER bound comes from the trades that died:
+ * their fatal rollback stays in `_staleCandidate` (episode-in-flight at
+ * close). Calibrate from the pair: d > worstStale giveback of profitable
+ * trades AND d < candidate giveback of stopped-out ones.
+ */
+export interface IStrategyStale extends IStrategyPnL {
+  /** VWAP price at the trough of the worst survived rollback episode */
+  price: number;
+  /** Unix timestamp in milliseconds when the trough was recorded */
+  timestamp: number;
+  /** Price of the peak snapshot this episode rolled back from */
+  peakPrice: number;
+  /** Unix timestamp in milliseconds when that peak was set */
+  peakTimestamp: number;
+  /** Realizable PNL percentage at that peak (leveraged, costs included) */
+  peakPnlPercentage: number;
+  /** Realizable PNL cost (USD) at that peak */
+  peakPnlCost: number;
+  /** VWAP price at the last moment realizable PNL was >= 0 (0 = never) */
+  breakevenPrice: number;
+  /** Unix timestamp in milliseconds of the last moment realizable PNL was >= 0 (0 = never) */
+  breakevenTimestamp: number;
 }
 
 /**
@@ -389,6 +471,17 @@ export interface IPublicSignalRow extends ISignalRow {
    * Calculated using the worst unfavorable price reached (for long: min price below entry, for short: max price above entry) and the original entry price.
    */
   maxDrawdown: IStrategyPnL;
+
+  /**
+   * Worst SURVIVED peak-rollback episode recorded up to the moment this public signal
+   * was created. Mirrors `_stale`: the trough snapshot of the largest giveback the
+   * position came back from, paired with the peak it fell from, plus the last-breakeven
+   * point (last moment realizable PNL was >= 0). A zero episode (trough == peak, zero
+   * PNL) means no rollback from a positive peak has been survived yet.
+   * Used to calibrate trailingTake (giveback), profitLock (trough PNL), holdMinutes
+   * (entry -> peak) and peak-staleness duration (peak -> trough) per trade.
+   */
+  worstStale: IStrategyStale;
 }
 
 /**
@@ -745,6 +838,8 @@ export interface IStrategyParams extends IStrategySchema {
   onHighestProfit: (signal: IPublicSignalRow, currentPrice: number, timestamp: number) => Promise<void> | void;
   /** System callback for max drawdown updates (emits to maxDrawdownSubject) */
   onMaxDrawdown: (signal: IPublicSignalRow, currentPrice: number, timestamp: number) => Promise<void> | void;
+  /** System callback for worst peak-rollback (stale) episode updates (emits to worstStaleSubject) */
+  onWorstStale: (signal: IPublicSignalRow, currentPrice: number, timestamp: number) => Promise<void> | void;
   /**
    * System callback for pause state changes (emits to pauseSubject).
    * Fired by setPaused only when the flag actually flips — used to generate
@@ -2094,6 +2189,84 @@ export interface IStrategy {
    * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
    */
   getMaxDrawdownDistancePnlCost: (symbol: string, currentPrice: number) => Promise<number | null>;
+
+  /**
+   * Returns the VWAP price at the trough of the worst peak-rollback episode (`_stale`).
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to price or null when no pending signal exists
+   */
+  getPositionWorstStalePrice: (symbol: string) => Promise<number | null>;
+
+  /**
+   * Returns the timestamp when the trough of the worst peak-rollback episode was recorded.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to timestamp in milliseconds or null when no pending signal exists
+   */
+  getPositionWorstStaleTimestamp: (symbol: string) => Promise<number | null>;
+
+  /**
+   * Returns the realizable PnL percentage at the trough of the worst peak-rollback episode.
+   * Effective profitLock: >= 0 means a breakeven-or-better exit was reachable during the worst rollback.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to PnL percentage or null when no pending signal exists
+   */
+  getPositionWorstStalePnlPercentage: (symbol: string) => Promise<number | null>;
+
+  /**
+   * Returns the realizable PnL cost (USD) at the trough of the worst peak-rollback episode.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to PnL cost or null when no pending signal exists
+   */
+  getPositionWorstStalePnlCost: (symbol: string) => Promise<number | null>;
+
+  /**
+   * Returns the giveback of the worst peak-rollback episode in PnL percentage.
+   * Computed as: stale.peakPnlPercentage - stale.pnlPercentage. Effective trailingTake distance.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to giveback PnL% (>= 0) or null when no pending signal exists
+   */
+  getPositionWorstStaleGivebackPnlPercentage: (symbol: string) => Promise<number | null>;
+
+  /**
+   * Returns the giveback of the worst peak-rollback episode in PnL cost (USD).
+   * Computed as: stale.peakPnlCost - stale.pnlCost.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to giveback PnL cost (>= 0) or null when no pending signal exists
+   */
+  getPositionWorstStaleGivebackPnlCost: (symbol: string) => Promise<number | null>;
+
+  /**
+   * Returns the duration of the worst peak-rollback episode in minutes (peak -> trough).
+   * Effective peak-staleness duration for calibrating hold/staleness thresholds.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to minutes (>= 0) or null when no pending signal exists
+   */
+  getPositionWorstStaleMinutes: (symbol: string) => Promise<number | null>;
+
+  /**
+   * Returns the minutes from position open (pendingAt) to the peak the worst rollback fell from.
+   * Effective holdMinutes: how long the position had to be held to reach that peak.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to minutes (>= 0) or null when no pending signal exists
+   */
+  getPositionWorstStaleHoldMinutes: (symbol: string) => Promise<number | null>;
+
+  /**
+   * Returns the realizable PnL percentage at the peak the worst rollback fell from.
+   * Effective peak-staleness profit threshold (the profit level that later went stale).
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to PnL percentage (>= 0) or null when no pending signal exists
+   */
+  getPositionWorstStalePeakPnlPercentage: (symbol: string) => Promise<number | null>;
 
   /**
    * Disposes the strategy instance and cleans up resources.

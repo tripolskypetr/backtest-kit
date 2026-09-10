@@ -212,4 +212,14 @@ export const backtest_columns: ColumnModel<IStrategyTickResultClosed>[] = [
     },
     isVisible: () => true,
   },
+  {
+    key: "worstStale",
+    label: "Worst Stale",
+    format: (data) => {
+      const ws = data.signal.worstStale;
+      if (!ws) return "N/A";
+      return `${(ws.peakPnlPercentage - ws.pnlPercentage).toFixed(2)}% / ${Math.max(0, Math.floor((ws.timestamp - ws.peakTimestamp) / 60000))}m`;
+    },
+    isVisible: () => true,
+  },
 ];

@@ -79,6 +79,15 @@ export {
   getPositionWaitingMinutes,
   getMaxDrawdownDistancePnlCost,
   getMaxDrawdownDistancePnlPercentage,
+  getPositionWorstStalePrice,
+  getPositionWorstStaleTimestamp,
+  getPositionWorstStalePnlPercentage,
+  getPositionWorstStalePnlCost,
+  getPositionWorstStaleGivebackPnlPercentage,
+  getPositionWorstStaleGivebackPnlCost,
+  getPositionWorstStaleMinutes,
+  getPositionWorstStaleHoldMinutes,
+  getPositionWorstStalePeakPnlPercentage,
   hasNoPendingSignal,
   hasNoScheduledSignal,
 } from "./function/strategy";
@@ -176,6 +185,8 @@ export {
   listenHighestProfitOnce,
   listenMaxDrawdown,
   listenMaxDrawdownOnce,
+  listenWorstStale,
+  listenWorstStaleOnce,
   listenPause,
   listenPauseOnce,
   listenSignalNotify,
@@ -196,6 +207,7 @@ export {
   listenBreakevenAvailablePerSignal,
   listenHighestProfitPerSignal,
   listenMaxDrawdownPerSignal,
+  listenWorstStalePerSignal,
   listenSignalNotifyPerSignal,
   listenStrategyCommitPerSignal,
 } from "./function/event";
@@ -367,6 +379,7 @@ export {
   StrategyCancelReason,
   StrategyCloseReason,
   IStrategyPnL,
+  IStrategyStale,
   CommitPayload,
   RuntimeData,
   StrategyStatus,
@@ -486,6 +499,7 @@ export { ActivePingContract } from "./contract/ActivePing.contract";
 export { IdlePingContract } from "./contract/IdlePing.contract";
 export { HighestProfitContract } from "./contract/HighestProfit.contract";
 export { MaxDrawdownContract } from "./contract/MaxDrawdown.contract";
+export { WorstStaleContract } from "./contract/WorstStale.contract";
 export { PauseContract } from "./contract/Pause.contract";
 export { SignalInfoContract } from "./contract/SignalInfo.contract";
 export { BreakevenContract } from "./contract/Breakeven.contract";

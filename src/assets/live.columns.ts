@@ -241,4 +241,13 @@ export const live_columns: ColumnModel<TickEvent>[] = [
       data.fallPnl !== undefined ? `${data.fallPnl.toFixed(2)}%` : "N/A",
     isVisible: () => true,
   },
+  {
+    key: "worstStale",
+    label: "Worst Stale",
+    format: (data) => {
+      if (data.staleGiveback === undefined || data.staleMinutes === undefined) return "N/A";
+      return `${data.staleGiveback.toFixed(2)}% / ${data.staleMinutes}m`;
+    },
+    isVisible: () => true,
+  },
 ];

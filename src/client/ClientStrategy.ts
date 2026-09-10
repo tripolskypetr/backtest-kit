@@ -32,6 +32,7 @@ import {
   ICommitRow,
   CommitPayload,
   IStrategyPnL,
+  IStrategyStale,
   StrategyStatus,
 } from "../interfaces/Strategy.interface";
 import toProfitLossDto from "../helpers/toProfitLossDto";
@@ -243,6 +244,7 @@ const CALL_ORDER_SYNC_OPEN_FN = trycatch(
       timestamp,
       signal: publicSignal,
       maxDrawdown: publicSignal.maxDrawdown,
+      worstStale: publicSignal.worstStale,
       peakProfit: publicSignal.peakProfit,
       cost: pendingSignal.cost,
       currentPrice,
@@ -315,6 +317,7 @@ const CALL_ORDER_SYNC_SCHEDULE_OPEN_FN = trycatch(
       timestamp,
       signal: publicSignal,
       maxDrawdown: publicSignal.maxDrawdown,
+      worstStale: publicSignal.worstStale,
       peakProfit: publicSignal.peakProfit,
       cost: scheduledSignal.cost,
       currentPrice,
@@ -389,6 +392,7 @@ const CALL_ORDER_SYNC_CLOSE_FN = trycatch(
       timestamp,
       signal: publicSignal,
       maxDrawdown: publicSignal.maxDrawdown,
+      worstStale: publicSignal.worstStale,
       peakProfit: publicSignal.peakProfit,
       currentPrice,
       pnl: publicSignal.pnl,
@@ -464,6 +468,7 @@ const CALL_ORDER_CHECK_FN = trycatch(
       pnl: publicSignal.pnl,
       peakProfit: publicSignal.peakProfit,
       maxDrawdown: publicSignal.maxDrawdown,
+      worstStale: publicSignal.worstStale,
       position: publicSignal.position,
       priceOpen: publicSignal.priceOpen,
       priceTakeProfit: publicSignal.priceTakeProfit,
@@ -535,6 +540,7 @@ const CALL_SCHEDULED_ORDER_CHECK_FN = trycatch(
       pnl: publicSignal.pnl,
       peakProfit: publicSignal.peakProfit,
       maxDrawdown: publicSignal.maxDrawdown,
+      worstStale: publicSignal.worstStale,
       position: publicSignal.position,
       priceOpen: publicSignal.priceOpen,
       priceTakeProfit: publicSignal.priceTakeProfit,
@@ -601,6 +607,7 @@ const CALL_ORDER_CONTINUE_EMIT_FN = trycatch(
       pnl: publicSignal.pnl,
       peakProfit: publicSignal.peakProfit,
       maxDrawdown: publicSignal.maxDrawdown,
+      worstStale: publicSignal.worstStale,
       position: publicSignal.position,
       priceOpen: publicSignal.priceOpen,
       priceTakeProfit: publicSignal.priceTakeProfit,
@@ -663,6 +670,7 @@ const CALL_ORDER_STOP_EMIT_FN = trycatch(
       pnl: publicSignal.pnl,
       peakProfit: publicSignal.peakProfit,
       maxDrawdown: publicSignal.maxDrawdown,
+      worstStale: publicSignal.worstStale,
       position: publicSignal.position,
       priceOpen: publicSignal.priceOpen,
       priceTakeProfit: publicSignal.priceTakeProfit,
@@ -787,6 +795,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         currentPrice: commit.currentPrice,
         pnl: publicSignal.pnl,
         maxDrawdown: publicSignal.maxDrawdown,
+        worstStale: publicSignal.worstStale,
         peakProfit: publicSignal.peakProfit,
         signal: publicSignal,
         timestamp,
@@ -819,6 +828,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         currentPrice: commit.currentPrice,
         pnl: publicSignal.pnl,
         maxDrawdown: publicSignal.maxDrawdown,
+        worstStale: publicSignal.worstStale,
         peakProfit: publicSignal.peakProfit,
         signal: publicSignal,
         timestamp,
@@ -850,6 +860,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         currentPrice: commit.currentPrice,
         pnl: publicSignal.pnl,
         maxDrawdown: publicSignal.maxDrawdown,
+        worstStale: publicSignal.worstStale,
         peakProfit: publicSignal.peakProfit,
         signal: publicSignal,
         timestamp,
@@ -882,6 +893,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         currentPrice: commit.currentPrice,
         pnl: publicSignal.pnl,
         maxDrawdown: publicSignal.maxDrawdown,
+        worstStale: publicSignal.worstStale,
         peakProfit: publicSignal.peakProfit,
         signal: publicSignal,
         timestamp,
@@ -914,6 +926,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         currentPrice: commit.currentPrice,
         pnl: publicSignal.pnl,
         maxDrawdown: publicSignal.maxDrawdown,
+        worstStale: publicSignal.worstStale,
         peakProfit: publicSignal.peakProfit,
         signal: publicSignal,
         timestamp,
@@ -948,6 +961,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         effectivePriceOpen,
         pnl: publicSignal.pnl,
         maxDrawdown: publicSignal.maxDrawdown,
+        worstStale: publicSignal.worstStale,
         peakProfit: publicSignal.peakProfit,
         signal: publicSignal,
         timestamp,
@@ -1035,6 +1049,17 @@ const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRo
   const pnl = type === "scheduled" ? ZERO_PNL : toProfitLossDto(signal as ISignalRow, currentPrice);
   const maxDrawdown = type === "scheduled" ? ZERO_PNL : ("_fall" in signal ? !!signal["_fall"] ? ({ ...signal._fall }) : ZERO_PNL : ZERO_PNL);
   const peakProfit = type === "scheduled" ? ZERO_PNL : ("_peak" in signal ? signal["_peak"] ? ({ ...signal._peak }) : ZERO_PNL : ZERO_PNL);
+  // Худший эпизод «пик -> откат»: зеркало peakProfit/maxDrawdown выше —
+  // scheduled ещё не в позиции, наружу идёт нулевой эпизод; ZERO-фолбэк также
+  // покрывает строки без _stale (raw DTO через риск-проверку, снапшоты до
+  // появления поля)
+  const staleZeroTimestamp = "pendingAt" in signal ? (signal as ISignalRow).pendingAt : 0;
+  const staleZero: IStrategyStale = { price: signal.priceOpen, timestamp: staleZeroTimestamp, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0, peakPrice: signal.priceOpen, peakTimestamp: staleZeroTimestamp, peakPnlPercentage: 0, peakPnlCost: 0, breakevenPrice: 0, breakevenTimestamp: 0 };
+  const worstStale = type === "scheduled"
+    ? staleZero
+    : ("_stale" in signal && signal["_stale"]
+      ? ({ ...signal._stale })
+      : staleZero);
   const effectivePriceOpen = type === "scheduled" ? signal.priceOpen : "_entry" in signal ? signal["_entry"] ? GET_EFFECTIVE_PRICE_OPEN(signal) : signal.priceOpen : signal.priceOpen;
   return {
     ...structuredClone(signal) as ISignalRow | IScheduledSignalRow,
@@ -1051,6 +1076,7 @@ const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRo
     originalPriceTakeProfit: signal.priceTakeProfit,
     maxDrawdown,
     peakProfit,
+    worstStale,
     partialExecuted,
     totalEntries,
     totalPartials,
@@ -1324,6 +1350,7 @@ const GET_SIGNAL_FN = trycatch(
           _entry: [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
           _peak: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
           _fall: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
+          _stale: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0, peakPrice: signal.priceOpen, peakTimestamp: currentTime, peakPnlPercentage: 0, peakPnlCost: 0, breakevenPrice: 0, breakevenTimestamp: 0 },
         };
         {
           const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(signalRow, signal.priceOpen);
@@ -1367,6 +1394,7 @@ const GET_SIGNAL_FN = trycatch(
         _entry: [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
         _peak: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
         _fall: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
+        _stale: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0, peakPrice: signal.priceOpen, peakTimestamp: currentTime, peakPnlPercentage: 0, peakPnlCost: 0, breakevenPrice: 0, breakevenTimestamp: 0 },
       };
 
       // Валидируем сигнал перед возвратом
@@ -1398,6 +1426,7 @@ const GET_SIGNAL_FN = trycatch(
       _entry: [{ price: currentPrice, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
       _peak: { price: currentPrice, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
       _fall: { price: currentPrice, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
+      _stale: { price: currentPrice, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0, peakPrice: currentPrice, peakTimestamp: currentTime, peakPnlPercentage: 0, peakPnlCost: 0, breakevenPrice: 0, breakevenTimestamp: 0 },
     };
     {
       const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(signalRow, currentPrice);
@@ -1473,6 +1502,150 @@ const RECORD_CLOSE_EXCURSION_FN = (
   if (pnl.pnlPercentage > 0 && (!signal._peak || pnl.pnlPercentage > signal._peak.pnlPercentage)) {
     signal._peak = { ...point };
   }
+  // Финальная точка для _stale: точка безубытка обновляется и закрытием
+  // (выход с PNL >= 0 — последний безубыточный момент сделки)
+  if (pnl.pnlPercentage >= 0) {
+    signal._stale.breakevenPrice = closePrice;
+    signal._stale.breakevenTimestamp = timestamp;
+  }
+  // Коммит текущего отката ТОЛЬКО при закрытии в плюс: позиция пережила его
+  // (вышла живой). Смерть по stop_loss/liquidation и убыточный time_expired
+  // кандидата НЕ коммитят — терминальный обвал уже описан _fall/pnl, а
+  // недожитый откат — не пережитый; в этом случае кандидат остаётся в строке
+  // как эпизод-в-полёте для пост-анализа закрытого сигнала.
+  if (pnl.pnlPercentage > 0 && signal._staleCandidate) {
+    const candidate = signal._staleCandidate;
+    if (pnl.pnlPercentage < candidate.pnlPercentage) {
+      candidate.price = closePrice;
+      candidate.timestamp = timestamp;
+      candidate.pnlPercentage = pnl.pnlPercentage;
+      candidate.pnlCost = pnl.pnlCost;
+      candidate.pnlEntries = pnl.pnlEntries;
+      candidate.priceOpen = pnl.priceOpen;
+      candidate.priceClose = pnl.priceClose;
+    }
+    signal._staleCandidate = undefined;
+    const candidateGiveback = candidate.peakPnlPercentage - candidate.pnlPercentage;
+    const storedGiveback = signal._stale.peakPnlPercentage - signal._stale.pnlPercentage;
+    if (candidateGiveback > storedGiveback) {
+      signal._stale = {
+        ...candidate,
+        breakevenPrice: signal._stale.breakevenPrice,
+        breakevenTimestamp: signal._stale.breakevenTimestamp,
+      };
+    }
+  }
+};
+
+/**
+ * Трекер худшего ПЕРЕЖИТОГО эпизода «пик -> откат» (_stale / _staleCandidate).
+ *
+ * Вызывается на каждом мониторинговом тике (live) и на каждой свече цикла
+ * (backtest) ПЕРЕД ветками _peak/_fall/пингов — active-ping видит коммит
+ * своего же тика. Вызов НЕ зависит от направления текущего движения — откат
+ * может целиком жить выше входа (пик +2%, откат к +0.1%), где ветка _fall не
+ * работает.
+ *
+ * Машина эпизода:
+ * - точка безубытка: при каждом реализуемом PNL >= 0 в _stale обновляется
+ *   breakevenPrice/breakevenTimestamp — независимо от эпизодов (для
+ *   SL-сделки отвечает «до какого момента profitLock ещё спасал»);
+ * - гейт: откат существует только после реального пика (_peak.pnl > 0 — тот
+ *   же гейт, что у самого _peak);
+ * - PNL упал ниже пика — заводится/углубляется _staleCandidate (дно + снапшот
+ *   пика, с которого падаем);
+ * - PNL восстановился до пика кандидата — откат ПЕРЕЖИТ: кандидат коммитится
+ *   в _stale (если его giveback больше сохранённого) и сбрасывается; ветка
+ *   _peak этим же тиком поставит новый максимум;
+ * - смерть позиции (stop_loss/liquidation) кандидата НЕ коммитит — см.
+ *   RECORD_CLOSE_EXCURSION_FN: терминальный обвал уже описан _fall/pnl.
+ *
+ * По образцу _peak/_fall: коммит эпизода уведомляет onWrite, пишет строку в
+ * persist (только live) и эмитит onWorstStale; углубление кандидата и точка
+ * безубытка едут в persist вместе с очередной записью строки без собственных
+ * событий.
+ */
+const UPDATE_STALE_FN = async (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  currentPrice: number,
+  currentTime: number,
+  backtest: boolean
+): Promise<void> => {
+  const pnl = toProfitLossDto(signal, currentPrice);
+  if (pnl.pnlPercentage >= 0) {
+    signal._stale.breakevenPrice = currentPrice;
+    signal._stale.breakevenTimestamp = currentTime;
+  }
+  if (!(signal._peak.pnlPercentage > 0)) {
+    return;
+  }
+  const candidate = signal._staleCandidate;
+  if (!candidate) {
+    if (pnl.pnlPercentage < signal._peak.pnlPercentage) {
+      signal._staleCandidate = {
+        price: currentPrice,
+        timestamp: currentTime,
+        pnlPercentage: pnl.pnlPercentage,
+        pnlCost: pnl.pnlCost,
+        pnlEntries: pnl.pnlEntries,
+        priceOpen: pnl.priceOpen,
+        priceClose: pnl.priceClose,
+        peakPrice: signal._peak.price,
+        peakTimestamp: signal._peak.timestamp,
+        peakPnlPercentage: signal._peak.pnlPercentage,
+        peakPnlCost: signal._peak.pnlCost,
+        breakevenPrice: 0,
+        breakevenTimestamp: 0,
+      };
+    }
+    return;
+  }
+  if (pnl.pnlPercentage < candidate.pnlPercentage) {
+    candidate.price = currentPrice;
+    candidate.timestamp = currentTime;
+    candidate.pnlPercentage = pnl.pnlPercentage;
+    candidate.pnlCost = pnl.pnlCost;
+    candidate.pnlEntries = pnl.pnlEntries;
+    candidate.priceOpen = pnl.priceOpen;
+    candidate.priceClose = pnl.priceClose;
+    return;
+  }
+  if (pnl.pnlPercentage < candidate.peakPnlPercentage) {
+    return;
+  }
+  // Восстановились к пику кандидата — откат пережит
+  signal._staleCandidate = undefined;
+  const candidateGiveback = candidate.peakPnlPercentage - candidate.pnlPercentage;
+  const storedGiveback = signal._stale.peakPnlPercentage - signal._stale.pnlPercentage;
+  if (candidateGiveback <= storedGiveback) {
+    return;
+  }
+  signal._stale = {
+    ...candidate,
+    breakevenPrice: signal._stale.breakevenPrice,
+    breakevenTimestamp: signal._stale.breakevenTimestamp,
+  };
+  if (self.params.callbacks?.onWrite) {
+    self.params.callbacks.onWrite(
+      signal.symbol,
+      signal,
+      currentPrice,
+      new Date(currentTime),
+      backtest
+    );
+  }
+  !backtest && await PersistSignalAdapter.writeSignalData(
+    signal,
+    self.params.execution.context.symbol,
+    self.params.strategyName,
+    self.params.exchangeName,
+  );
+  await self.params.onWorstStale(
+    TO_PUBLIC_SIGNAL("pending", signal, currentPrice),
+    currentPrice,
+    currentTime,
+  );
 };
 
 /**
@@ -1624,6 +1797,18 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
       if (self._retryOpenSignal && self._retryOpenSignal.isolated == null) {
         self._retryOpenSignal.isolated = GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN;
       }
+      // Back-compat: rows persisted before the excursion fields existed read
+      // back without them — restore the zero snapshots (entry point), so the
+      // monitoring hot path can rely on the row being complete.
+      if (self._retryOpenSignal && !self._retryOpenSignal._peak) {
+        self._retryOpenSignal._peak = { price: self._retryOpenSignal.priceOpen, timestamp: self._retryOpenSignal.pendingAt, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 };
+      }
+      if (self._retryOpenSignal && !self._retryOpenSignal._fall) {
+        self._retryOpenSignal._fall = { price: self._retryOpenSignal.priceOpen, timestamp: self._retryOpenSignal.pendingAt, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 };
+      }
+      if (self._retryOpenSignal && !self._retryOpenSignal._stale) {
+        self._retryOpenSignal._stale = { price: self._retryOpenSignal.priceOpen, timestamp: self._retryOpenSignal.pendingAt, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0, peakPrice: self._retryOpenSignal.priceOpen, peakTimestamp: self._retryOpenSignal.pendingAt, peakPnlPercentage: 0, peakPnlCost: 0, breakevenPrice: 0, breakevenTimestamp: 0 };
+      }
     }
   }
 
@@ -1680,6 +1865,18 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     }
     if (pendingSignal.isolated == null) {
       pendingSignal.isolated = GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN;
+    }
+    // Back-compat: rows persisted before the excursion fields existed read
+    // back without them — restore the zero snapshots (entry point), so the
+    // monitoring hot path can rely on the row being complete.
+    if (!pendingSignal._peak) {
+      pendingSignal._peak = { price: pendingSignal.priceOpen, timestamp: pendingSignal.pendingAt, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 };
+    }
+    if (!pendingSignal._fall) {
+      pendingSignal._fall = { price: pendingSignal.priceOpen, timestamp: pendingSignal.pendingAt, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 };
+    }
+    if (!pendingSignal._stale) {
+      pendingSignal._stale = { price: pendingSignal.priceOpen, timestamp: pendingSignal.pendingAt, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0, peakPrice: pendingSignal.priceOpen, peakTimestamp: pendingSignal.pendingAt, peakPnlPercentage: 0, peakPnlCost: 0, breakevenPrice: 0, breakevenTimestamp: 0 };
     }
     self._pendingSignal = pendingSignal;
 
@@ -1794,6 +1991,18 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     }
     if (scheduledSignal.isolated == null) {
       scheduledSignal.isolated = GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN;
+    }
+    // Back-compat: rows persisted before the excursion fields existed read
+    // back without them — restore the zero snapshots (entry point), so the
+    // monitoring hot path can rely on the row being complete.
+    if (!scheduledSignal._peak) {
+      scheduledSignal._peak = { price: scheduledSignal.priceOpen, timestamp: scheduledSignal.pendingAt, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 };
+    }
+    if (!scheduledSignal._fall) {
+      scheduledSignal._fall = { price: scheduledSignal.priceOpen, timestamp: scheduledSignal.pendingAt, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 };
+    }
+    if (!scheduledSignal._stale) {
+      scheduledSignal._stale = { price: scheduledSignal.priceOpen, timestamp: scheduledSignal.pendingAt, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0, peakPrice: scheduledSignal.priceOpen, peakTimestamp: scheduledSignal.pendingAt, peakPnlPercentage: 0, peakPnlCost: 0, breakevenPrice: 0, breakevenTimestamp: 0 };
     }
     self._scheduledSignal = scheduledSignal;
 
@@ -2902,6 +3111,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
         originalPriceOpen: scheduled.priceOpen,
         pnl: publicSignal.pnl,
         maxDrawdown: publicSignal.maxDrawdown,
+        worstStale: publicSignal.worstStale,
         peakProfit: publicSignal.peakProfit,
         signal: publicSignal,
         note: scheduled.note,
@@ -2970,6 +3180,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
         originalPriceOpen: scheduled.priceOpen,
         pnl: publicSignal.pnl,
         maxDrawdown: publicSignal.maxDrawdown,
+        worstStale: publicSignal.worstStale,
         peakProfit: publicSignal.peakProfit,
         signal: publicSignal,
         note: scheduled.note,
@@ -2985,6 +3196,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
     _isScheduled: false,
     _peak: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 },
     _fall: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 },
+    _stale: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0, peakPrice: scheduled.priceOpen, peakTimestamp: activationTime, peakPnlPercentage: 0, peakPnlCost: 0, breakevenPrice: 0, breakevenTimestamp: 0 },
   };
   {
     const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(activatedSignal, activatedSignal.priceOpen);
@@ -3041,6 +3253,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
       originalPriceOpen: scheduled.priceOpen,
       pnl: publicSignal.pnl,
       maxDrawdown: publicSignal.maxDrawdown,
+      worstStale: publicSignal.worstStale,
       peakProfit: publicSignal.peakProfit,
       signal: publicSignal,
       note: scheduled.note,
@@ -4645,6 +4858,10 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 
   const currentTime = self.params.execution.context.when.getTime();
 
+  // Худший эпизод «пик -> откат»: ДО веток и пингов, чтобы active-ping видел
+  // рекорд своего же тика (как _peak/_fall). Сверка с пиком прошлых тиков
+  // эквивалентна: тик нового пика даёт отрицательный giveback и рекорд не пишет
+  await UPDATE_STALE_FN(self, signal, currentPrice, currentTime, backtest);
 
   // Calculate percentage of path to TP/SL for partial fill/loss callbacks
   {
@@ -5025,6 +5242,7 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       originalPriceOpen: scheduled.priceOpen,
       pnl: publicSignal.pnl,
       maxDrawdown: publicSignal.maxDrawdown,
+      worstStale: publicSignal.worstStale,
       peakProfit: publicSignal.peakProfit,
       signal: publicSignal,
       note: cancelNote ?? scheduled.note,
@@ -5108,6 +5326,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
         originalPriceOpen: scheduled.priceOpen,
         pnl: publicSignal.pnl,
         maxDrawdown: publicSignal.maxDrawdown,
+        worstStale: publicSignal.worstStale,
         peakProfit: publicSignal.peakProfit,
         signal: publicSignal,
         note: scheduled.note,
@@ -5176,6 +5395,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
         originalPriceOpen: scheduled.priceOpen,
         pnl: publicSignal.pnl,
         maxDrawdown: publicSignal.maxDrawdown,
+        worstStale: publicSignal.worstStale,
         peakProfit: publicSignal.peakProfit,
         signal: publicSignal,
         note: scheduled.note,
@@ -5191,6 +5411,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     _isScheduled: false,
     _peak: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 },
     _fall: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 },
+    _stale: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0, peakPrice: scheduled.priceOpen, peakTimestamp: activationTime, peakPnlPercentage: 0, peakPnlCost: 0, breakevenPrice: 0, breakevenTimestamp: 0 },
   };
   {
     const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(activatedSignal, activatedSignal.priceOpen);
@@ -5242,6 +5463,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       originalPriceOpen: scheduled.priceOpen,
       pnl: publicSignal.pnl,
       maxDrawdown: publicSignal.maxDrawdown,
+      worstStale: publicSignal.worstStale,
       peakProfit: publicSignal.peakProfit,
       signal: publicSignal,
       note: scheduled.note,
@@ -5472,6 +5694,7 @@ const CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     originalPriceOpen: closedSignal.priceOpen,
     pnl: publicSignal.pnl,
     maxDrawdown: publicSignal.maxDrawdown,
+    worstStale: publicSignal.worstStale,
     peakProfit: publicSignal.peakProfit,
     signal: publicSignal,
     note: closedSignal.closeNote ?? closedSignal.note,
@@ -5598,6 +5821,7 @@ const CLOSE_PENDING_SIGNAL_AS_FILL_FN = async (
     originalPriceOpen: filledSignal.priceOpen,
     pnl: publicSignal.pnl,
     maxDrawdown: publicSignal.maxDrawdown,
+    worstStale: publicSignal.worstStale,
     peakProfit: publicSignal.peakProfit,
     signal: publicSignal,
     note: filledSignal.closeNote ?? filledSignal.note,
@@ -5769,6 +5993,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
             originalPriceOpen: activatedSignal.priceOpen,
             pnl: publicSignal.pnl,
             maxDrawdown: publicSignal.maxDrawdown,
+            worstStale: publicSignal.worstStale,
             peakProfit: publicSignal.peakProfit,
             signal: publicSignal,
             note: activatedSignal.activateNote ?? activatedSignal.note,
@@ -5847,6 +6072,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
             originalPriceOpen: activatedSignal.priceOpen,
             pnl: publicSignal.pnl,
             maxDrawdown: publicSignal.maxDrawdown,
+            worstStale: publicSignal.worstStale,
             peakProfit: publicSignal.peakProfit,
             signal: publicSignal,
             note: activatedSignal.activateNote ?? activatedSignal.note,
@@ -5886,6 +6112,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         _isScheduled: false,
         _peak: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
         _fall: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
+        _stale: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0, peakPrice: activatedSignal.priceOpen, peakTimestamp: candle.timestamp, peakPnlPercentage: 0, peakPnlCost: 0, breakevenPrice: 0, breakevenTimestamp: 0 },
       };
       {
         const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(pendingSignal, pendingSignal.priceOpen);
@@ -5937,6 +6164,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
           originalPriceOpen: activatedSignal.priceOpen,
           pnl: publicSignal.pnl,
           maxDrawdown: publicSignal.maxDrawdown,
+          worstStale: publicSignal.worstStale,
           peakProfit: publicSignal.peakProfit,
           signal: publicSignal,
           note: activatedSignal.activateNote ?? activatedSignal.note,
@@ -6002,6 +6230,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         currentPrice: averagePrice,
         pnl: publicSignalForCommit.pnl,
         maxDrawdown: publicSignalForCommit.maxDrawdown,
+        worstStale: publicSignalForCommit.worstStale,
         peakProfit: publicSignalForCommit.peakProfit,
         signal: publicSignalForCommit,
         position: publicSignalForCommit.position,
@@ -6335,6 +6564,11 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       // candle; for time_expired this eventually reaches the loop-exhausted close
       // (which throws if still rejected).
     }
+
+    // Худший эпизод «пик -> откат»: ДО веток и пингов (зеркало live-тика) —
+    // рекорд виден active-ping этой же свечи; сверка с пиком прошлых свечей
+    // эквивалентна (свеча нового пика даёт отрицательный giveback)
+    await UPDATE_STALE_FN(self, signal, averagePrice, currentCandleTimestamp, true);
 
     // Call onPartialProfit/onPartialLoss callbacks during backtest candle processing
     // Calculate percentage of path to TP/SL
@@ -7771,6 +8005,174 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
+   * Returns the VWAP price at the trough of the worst peak-rollback episode (`_stale`).
+   *
+   * Initialized at position open with the entry price (zero episode).
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to price or null
+   */
+  public async getPositionWorstStalePrice(symbol: string): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionWorstStalePrice", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return this._pendingSignal._stale.price;
+  }
+
+  /**
+   * Returns the timestamp when the trough of the worst peak-rollback episode was recorded.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to timestamp in milliseconds or null
+   */
+  public async getPositionWorstStaleTimestamp(symbol: string): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionWorstStaleTimestamp", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return this._pendingSignal._stale.timestamp;
+  }
+
+  /**
+   * Returns the realizable PnL percentage at the trough of the worst peak-rollback episode.
+   *
+   * Effective profitLock: a value >= 0 means a breakeven-or-better exit stayed
+   * reachable through the worst rollback recorded so far.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to PnL percentage or null
+   */
+  public async getPositionWorstStalePnlPercentage(symbol: string): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionWorstStalePnlPercentage", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return this._pendingSignal._stale.pnlPercentage;
+  }
+
+  /**
+   * Returns the realizable PnL cost (in quote currency) at the trough of the worst peak-rollback episode.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to PnL cost or null
+   */
+  public async getPositionWorstStalePnlCost(symbol: string): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionWorstStalePnlCost", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return this._pendingSignal._stale.pnlCost;
+  }
+
+  /**
+   * Returns the giveback of the worst peak-rollback episode in PnL percentage.
+   *
+   * Computed as: stale.peakPnlPercentage - stale.pnlPercentage (>= 0; zero
+   * while no rollback from a positive peak has been recorded).
+   * Effective trailingTake distance: a trailing take above this value survives
+   * the worst rollback seen so far, a smaller one locks profit earlier.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to giveback PnL percentage or null
+   */
+  public async getPositionWorstStaleGivebackPnlPercentage(symbol: string): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionWorstStaleGivebackPnlPercentage", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    const stale = this._pendingSignal._stale;
+    return Math.max(0, stale.peakPnlPercentage - stale.pnlPercentage);
+  }
+
+  /**
+   * Returns the giveback of the worst peak-rollback episode in PnL cost (quote currency).
+   *
+   * Computed as: stale.peakPnlCost - stale.pnlCost (>= 0).
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to giveback PnL cost or null
+   */
+  public async getPositionWorstStaleGivebackPnlCost(symbol: string): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionWorstStaleGivebackPnlCost", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    const stale = this._pendingSignal._stale;
+    return Math.max(0, stale.peakPnlCost - stale.pnlCost);
+  }
+
+  /**
+   * Returns the duration of the worst peak-rollback episode in minutes (peak -> trough).
+   *
+   * Effective peak-staleness duration: how long the worst rollback ran from
+   * its peak to the recorded trough. Zero while no rollback has been recorded.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to minutes (>= 0) or null
+   */
+  public async getPositionWorstStaleMinutes(symbol: string): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionWorstStaleMinutes", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    const stale = this._pendingSignal._stale;
+    return Math.max(0, Math.floor((stale.timestamp - stale.peakTimestamp) / 60000));
+  }
+
+  /**
+   * Returns the minutes from position open (pendingAt) to the peak the worst rollback fell from.
+   *
+   * Effective holdMinutes: how long the position had to be held to reach the
+   * peak that later went stale. Zero while no rollback has been recorded.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to minutes (>= 0) or null
+   */
+  public async getPositionWorstStaleHoldMinutes(symbol: string): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionWorstStaleHoldMinutes", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    const stale = this._pendingSignal._stale;
+    return Math.max(0, Math.floor((stale.peakTimestamp - this._pendingSignal.pendingAt) / 60000));
+  }
+
+  /**
+   * Returns the realizable PnL percentage at the peak the worst rollback fell from.
+   *
+   * Effective peak-staleness profit threshold: the profit level that later
+   * went stale. Zero while no rollback has been recorded.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to PnL percentage (>= 0) or null
+   */
+  public async getPositionWorstStalePeakPnlPercentage(symbol: string): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionWorstStalePeakPnlPercentage", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return this._pendingSignal._stale.peakPnlPercentage;
+  }
+
+  /**
    * Performs a single tick of strategy execution.
    *
    * Flow (LIVE mode):
@@ -7860,6 +8262,7 @@ export class ClientStrategy implements IStrategy {
         originalPriceOpen: cancelledSignal.priceOpen,
         pnl: publicSignal.pnl,
         maxDrawdown: publicSignal.maxDrawdown,
+        worstStale: publicSignal.worstStale,
         peakProfit: publicSignal.peakProfit,
         signal: publicSignal,
         note: cancelledSignal.cancelNote ?? cancelledSignal.note,
@@ -7966,6 +8369,7 @@ export class ClientStrategy implements IStrategy {
         originalPriceOpen: closedSignal.priceOpen,
         pnl: publicSignal.pnl,
         maxDrawdown: publicSignal.maxDrawdown,
+        worstStale: publicSignal.worstStale,
         peakProfit: publicSignal.peakProfit,
         signal: publicSignal,
         note: closedSignal.closeNote ?? closedSignal.note,
@@ -8147,6 +8551,7 @@ export class ClientStrategy implements IStrategy {
             originalPriceOpen: activatedSignal.priceOpen,
             pnl: publicSignal.pnl,
             maxDrawdown: publicSignal.maxDrawdown,
+            worstStale: publicSignal.worstStale,
             peakProfit: publicSignal.peakProfit,
             signal: publicSignal,
             note: activatedSignal.activateNote ?? activatedSignal.note,
@@ -8199,6 +8604,7 @@ export class ClientStrategy implements IStrategy {
             originalPriceOpen: activatedSignal.priceOpen,
             pnl: publicSignal.pnl,
             maxDrawdown: publicSignal.maxDrawdown,
+            worstStale: publicSignal.worstStale,
             peakProfit: publicSignal.peakProfit,
             signal: publicSignal,
             note: activatedSignal.activateNote ?? activatedSignal.note,
@@ -8214,6 +8620,7 @@ export class ClientStrategy implements IStrategy {
         _isScheduled: false,
         _peak: { price: activatedSignal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, pnlEntries: 0, priceOpen: 0 },
         _fall: { price: activatedSignal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, pnlEntries: 0, priceOpen: 0 },
+        _stale: { price: activatedSignal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0, peakPrice: activatedSignal.priceOpen, peakTimestamp: currentTime, peakPnlPercentage: 0, peakPnlCost: 0, breakevenPrice: 0, breakevenTimestamp: 0 },
       };
       {
         const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(pendingSignal, pendingSignal.priceOpen);
@@ -8261,6 +8668,7 @@ export class ClientStrategy implements IStrategy {
           originalPriceOpen: activatedSignal.priceOpen,
           pnl: publicSignal.pnl,
           maxDrawdown: publicSignal.maxDrawdown,
+          worstStale: publicSignal.worstStale,
           peakProfit: publicSignal.peakProfit,
           signal: publicSignal,
           note: activatedSignal.activateNote ?? activatedSignal.note,
@@ -8301,6 +8709,7 @@ export class ClientStrategy implements IStrategy {
         currentPrice,
         pnl: publicSignalForCommit.pnl,
         maxDrawdown: publicSignalForCommit.maxDrawdown,
+        worstStale: publicSignalForCommit.worstStale,
         peakProfit: publicSignalForCommit.peakProfit,
         signal: publicSignalForCommit,
         position: publicSignalForCommit.position,
@@ -8763,6 +9172,7 @@ export class ClientStrategy implements IStrategy {
         originalPriceOpen: cancelledSignal.priceOpen,
         pnl: publicSignal.pnl,
         maxDrawdown: publicSignal.maxDrawdown,
+        worstStale: publicSignal.worstStale,
         peakProfit: publicSignal.peakProfit,
         signal: publicSignal,
         note: cancelledSignal.cancelNote ?? cancelledSignal.note,
@@ -8866,6 +9276,7 @@ export class ClientStrategy implements IStrategy {
         originalPriceOpen: closedSignal.priceOpen,
         pnl: publicSignal.pnl,
         maxDrawdown: publicSignal.maxDrawdown,
+        worstStale: publicSignal.worstStale,
         peakProfit: publicSignal.peakProfit,
         signal: publicSignal,
         note: closedSignal.closeNote ?? closedSignal.note,

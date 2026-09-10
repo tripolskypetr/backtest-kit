@@ -440,6 +440,8 @@ class ReportStorage {
       scheduledAt: data.signal.scheduledAt,
       peakPnl: data.signal.peakProfit?.pnlPercentage,
       fallPnl: data.signal.maxDrawdown?.pnlPercentage,
+      staleGiveback: data.signal.worstStale ? data.signal.worstStale.peakPnlPercentage - data.signal.worstStale.pnlPercentage : undefined,
+      staleMinutes: data.signal.worstStale ? Math.max(0, Math.floor((data.signal.worstStale.timestamp - data.signal.worstStale.peakTimestamp) / 60000)) : undefined,
     };
 
     this._eventList.unshift(newEvent);

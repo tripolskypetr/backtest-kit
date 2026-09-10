@@ -26,6 +26,15 @@ const REFLECT_METHOD_NAME_GET_POSITION_HIGHEST_MAX_DRAWDOWN_PNL_PERCENTAGE = "Re
 const REFLECT_METHOD_NAME_GET_POSITION_HIGHEST_MAX_DRAWDOWN_PNL_COST = "ReflectUtils.getPositionHighestMaxDrawdownPnlCost";
 const REFLECT_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE = "ReflectUtils.getMaxDrawdownDistancePnlPercentage";
 const REFLECT_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_COST = "ReflectUtils.getMaxDrawdownDistancePnlCost";
+const REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PRICE = "ReflectUtils.getPositionWorstStalePrice";
+const REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_TIMESTAMP = "ReflectUtils.getPositionWorstStaleTimestamp";
+const REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PNL_PERCENTAGE = "ReflectUtils.getPositionWorstStalePnlPercentage";
+const REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PNL_COST = "ReflectUtils.getPositionWorstStalePnlCost";
+const REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_GIVEBACK_PNL_PERCENTAGE = "ReflectUtils.getPositionWorstStaleGivebackPnlPercentage";
+const REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_GIVEBACK_PNL_COST = "ReflectUtils.getPositionWorstStaleGivebackPnlCost";
+const REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_MINUTES = "ReflectUtils.getPositionWorstStaleMinutes";
+const REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_HOLD_MINUTES = "ReflectUtils.getPositionWorstStaleHoldMinutes";
+const REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PEAK_PNL_PERCENTAGE = "ReflectUtils.getPositionWorstStalePeakPnlPercentage";
 
 /**
  * Utility class for real-time position reflection: PNL, peak profit, and drawdown queries.
@@ -974,6 +983,384 @@ export class ReflectUtils {
       );
     }
     return await bt.strategyCoreService.getMaxDrawdownDistancePnlCost(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the VWAP price at the trough of the worst peak-rollback episode (`_stale`).
+   *
+   * Throws if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName and frameName
+   * @param backtest - True if backtest mode, false if live mode (default: false)
+   * @returns Promise resolving to price
+   *
+   * @example
+   * ```typescript
+   * const troughPrice = await Reflect.getPositionWorstStalePrice(
+   *   "BTCUSDT",
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+   * );
+   * console.log(`Stale trough price: ${troughPrice}`);
+   * ```
+   */
+  public getPositionWorstStalePrice = async (
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    backtest = false
+  ): Promise<number> => {
+    bt.loggerService.info(REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PRICE, { symbol, context });
+    bt.strategyValidationService.validate(context.strategyName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PRICE);
+    bt.exchangeValidationService.validate(context.exchangeName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PRICE);
+    context.frameName && bt.frameValidationService.validate(context.frameName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PRICE);
+    {
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
+      riskName && bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PRICE);
+      riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PRICE));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PRICE));
+    }
+    if (await not(bt.strategyCoreService.hasPendingSignal(backtest, symbol, context))) {
+      throw new Error(
+        `Reflect.getPositionWorstStalePrice no pending signal for symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName} frameName=${context.frameName}`,
+      );
+    }
+    return await bt.strategyCoreService.getPositionWorstStalePrice(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the timestamp when the trough of the worst peak-rollback episode was recorded.
+   *
+   * Throws if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName and frameName
+   * @param backtest - True if backtest mode, false if live mode (default: false)
+   * @returns Promise resolving to timestamp in milliseconds
+   *
+   * @example
+   * ```typescript
+   * const ts = await Reflect.getPositionWorstStaleTimestamp(
+   *   "BTCUSDT",
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+   * );
+   * console.log(`Stale trough at: ${new Date(ts).toISOString()}`);
+   * ```
+   */
+  public getPositionWorstStaleTimestamp = async (
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    backtest = false
+  ): Promise<number> => {
+    bt.loggerService.info(REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_TIMESTAMP, { symbol, context });
+    bt.strategyValidationService.validate(context.strategyName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_TIMESTAMP);
+    bt.exchangeValidationService.validate(context.exchangeName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_TIMESTAMP);
+    context.frameName && bt.frameValidationService.validate(context.frameName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_TIMESTAMP);
+    {
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
+      riskName && bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_TIMESTAMP);
+      riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_TIMESTAMP));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_TIMESTAMP));
+    }
+    if (await not(bt.strategyCoreService.hasPendingSignal(backtest, symbol, context))) {
+      throw new Error(
+        `Reflect.getPositionWorstStaleTimestamp no pending signal for symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName} frameName=${context.frameName}`,
+      );
+    }
+    return await bt.strategyCoreService.getPositionWorstStaleTimestamp(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the realizable PnL percentage at the trough of the worst peak-rollback episode (effective profitLock; ≥ 0 means a breakeven-or-better exit stayed reachable).
+   *
+   * Throws if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName and frameName
+   * @param backtest - True if backtest mode, false if live mode (default: false)
+   * @returns Promise resolving to PnL percentage
+   *
+   * @example
+   * ```typescript
+   * const profitLock = await Reflect.getPositionWorstStalePnlPercentage(
+   *   "BTCUSDT",
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+   * );
+   * console.log(`Effective profitLock: ${profitLock}%`);
+   * ```
+   */
+  public getPositionWorstStalePnlPercentage = async (
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    backtest = false
+  ): Promise<number> => {
+    bt.loggerService.info(REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PNL_PERCENTAGE, { symbol, context });
+    bt.strategyValidationService.validate(context.strategyName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PNL_PERCENTAGE);
+    bt.exchangeValidationService.validate(context.exchangeName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PNL_PERCENTAGE);
+    context.frameName && bt.frameValidationService.validate(context.frameName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PNL_PERCENTAGE);
+    {
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
+      riskName && bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PNL_PERCENTAGE);
+      riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PNL_PERCENTAGE));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PNL_PERCENTAGE));
+    }
+    if (await not(bt.strategyCoreService.hasPendingSignal(backtest, symbol, context))) {
+      throw new Error(
+        `Reflect.getPositionWorstStalePnlPercentage no pending signal for symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName} frameName=${context.frameName}`,
+      );
+    }
+    return await bt.strategyCoreService.getPositionWorstStalePnlPercentage(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the realizable PnL cost (in quote currency) at the trough of the worst peak-rollback episode.
+   *
+   * Throws if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName and frameName
+   * @param backtest - True if backtest mode, false if live mode (default: false)
+   * @returns Promise resolving to PnL cost
+   *
+   * @example
+   * ```typescript
+   * const troughCost = await Reflect.getPositionWorstStalePnlCost(
+   *   "BTCUSDT",
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+   * );
+   * console.log(`Stale trough PnL: $${troughCost}`);
+   * ```
+   */
+  public getPositionWorstStalePnlCost = async (
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    backtest = false
+  ): Promise<number> => {
+    bt.loggerService.info(REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PNL_COST, { symbol, context });
+    bt.strategyValidationService.validate(context.strategyName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PNL_COST);
+    bt.exchangeValidationService.validate(context.exchangeName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PNL_COST);
+    context.frameName && bt.frameValidationService.validate(context.frameName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PNL_COST);
+    {
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
+      riskName && bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PNL_COST);
+      riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PNL_COST));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PNL_COST));
+    }
+    if (await not(bt.strategyCoreService.hasPendingSignal(backtest, symbol, context))) {
+      throw new Error(
+        `Reflect.getPositionWorstStalePnlCost no pending signal for symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName} frameName=${context.frameName}`,
+      );
+    }
+    return await bt.strategyCoreService.getPositionWorstStalePnlCost(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the giveback of the worst peak-rollback episode in PnL percentage (effective trailingTake distance).
+   *
+   * Throws if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName and frameName
+   * @param backtest - True if backtest mode, false if live mode (default: false)
+   * @returns Promise resolving to giveback PnL% (≥ 0)
+   *
+   * @example
+   * ```typescript
+   * const giveback = await Reflect.getPositionWorstStaleGivebackPnlPercentage(
+   *   "BTCUSDT",
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+   * );
+   * console.log(`Effective trailingTake: ${giveback}%`);
+   * ```
+   */
+  public getPositionWorstStaleGivebackPnlPercentage = async (
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    backtest = false
+  ): Promise<number> => {
+    bt.loggerService.info(REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_GIVEBACK_PNL_PERCENTAGE, { symbol, context });
+    bt.strategyValidationService.validate(context.strategyName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_GIVEBACK_PNL_PERCENTAGE);
+    bt.exchangeValidationService.validate(context.exchangeName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_GIVEBACK_PNL_PERCENTAGE);
+    context.frameName && bt.frameValidationService.validate(context.frameName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_GIVEBACK_PNL_PERCENTAGE);
+    {
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
+      riskName && bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_GIVEBACK_PNL_PERCENTAGE);
+      riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_GIVEBACK_PNL_PERCENTAGE));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_GIVEBACK_PNL_PERCENTAGE));
+    }
+    if (await not(bt.strategyCoreService.hasPendingSignal(backtest, symbol, context))) {
+      throw new Error(
+        `Reflect.getPositionWorstStaleGivebackPnlPercentage no pending signal for symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName} frameName=${context.frameName}`,
+      );
+    }
+    return await bt.strategyCoreService.getPositionWorstStaleGivebackPnlPercentage(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the giveback of the worst peak-rollback episode in PnL cost (quote currency).
+   *
+   * Throws if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName and frameName
+   * @param backtest - True if backtest mode, false if live mode (default: false)
+   * @returns Promise resolving to giveback PnL cost (≥ 0)
+   *
+   * @example
+   * ```typescript
+   * const giveback = await Reflect.getPositionWorstStaleGivebackPnlCost(
+   *   "BTCUSDT",
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+   * );
+   * console.log(`Gave back $${giveback} from peak`);
+   * ```
+   */
+  public getPositionWorstStaleGivebackPnlCost = async (
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    backtest = false
+  ): Promise<number> => {
+    bt.loggerService.info(REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_GIVEBACK_PNL_COST, { symbol, context });
+    bt.strategyValidationService.validate(context.strategyName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_GIVEBACK_PNL_COST);
+    bt.exchangeValidationService.validate(context.exchangeName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_GIVEBACK_PNL_COST);
+    context.frameName && bt.frameValidationService.validate(context.frameName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_GIVEBACK_PNL_COST);
+    {
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
+      riskName && bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_GIVEBACK_PNL_COST);
+      riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_GIVEBACK_PNL_COST));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_GIVEBACK_PNL_COST));
+    }
+    if (await not(bt.strategyCoreService.hasPendingSignal(backtest, symbol, context))) {
+      throw new Error(
+        `Reflect.getPositionWorstStaleGivebackPnlCost no pending signal for symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName} frameName=${context.frameName}`,
+      );
+    }
+    return await bt.strategyCoreService.getPositionWorstStaleGivebackPnlCost(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the duration of the worst peak-rollback episode in minutes (peak -> trough, effective staleness duration).
+   *
+   * Throws if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName and frameName
+   * @param backtest - True if backtest mode, false if live mode (default: false)
+   * @returns Promise resolving to minutes (≥ 0)
+   *
+   * @example
+   * ```typescript
+   * const minutes = await Reflect.getPositionWorstStaleMinutes(
+   *   "BTCUSDT",
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+   * );
+   * console.log(`Rollback ran ${minutes} minutes`);
+   * ```
+   */
+  public getPositionWorstStaleMinutes = async (
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    backtest = false
+  ): Promise<number> => {
+    bt.loggerService.info(REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_MINUTES, { symbol, context });
+    bt.strategyValidationService.validate(context.strategyName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_MINUTES);
+    bt.exchangeValidationService.validate(context.exchangeName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_MINUTES);
+    context.frameName && bt.frameValidationService.validate(context.frameName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_MINUTES);
+    {
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
+      riskName && bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_MINUTES);
+      riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_MINUTES));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_MINUTES));
+    }
+    if (await not(bt.strategyCoreService.hasPendingSignal(backtest, symbol, context))) {
+      throw new Error(
+        `Reflect.getPositionWorstStaleMinutes no pending signal for symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName} frameName=${context.frameName}`,
+      );
+    }
+    return await bt.strategyCoreService.getPositionWorstStaleMinutes(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the minutes from position open to the peak the worst rollback fell from (effective holdMinutes).
+   *
+   * Throws if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName and frameName
+   * @param backtest - True if backtest mode, false if live mode (default: false)
+   * @returns Promise resolving to minutes (≥ 0)
+   *
+   * @example
+   * ```typescript
+   * const minutes = await Reflect.getPositionWorstStaleHoldMinutes(
+   *   "BTCUSDT",
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+   * );
+   * console.log(`Effective holdMinutes: ${minutes}`);
+   * ```
+   */
+  public getPositionWorstStaleHoldMinutes = async (
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    backtest = false
+  ): Promise<number> => {
+    bt.loggerService.info(REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_HOLD_MINUTES, { symbol, context });
+    bt.strategyValidationService.validate(context.strategyName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_HOLD_MINUTES);
+    bt.exchangeValidationService.validate(context.exchangeName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_HOLD_MINUTES);
+    context.frameName && bt.frameValidationService.validate(context.frameName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_HOLD_MINUTES);
+    {
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
+      riskName && bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_HOLD_MINUTES);
+      riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_HOLD_MINUTES));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_HOLD_MINUTES));
+    }
+    if (await not(bt.strategyCoreService.hasPendingSignal(backtest, symbol, context))) {
+      throw new Error(
+        `Reflect.getPositionWorstStaleHoldMinutes no pending signal for symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName} frameName=${context.frameName}`,
+      );
+    }
+    return await bt.strategyCoreService.getPositionWorstStaleHoldMinutes(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the realizable PnL percentage at the peak the worst rollback fell from (effective staleness profit threshold).
+   *
+   * Throws if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName and frameName
+   * @param backtest - True if backtest mode, false if live mode (default: false)
+   * @returns Promise resolving to PnL percentage (≥ 0)
+   *
+   * @example
+   * ```typescript
+   * const peakPnl = await Reflect.getPositionWorstStalePeakPnlPercentage(
+   *   "BTCUSDT",
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+   * );
+   * console.log(`Rollback started from +${peakPnl}%`);
+   * ```
+   */
+  public getPositionWorstStalePeakPnlPercentage = async (
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    backtest = false
+  ): Promise<number> => {
+    bt.loggerService.info(REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PEAK_PNL_PERCENTAGE, { symbol, context });
+    bt.strategyValidationService.validate(context.strategyName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PEAK_PNL_PERCENTAGE);
+    bt.exchangeValidationService.validate(context.exchangeName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PEAK_PNL_PERCENTAGE);
+    context.frameName && bt.frameValidationService.validate(context.frameName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PEAK_PNL_PERCENTAGE);
+    {
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
+      riskName && bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PEAK_PNL_PERCENTAGE);
+      riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PEAK_PNL_PERCENTAGE));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, REFLECT_METHOD_NAME_GET_POSITION_WORST_STALE_PEAK_PNL_PERCENTAGE));
+    }
+    if (await not(bt.strategyCoreService.hasPendingSignal(backtest, symbol, context))) {
+      throw new Error(
+        `Reflect.getPositionWorstStalePeakPnlPercentage no pending signal for symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName} frameName=${context.frameName}`,
+      );
+    }
+    return await bt.strategyCoreService.getPositionWorstStalePeakPnlPercentage(backtest, symbol, context);
   };
 }
 
