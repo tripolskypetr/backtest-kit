@@ -118,6 +118,17 @@ export interface PartialLossContract {
    * ```
    */
   timestamp: number;
+
+  /**
+   * Event time as a `Date` instance.
+   *
+   * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
+   *   that triggered the level (not wall-clock time).
+   * - Live mode: wall-clock time at the moment the loss level was detected.
+   *
+   * Always equal to `new Date(timestamp)`.
+   */
+  when: Date;
 }
 
 export default PartialLossContract;

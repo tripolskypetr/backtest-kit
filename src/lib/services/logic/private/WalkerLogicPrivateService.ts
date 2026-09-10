@@ -6,6 +6,8 @@ import { StrategyName } from "../../../../interfaces/Strategy.interface";
 import BacktestLogicPublicService from "../public/BacktestLogicPublicService";
 import BacktestMarkdownService from "../../markdown/BacktestMarkdownService";
 import WalkerSchemaService from "../../schema/WalkerSchemaService";
+import FrameSchemaService from "../../schema/FrameSchemaService";
+import TimeMetaService from "../../meta/TimeMetaService";
 import { WalkerContract } from "../../../../contract/Walker.contract";
 import {
   walkerEmitter,
@@ -179,6 +181,8 @@ export class WalkerLogicPrivateService {
   readonly backtestMarkdownService = inject<BacktestMarkdownService>(
     TYPES.backtestMarkdownService
   );
+  readonly timeMetaService = inject<TimeMetaService>(TYPES.timeMetaService);
+  readonly frameSchemaService = inject<FrameSchemaService>(TYPES.frameSchemaService);
   readonly walkerSchemaService = inject<WalkerSchemaService>(
     TYPES.walkerSchemaService
   );
@@ -234,6 +238,9 @@ export class WalkerLogicPrivateService {
     let strategiesTested = 0;
     let bestMetric: number | null = null;
     let bestStrategy: StrategyName | null = null;
+    // Virtual execution time of the last completed strategy backtest; frame
+    // start until the first strategy finishes (never wall-clock time).
+    let lastWhen: Date = this.frameSchemaService.get(context.frameName).startDate;
 
     // Track stopped strategies in Set for efficient lookup
     const stoppedStrategies = new Set<StrategyName>();
@@ -356,6 +363,17 @@ export class WalkerLogicPrivateService {
 
         strategiesTested++;
 
+        {
+          const strategyContext = {
+            strategyName,
+            exchangeName: context.exchangeName,
+            frameName: context.frameName,
+          };
+          if (this.timeMetaService.hasTimestamp(symbol, strategyContext, true)) {
+            lastWhen = new Date(await this.timeMetaService.getTimestamp(symbol, strategyContext, true));
+          }
+        }
+
         const walkerContract: WalkerContract = {
           walkerName: context.walkerName,
           exchangeName: context.exchangeName,
@@ -369,6 +387,7 @@ export class WalkerLogicPrivateService {
           bestStrategy,
           strategiesTested,
           totalStrategies: strategies.length,
+          when: lastWhen,
         };
 
         // Emit progress event
@@ -380,6 +399,7 @@ export class WalkerLogicPrivateService {
           totalStrategies: strategies.length,
           processedStrategies: strategiesTested,
           progress: strategies.length > 0 ? strategiesTested / strategies.length : 0,
+          when: lastWhen,
         });
 
         // Call onStrategyComplete callback if provided
@@ -413,6 +433,7 @@ export class WalkerLogicPrivateService {
         bestStrategy !== null
           ? await this.backtestMarkdownService.getData(symbol, bestStrategy, context.exchangeName, context.frameName, true)
           : null,
+      when: lastWhen,
     };
 
     // Call onComplete callback if provided with final best results

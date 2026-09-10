@@ -21,6 +21,12 @@ interface SignalCommitBase {
   /** Timestamp from execution context (tick's when or backtest candle timestamp) */
   timestamp: number;
   /**
+   * Event time as a `Date` instance. Backtest mode: virtual execution time
+   * (candle.timestamp of the processed candle); live mode: wall-clock tick time.
+   * Always equal to `new Date(timestamp)`.
+   */
+  when: Date;
+  /**
    * Total number of DCA entries at the time of this event (_entry.length).
    * 1 = no averaging done (only initial entry). 2+ = averaged positions.
    */

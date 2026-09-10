@@ -36,6 +36,12 @@ interface OrderSyncBase {
   signalId: string;
   /** Timestamp from execution context (tick's when or backtest candle timestamp) */
   timestamp: number;
+  /**
+   * Event time as a `Date` instance. Backtest mode: virtual execution time
+   * (candle.timestamp of the processed candle); live mode: wall-clock tick time.
+   * Always equal to `new Date(timestamp)`.
+   */
+  when: Date;
   /** Complete public signal row at the moment of this event */
   signal: IPublicSignalRow;
   /**

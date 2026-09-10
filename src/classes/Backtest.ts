@@ -140,6 +140,25 @@ const BACKTEST_METHOD_NAME_HAS_NO_SCHEDULED_SIGNAL =
   "BacktestUtils.hasNoScheduledSignal";
 
 /**
+ * Resolves the virtual execution time of a backtest run: the last processed
+ * candle timestamp from TimeMetaService, falling back to the frame's planned
+ * start date if no candle was processed. Never wall-clock time.
+ */
+const GET_BACKTEST_WHEN_FN = async (
+  symbol: string,
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName: FrameName;
+  }
+): Promise<Date> => {
+  const { startDate } = backtest.frameSchemaService.get(context.frameName);
+  return backtest.timeMetaService.hasTimestamp(symbol, context, true)
+    ? new Date(await backtest.timeMetaService.getTimestamp(symbol, context, true))
+    : startDate;
+};
+
+/**
  * Internal task function that runs backtest and handles completion.
  * Consumes backtest results and updates instance state flags.
  *
@@ -185,6 +204,7 @@ const INSTANCE_TASK_FN = async (
       frameName: context.frameName,
       backtest: true,
       symbol,
+      when: await GET_BACKTEST_WHEN_FN(symbol, context),
     });
   }
   self._isDone = true;
@@ -478,6 +498,7 @@ export class BacktestInstance {
               frameName: context.frameName,
               backtest: true,
               symbol,
+              when: await GET_BACKTEST_WHEN_FN(symbol, context),
             });
           }
           this._isDone = true;

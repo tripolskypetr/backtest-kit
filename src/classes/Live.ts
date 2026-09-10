@@ -113,6 +113,31 @@ const LIVE_METHOD_NAME_HAS_NO_SCHEDULED_SIGNAL =
   "LiveUtils.hasNoScheduledSignal";
 
 /**
+ * Resolves the execution time of a live run from TimeMetaService: the
+ * timestamp of the last processed tick (waits for the first tick if none was
+ * processed yet). Sourced from the execution context, never read from the
+ * wall clock directly.
+ */
+const GET_LIVE_WHEN_FN = async (
+  symbol: string,
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+  }
+): Promise<Date> =>
+  new Date(
+    await backtest.timeMetaService.getTimestamp(
+      symbol,
+      {
+        strategyName: context.strategyName,
+        exchangeName: context.exchangeName,
+        frameName: "",
+      },
+      false
+    )
+  );
+
+/**
  * Internal task function that runs live trading and handles completion.
  * Consumes live trading results and updates instance state flags.
  *
@@ -157,6 +182,7 @@ const INSTANCE_TASK_FN = async (
       frameName: "",
       backtest: false,
       symbol,
+      when: await GET_LIVE_WHEN_FN(symbol, context),
     });
   }
   self._isDone = true;
@@ -448,6 +474,7 @@ export class LiveInstance {
               frameName: "",
               backtest: false,
               symbol,
+              when: await GET_LIVE_WHEN_FN(symbol, context),
             });
           }
           this._isDone = true;

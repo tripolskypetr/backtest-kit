@@ -111,6 +111,17 @@ export interface RiskContract {
   timestamp: number;
 
   /**
+   * Event time as a `Date` instance.
+   *
+   * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
+   *   being processed (not wall-clock time).
+   * - Live mode: wall-clock time at the moment of rejection.
+   *
+   * Always equal to `new Date(timestamp)`.
+   */
+  when: Date;
+
+  /**
    * Whether this event is from backtest mode (true) or live mode (false).
    * Used to separate backtest and live risk rejection tracking.
    */

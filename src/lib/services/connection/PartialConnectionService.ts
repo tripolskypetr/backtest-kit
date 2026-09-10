@@ -57,6 +57,7 @@ const CREATE_COMMIT_PROFIT_FN = (self: PartialConnectionService) => trycatch(
       level,
       backtest,
       timestamp,
+      when: new Date(timestamp),
     };
     await partialProfitSubject.next(event);
     await self.actionCoreService.partialProfitAvailable(backtest, event, { strategyName, exchangeName, frameName });
@@ -106,6 +107,7 @@ const CREATE_COMMIT_LOSS_FN = (self: PartialConnectionService) => trycatch(
       level,
       backtest,
       timestamp,
+      when: new Date(timestamp),
     };
     await partialLossSubject.next(event);
     await self.actionCoreService.partialLossAvailable(backtest, event, { strategyName, exchangeName, frameName });

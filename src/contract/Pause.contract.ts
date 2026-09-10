@@ -20,6 +20,12 @@ export interface PauseContract {
   paused: boolean;
   /** Timestamp of the pause state change (milliseconds since epoch) */
   timestamp: number;
+  /**
+   * Event time as a `Date` instance. Backtest mode: virtual execution time
+   * (candle.timestamp of the processed candle); live mode: wall-clock time.
+   * Always equal to `new Date(timestamp)`.
+   */
+  when: Date;
   /** Strategy name for context */
   strategyName: StrategyName;
   /** Exchange name for context */

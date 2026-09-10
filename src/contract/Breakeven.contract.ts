@@ -92,6 +92,17 @@ export interface BreakevenContract {
    * ```
    */
   timestamp: number;
+
+  /**
+   * Event time as a `Date` instance.
+   *
+   * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
+   *   that triggered breakeven (not wall-clock time).
+   * - Live mode: wall-clock time at the moment breakeven was set.
+   *
+   * Always equal to `new Date(timestamp)`.
+   */
+  when: Date;
 }
 
 export default BreakevenContract;

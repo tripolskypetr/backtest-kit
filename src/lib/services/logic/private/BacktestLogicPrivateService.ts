@@ -42,7 +42,8 @@ const EMIT_PROGRESS_FN = async (
   self: BacktestLogicPrivateService,
   symbol: string,
   totalFrames: number,
-  processedFrames: number
+  processedFrames: number,
+  when: Date
 ): Promise<void> => {
   await progressBacktestEmitter.next({
     exchangeName: self.methodContextService.context.exchangeName,
@@ -51,6 +52,7 @@ const EMIT_PROGRESS_FN = async (
     totalFrames,
     processedFrames,
     progress: totalFrames > 0 ? processedFrames / totalFrames : 0,
+    when,
   });
 };
 
@@ -254,13 +256,15 @@ const EMIT_SIGNAL_PERFORMANCE_FN = async (
   self: BacktestLogicPrivateService,
   symbol: string,
   signalStartTime: number,
-  previousEventTimestamp: number | null
+  previousEventTimestamp: number | null,
+  when: Date
 ): Promise<number> => {
   const signalEndTime = performance.now();
   const currentTimestamp = Date.now();
   await performanceEmitter.next({
     timestamp: currentTimestamp,
     previousTimestamp: previousEventTimestamp,
+    when,
     metricType: "backtest_signal",
     duration: signalEndTime - signalStartTime,
     strategyName: self.methodContextService.context.strategyName,
@@ -276,13 +280,15 @@ const EMIT_TIMEFRAME_PERFORMANCE_FN = async (
   self: BacktestLogicPrivateService,
   symbol: string,
   timeframeStartTime: number,
-  previousEventTimestamp: number | null
+  previousEventTimestamp: number | null,
+  when: Date
 ): Promise<number> => {
   const timeframeEndTime = performance.now();
   const currentTimestamp = Date.now();
   await performanceEmitter.next({
     timestamp: currentTimestamp,
     previousTimestamp: previousEventTimestamp,
+    when,
     metricType: "backtest_timeframe",
     duration: timeframeEndTime - timeframeStartTime,
     strategyName: self.methodContextService.context.strategyName,
@@ -428,7 +434,7 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
     closeReason: backtestResult.action === "closed" ? backtestResult.closeReason : undefined,
   });
 
-  const newTimestamp = await EMIT_SIGNAL_PERFORMANCE_FN(self, symbol, signalStartTime, previousEventTimestamp);
+  const newTimestamp = await EMIT_SIGNAL_PERFORMANCE_FN(self, symbol, signalStartTime, previousEventTimestamp, new Date(backtestResult.closeTimestamp));
 
   const shouldStop = await CHECK_STOPPED_FN(self, symbol, "after scheduled signal closed", {
     symbol,
@@ -591,7 +597,7 @@ const PROCESS_OPENED_SIGNAL_FN = async function*(
     closeTimestamp: backtestResult.closeTimestamp,
   });
 
-  const newTimestamp = await EMIT_SIGNAL_PERFORMANCE_FN(self, symbol, signalStartTime, previousEventTimestamp);
+  const newTimestamp = await EMIT_SIGNAL_PERFORMANCE_FN(self, symbol, signalStartTime, previousEventTimestamp, new Date(backtestResult.closeTimestamp));
 
   const shouldStop = await CHECK_STOPPED_FN(self, symbol, "after signal closed", {
     symbol,
@@ -681,7 +687,7 @@ export class BacktestLogicPrivateService {
         const timeframeStartTime = performance.now();
         const when = timeframes[i];
 
-        await EMIT_PROGRESS_FN(this, symbol, totalFrames, i);
+        await EMIT_PROGRESS_FN(this, symbol, totalFrames, i, when);
 
         if (await CHECK_STOPPED_FN(this, symbol, "before tick", { when: when.toISOString(), processedFrames: i, totalFrames })) {
           break;
@@ -734,7 +740,7 @@ export class BacktestLogicPrivateService {
             if (r.shouldStop) {
               break;
             }
-            previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp);
+            previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
             continue;
           }
         }
@@ -758,18 +764,18 @@ export class BacktestLogicPrivateService {
             if (r.shouldStop) {
               break;
             }
-            previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp);
+            previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
             continue;
           }
         }
 
-        previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp);
+        previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
 
         i++;
       }
 
       // Emit final progress event (100%)
-      await EMIT_PROGRESS_FN(this, symbol, totalFrames, totalFrames);
+      await EMIT_PROGRESS_FN(this, symbol, totalFrames, totalFrames, new Date(frameEndTime));
 
       // Track total backtest duration
       const backtestEndTime = performance.now();
@@ -777,6 +783,7 @@ export class BacktestLogicPrivateService {
       await performanceEmitter.next({
         timestamp: currentTimestamp,
         previousTimestamp: previousEventTimestamp,
+        when: new Date(frameEndTime),
         metricType: "backtest_total",
         duration: backtestEndTime - backtestStartTime,
         strategyName: this.methodContextService.context.strategyName,

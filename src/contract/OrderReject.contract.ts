@@ -49,6 +49,12 @@ interface OrderRejectBase {
   signalId: string;
   /** Timestamp from execution context at the moment the gate rejected */
   timestamp: number;
+  /**
+   * Event time as a `Date` instance. Backtest mode: virtual execution time
+   * (candle.timestamp of the processed candle); live mode: wall-clock time.
+   * Always equal to `new Date(timestamp)`.
+   */
+  when: Date;
   /** Complete public signal row at the moment of this event */
   signal: IPublicSignalRow;
   /**

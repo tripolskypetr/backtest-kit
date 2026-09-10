@@ -30,6 +30,12 @@ export interface ProgressBacktestContract {
     processedFrames: number;
     /** progress - Completion percentage from 0.0 to 1.0 */
     progress: number;
+    /**
+     * Virtual execution time as a `Date` instance: the timeframe being
+     * processed when this progress event was emitted (frame end time for the
+     * final 100% event). Never wall-clock time.
+     */
+    when: Date;
 }
 
 export default ProgressBacktestContract;

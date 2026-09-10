@@ -50,6 +50,13 @@ export interface WalkerCompleteContract {
 
     /** bestStats - Best strategy statistics */
     bestStats: BacktestStatisticsModel | null;
+
+    /**
+     * Virtual execution time as a `Date` instance: the last processed candle
+     * timestamp across the tested strategies from `TimeMetaService`, falling
+     * back to the frame's planned start date. Never wall-clock time.
+     */
+    when: Date;
 }
 
 export default WalkerCompleteContract;

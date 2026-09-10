@@ -29,6 +29,12 @@ export interface WalkerStopContract {
     strategyName: StrategyName;
     /** walkerName - Name of the walker to stop (for filtering) */
     walkerName: WalkerName;
+    /**
+     * Virtual execution time as a `Date` instance: the last processed candle
+     * timestamp of the strategy being stopped from `TimeMetaService`, falling
+     * back to the frame's planned start date. Never wall-clock time.
+     */
+    when: Date;
 }
 
 export default WalkerStopContract;

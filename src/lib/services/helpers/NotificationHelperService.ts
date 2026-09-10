@@ -210,6 +210,7 @@ export class NotificationHelperService {
       note: payload.notificationNote || pendingSignal.note,
       notificationId: payload.notificationId,
       timestamp,
+      when: new Date(timestamp),
     });
   };
 }

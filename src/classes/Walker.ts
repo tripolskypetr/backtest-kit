@@ -1,5 +1,6 @@
 import backtest from "../lib";
-import { WalkerName } from "../interfaces/Walker.interface";
+import { IWalkerSchema, WalkerName } from "../interfaces/Walker.interface";
+import { StrategyName } from "../interfaces/Strategy.interface";
 import {
   exitEmitter,
   doneWalkerSubject,
@@ -24,6 +25,48 @@ const WALKER_METHOD_NAME_GET_REPORT = "WalkerUtils.getReport";
 const WALKER_METHOD_NAME_DUMP = "WalkerUtils.dump";
 const WALKER_METHOD_NAME_TASK = "WalkerUtils.task";
 const WALKER_METHOD_NAME_GET_STATUS = "WalkerUtils.getStatus";
+
+/**
+ * Resolves the virtual execution time for a single strategy of a walker: the
+ * last processed candle timestamp from TimeMetaService, falling back to the
+ * frame's planned start date. Never wall-clock time.
+ */
+const GET_STRATEGY_WHEN_FN = async (
+  symbol: string,
+  strategyName: StrategyName,
+  walkerSchema: IWalkerSchema
+): Promise<Date> => {
+  const { startDate } = backtest.frameSchemaService.get(walkerSchema.frameName);
+  const context = {
+    strategyName,
+    exchangeName: walkerSchema.exchangeName,
+    frameName: walkerSchema.frameName,
+  };
+  return backtest.timeMetaService.hasTimestamp(symbol, context, true)
+    ? new Date(await backtest.timeMetaService.getTimestamp(symbol, context, true))
+    : startDate;
+};
+
+/**
+ * Resolves the virtual execution time for walker-level events: the latest
+ * processed candle timestamp across the walker's strategies from
+ * TimeMetaService, falling back to the frame's planned start date.
+ * Never wall-clock time.
+ */
+const GET_WALKER_WHEN_FN = async (
+  symbol: string,
+  walkerSchema: IWalkerSchema
+): Promise<Date> => {
+  const { startDate } = backtest.frameSchemaService.get(walkerSchema.frameName);
+  let when = startDate;
+  for (const strategyName of walkerSchema.strategies) {
+    const candidate = await GET_STRATEGY_WHEN_FN(symbol, strategyName, walkerSchema);
+    if (candidate.getTime() > when.getTime()) {
+      when = candidate;
+    }
+  }
+  return when;
+};
 
 /**
  * Internal task function that runs walker and handles completion.
@@ -60,6 +103,7 @@ const INSTANCE_TASK_FN = async (
       frameName: walkerSchema.frameName,
       backtest: true,
       symbol,
+      when: await GET_WALKER_WHEN_FN(symbol, walkerSchema),
     });
   }
   self._isDone = true;
@@ -315,20 +359,26 @@ export class WalkerInstance {
           exchangeName: walkerSchema.exchangeName,
           frameName: walkerSchema.frameName
         });
-        walkerStopSubject.next({
-          symbol,
-          strategyName,
-          walkerName: context.walkerName,
-        });
+        GET_STRATEGY_WHEN_FN(symbol, strategyName, walkerSchema).then((when) =>
+          walkerStopSubject.next({
+            symbol,
+            strategyName,
+            walkerName: context.walkerName,
+            when,
+          })
+        );
       }
       if (!this._isDone) {
-        doneWalkerSubject.next({
-          exchangeName: walkerSchema.exchangeName,
-          strategyName: context.walkerName,
-          frameName: walkerSchema.frameName,
-          backtest: true,
-          symbol,
-        });
+        GET_WALKER_WHEN_FN(symbol, walkerSchema).then((when) =>
+          doneWalkerSubject.next({
+            exchangeName: walkerSchema.exchangeName,
+            strategyName: context.walkerName,
+            frameName: walkerSchema.frameName,
+            backtest: true,
+            symbol,
+            when,
+          })
+        );
       }
       this._isDone = true;
       this._isStopped = true;
@@ -570,7 +620,12 @@ export class WalkerUtils {
     }
 
     for (const strategyName of walkerSchema.strategies) {
-      await walkerStopSubject.next({ symbol, strategyName, walkerName: context.walkerName });
+      await walkerStopSubject.next({
+        symbol,
+        strategyName,
+        walkerName: context.walkerName,
+        when: await GET_STRATEGY_WHEN_FN(symbol, strategyName, walkerSchema),
+      });
       await backtest.strategyCoreService.stopStrategy(true, symbol, {
         strategyName,
         exchangeName: walkerSchema.exchangeName,

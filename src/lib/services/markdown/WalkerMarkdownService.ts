@@ -142,6 +142,8 @@ class ReportStorage {
   private _bestStats: BacktestStatisticsModel | null = null;
   private _bestMetric: number | null = null;
   private _bestStrategy: StrategyName | null = null;
+  /** Virtual execution time of the last added strategy result (never wall-clock) */
+  private _lastWhen: Date | null = null;
 
   /** All strategy results for comparison table */
   private _strategyResults: IStrategyResult[] = [];
@@ -159,6 +161,7 @@ class ReportStorage {
     this._totalStrategies = data.totalStrategies;
     this._bestMetric = data.bestMetric;
     this._bestStrategy = data.bestStrategy;
+    this._lastWhen = data.when;
 
     if (data.strategyName === data.bestStrategy) {
       this._bestStats = data.stats;
@@ -212,6 +215,8 @@ class ReportStorage {
       bestMetric: this._bestMetric,
       bestStats: this._bestStats,
       strategyResults: this._strategyResults,
+      // _totalStrategies !== null implies addResult() ran, so _lastWhen is set
+      when: this._lastWhen!,
     };
   }
 

@@ -69,6 +69,7 @@ const CREATE_COMMIT_REJECTION_FN = (
       rejectionNote: rejectionResult.note,
       frameName,
       timestamp,
+      when: new Date(timestamp),
       backtest,
     };
     await riskSubject.next(event);

@@ -16,6 +16,8 @@ type IWalkerLogicPrivateService = Omit<WalkerLogicPrivateService, keyof {
   walkerSchemaService: never;
   backtestMarkdownService: never;
   backtestLogicPublicService: never;
+  timeMetaService: never;
+  frameSchemaService: never;
 }>;
 
 /**

@@ -92,6 +92,17 @@ export interface SignalInfoContract {
    * - Backtest mode: candle.timestamp of the candle that triggered the event
    */
   timestamp: number;
+
+  /**
+   * Event time as a `Date` instance.
+   *
+   * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
+   *   that triggered the event (not wall-clock time).
+   * - Live mode: wall-clock time at the moment the info event was emitted.
+   *
+   * Always equal to `new Date(timestamp)`.
+   */
+  when: Date;
 }
 
 export default SignalInfoContract;

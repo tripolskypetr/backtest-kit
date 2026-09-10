@@ -95,6 +95,7 @@ const TO_ORDER_FILL_FN = (event: OrderSyncContract): OrderFillContract => {
     backtest: event.backtest,
     signalId: event.signalId,
     timestamp: event.timestamp,
+    when: new Date(event.timestamp),
     signal: event.signal,
     attempt: event.attempt,
     currentPrice: event.currentPrice,
@@ -134,6 +135,7 @@ const TO_ORDER_REJECT_FN = (event: OrderSyncContract, message: string): OrderRej
     backtest: event.backtest,
     signalId: event.signalId,
     timestamp: event.timestamp,
+    when: new Date(event.timestamp),
     signal: event.signal,
     attempt: event.attempt,
     currentPrice: event.currentPrice,
@@ -506,6 +508,7 @@ const CREATE_COMMIT_SCHEDULE_PING_FN = (self: StrategyConnectionService) => tryc
       data,
       backtest,
       timestamp,
+      when: new Date(timestamp),
     };
     {
       await self.priceMetaService.next(symbol, currentPrice, { strategyName, exchangeName, frameName: data.frameName }, backtest);
@@ -562,6 +565,7 @@ const CREATE_COMMIT_SCHEDULE_EVENT_FN = (self: StrategyConnectionService) => try
       currentPrice,
       backtest,
       timestamp,
+      when: new Date(timestamp),
     };
     await scheduleEventSubject.next(event);
     await self.actionCoreService.scheduleEvent(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
@@ -613,6 +617,7 @@ const CREATE_COMMIT_SIGNAL_EVENT_FN = (self: StrategyConnectionService) => tryca
       currentPrice,
       backtest,
       timestamp,
+      when: new Date(timestamp),
     };
     await signalEventSubject.next(event);
     await self.actionCoreService.pendingEvent(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
@@ -658,6 +663,7 @@ const CREATE_COMMIT_IDLE_PING_FN = (self: StrategyConnectionService) => trycatch
       currentPrice,
       backtest,
       timestamp,
+      when: new Date(timestamp),
     };
     {
       await self.priceMetaService.next(symbol, currentPrice, { strategyName, exchangeName, frameName: frameName }, backtest);
@@ -708,6 +714,7 @@ const CREATE_COMMIT_ACTIVE_PING_FN = (self: StrategyConnectionService) => trycat
       data,
       backtest,
       timestamp,
+      when: new Date(timestamp),
     };
     {
       await self.priceMetaService.next(symbol, currentPrice, { strategyName, exchangeName, frameName: data.frameName }, backtest);
@@ -814,6 +821,7 @@ const CREATE_HIGHEST_PROFIT_FN = (self: StrategyConnectionService, strategyName:
       signal,
       currentPrice,
       timestamp,
+      when: new Date(timestamp),
       strategyName,
       exchangeName,
       frameName,
@@ -854,6 +862,7 @@ const CREATE_MAX_DRAWDOWN_FN = (self: StrategyConnectionService, strategyName: S
       signal,
       currentPrice,
       timestamp,
+      when: new Date(timestamp),
       strategyName,
       exchangeName,
       frameName,
@@ -896,6 +905,7 @@ const CREATE_PAUSE_FN = (self: StrategyConnectionService, strategyName: Strategy
         symbol,
         paused,
         timestamp,
+        when: new Date(timestamp),
         strategyName,
         exchangeName,
         frameName,

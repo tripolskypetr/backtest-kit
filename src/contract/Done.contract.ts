@@ -32,6 +32,15 @@ export interface DoneContract {
     backtest: boolean;
     /** symbol - Trading symbol (e.g., "BTCUSDT") */
     symbol: string;
+    /**
+     * Completion time as a `Date` instance.
+     *
+     * - Backtest mode: virtual execution time — the last processed candle
+     *   timestamp from `TimeMetaService`, falling back to the frame's planned
+     *   start date if no candle was processed.
+     * - Live mode: time of the last processed tick from `TimeMetaService`.
+     */
+    when: Date;
 }
 
 export default DoneContract;

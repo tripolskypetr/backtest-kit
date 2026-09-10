@@ -829,6 +829,16 @@ interface BreakevenContract {
      * ```
      */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance.
+     *
+     * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
+     *   that triggered breakeven (not wall-clock time).
+     * - Live mode: wall-clock time at the moment breakeven was set.
+     *
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
 }
 
 /**
@@ -924,6 +934,16 @@ interface PartialProfitContract {
      * ```
      */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance.
+     *
+     * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
+     *   that triggered the level (not wall-clock time).
+     * - Live mode: wall-clock time at the moment the profit level was detected.
+     *
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
 }
 
 /**
@@ -1033,6 +1053,16 @@ interface PartialLossContract {
      * ```
      */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance.
+     *
+     * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
+     *   that triggered the level (not wall-clock time).
+     * - Live mode: wall-clock time at the moment the loss level was detected.
+     *
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
 }
 
 /**
@@ -1120,6 +1150,16 @@ interface SchedulePingContract {
      * ```
      */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance.
+     *
+     * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
+     *   being processed (not wall-clock time).
+     * - Live mode: wall-clock time at the moment of ping.
+     *
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
 }
 
 /**
@@ -1206,6 +1246,16 @@ interface ScheduleEventContract {
      * - Backtest mode: candle.timestamp of the candle being processed
      */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance.
+     *
+     * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
+     *   being processed (not wall-clock time).
+     * - Live mode: wall-clock time at the moment of the event.
+     *
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
 }
 
 /**
@@ -1295,6 +1345,16 @@ interface SignalEventContract {
      * - Backtest mode: candle.timestamp of the candle being processed
      */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance.
+     *
+     * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
+     *   being processed (not wall-clock time).
+     * - Live mode: wall-clock time at the moment of the event.
+     *
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
 }
 
 /**
@@ -1382,6 +1442,16 @@ interface ActivePingContract {
      * ```
      */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance.
+     *
+     * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
+     *   being processed (not wall-clock time).
+     * - Live mode: wall-clock time at the moment of ping.
+     *
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
 }
 
 /**
@@ -1429,6 +1499,16 @@ interface IdlePingContract {
      * - Backtest mode: candle.timestamp of the candle being processed
      */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance.
+     *
+     * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
+     *   being processed (not wall-clock time).
+     * - Live mode: wall-clock time at the moment of ping.
+     *
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
 }
 
 /**
@@ -1530,6 +1610,16 @@ interface RiskContract {
      */
     timestamp: number;
     /**
+     * Event time as a `Date` instance.
+     *
+     * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
+     *   being processed (not wall-clock time).
+     * - Live mode: wall-clock time at the moment of rejection.
+     *
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
+    /**
      * Whether this event is from backtest mode (true) or live mode (false).
      * Used to separate backtest and live risk rejection tracking.
      */
@@ -1570,6 +1660,12 @@ interface OrderSyncBase {
     signalId: string;
     /** Timestamp from execution context (tick's when or backtest candle timestamp) */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance. Backtest mode: virtual execution time
+     * (candle.timestamp of the processed candle); live mode: wall-clock tick time.
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
     /** Complete public signal row at the moment of this event */
     signal: IPublicSignalRow;
     /**
@@ -1759,6 +1855,12 @@ interface OrderCheckContract {
     signalId: string;
     /** Timestamp from execution context (tick's when) */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance. Backtest mode: virtual execution time
+     * (candle.timestamp of the processed candle); live mode: wall-clock tick time.
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
     /** Complete public signal row at the moment of this event */
     signal: IPublicSignalRow;
     /**
@@ -2623,6 +2725,12 @@ interface SignalCommitBase {
     /** Timestamp from execution context (tick's when or backtest candle timestamp) */
     timestamp: number;
     /**
+     * Event time as a `Date` instance. Backtest mode: virtual execution time
+     * (candle.timestamp of the processed candle); live mode: wall-clock tick time.
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
+    /**
      * Total number of DCA entries at the time of this event (_entry.length).
      * 1 = no averaging done (only initial entry). 2+ = averaged positions.
      */
@@ -2955,6 +3063,12 @@ interface OrderContinueContract {
     signalId: string;
     /** Timestamp from execution context (tick's when) */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance. Backtest mode: virtual execution time
+     * (candle.timestamp of the processed candle); live mode: wall-clock tick time.
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
     /** Complete public signal row at the moment of this event */
     signal: IPublicSignalRow;
     /**
@@ -3035,6 +3149,12 @@ interface OrderStopContract {
     signalId: string;
     /** Timestamp from execution context (tick's when) */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance. Backtest mode: virtual execution time
+     * (candle.timestamp of the processed candle); live mode: wall-clock tick time.
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
     /** Complete public signal row at the moment of this event */
     signal: IPublicSignalRow;
     /** Consecutive-failure streak at termination (0 for an immediate "deleted" verdict) */
@@ -5741,6 +5861,12 @@ interface WalkerCompleteContract {
     bestMetric: number | null;
     /** bestStats - Best strategy statistics */
     bestStats: BacktestStatisticsModel | null;
+    /**
+     * Virtual execution time as a `Date` instance: the last processed candle
+     * timestamp across the tested strategies from `TimeMetaService`, falling
+     * back to the frame's planned start date. Never wall-clock time.
+     */
+    when: Date;
 }
 
 /**
@@ -10223,6 +10349,15 @@ interface DoneContract {
     backtest: boolean;
     /** symbol - Trading symbol (e.g., "BTCUSDT") */
     symbol: string;
+    /**
+     * Completion time as a `Date` instance.
+     *
+     * - Backtest mode: virtual execution time — the last processed candle
+     *   timestamp from `TimeMetaService`, falling back to the frame's planned
+     *   start date if no candle was processed.
+     * - Live mode: time of the last processed tick from `TimeMetaService`.
+     */
+    when: Date;
 }
 
 /**
@@ -10254,6 +10389,12 @@ interface ProgressBacktestContract {
     processedFrames: number;
     /** progress - Completion percentage from 0.0 to 1.0 */
     progress: number;
+    /**
+     * Virtual execution time as a `Date` instance: the timeframe being
+     * processed when this progress event was emitted (frame end time for the
+     * final 100% event). Never wall-clock time.
+     */
+    when: Date;
 }
 
 /**
@@ -10287,6 +10428,12 @@ interface ProgressWalkerContract {
     processedStrategies: number;
     /** progress - Completion percentage from 0.0 to 1.0 */
     progress: number;
+    /**
+     * Virtual execution time as a `Date` instance: the last processed candle
+     * timestamp of the just-completed strategy backtest from `TimeMetaService`,
+     * falling back to the frame's planned start date. Never wall-clock time.
+     */
+    when: Date;
 }
 
 /**
@@ -10320,6 +10467,12 @@ type PerformanceMetricType = "backtest_total" | "backtest_timeframe" | "backtest
 interface PerformanceContract {
     /** Timestamp when the metric was recorded (milliseconds since epoch) */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance. Backtest mode: virtual execution time —
+     * the timeframe/signal close time being processed (NOT wall-clock, unlike
+     * `timestamp` which records real profiling time). Live mode: tick time.
+     */
+    when: Date;
     /** Timestamp of the previous event (milliseconds since epoch, null for first event) */
     previousTimestamp: number | null;
     /** Type of operation being measured */
@@ -10367,6 +10520,12 @@ interface WalkerContract {
     strategiesTested: number;
     /** Total number of strategies to test */
     totalStrategies: number;
+    /**
+     * Virtual execution time as a `Date` instance: the last processed candle
+     * timestamp of the just-completed strategy backtest from `TimeMetaService`,
+     * falling back to the frame's planned start date. Never wall-clock time.
+     */
+    when: Date;
 }
 
 /**
@@ -10413,6 +10572,12 @@ interface OrderFillBase {
     signalId: string;
     /** Timestamp from execution context at the moment the gate confirmed */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance. Backtest mode: virtual execution time
+     * (candle.timestamp of the processed candle); live mode: wall-clock time.
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
     /** Complete public signal row at the moment of this event */
     signal: IPublicSignalRow;
     /**
@@ -10525,6 +10690,12 @@ interface OrderRejectBase {
     signalId: string;
     /** Timestamp from execution context at the moment the gate rejected */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance. Backtest mode: virtual execution time
+     * (candle.timestamp of the processed candle); live mode: wall-clock time.
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
     /** Complete public signal row at the moment of this event */
     signal: IPublicSignalRow;
     /**
@@ -10608,6 +10779,12 @@ interface HighestProfitContract {
     currentPrice: number;
     /** Timestamp of the highest profit update (milliseconds since epoch) */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance. Backtest mode: virtual execution time
+     * (candle.timestamp of the processed candle); live mode: wall-clock time.
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
     /** Strategy name for context */
     strategyName: StrategyName;
     /** Exchange name for context */
@@ -10637,6 +10814,12 @@ interface MaxDrawdownContract {
     currentPrice: number;
     /** Timestamp of the max drawdown update (milliseconds since epoch) */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance. Backtest mode: virtual execution time
+     * (candle.timestamp of the processed candle); live mode: wall-clock time.
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
     /** Strategy name for context */
     strategyName: StrategyName;
     /** Exchange name for context */
@@ -10667,6 +10850,12 @@ interface PauseContract {
     paused: boolean;
     /** Timestamp of the pause state change (milliseconds since epoch) */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance. Backtest mode: virtual execution time
+     * (candle.timestamp of the processed candle); live mode: wall-clock time.
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
     /** Strategy name for context */
     strategyName: StrategyName;
     /** Exchange name for context */
@@ -10758,6 +10947,16 @@ interface SignalInfoContract {
      * - Backtest mode: candle.timestamp of the candle that triggered the event
      */
     timestamp: number;
+    /**
+     * Event time as a `Date` instance.
+     *
+     * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
+     *   that triggered the event (not wall-clock time).
+     * - Live mode: wall-clock time at the moment the info event was emitted.
+     *
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
 }
 
 /**
@@ -36208,6 +36407,12 @@ interface WalkerStopContract {
     strategyName: StrategyName;
     /** walkerName - Name of the walker to stop (for filtering) */
     walkerName: WalkerName;
+    /**
+     * Virtual execution time as a `Date` instance: the last processed candle
+     * timestamp of the strategy being stopped from `TimeMetaService`, falling
+     * back to the frame's planned start date. Never wall-clock time.
+     */
+    when: Date;
 }
 
 /**
@@ -42259,6 +42464,8 @@ declare class WalkerLogicPrivateService {
     };
     readonly backtestLogicPublicService: BacktestLogicPublicService;
     readonly backtestMarkdownService: BacktestMarkdownService;
+    readonly timeMetaService: TimeMetaService;
+    readonly frameSchemaService: FrameSchemaService;
     readonly walkerSchemaService: WalkerSchemaService;
     /**
      * Runs walker comparison for a symbol.
@@ -42304,6 +42511,8 @@ type IWalkerLogicPrivateService = Omit<WalkerLogicPrivateService, keyof {
     walkerSchemaService: never;
     backtestMarkdownService: never;
     backtestLogicPublicService: never;
+    timeMetaService: never;
+    frameSchemaService: never;
 }>;
 /**
  * Type definition for WalkerLogicPublicService.

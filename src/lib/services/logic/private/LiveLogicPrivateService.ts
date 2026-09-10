@@ -110,6 +110,7 @@ export class LiveLogicPrivateService {
       await performanceEmitter.next({
         timestamp: currentTimestamp,
         previousTimestamp: previousEventTimestamp,
+        when,
         metricType: "live_tick",
         duration: tickEndTime - tickStartTime,
         strategyName: this.methodContextService.context.strategyName,

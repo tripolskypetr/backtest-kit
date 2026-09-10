@@ -95,6 +95,17 @@ export interface ScheduleEventContract {
    * - Backtest mode: candle.timestamp of the candle being processed
    */
   timestamp: number;
+
+  /**
+   * Event time as a `Date` instance.
+   *
+   * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
+   *   being processed (not wall-clock time).
+   * - Live mode: wall-clock time at the moment of the event.
+   *
+   * Always equal to `new Date(timestamp)`.
+   */
+  when: Date;
 }
 
 export default ScheduleEventContract;
