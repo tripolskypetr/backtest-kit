@@ -1,5 +1,9 @@
 {
   "name": "BacktestKit",
+  "short_name": "BacktestKit",
+  "description": "Backtesting and analysis of trading strategies",
+  "start_url": "/",
+  "scope": "/",
   "theme_color": "#6974b0",
   "background_color": "#6974b0",
   "icons": [
