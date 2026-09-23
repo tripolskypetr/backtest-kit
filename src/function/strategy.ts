@@ -946,6 +946,7 @@ export async function commitActivateScheduled(
  * Automatically fetches current price via getAveragePrice.
  *
  * @param symbol - Trading pair symbol
+ * @param cost - Dollar amount of the new entry, weights the effective average price (defaults to CC_POSITION_ENTRY_COST)
  * @returns Promise<boolean> - true if entry added, false if rejected
  *
  * @example
