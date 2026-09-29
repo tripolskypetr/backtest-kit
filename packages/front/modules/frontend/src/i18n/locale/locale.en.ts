@@ -247,7 +247,7 @@ export const LOCALE: Record<string, string> = {
   "Loss Level Reached At": "Loss Level Reached At",
   "Rejected At": "Rejected At",
   "Active Positions": "Active Positions",
-  "Estimated Time (min)": "Estimated Time (min)",
+  "Estimated Time": "Estimated Time",
   "Price Levels": "Price Levels",
   "Trailing Details": "Trailing Details",
   "Event Time": "Event Time",

@@ -247,7 +247,7 @@ export const LOCALE: Record<string, string> = {
   "Loss Level Reached At": "हानि स्तर पहुंचने का समय",
   "Rejected At": "अस्वीकृति समय",
   "Active Positions": "सक्रिय पोजीशन",
-  "Estimated Time (min)": "अनुमानित समय (मिनट)",
+  "Estimated Time": "अनुमानित समय",
   "Price Levels": "मूल्य स्तर",
   "Trailing Details": "ट्रेलिंग विवरण",
   "Event Time": "इवेंट समय",

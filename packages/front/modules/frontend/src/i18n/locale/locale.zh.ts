@@ -247,7 +247,7 @@ export const LOCALE: Record<string, string> = {
   "Loss Level Reached At": "达到亏损级别时间",
   "Rejected At": "拒绝时间",
   "Active Positions": "活跃仓位",
-  "Estimated Time (min)": "预计时间（分钟）",
+  "Estimated Time": "预计时间",
   "Price Levels": "价格水平",
   "Trailing Details": "追踪详情",
   "Event Time": "事件时间",

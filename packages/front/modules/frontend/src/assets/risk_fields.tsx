@@ -4,6 +4,7 @@ import getPriceScale from "../utils/getPriceScale";
 import Markdown from "../components/common/Markdown";
 import toPlainString from "../helpers/toPlainString";
 import { t } from "../i18n";
+import formatMinutes from "../utils/formatMinutes";
 
 export const risk_fields: TypedField[] = [
     {
@@ -230,12 +231,13 @@ export const risk_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "minuteEstimatedTime",
-                        title: t("Estimated Time (min)"),
+                        title: t("Estimated Time"),
                         readonly: true,
                         isVisible: (obj) => !!obj.minuteEstimatedTime,
                         compute: (obj) =>
-                            obj.minuteEstimatedTime?.toString() ||
-                            t("Not specified"),
+                            obj.minuteEstimatedTime
+                                ? formatMinutes(obj.minuteEstimatedTime)
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,

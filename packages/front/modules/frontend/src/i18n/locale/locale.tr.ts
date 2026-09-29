@@ -247,7 +247,7 @@ export const LOCALE: Record<string, string> = {
   "Loss Level Reached At": "Zarar Seviyesine Ulaşma Zamanı",
   "Rejected At": "Reddedilme Zamanı",
   "Active Positions": "Aktif Pozisyonlar",
-  "Estimated Time (min)": "Tahmini Süre (dk)",
+  "Estimated Time": "Tahmini Süre",
   "Price Levels": "Fiyat Seviyeleri",
   "Trailing Details": "İz Sürme Ayrıntıları",
   "Event Time": "Olay Zamanı",

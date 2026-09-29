@@ -99,11 +99,12 @@ export const signal_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "minuteEstimatedTime",
-                        title: t("Estimated Time (min)"),
+                        title: t("Estimated Time"),
                         readonly: true,
                         compute: (obj) =>
-                            obj.minuteEstimatedTime?.toString() ||
-                            t("Not specified"),
+                            obj.minuteEstimatedTime
+                                ? formatMinutes(obj.minuteEstimatedTime)
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,

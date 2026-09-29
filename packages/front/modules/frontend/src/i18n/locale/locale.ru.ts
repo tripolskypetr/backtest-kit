@@ -247,7 +247,7 @@ export const LOCALE: Record<string, string> = {
   "Loss Level Reached At": "Уровень убытка достигнут",
   "Rejected At": "Отклонено",
   "Active Positions": "Активные позиции",
-  "Estimated Time (min)": "Расчётное время (мин)",
+  "Estimated Time": "Расчётное время",
   "Price Levels": "Ценовые уровни",
   "Trailing Details": "Детали трейлинга",
   "Event Time": "Время события",
