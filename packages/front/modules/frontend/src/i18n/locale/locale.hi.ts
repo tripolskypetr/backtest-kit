@@ -424,6 +424,7 @@ export const LOCALE: Record<string, string> = {
   "DCA": "DCA",
   "Copy path": "पथ कॉपी करें",
   "min": "मिनट",
+  "In position": "पोज़िशन में",
   "Sharpe Ratio": "शार्प रेशियो",
   "Win Rate": "विन रेट",
   "Profit Factor": "प्रॉफिट फैक्टर",

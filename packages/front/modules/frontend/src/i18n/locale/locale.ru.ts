@@ -424,6 +424,7 @@ export const LOCALE: Record<string, string> = {
   "DCA": "DCA",
   "Copy path": "Копировать путь",
   "min": "мин",
+  "In position": "В позиции",
   "Sharpe Ratio": "Коэффициент Шарпа",
   "Win Rate": "Винрейт",
   "Profit Factor": "Профит-фактор",

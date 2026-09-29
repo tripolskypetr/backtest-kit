@@ -67,6 +67,12 @@ const formatTimeElapsed = (timestamp: number): string => {
     });
 };
 
+const getMinutesInPosition = (item: IStorageSignalRow): number => {
+    const openedAt = item.pendingAt || item.scheduledAt;
+    const closedAt = item.status === "closed" ? item.closeTimestamp : item.updatedAt;
+    return Math.max(0, Math.round((closedAt - openedAt) / 60_000));
+};
+
 export const ListView = ({
     data: { type },
     setLoading,
@@ -436,6 +442,22 @@ export const ListView = ({
                                         }}
                                     >
                                         {item.status}
+                                    </Typography>
+                                    <Box flex={1} />
+                                    <Typography
+                                        variant="caption"
+                                        component="span"
+                                        sx={{
+                                            px: 1,
+                                            py: 0.25,
+                                            borderRadius: "999px",
+                                            border: "1px solid",
+                                            borderColor: alpha("#009688", 0.5),
+                                            color: "#00695c",
+                                        }}
+                                    >
+                                        {t("In position")}:{" "}
+                                        {getMinutesInPosition(item)} {t("min")}
                                     </Typography>
                                 </Box>
                             }
