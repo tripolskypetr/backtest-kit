@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import { AutoSizer, IOutletModalProps, useAsyncValue } from "react-declarative";
+import { AutoSizer, Center, IOutletModalProps, useAsyncValue } from "react-declarative";
 import StockChart from "../components/StockChart/StockChart";
 import { useMemo } from "react";
 import { IStorageSignalRow } from "backtest-kit";
@@ -41,6 +41,16 @@ export const Candle15mView = ({ data, formState }: IOutletModalProps) => {
             status,
         };
     }, [formState.data.main]);
+
+    if (!data?.length) {
+        return (
+            <Center sx={{ height: "100%", width: "100%", pt: 1 }}>
+                <Typography variant="h6" sx={{opacity: 0.5, marginTop: "-5dvh", fontWeight: "bold"}}>
+                    An error acquired
+                </Typography>
+            </Center>
+        );
+    }
 
     return (
         <Box sx={{ height: "100%", width: "100%", pt: 1 }}>
