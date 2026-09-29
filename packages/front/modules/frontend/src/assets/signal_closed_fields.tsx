@@ -196,24 +196,14 @@ export const signal_closed_fields: TypedField[] = [
                         desktopColumns: "6",
                         tabletColumns: "6",
                         phoneColumns: "12",
-                        name: "minutesInPosition",
+                        name: "duration",
                         title: t("In position (min)"),
                         readonly: true,
                         isVisible: (obj) => !!obj.pendingAt,
-                        compute: (obj) => {
-                            const sinceAt = obj.pendingAt;
-                            const tillAt =
-                                obj.closeTimestamp ||
-                                obj.updatedAt ||
-                                obj.timestamp;
-                            if (!sinceAt || !tillAt) {
-                                return t("N/A");
-                            }
-                            return Math.max(
-                                0,
-                                Math.round((tillAt - sinceAt) / 60_000),
-                            ).toString();
-                        },
+                        compute: (obj) =>
+                            obj.duration != null
+                                ? obj.duration.toString()
+                                : t("N/A"),
                     },
                 ],
             },

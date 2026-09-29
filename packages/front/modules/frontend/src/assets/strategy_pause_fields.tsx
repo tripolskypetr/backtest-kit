@@ -122,31 +122,6 @@ export const strategy_pause_fields: TypedField[] = [
                                 ? dayjs(obj.createdAt).format("DD/MM/YYYY HH:mm:ss")
                                 : "",
                     },
-                    {
-                        type: FieldType.Text,
-                        outlined: false,
-                        desktopColumns: "6",
-                        tabletColumns: "6",
-                        phoneColumns: "12",
-                        name: "minutesInPosition",
-                        title: t("In position (min)"),
-                        readonly: true,
-                        isVisible: (obj) => !!obj.pendingAt,
-                        compute: (obj) => {
-                            const sinceAt = obj.pendingAt;
-                            const tillAt =
-                                obj.closeTimestamp ||
-                                obj.updatedAt ||
-                                obj.timestamp;
-                            if (!sinceAt || !tillAt) {
-                                return t("N/A");
-                            }
-                            return Math.max(
-                                0,
-                                Math.round((tillAt - sinceAt) / 60_000),
-                            ).toString();
-                        },
-                    },
                 ],
             },
         ],
