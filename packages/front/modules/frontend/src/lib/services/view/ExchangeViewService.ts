@@ -1,4 +1,4 @@
-import { fetchApi, inject, randomString } from "react-declarative";
+import { fetchApi, inject, randomString, trycatch } from "react-declarative";
 import LoggerService from "../base/LoggerService";
 import { CandleInterval, ICandleData } from "backtest-kit";
 import TYPES from "../../core/TYPES";
@@ -16,36 +16,42 @@ export class ExchangeViewService {
         TYPES.exchangeMockService,
     );
 
-    public getSignalCandles = async (
-        signalId: string,
-        interval: CandleInterval,
-    ): Promise<ICandleData[]> => {
-        this.loggerService.log("exchangeViewService getSignalCandles", {
-            signalId,
-            interval,
-        });
-        if (CC_ENABLE_MOCK) {
-            return await this.exchangeMockService.getSignalCandles(
+    public getSignalCandles = trycatch(
+        async (
+            signalId: string,
+            interval: CandleInterval,
+        ): Promise<ICandleData[]> => {
+            this.loggerService.log("exchangeViewService getSignalCandles", {
                 signalId,
                 interval,
-            );
+            });
+            if (CC_ENABLE_MOCK) {
+                return await this.exchangeMockService.getSignalCandles(
+                    signalId,
+                    interval,
+                );
+            }
+            const { data, error } = await fetchApi("/api/v1/view/candles_signal", {
+                method: "POST",
+                body: JSON.stringify({
+                    clientId: CC_CLIENT_ID,
+                    serviceName: CC_SERVICE_NAME,
+                    userId: CC_USER_ID,
+                    requestId: randomString(),
+                    signalId,
+                    interval,
+                }),
+            });
+            if (error) {
+                throw new Error(error);
+            }
+            return data;
+        },
+        {
+            fallback: (error) => console.log("exchangeViewService getSignalCandles exception", error),
+            defaultValue: [],
         }
-        const { data, error } = await fetchApi("/api/v1/view/candles_signal", {
-            method: "POST",
-            body: JSON.stringify({
-                clientId: CC_CLIENT_ID,
-                serviceName: CC_SERVICE_NAME,
-                userId: CC_USER_ID,
-                requestId: randomString(),
-                signalId,
-                interval,
-            }),
-        });
-        if (error) {
-            throw new Error(error);
-        }
-        return data;
-    };
+    );
 
     public getPointCandles = async (dto: {
         currentTime: number;
@@ -74,33 +80,39 @@ export class ExchangeViewService {
         }
         return data;
     };
-    public getLiveCandles = async (
-        signalId: string,
-        interval: CandleInterval,
-    ): Promise<ICandleData[]> => {
-        this.loggerService.log("exchangeViewService getLiveCandles", {
-            signalId,
-            interval,
-        });
-        if (CC_ENABLE_MOCK) {
-            return await this.exchangeMockService.getLiveCandles(signalId, interval);
-        }
-        const { data, error } = await fetchApi("/api/v1/view/candles_live", {
-            method: "POST",
-            body: JSON.stringify({
-                clientId: CC_CLIENT_ID,
-                serviceName: CC_SERVICE_NAME,
-                userId: CC_USER_ID,
-                requestId: randomString(),
+    public getLiveCandles = trycatch(
+        async (
+            signalId: string,
+            interval: CandleInterval,
+        ): Promise<ICandleData[]> => {
+            this.loggerService.log("exchangeViewService getLiveCandles", {
                 signalId,
                 interval,
-            }),
-        });
-        if (error) {
-            throw new Error(error);
+            });
+            if (CC_ENABLE_MOCK) {
+                return await this.exchangeMockService.getLiveCandles(signalId, interval);
+            }
+            const { data, error } = await fetchApi("/api/v1/view/candles_live", {
+                method: "POST",
+                body: JSON.stringify({
+                    clientId: CC_CLIENT_ID,
+                    serviceName: CC_SERVICE_NAME,
+                    userId: CC_USER_ID,
+                    requestId: randomString(),
+                    signalId,
+                    interval,
+                }),
+            });
+            if (error) {
+                throw new Error(error);
+            }
+            return data;
+        },
+        {
+            fallback: (error) => console.log("exchangeViewService getLiveCandles exception", error),
+            defaultValue: [],
         }
-        return data;
-    };
+    );
 
     public getLastCandles = async (
         symbol: string,

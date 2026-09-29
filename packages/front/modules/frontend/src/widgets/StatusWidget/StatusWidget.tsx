@@ -6,6 +6,7 @@ import ioc from "../../lib";
 import StockChart from "./components/StockChart";
 import {
     AutoSizer,
+    Center,
     LoaderView,
     PaperView,
     useAsyncValue,
@@ -110,6 +111,15 @@ export const StatusWidget = ({
     const renderInner = () => {
         if (!candles || loading) {
             return <LoaderView sx={{ height: "100%", width: "100%" }} />;
+        }
+        if (!candles.length || true) {
+            return (
+                <Center sx={{ height: "100%", width: "100%", pt: 1 }}>
+                    <Typography variant="h6" sx={{opacity: 0.5, marginTop: "-5dvh", fontWeight: "bold"}}>
+                        An error acquired
+                    </Typography>
+                </Center>
+            );
         }
         return (
             <AutoSizer style={{ position: "absolute", top: 0, left: 0 }}>
