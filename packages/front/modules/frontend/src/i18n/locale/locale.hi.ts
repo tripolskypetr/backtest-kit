@@ -35,6 +35,7 @@ export const LOCALE: Record<string, string> = {
   "Validation": "सत्यापन",
   "Critical": "गंभीर",
   "Unknown": "अज्ञात",
+  "An error acquired": "एक त्रुटि हुई",
   // General
   "Copied!": "सफलतापूर्वक कॉपी किया गया!",
   "Saved!": "सहेजा गया!",

@@ -35,6 +35,7 @@ export const LOCALE: Record<string, string> = {
   "Validation": "Validação",
   "Critical": "Crítico",
   "Unknown": "Desconhecido",
+  "An error acquired": "Ocorreu um erro",
   // General
   "Copied!": "Copiado com sucesso!",
   "Saved!": "Salvo!",

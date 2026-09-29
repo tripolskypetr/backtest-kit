@@ -35,6 +35,7 @@ export const LOCALE: Record<string, string> = {
   "Validation": "Doğrulama",
   "Critical": "Kritik",
   "Unknown": "Bilinmiyor",
+  "An error acquired": "Bir hata oluştu",
   // General
   "Copied!": "Başarıyla kopyalandı!",
   "Saved!": "Kaydedildi!",

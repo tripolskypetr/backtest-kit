@@ -1,5 +1,5 @@
-import { Box } from "@mui/material";
-import { AutoSizer, IOutletModalProps } from "react-declarative";
+import { Box, Typography } from "@mui/material";
+import { AutoSizer, Center, IOutletModalProps } from "react-declarative";
 import StockChart from "../components/StockChart";
 import { useMemo } from "react";
 import { OrderSyncOpenNotification } from "backtest-kit";
@@ -27,6 +27,16 @@ export const Candle1mView = ({ data, formState }: IOutletModalProps) => {
             originalPriceTakeProfit: notification.originalPriceTakeProfit,
         };
     }, [formState.data.main]);
+
+    if (!data?.length) {
+        return (
+            <Center sx={{ height: "100%", width: "100%", pt: 1 }}>
+                <Typography variant="h6" sx={{opacity: 0.5, fontWeight: "bold"}}>
+                    An error acquired
+                </Typography>
+            </Center>
+        );
+    }
 
     return (
         <Box sx={{ height: "100%", width: "100%", pt: 1 }}>

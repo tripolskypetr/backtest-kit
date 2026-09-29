@@ -112,7 +112,7 @@ export const StatusWidget = ({
         if (!candles || loading) {
             return <LoaderView sx={{ height: "100%", width: "100%" }} />;
         }
-        if (!candles.length || true) {
+        if (!candles.length) {
             return (
                 <Center sx={{ height: "100%", width: "100%", pt: 1 }}>
                     <Typography variant="h6" sx={{opacity: 0.5, marginTop: "-5dvh", fontWeight: "bold"}}>
