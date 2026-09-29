@@ -5,6 +5,7 @@ import getPriceScale from "../utils/getPriceScale";
 import Markdown from "../components/common/Markdown";
 import toPlainString from "../helpers/toPlainString";
 import { t } from "../i18n";
+import formatMinutes from "../utils/formatMinutes";
 
 export const partial_loss_commit_fields: TypedField[] = [
     {
@@ -358,7 +359,7 @@ export const partial_loss_commit_fields: TypedField[] = [
                         tabletColumns: "6",
                         phoneColumns: "12",
                         name: "minutesInPosition",
-                        title: t("In position (min)"),
+                        title: t("In position"),
                         readonly: true,
                         isVisible: (obj) => !!obj.pendingAt,
                         compute: (obj) => {
@@ -370,10 +371,12 @@ export const partial_loss_commit_fields: TypedField[] = [
                             if (!sinceAt || !tillAt) {
                                 return t("N/A");
                             }
-                            return Math.max(
-                                0,
-                                Math.round((tillAt - sinceAt) / 60_000),
-                            ).toString();
+                            return formatMinutes(
+                                Math.max(
+                                    0,
+                                    Math.round((tillAt - sinceAt) / 60_000),
+                                ),
+                            );
                         },
                     },
                 ],

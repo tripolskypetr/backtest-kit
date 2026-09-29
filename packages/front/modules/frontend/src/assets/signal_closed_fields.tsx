@@ -5,6 +5,7 @@ import getPriceScale from "../utils/getPriceScale";
 import Markdown from "../components/common/Markdown";
 import toPlainString from "../helpers/toPlainString";
 import { t } from "../i18n";
+import formatMinutes from "../utils/formatMinutes";
 
 const formatDuration = (durationMinutes: number): string => {
     if (durationMinutes == null) return t("N/A");
@@ -197,12 +198,12 @@ export const signal_closed_fields: TypedField[] = [
                         tabletColumns: "6",
                         phoneColumns: "12",
                         name: "duration",
-                        title: t("In position (min)"),
+                        title: t("In position"),
                         readonly: true,
                         isVisible: (obj) => !!obj.pendingAt,
                         compute: (obj) =>
                             obj.duration != null
-                                ? obj.duration.toString()
+                                ? formatMinutes(Math.round(obj.duration))
                                 : t("N/A"),
                     },
                 ],

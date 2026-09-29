@@ -30,6 +30,7 @@ import IconPhoto from "../../../../components/common/IconPhoto";
 import { IStorageSignalRow } from "backtest-kit";
 import actionSubject from "../config/actionSubject";
 import { t } from "../../../../i18n";
+import formatMinutes from "../../../../utils/formatMinutes";
 
 interface IListViewData {
     type: "backtest" | "live";
@@ -457,7 +458,9 @@ export const ListView = ({
                                         }}
                                     >
                                         {t("In position")}:{" "}
-                                        {getMinutesInPosition(item)} {t("min")}
+                                        {formatMinutes(
+                                            getMinutesInPosition(item),
+                                        )}
                                     </Typography>
                                 </Box>
                             }

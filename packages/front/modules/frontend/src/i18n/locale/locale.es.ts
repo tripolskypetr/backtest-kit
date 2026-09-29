@@ -425,7 +425,6 @@ export const LOCALE: Record<string, string> = {
   "Copy path": "Copiar ruta",
   "min": "min",
   "In position": "En posición",
-  "In position (min)": "En posición (min)",
   "Sharpe Ratio": "Ratio de Sharpe",
   "Win Rate": "Tasa de acierto",
   "Profit Factor": "Factor de beneficio",

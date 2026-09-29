@@ -6,6 +6,7 @@ import { CopyAll } from "@mui/icons-material";
 import ioc from "../lib";
 import getPriceScale from "../utils/getPriceScale";
 import { t } from "../i18n";
+import formatMinutes from "../utils/formatMinutes";
 
 export const signal_fields: TypedField[] = [
     {
@@ -205,7 +206,7 @@ export const signal_fields: TypedField[] = [
                         tabletColumns: "6",
                         phoneColumns: "12",
                         name: "minutesInPosition",
-                        title: t("In position (min)"),
+                        title: t("In position"),
                         readonly: true,
                         isVisible: (obj) => !!obj.pendingAt,
                         compute: (obj) => {
@@ -217,10 +218,12 @@ export const signal_fields: TypedField[] = [
                             if (!sinceAt || !tillAt) {
                                 return t("N/A");
                             }
-                            return Math.max(
-                                0,
-                                Math.round((tillAt - sinceAt) / 60_000),
-                            ).toString();
+                            return formatMinutes(
+                                Math.max(
+                                    0,
+                                    Math.round((tillAt - sinceAt) / 60_000),
+                                ),
+                            );
                         },
                     },
                 ],
