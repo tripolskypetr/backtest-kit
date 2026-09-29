@@ -6,7 +6,6 @@ import {
   CandleInterval,
   Live,
   alignToInterval,
-  intervalStepMs,
   listExchangeSchema,
 } from "backtest-kit";
 import StorageViewService from "./StorageViewService";
@@ -82,7 +81,9 @@ export class ExchangeViewService {
     }
     const { pendingAt, scheduledAt } = signal;
     const eventAt = pendingAt || scheduledAt;
-    const startAt = eventAt - intervalStepMs("1m") * HISTORY_LAST_CANDLES_LIMIT;
+    // StatusWidget's chart drops candles before pendingAt, so fetching history
+    // ahead of the event is wasted traffic
+    const startAt = alignToInterval(new Date(eventAt), interval).getTime();
     const updatedAt =
       await this.signalViewService.getLastUpdateTimestamp(signalId);
     return await this.exchangeService.getRangeCandles({
