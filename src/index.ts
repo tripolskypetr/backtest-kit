@@ -787,6 +787,7 @@ export {
   type CronCallback,
 } from "./classes/Cron";
 export { Breakeven } from "./classes/Breakeven";
+export { Level } from "./classes/Level";
 export { Strategy } from "./classes/Strategy";
 export { ActionBase } from "./classes/ActionBase";
 export { MCP } from "./classes/MCP";
