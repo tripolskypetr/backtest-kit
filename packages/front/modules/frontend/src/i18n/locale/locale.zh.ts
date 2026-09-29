@@ -425,6 +425,7 @@ export const LOCALE: Record<string, string> = {
   "Copy path": "复制路径",
   "min": "分钟",
   "In position": "持仓",
+  "In position (min)": "持仓（分钟）",
   "Sharpe Ratio": "夏普比率",
   "Win Rate": "胜率",
   "Profit Factor": "盈利因子",
