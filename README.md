@@ -2,7 +2,7 @@
 
 # 🧿 Backtest Kit
 
-> A TypeScript engine for backtesting **and** live-trading strategies — crypto, forex, DEX, spot or futures — where the code you test is the code you ship. See [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example)
+> **The only trading engine for Node.js capable of running enterprise-grade quant strategies** — backtest, paper and live from the same code, zero changes between modes. Crypto, forex, DEX, spot or futures. See [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example)
 
 ![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
 

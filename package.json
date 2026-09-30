@@ -1,7 +1,7 @@
 {
   "name": "backtest-kit",
   "version": "20.1.0",
-  "description": "A TypeScript library for trading system backtest",
+  "description": "The only trading engine for Node.js capable of running enterprise-grade quant strategies. Live / Backtest / Paper from the same code",
   "author": {
     "name": "Petr Tripolsky",
     "email": "tripolskypetr@gmail.com",
@@ -16,6 +16,8 @@
   "keywords": [
     "backtesting",
     "backtest",
+    "paper",
+    "live",
     "finance",
     "trading",
     "candles",
