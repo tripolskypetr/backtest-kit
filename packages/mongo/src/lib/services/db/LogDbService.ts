@@ -5,7 +5,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import LogCacheService from "../cache/LogCacheService";
-import { ILogEntry } from "backtest-kit";
+import { ILogEntry } from "tradeforge";
 
 const LIST_LIMIT = 200;
 

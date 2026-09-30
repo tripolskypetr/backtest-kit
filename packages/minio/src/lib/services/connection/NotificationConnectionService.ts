@@ -3,7 +3,7 @@ import { getRedis } from "../../../config/redis";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import LoggerService from "../base/LoggerService";
-import { alignToInterval } from "backtest-kit";
+import { alignToInterval } from "tradeforge";
 
 const REDIS_KEY = "notification-items-connection";
 

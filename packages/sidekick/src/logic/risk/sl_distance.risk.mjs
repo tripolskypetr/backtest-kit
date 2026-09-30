@@ -1,4 +1,4 @@
-import { addRiskSchema } from "backtest-kit";
+import { addRiskSchema } from "tradeforge";
 import RiskName from "../../enum/RiskName.mjs";
 
 const SLIPPAGE_THRESHOLD = 0.2;

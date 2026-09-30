@@ -1,4 +1,4 @@
-import { CandleInterval } from "backtest-kit";
+import { CandleInterval } from "tradeforge";
 
 import { File } from "../classes/File";
 import { Code } from "../classes/Code";

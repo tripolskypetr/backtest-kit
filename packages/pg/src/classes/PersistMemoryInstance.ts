@@ -1,4 +1,4 @@
-import { MemoryData, IPersistMemoryInstance } from "backtest-kit";
+import { MemoryData, IPersistMemoryInstance } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

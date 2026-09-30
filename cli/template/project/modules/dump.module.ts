@@ -1,4 +1,4 @@
-import { addExchangeSchema } from "backtest-kit";
+import { addExchangeSchema } from "tradeforge";
 import { singleshot } from "functools-kit";
 import ccxt from "ccxt";
 

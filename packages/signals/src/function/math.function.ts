@@ -19,7 +19,7 @@
 import lib from "../lib";
 import History from "../contract/History.contract";
 import { str, trycatch } from "functools-kit";
-import { Cache } from "backtest-kit";
+import { Cache } from "tradeforge";
 import { ReportFn } from "../contract/ReportFn.contract";
 
 /**

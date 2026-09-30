@@ -23,7 +23,7 @@ import {
   OrderContinueContract,
   OrderStopContract,
   SignalInfoContract,
-} from "backtest-kit";
+} from "tradeforge";
 import ResolveService from "../core/ResolveService";
 import { memoize, singleshot } from "functools-kit";
 import fs from "fs/promises";

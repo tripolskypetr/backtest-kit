@@ -1,4 +1,4 @@
-import { StorageData, IPersistStorageInstance } from "backtest-kit";
+import { StorageData, IPersistStorageInstance } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

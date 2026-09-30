@@ -1,7 +1,7 @@
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
-import { Backtest } from "backtest-kit";
+import { Backtest } from "tradeforge";
 import { getConfig } from "../../../config/params";
 
 const BACKTEST_LIST = [

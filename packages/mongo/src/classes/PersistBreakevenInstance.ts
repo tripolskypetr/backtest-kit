@@ -1,4 +1,4 @@
-import { BreakevenData, IPersistBreakevenInstance } from "backtest-kit";
+import { BreakevenData, IPersistBreakevenInstance } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

@@ -1,7 +1,7 @@
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
-import { Live } from "backtest-kit";
+import { Live } from "tradeforge";
 import { getConfig } from "../../../config/params";
 
 const LIVE_LIST = [

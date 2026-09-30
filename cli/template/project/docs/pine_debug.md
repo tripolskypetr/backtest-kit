@@ -2,7 +2,7 @@
 
 ## Context
 
-This project runs Pine Script indicators via `@backtest-kit/pinets` against real exchange data fetched through `ccxt`. Use `@backtest-kit/cli --pine` to execute any `.pine` file and dump results to a JSONL file for inspection.
+This project runs Pine Script indicators via `@tradeforge/pinets` against real exchange data fetched through `ccxt`. Use `@tradeforge/cli --pine` to execute any `.pine` file and dump results to a JSONL file for inspection.
 
 Key files:
 - `math/*.pine` — Pine Script indicators
@@ -35,7 +35,7 @@ Use `--jsonl` to write output to a file instead of stdout. JSONL is preferred ov
 Output is written to `<pine-dir>/dump/<output>.jsonl` — the directory is created automatically. By default `<output>` equals the `.pine` file name (without extension). Override with `--output`.
 
 ```bash
-npx @backtest-kit/cli --pine ./math/my_indicator.pine \
+npx @tradeforge/cli --pine ./math/my_indicator.pine \
   --symbol BTCUSDT \
   --timeframe 15m \
   --limit 180 \
@@ -47,7 +47,7 @@ npx @backtest-kit/cli --pine ./math/my_indicator.pine \
 Override the output name:
 
 ```bash
-npx @backtest-kit/cli --pine ./math/my_indicator.pine \
+npx @tradeforge/cli --pine ./math/my_indicator.pine \
   --jsonl \
   --output debug
 # → ./math/dump/debug.jsonl
@@ -58,7 +58,7 @@ Or add to `package.json`:
 ```json
 {
   "scripts": {
-    "pine:debug": "npx @backtest-kit/cli --pine ./math/my_indicator.pine --symbol BTCUSDT --timeframe 15m --limit 180 --jsonl"
+    "pine:debug": "npx @tradeforge/cli --pine ./math/my_indicator.pine --symbol BTCUSDT --timeframe 15m --limit 180 --jsonl"
   }
 }
 ```
@@ -114,7 +114,7 @@ math/
 
 ```typescript
 // modules/pine.module.ts
-import { addExchangeSchema } from "backtest-kit";
+import { addExchangeSchema } from "tradeforge";
 import ccxt from "ccxt";
 
 addExchangeSchema({

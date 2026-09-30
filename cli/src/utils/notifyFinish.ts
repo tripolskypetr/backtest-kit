@@ -1,4 +1,4 @@
-import { listenDoneBacktest, listenDoneLive, shutdown } from "backtest-kit";
+import { listenDoneBacktest, listenDoneLive, shutdown } from "tradeforge";
 import { compose, singleshot } from "functools-kit";
 
 export const notifyFinish = singleshot(() => {

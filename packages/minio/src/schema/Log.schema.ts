@@ -1,4 +1,4 @@
-import { ILogEntry } from "backtest-kit";
+import { ILogEntry } from "tradeforge";
 
 interface ILogDto {
   entryId: string;

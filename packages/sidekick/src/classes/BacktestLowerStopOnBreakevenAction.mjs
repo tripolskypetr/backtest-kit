@@ -1,4 +1,4 @@
-import { ActionBase, commitTrailingStop } from "backtest-kit";
+import { ActionBase, commitTrailingStop } from "tradeforge";
 
 /**
  * Lowers trailing-stop by 3 points when breakeven is reached (ignores volatility)

@@ -11,7 +11,7 @@ import {
   getPendingSignal,
   IPublicAction,
   ActivePingContract,
-} from "backtest-kit";
+} from "tradeforge";
 ```
 
 ---

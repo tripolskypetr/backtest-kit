@@ -1,6 +1,6 @@
 import { MessageModel } from "../model/Message.model";
 import engine from "../lib";
-import { getContext, getMode, getSymbol } from "backtest-kit";
+import { getContext, getMode, getSymbol } from "tradeforge";
 import { Module } from "../classes/Module";
 import { Prompt } from "../classes/Prompt";
 

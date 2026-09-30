@@ -1,4 +1,4 @@
-import { IntervalData, IPersistIntervalInstance } from "backtest-kit";
+import { IntervalData, IPersistIntervalInstance } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

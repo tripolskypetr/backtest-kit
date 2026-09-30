@@ -1,5 +1,5 @@
 import { EntitySchema } from "typeorm";
-import { IScheduledSignalRow } from "backtest-kit";
+import { IScheduledSignalRow } from "tradeforge";
 
 interface IScheduleDto {
   symbol: string;

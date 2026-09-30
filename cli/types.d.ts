@@ -1,11 +1,11 @@
 import * as functools_kit from 'functools-kit';
-import * as BacktestKit from 'backtest-kit';
-import { CandleInterval, TrailingTakeCommit, TrailingStopCommit, BreakevenCommit, PartialProfitCommit, PartialLossCommit, IStrategyTickResultScheduled, IStrategyTickResultCancelled, IStrategyTickResultOpened, IStrategyTickResultClosed, RiskContract, AverageBuyCommit, OrderFillOpenContract, OrderFillCloseContract, OrderRejectOpenContract, OrderRejectCloseContract, OrderContinueContract, OrderStopContract, CancelScheduledCommit, ClosePendingCommit, SignalInfoContract } from 'backtest-kit';
-import * as BacktestKitUi from '@backtest-kit/ui';
-import * as BacktestKitGraph from '@backtest-kit/graph';
-import * as BacktestKitOllama from '@backtest-kit/ollama';
-import * as BacktestKitPinets from '@backtest-kit/pinets';
-import * as BacktestKitSignals from '@backtest-kit/signals';
+import * as TradeForge from 'tradeforge';
+import { CandleInterval, TrailingTakeCommit, TrailingStopCommit, BreakevenCommit, PartialProfitCommit, PartialLossCommit, IStrategyTickResultScheduled, IStrategyTickResultCancelled, IStrategyTickResultOpened, IStrategyTickResultClosed, RiskContract, AverageBuyCommit, OrderFillOpenContract, OrderFillCloseContract, OrderRejectOpenContract, OrderRejectCloseContract, OrderContinueContract, OrderStopContract, CancelScheduledCommit, ClosePendingCommit, SignalInfoContract } from 'tradeforge';
+import * as TradeForgeUi from '@tradeforge/ui';
+import * as TradeForgeGraph from '@tradeforge/graph';
+import * as TradeForgeOllama from '@tradeforge/ollama';
+import * as TradeForgePinets from '@tradeforge/pinets';
+import * as TradeForgeSignals from '@tradeforge/signals';
 import { Input } from 'telegraf';
 
 interface ILogger {
@@ -179,16 +179,16 @@ interface ILoader {
     check(filePath: string): boolean;
 }
 
-declare const BacktestKitCli: {};
+declare const TradeForgeCli: {};
 declare global {
     interface Window {
-        BacktestKit: typeof BacktestKit;
-        BacktestKitCli: typeof BacktestKitCli;
-        BacktestKitUi: typeof BacktestKitUi;
-        BacktestKitGraph: typeof BacktestKitGraph;
-        BacktestKitOllama: typeof BacktestKitOllama;
-        BacktestKitPinets: typeof BacktestKitPinets;
-        BacktestKitSignals: typeof BacktestKitSignals;
+        TradeForge: typeof TradeForge;
+        TradeForgeCli: typeof TradeForgeCli;
+        TradeForgeUi: typeof TradeForgeUi;
+        TradeForgeGraph: typeof TradeForgeGraph;
+        TradeForgeOllama: typeof TradeForgeOllama;
+        TradeForgePinets: typeof TradeForgePinets;
+        TradeForgeSignals: typeof TradeForgeSignals;
     }
 }
 declare class ClientLoader implements ILoader {

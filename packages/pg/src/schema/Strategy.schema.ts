@@ -1,5 +1,5 @@
 import { EntitySchema } from "typeorm";
-import { StrategyData } from "backtest-kit";
+import { StrategyData } from "tradeforge";
 
 interface IStrategyDto {
   symbol: string;

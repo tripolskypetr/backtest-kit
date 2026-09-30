@@ -15,7 +15,7 @@ import {
   Sync,
   Heat,
   Walker,
-} from "backtest-kit";
+} from "tradeforge";
 import MarkdownMockService from "../mock/MarkdownMockService";
 import { getConfig } from "../../../config/params";
 

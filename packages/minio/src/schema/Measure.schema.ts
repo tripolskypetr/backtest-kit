@@ -1,4 +1,4 @@
-import { MeasureData } from "backtest-kit";
+import { MeasureData } from "tradeforge";
 
 interface IMeasureDto {
   bucket: string;

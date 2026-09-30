@@ -1,5 +1,5 @@
 import { EntitySchema } from "typeorm";
-import { BreakevenData } from "backtest-kit";
+import { BreakevenData } from "tradeforge";
 import { epochTransformer } from "../utils/epochTransformer";
 
 interface IBreakevenDto {

@@ -58,7 +58,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       `    listenWalkerProgress,`,
       `    listenError,`,
       `    Markdown,`,
-      `} from "backtest-kit";`,
+      `} from "tradeforge";`,
       `import { promises as fs } from "fs";`,
       `import { v4 as uuid } from "uuid";`,
       `import path from "path";`,

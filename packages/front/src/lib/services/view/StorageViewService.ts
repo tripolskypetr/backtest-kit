@@ -1,4 +1,4 @@
-import { Storage } from "backtest-kit";
+import { Storage } from "tradeforge";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";

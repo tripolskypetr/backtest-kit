@@ -8,7 +8,7 @@ import CandleProviderService from "../provider/CandleProviderService";
 import { singleshot } from "functools-kit";
 import LoggerService from "../base/LoggerService";
 import PineConnectionService from "../connection/PineConnectionService";
-import { CandleInterval } from "backtest-kit";
+import { CandleInterval } from "tradeforge";
 import { Code } from "../../../classes/Code";
 import { PlotModel, PlotRecord } from "../../../model/Plot.model";
 import IndicatorConnectionService from "../connection/IndicatorConnectionService";

@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { IntervalData } from "backtest-kit";
+import { IntervalData } from "tradeforge";
 
 interface IIntervalDto {
   bucket: string;

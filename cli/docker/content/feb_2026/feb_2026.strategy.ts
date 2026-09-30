@@ -1,6 +1,6 @@
 import {
   addStrategySchema,
-} from "backtest-kit";
+} from "tradeforge";
 
 addStrategySchema({
   strategyName: "feb_2026_strategy",

@@ -1,4 +1,4 @@
-import { StateData, IPersistStateInstance } from "backtest-kit";
+import { StateData, IPersistStateInstance } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

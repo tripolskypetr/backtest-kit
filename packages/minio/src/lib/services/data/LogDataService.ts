@@ -3,7 +3,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import LogConnectionService from "../connection/LogConnectionService";
-import { ILogEntry } from "backtest-kit";
+import { ILogEntry } from "tradeforge";
 import BaseStorage from "../../common/BaseStorage";
 
 const LIST_LIMIT = 200;

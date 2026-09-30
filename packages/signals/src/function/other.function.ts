@@ -17,7 +17,7 @@
 import lib from "../lib";
 import History from "../contract/History.contract";
 import { str, trycatch } from "functools-kit";
-import { Cache, formatPrice, getAveragePrice, getDate, getMode } from "backtest-kit";
+import { Cache, formatPrice, getAveragePrice, getDate, getMode } from "tradeforge";
 import { commitFifteenMinuteHistory, commitHourHistory, commitOneMinuteHistory, commitThirtyMinuteHistory } from "./history.function";
 import { commitLongTermMath, commitMicroTermMath, commitShortTermMath, commitSwingTermMath } from "./math.function";
 import { ReportFn } from "../contract/ReportFn.contract";

@@ -1,5 +1,5 @@
 import { IBaseMessage, IOutlineHistory } from 'agent-swarm-kit';
-import { ICandleData } from 'backtest-kit';
+import { ICandleData } from 'tradeforge';
 
 /**
  * Type representing the history container for technical analysis reports.

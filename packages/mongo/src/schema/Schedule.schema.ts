@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { IScheduledSignalRow } from "backtest-kit";
+import { IScheduledSignalRow } from "tradeforge";
 
 interface IScheduleDto {
   symbol: string;

@@ -1,4 +1,4 @@
-import { CandleInterval, ExecutionContextService } from "backtest-kit";
+import { CandleInterval, ExecutionContextService } from "tradeforge";
 import { str } from "functools-kit";
 
 import lib from "../lib";

@@ -47,8 +47,8 @@ The canonical use case: block signals when predicted volatility is too low to co
 
 ```ts
 import { predict } from "garch";
-import { sourceNode, resolve } from "@backtest-kit/graph";
-import { Cache, getCandles, addRiskSchema } from "backtest-kit";
+import { sourceNode, resolve } from "@tradeforge/graph";
+import { Cache, getCandles, addRiskSchema } from "tradeforge";
 
 const CANDLES_FOR_GARCH = 1_000;
 const GARCH_CONFIDENCE  = 0.95;

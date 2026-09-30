@@ -6,7 +6,7 @@ import {
   listenDoneLive,
   listenDoneWalker,
   shutdown,
-} from "backtest-kit";
+} from "tradeforge";
 import { compose, singleshot } from "functools-kit";
 import { getArgs, getPositionals } from "../helpers/getArgs";
 import getEntry from "../helpers/getEntry";

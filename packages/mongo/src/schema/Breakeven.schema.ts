@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { BreakevenData } from "backtest-kit";
+import { BreakevenData } from "tradeforge";
 
 interface IBreakevenDto {
   symbol: string;

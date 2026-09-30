@@ -2,7 +2,7 @@ import { singleshot } from "functools-kit";
 import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
-import { addFrameSchema, listFrameSchema } from "backtest-kit";
+import { addFrameSchema, listFrameSchema } from "tradeforge";
 import FrameName from "../../../enum/FrameName";
 import { getArgs } from "../../../helpers/getArgs";
 

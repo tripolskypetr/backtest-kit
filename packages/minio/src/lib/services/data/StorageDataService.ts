@@ -3,7 +3,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import StorageConnectionService from "../connection/StorageConnectionService";
-import { IStorageSignalRow } from "backtest-kit";
+import { IStorageSignalRow } from "tradeforge";
 import BaseStorage from "../../common/BaseStorage";
 
 /**

@@ -4,7 +4,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import StrategyCacheService from "../cache/StrategyCacheService";
-import { StrategyData } from "backtest-kit";
+import { StrategyData } from "tradeforge";
 
 export class StrategyDbService extends BaseCRUD(StrategyModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

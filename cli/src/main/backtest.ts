@@ -1,4 +1,4 @@
-import { Backtest } from "backtest-kit";
+import { Backtest } from "tradeforge";
 import { getArgs, getPositionals } from "../helpers/getArgs";
 import { singleshot } from "functools-kit";
 import notifyShutdown from "../utils/notifyShutdown";

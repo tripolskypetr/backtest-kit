@@ -1,19 +1,19 @@
 <img src="https://github.com/tripolskypetr/backtest-kit/raw/refs/heads/master/assets/consciousness.svg" height="45px" align="right">
 
-# 🧿 Backtest Kit
+# 🧿 TradeForge
 
-> A TypeScript engine for backtesting **and** live-trading strategies — crypto, forex, DEX, spot or futures — where the code you test is the code you ship. See [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example)
+> **The only trading engine for Node.js capable of running enterprise-grade quant strategies** — backtest, paper and live from the same code, zero changes between modes. Crypto, forex, DEX, spot or futures. See [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example)
 
 ![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
-[![npm](https://img.shields.io/npm/v/backtest-kit.svg?style=flat-square)](https://npmjs.org/package/backtest-kit)
+[![npm](https://img.shields.io/npm/v/tradeforge.svg?style=flat-square)](https://npmjs.org/package/tradeforge)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
 [![Build](https://github.com/tripolskypetr/backtest-kit/actions/workflows/webpack.yml/badge.svg)](https://github.com/tripolskypetr/backtest-kit/actions/workflows/webpack.yml)
 
-Most trading bots don't die because the strategy was wrong. They die because the backtest quietly read tomorrow's candle, because the process crashed mid-fill and opened the position twice, because the exchange rejected an order and the bot kept trading a ghost. The strategy was never the hard part — the *infrastructure* was.
+`tradeforge` — aka [`backtest-kit`](https://github.com/tripolskypetr/backtest-kit) — is **the only trading engine for Node.js capable of running enterprise-grade quant strategies**. Enterprise-grade means the whole production stack, not just a simulator: a look-ahead-proof data layer, crash-safe atomic persistence, transactional broker commits with automatic rollback, portfolio-wide risk enforcement — and one `getSignal` that runs in three modes: **backtest** replays a historical frame, **paper** trades live prices with no real orders, **live** trades real money. Switching between them is a flag, never a rewrite: the strategy you validated on history is byte-for-byte the strategy that trades, with entries, TP/SL, DCA, partial closes and risk checks identical in all three.
 
-`backtest-kit` is that infrastructure, closed off one failure at a time over a year of live trading and running real money in production at [TheOneTrade](https://theonetrade.github.io). This page walks the failures that kill bots and shows how each one is designed out of the default path — not "discouraged," not "documented," but structurally unavailable unless you go out of your way to defeat the engine. Every claim opens into **The Code / The Math / The Proof** so you (or the model reading this for you) can check the work instead of trusting the pitch.
+Most trading bots don't die because the strategy was wrong. They die because the backtest quietly read tomorrow's candle, because the process crashed mid-fill and opened the position twice, because the exchange rejected an order and the bot kept trading a ghost. The strategy was never the hard part — the *infrastructure* was. `tradeforge` is that infrastructure, closed off one failure at a time over a year of live trading and running real money in production at [TheOneTrade](https://theonetrade.github.io). This page walks the failures that kill bots and shows how each one is designed out of the default path — not "discouraged," not "documented," but structurally unavailable unless you go out of your way to defeat the engine. Every claim opens into **The Code / The Math / The Proof** so you (or the model reading this for you) can check the work instead of trusting the pitch.
 
 📚 **[API Reference](https://backtest-kit.github.io/documents/example_02_first_backtest.html)** · 🌟 **[Reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example)** · 📰 **[Article series](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)**
 
@@ -28,14 +28,14 @@ Three on-ramps, one engine. Casual keeps the boilerplate inside the CLI; Sidekic
 
 ```bash
 # Casual — your repo holds only strategy files; docs auto-fetched into docs/lib/
-npx @backtest-kit/cli --init --output backtest-kit-project
-cd backtest-kit-project && npm install && npm start
+npx @tradeforge/cli --init --output tradeforge-project
+cd tradeforge-project && npm install && npm start
 
 # Full control — exchange/frames/risk/runner all editable in your project
-npx -y @backtest-kit/sidekick my-trading-bot && cd my-trading-bot && npm start
+npx -y @tradeforge/sidekick my-trading-bot && cd my-trading-bot && npm start
 
 # Docker — zero-downtime live trading
-npx @backtest-kit/cli --docker && cd backtest-kit-docker
+npx @tradeforge/cli --docker --output tradeforge-docker && cd tradeforge-docker
 MODE=live SYMBOL=TRXUSDT STRATEGY_FILE=./content/feb_2026/feb_2026.strategy.ts docker-compose up -d
 ```
 
@@ -44,7 +44,7 @@ A whole strategy is three registrations and a run call. No bootstrap, no DI cont
 ```typescript
 import ccxt from 'ccxt';
 import { addExchangeSchema, addStrategySchema, addFrameSchema, Position,
-         Backtest, listenSignalBacktest, listenDoneBacktest } from 'backtest-kit';
+         Backtest, listenSignalBacktest, listenDoneBacktest } from 'tradeforge';
 
 addExchangeSchema({
   exchangeName: 'binance',
@@ -261,7 +261,7 @@ async function createLimitOrderAndWait(exchange, symbol, side, qty, price, resto
   }
   if (restore) { /* re-place TP + stop-loss on the remaining position so it is never unprotected */ }
 
-  throw new Error('not filled in time — partial fill rolled back, backtest-kit will retry');
+  throw new Error('not filled in time — partial fill rolled back, tradeforge will retry');
 }
 ```
 
@@ -289,7 +289,7 @@ Broker.enable();
 Complete, production-grade **Spot** (`stop_loss_limit`, balance truncation, dust/notional guards) and **Futures** (`reduceOnly`, hedge-mode `positionSide`, `setLeverage`, ghost-position guards) adapters — every hook, every edge case — ship verbatim in the docs. The CLI can also dry-fire any single hook against your live adapter for verification before you wait hours for a real signal:
 
 ```bash
-npx @backtest-kit/cli --brokerdebug --commit signal-open --symbol BTCUSDT
+npx @tradeforge/cli --brokerdebug --commit signal-open --symbol BTCUSDT
 ```
 
 </details>
@@ -334,7 +334,7 @@ A complete DCA-ladder strategy — open once, average on overlap-free dips up to
 ```typescript
 import { addStrategySchema, listenActivePing, Position,
          commitAverageBuy, commitClosePending,
-         getPositionEntries, getPositionEntryOverlap, getPositionPnlPercent } from 'backtest-kit';
+         getPositionEntries, getPositionEntryOverlap, getPositionPnlPercent } from 'tradeforge';
 
 addStrategySchema({
   strategyName: 'apr_2026_strategy',
@@ -418,7 +418,7 @@ Why it's fast: single-process concurrency (no IPC, no fork), an in-memory activi
 In live mode the bottleneck moves from CPU to the exchange — and that is where the shared cache earns its keep. Every symbol pulls candles, order books, and trades through one **deduplicated** layer, so nine strategies asking for the same `BTCUSDT 1m` candle issue *one* request, not nine. Hand-written per-bot code with no cache hammers the REST endpoint until the exchange rate-limits it; here the dedup + Redis O(1) layer keeps request volume flat as you add symbols, so rate limits stay off your back instead of throttling the desk. The ×700 / ×6,300 figures are CPU-bound backtest replay; live throughput is paced by the exchange, but the request layer is built so that pacing is the exchange's published limit, not self-inflicted spam.
 
 ```typescript
-import { Backtest, warmCandles } from 'backtest-kit';
+import { Backtest, warmCandles } from 'tradeforge';
 
 for (const symbol of ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT']) {
   await warmCandles({ exchangeName: 'binance', interval: '1m', symbol,
@@ -428,7 +428,7 @@ for (const symbol of ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT']) {
 ```
 
 ```bash
-npx @backtest-kit/cli --backtest --entry ./content/multi-symbol.ts   # CLI defers symbol selection to your file
+npx @tradeforge/cli --backtest --entry ./content/multi-symbol.ts   # CLI defers symbol selection to your file
 ```
 
 </details>
@@ -442,7 +442,7 @@ File storage is perfect on day one and a bottleneck the day you're doing thousan
 
 ```typescript
 // config/setup.config.ts — loaded once before any persistence call
-import { setup } from '@backtest-kit/mongo';
+import { setup } from '@tradeforge/mongo';
 setup();   // reads CC_MONGO_CONNECTION_STRING / CC_REDIS_* from env, or pass explicitly
 ```
 
@@ -484,7 +484,7 @@ Most schedulers run on wall-clock — useless in a backtest that replays a month
 <summary>The Code</summary>
 
 ```typescript
-import { Cron, Backtest } from 'backtest-kit';
+import { Cron, Backtest } from 'tradeforge';
 
 Cron.register({ name: 'tg-parser', interval: '1h',                                 // global, hourly
   handler: async ({ when }) => { await parseTelegramSignals(when); } });
@@ -509,25 +509,25 @@ The honest objection to a TS trading engine is "but my indicators live in Pine S
 <details>
 <summary>The Code</summary>
 
-**Pine Script** — v5/v6, 60+ indicators, 1:1 syntax, look-ahead-safe ([`@backtest-kit/pinets`](https://www.npmjs.com/package/@backtest-kit/pinets)):
+**Pine Script** — v5/v6, 60+ indicators, 1:1 syntax, look-ahead-safe ([`@tradeforge/pinets`](https://www.npmjs.com/package/@tradeforge/pinets)):
 
 ```typescript
-import { File, getSignal } from '@backtest-kit/pinets';
+import { File, getSignal } from '@tradeforge/pinets';
 const signal = await getSignal(File.fromPath('strategy.pine'),
   { symbol: 'BTCUSDT', timeframe: '5m', limit: 100 });   // plots: Signal/Close/StopLoss/TakeProfit/EstimatedTime
 ```
 
-**50+ indicators across 1m/15m/30m/1h + order book, as LLM-ready Markdown, in one call** ([`@backtest-kit/signals`](https://www.npmjs.com/package/@backtest-kit/signals)):
+**50+ indicators across 1m/15m/30m/1h + order book, as LLM-ready Markdown, in one call** ([`@tradeforge/signals`](https://www.npmjs.com/package/@tradeforge/signals)):
 
 ```typescript
-import { commitHistorySetup } from '@backtest-kit/signals';
+import { commitHistorySetup } from '@tradeforge/signals';
 await commitHistorySetup('BTCUSDT', messages);   // order book + candles + indicators, cached per TTL
 ```
 
-**Typed DAG** of computations, resolved in topological order with `Promise.all` parallelism, serializable to a DB ([`@backtest-kit/graph`](https://www.npmjs.com/package/@backtest-kit/graph)):
+**Typed DAG** of computations, resolved in topological order with `Promise.all` parallelism, serializable to a DB ([`@tradeforge/graph`](https://www.npmjs.com/package/@tradeforge/graph)):
 
 ```typescript
-import { sourceNode, outputNode, resolve } from '@backtest-kit/graph';
+import { sourceNode, outputNode, resolve } from '@tradeforge/graph';
 const higher = sourceNode(async (symbol) => extract(await run(File.fromPath('timeframe_4h.pine'), { symbol, timeframe: '4h', limit: 100 }), { allowLong: 'AllowLong', allowShort: 'AllowShort', noTrades: 'NoTrades' }));
 const lower  = sourceNode(async (symbol) => extract(await run(File.fromPath('timeframe_15m.pine'), { symbol, timeframe: '15m', limit: 100 }), { position: 'Signal', priceOpen: 'Close', priceTakeProfit: 'TakeProfit', priceStopLoss: 'StopLoss' }));
 const mtf = outputNode(([h, l]) => {                          // combine; null when timeframes disagree
@@ -551,7 +551,7 @@ LLM-driven signals normally mean per-provider boilerplate and JSON you can't tru
 <summary>The Code</summary>
 
 ```typescript
-import { deepseek } from '@backtest-kit/ollama';
+import { deepseek } from '@tradeforge/ollama';
 addStrategy({
   strategyName: 'llm-signal', interval: '5m',
   // swap deepseek() → claude() / gpt5() / ollama() with no other change
@@ -563,7 +563,7 @@ Providers: OpenAI, Claude, DeepSeek, Grok, Mistral, Perplexity, Cohere, Alibaba,
 
 ```typescript
 import { v4 as uuid } from 'uuid';
-import { addStrategySchema, getCandles, dumpAgentAnswer, dumpRecord } from 'backtest-kit';
+import { addStrategySchema, getCandles, dumpAgentAnswer, dumpRecord } from 'tradeforge';
 import { json } from './utils/json.mjs';
 import { getMessages } from './utils/messages.mjs';
 
@@ -607,7 +607,7 @@ import {
   addStrategySchema, listenActivePing, listenError, Log, Position,
   commitAverageBuy, commitClosePending,
   getPositionEntries, getPositionEntryOverlap, getPositionPnlPercent,
-} from "backtest-kit";
+} from "tradeforge";
 import { errorData, getErrorMessage, str } from "functools-kit";
 
 const HARD_STOP = 25, TARGET_PROFIT = 3, STEP = 100, MAX_STEPS = 10;
@@ -695,7 +695,7 @@ Every example documents price context, trade log, equity curve, and risk analysi
 
 The honest version: for a quick research prototype or a single MA crossover, VectorBT or Backtrader are hard to beat on raw speed. The moment you need to *deploy* — complex position sizing, AI agents, a network outage that mustn't desync your bot — is where the guardrails below start to matter.
 
-| | Backtest Kit | Backtrader | VectorBT | MetaTrader/MQL5 | QuantConnect | Freqtrade |
+| | TradeForge | Backtrader | VectorBT | MetaTrader/MQL5 | QuantConnect | Freqtrade |
 |---|---|---|---|---|---|---|
 | Language | TypeScript | Python | Python | MQL5 | C#/Python | Python |
 | Live trading | ✅ built-in | ⚠️ manual | ❌ research | ✅ | ✅ | ✅ |
@@ -714,93 +714,93 @@ Open-source QuantConnect/MetaTrader without the lock-in: pure TypeScript, your c
 
 ## 🌍 Ecosystem
 
-**The core is a library; the CLI is the framework on top — and the framework is optional.** Think React vs Next.js. `backtest-kit` (the reactive engine — `getSignal` + the `listen*`/`commit*` API) is the library you build against directly. `@backtest-kit/cli` is the Next.js: it wires the runner, candle cache, dashboard, Telegram, and graceful shutdown so you don't have to — but you can ignore it entirely and call `Backtest.run()` / `Live.background()` yourself. `@backtest-kit/sidekick` is the explicit middle ground — it scaffolds a project where every wire (exchange adapter, frames, risk rules, strategy, runner) lives as plain, editable source in **your** userspace, with no CLI in the loop and nothing hidden. You pick how much magic you want.
+**The core is a library; the CLI is the framework on top — and the framework is optional.** Think React vs Next.js. `tradeforge` (the reactive engine — `getSignal` + the `listen*`/`commit*` API) is the library you build against directly. `@tradeforge/cli` is the Next.js: it wires the runner, candle cache, dashboard, Telegram, and graceful shutdown so you don't have to — but you can ignore it entirely and call `Backtest.run()` / `Live.background()` yourself. `@tradeforge/sidekick` is the explicit middle ground — it scaffolds a project where every wire (exchange adapter, frames, risk rules, strategy, runner) lives as plain, editable source in **your** userspace, with no CLI in the loop and nothing hidden. You pick how much magic you want.
 
 On the "dependency zoo": every package below is authored by one team and shipped by the commercial vendor [TheOneTrade](https://theonetrade.github.io) — versioned together, released together. Treat it like the .NET base class library: a single coherent contract where the userspace surface (`getSignal`, `commit*`, `listen*`, `get*`) does not churn under you between releases. You install only what a given strategy needs, and the heavy or platform-specific pieces (Python-via-WASM, TensorFlow builds) sit behind their own optional packages so the core install stays clean and conflict-free.
 
-### `@backtest-kit/cli` — [npm](https://www.npmjs.com/package/@backtest-kit/cli)
+### `@tradeforge/cli` — [npm](https://www.npmjs.com/package/@tradeforge/cli)
 Zero-boilerplate runner. Modes: `--backtest / --paper / --live / --walker / --main / --pine / --editor / --dump / --pnldebug / --brokerdebug / --flush / --init / --docker`. Auto candle caching, monorepo cwd-resolution with per-strategy `.env` override, folder-based import aliases, broker module hooks, `setup.config` / `loader.config` / `alias.config`, graceful SIGINT.
 ```bash
-npx -y @backtest-kit/cli --init
+npx -y @tradeforge/cli --init
 ```
 
-### `@backtest-kit/pinets` — [npm](https://www.npmjs.com/package/@backtest-kit/pinets)
+### `@tradeforge/pinets` — [npm](https://www.npmjs.com/package/@tradeforge/pinets)
 Run TradingView Pine Script v5/v6 in Node, 60+ indicators, 1:1 syntax, `getSignal` / `run` / `extract` / `extractRows`.
 ```bash
-npm install @backtest-kit/pinets pinets backtest-kit
+npm install @tradeforge/pinets pinets tradeforge
 ```
 
-### `@backtest-kit/graph` — [npm](https://www.npmjs.com/package/@backtest-kit/graph)
+### `@tradeforge/graph` — [npm](https://www.npmjs.com/package/@tradeforge/graph)
 Compose computations as a typed DAG; resolved in topological order with `Promise.all`, serializable to a DB for storage.
 ```bash
-npm install @backtest-kit/graph backtest-kit
+npm install @tradeforge/graph tradeforge
 ```
 
-### `@backtest-kit/ui` — [npm](https://www.npmjs.com/package/@backtest-kit/ui)
+### `@tradeforge/ui` — [npm](https://www.npmjs.com/package/@tradeforge/ui)
 React/MUI dashboard with Lightweight Charts: live signal-lifecycle state-machine view, per-signal inspection, risk/partial/trailing/breakeven views, manual control, Pine editor.
 ```typescript
-import { serve } from '@backtest-kit/ui';
+import { serve } from '@tradeforge/ui';
 serve('0.0.0.0', 60050);   // http://localhost:60050
 ```
 
-### `@backtest-kit/mongo` — [npm](https://www.npmjs.com/package/@backtest-kit/mongo)
+### `@tradeforge/mongo` — [npm](https://www.npmjs.com/package/@tradeforge/mongo)
 MongoDB source-of-truth + Redis O(1) cache. All 15 persistence contracts, atomic upserts, soft delete, look-ahead-safe `when`. Zero strategy changes.
 ```bash
-npm install @backtest-kit/mongo backtest-kit mongoose ioredis
+npm install @tradeforge/mongo tradeforge mongoose ioredis
 ```
 
-### `@backtest-kit/pg` — [npm](https://www.npmjs.com/package/@backtest-kit/pg)
+### `@tradeforge/pg` — [npm](https://www.npmjs.com/package/@tradeforge/pg)
 PostgreSQL + Redis O(1) cache via TypeORM. All 15 persistence contracts, atomic upserts, soft delete, look-ahead-safe `when`. Tuned for Pgpool-II so read fan-out scales across replicas: up to ~4× faster
 ```bash
-npm install @backtest-kit/pg backtest-kit typeorm pg ioredis reflect-metadata
+npm install @tradeforge/pg tradeforge typeorm pg ioredis reflect-metadata
 ```
 
-### `@backtest-kit/minio` — [npm](https://www.npmjs.com/package/@backtest-kit/minio)
+### `@tradeforge/minio` — [npm](https://www.npmjs.com/package/@tradeforge/minio)
 MinIO (S3) source-of-truth + Redis time-ordered index. Listings in O(limit), zero schema management. Zero strategy changes.
 ```bash
-npm install @backtest-kit/minio backtest-kit minio ioredis
+npm install @tradeforge/minio tradeforge minio ioredis
 ```
 
-### `@backtest-kit/ollama` — [npm](https://www.npmjs.com/package/@backtest-kit/ollama)
+### `@tradeforge/ollama` — [npm](https://www.npmjs.com/package/@tradeforge/ollama)
 Universal LLM adapter: 10+ providers, structured output, token rotation, fallback chains, trading-context injection.
 ```bash
-npm install @backtest-kit/ollama agent-swarm-kit backtest-kit
+npm install @tradeforge/ollama agent-swarm-kit tradeforge
 ```
 
-### `@backtest-kit/signals` — [npm](https://www.npmjs.com/package/@backtest-kit/signals)
+### `@tradeforge/signals` — [npm](https://www.npmjs.com/package/@tradeforge/signals)
 50+ indicators across 4 timeframes + order book, multi-timeframe synchronized, LLM-ready Markdown reports.
 ```bash
-npm install @backtest-kit/signals backtest-kit
+npm install @tradeforge/signals tradeforge
 ```
 
-### `@backtest-kit/mcp` — [npm](https://www.npmjs.com/package/@backtest-kit/mcp)
+### `@tradeforge/mcp` — [npm](https://www.npmjs.com/package/@tradeforge/mcp)
 Model Context Protocol server: an LLM agent (Claude, any MCP client) watches the live portfolio and opens/closes positions through 3 guarded tools — TP/SL/cost stay engine-owned, stdio server talks to the trading process over HTTP.
 ```bash
-npm install @backtest-kit/mcp backtest-kit @modelcontextprotocol/sdk
+npm install @tradeforge/mcp tradeforge @modelcontextprotocol/sdk
 ```
 
-### `@backtest-kit/sidekick` — [npm](https://www.npmjs.com/package/@backtest-kit/sidekick)
+### `@tradeforge/sidekick` — [npm](https://www.npmjs.com/package/@tradeforge/sidekick)
 The "eject" of `--init`: scaffolds a project where exchange adapter, frames, risk rules, strategy, and runner are all editable source. 4H-trend + 15m-signal Pine template, partial profit taking, breakeven trailing.
 ```bash
-npx -y @backtest-kit/sidekick my-trading-bot && cd my-trading-bot && npm start
+npx -y @tradeforge/sidekick my-trading-bot && cd my-trading-bot && npm start
 ```
 
 ---
 
 ## 👨‍👩‍👦 Community
 
-Real, runnable templates — not slideware. And worth naming the concern directly: yes, this is one author's ecosystem, which is exactly what makes it *coherent* — but coherent is not captive. Everything is **MIT and open-source**, the core engine has **zero hard dependency** on any `@backtest-kit/*` add-on (you can run `getSignal` + `listen*` against a bare `addExchangeSchema` and nothing else), and each repo below is an independent reference you're meant to **fork and own**. The lock-in you'd normally fear — a closed runtime, a proprietary data format, a cloud you can't leave — none of it applies; the persistence is plain files or your own Mongo, the signals are your code, and the exit cost is a `git clone`.
+Real, runnable templates — not slideware. And worth naming the concern directly: yes, this is one author's ecosystem, which is exactly what makes it *coherent* — but coherent is not captive. Everything is **MIT and open-source**, the core engine has **zero hard dependency** on any `@tradeforge/*` add-on (you can run `getSignal` + `listen*` against a bare `addExchangeSchema` and nothing else), and each repo below is an independent reference you're meant to **fork and own**. The lock-in you'd normally fear — a closed runtime, a proprietary data format, a cloud you can't leave — none of it applies; the persistence is plain files or your own Mongo, the signals are your code, and the exit cost is a `git clone`.
 
 - **[ai-trading-mcp](https://github.com/backtest-kit/ai-trading-mcp)** — MCP-driven crypto trading rig. Claude (or any MCP client) trades a live portfolio through three guarded tools: get_status, open_position, close_position. Capable to read news and charts. Paper and live.
 - **[backtest-monorepo-parallel](https://github.com/backtest-kit/backtest-monorepo-parallel)** — 9 symbols in parallel in one Node process on shared Mongo+Redis, ~6,300× real-time, self-enforcement runtime exposing the workspace DI container to `./content/` strategy files. The scaling recipe: +1 service = +1 file, +1 provider, +1 ioc entry.
 - **[backtest-ollama-crontab](https://github.com/backtest-kit/backtest-ollama-crontab)** — a local Ollama (`gpt-oss` quantized) as a per-signal risk gate plus a 15-minute crontab ingesting any public Telegram channel; the *same code* re-polls live and bulk-prepares in backtest. Documented result: **+52.22% → +68.90%** with the LLM gate on.
-- **[backtest-kit-redis-mongo-docker](https://github.com/backtest-kit/backtest-kit-redis-mongo-docker)** — production persistence: all 15 adapters on Mongo+Redis, atomic read-after-write, `docker-compose` one-command deploy.
-- **[backtest-kit-redis-postgres-pgpool-docker](https://github.com/backtest-kit/backtest-kit-redis-postgres-pgpool-docker)** — backtest-kit persistence on PostgreSQL (Pgpool-II) + Redis cache, with atomic upserts and a replica cluster.
-- **[backtest-kit-minio-s3-docker](https://github.com/backtest-kit/backtest-kit-minio-s3-docker)** — persistence on MinIO (S3) with deterministic keys, S3-grade durability
-- **[backtest-kit-skills](https://github.com/backtest-kit/backtest-kit-skills)** — a Claude Code skill + Mintlify docs: describe a strategy in plain language, get working TypeScript with every schema registration wired. `npx skills add https://github.com/backtest-kit/backtest-kit-skills`
+- **[tradeforge-redis-mongo-docker](https://github.com/backtest-kit/backtest-kit-redis-mongo-docker)** — production persistence: all 15 adapters on Mongo+Redis, atomic read-after-write, `docker-compose` one-command deploy.
+- **[tradeforge-redis-postgres-pgpool-docker](https://github.com/backtest-kit/backtest-kit-redis-postgres-pgpool-docker)** — tradeforge persistence on PostgreSQL (Pgpool-II) + Redis cache, with atomic upserts and a replica cluster.
+- **[tradeforge-minio-s3-docker](https://github.com/backtest-kit/backtest-kit-minio-s3-docker)** — persistence on MinIO (S3) with deterministic keys, S3-grade durability
+- **[tradeforge-skills](https://github.com/backtest-kit/backtest-kit-skills)** — a Claude Code skill + Mintlify docs: describe a strategy in plain language, get working TypeScript with every schema registration wired. `npx skills add https://github.com/backtest-kit/backtest-kit-skills`
 - **[uzse-backtest-app](https://github.com/backtest-kit/uzse-backtest-app)** — Pine Script on regional exchanges that aren't on TradingView (UZSE, MSE, DSE…): download raw trades, build candles, feed them through a custom Mongo exchange adapter.
 - **[backtest-ollama-casual](https://github.com/backtest-kit/backtest-ollama-casual)** - A measurement rig for Telegram signal-seller channels. Ollama LLM parses each author's own guidance: text and chart screenshots. The engine executes it minutes after publication (live and backtest both), and event studies over 1m candles show where the edge exist
-- **[backtest-kit-docs](https://github.com/backtest-kit/backtest-kit-docs)** — Architecture handbook and knowledge base: explains the engine's design, AI workflows, production patterns, and quantitative trading concepts beyond the API.
+- **[tradeforge-docs](https://github.com/backtest-kit/backtest-kit-docs)** — Architecture handbook and knowledge base: explains the engine's design, AI workflows, production patterns, and quantitative trading concepts beyond the API.
 - **[wallet-manager](https://github.com/tripolskypetr/wallet-manager)** — Binance spot wallet toolkit with an interactive REPL and a reference broker adapter. Encodes the typical adapter mistake most implementations trip over: trying to sell an asset while its funds are still frozen in a pending order — the correct sequence is to cancel the pending orders first, verify the book is clean, and only then sell with a new order. lets you vibe-code an adapter for any exchange on top of it.
 
 ---
@@ -817,25 +817,25 @@ Zero-dependency TypeScript ports of the quant math behind [vectorbt](https://git
 
 ## 🌐 Internationalization
 
-The `@backtest-kit/ui` dashboard ships in **7 languages**: English, Русский, Türkçe, 中文, हिन्दी, Español, Português. Switch via the language picker in the header
+The `@tradeforge/ui` dashboard ships in **7 languages**: English, Русский, Türkçe, 中文, हिन्दी, Español, Português. Switch via the language picker in the header
 
 <details>
 <summary>Locales</summary>
 
 
-- 🇬🇧 **English** — ~1.5B speakers. Backtest Kit is a TypeScript engine where the strategy you test on history is byte-for-byte the one that trades live — only the clock changes. It removes the failure modes that kill bots (look-ahead bias, crash corruption, silent order rejects, averaging up) at the API level, then adds first-class DCA, partial closes, portfolio risk, and AI/Pine signals on top.
+- 🇬🇧 **English** — ~1.5B speakers. TradeForge is a TypeScript engine where the strategy you test on history is byte-for-byte the one that trades live — only the clock changes. It removes the failure modes that kill bots (look-ahead bias, crash corruption, silent order rejects, averaging up) at the API level, then adds first-class DCA, partial closes, portfolio risk, and AI/Pine signals on top.
 
-- 🇨🇳 **中文** — ~1.1B speakers. Backtest Kit 是一个 TypeScript 引擎：在历史数据上回测的策略代码，与实盘运行的代码逐字节一致，唯一区别只是时钟来源。它在 API 层面消除了让交易机器人崩溃的隐患（未来函数、崩溃损坏、静默拒单、越买越亏），并内置分批建仓、部分平仓、组合风控以及 AI/Pine 信号。
+- 🇨🇳 **中文** — ~1.1B speakers. TradeForge 是一个 TypeScript 引擎：在历史数据上回测的策略代码，与实盘运行的代码逐字节一致，唯一区别只是时钟来源。它在 API 层面消除了让交易机器人崩溃的隐患（未来函数、崩溃损坏、静默拒单、越买越亏），并内置分批建仓、部分平仓、组合风控以及 AI/Pine 信号。
 
-- 🇮🇳 **हिन्दी** — ~600M speakers. Backtest Kit एक TypeScript इंजन है जिसमें इतिहास पर परखा गया कोड ही बिना बदलाव के लाइव ट्रेड करता है — केवल घड़ी बदलती है। यह बॉट को बर्बाद करने वाली गलतियाँ (लुक-अहेड बायस, क्रैश करप्शन, चुपचाप ऑर्डर रिजेक्ट, ऊपर औसत करना) API स्तर पर ही रोकता है, और ऊपर से DCA, आंशिक क्लोज़, पोर्टफोलियो जोखिम व AI/Pine सिग्नल देता है।
+- 🇮🇳 **हिन्दी** — ~600M speakers. TradeForge एक TypeScript इंजन है जिसमें इतिहास पर परखा गया कोड ही बिना बदलाव के लाइव ट्रेड करता है — केवल घड़ी बदलती है। यह बॉट को बर्बाद करने वाली गलतियाँ (लुक-अहेड बायस, क्रैश करप्शन, चुपचाप ऑर्डर रिजेक्ट, ऊपर औसत करना) API स्तर पर ही रोकता है, और ऊपर से DCA, आंशिक क्लोज़, पोर्टफोलियो जोखिम व AI/Pine सिग्नल देता है।
 
-- 🇪🇸 **Español** — ~560M speakers. Backtest Kit es un motor TypeScript donde la estrategia que pruebas con datos históricos es, byte a byte, la que opera en vivo — solo cambia el reloj. Elimina en la propia API los fallos que arruinan bots (sesgo look-ahead, corrupción por caídas, rechazos silenciosos de órdenes, promediar al alza) y suma DCA, cierres parciales, riesgo de cartera y señales de IA/Pine.
+- 🇪🇸 **Español** — ~560M speakers. TradeForge es un motor TypeScript donde la estrategia que pruebas con datos históricos es, byte a byte, la que opera en vivo — solo cambia el reloj. Elimina en la propia API los fallos que arruinan bots (sesgo look-ahead, corrupción por caídas, rechazos silenciosos de órdenes, promediar al alza) y suma DCA, cierres parciales, riesgo de cartera y señales de IA/Pine.
 
-- 🇧🇷 **Português** — ~260M speakers. Backtest Kit é um motor TypeScript em que a estratégia testada no histórico é, byte a byte, a mesma que opera ao vivo — só o relógio muda. Ele elimina no próprio API os erros que matam bots (viés look-ahead, corrupção por falha, rejeição silenciosa de ordens, preço médio para cima) e ainda oferece DCA, fechamentos parciais, risco de carteira e sinais de IA/Pine.
+- 🇧🇷 **Português** — ~260M speakers. TradeForge é um motor TypeScript em que a estratégia testada no histórico é, byte a byte, a mesma que opera ao vivo — só o relógio muda. Ele elimina no próprio API os erros que matam bots (viés look-ahead, corrupção por falha, rejeição silenciosa de ordens, preço médio para cima) e ainda oferece DCA, fechamentos parciais, risco de carteira e sinais de IA/Pine.
 
-- 🇷🇺 **Русский** — ~255M speakers. Backtest Kit — TypeScript-движок, где стратегия, проверенная на истории, побайтово совпадает с той, что торгует вживую: меняются только часы. Он устраняет на уровне API ошибки, губящие ботов (заглядывание в будущее, порча состояния при сбое, тихий отказ ордера, усреднение вверх), и добавляет полноценный DCA, частичные закрытия, портфельный риск и сигналы от AI/Pine.
+- 🇷🇺 **Русский** — ~255M speakers. TradeForge — TypeScript-движок, где стратегия, проверенная на истории, побайтово совпадает с той, что торгует вживую: меняются только часы. Он устраняет на уровне API ошибки, губящие ботов (заглядывание в будущее, порча состояния при сбое, тихий отказ ордера, усреднение вверх), и добавляет полноценный DCA, частичные закрытия, портфельный риск и сигналы от AI/Pine.
 
-- 🇹🇷 **Türkçe** — ~90M speakers. Backtest Kit, geçmiş veride test ettiğiniz stratejinin canlıda bayt bayt aynısını çalıştıran bir TypeScript motorudur — yalnızca saat değişir. Botları çökerten hataları (look-ahead yanlılığı, çökme bozulması, sessiz emir reddi, yukarı ortalama) API düzeyinde ortadan kaldırır; üstüne DCA, kısmi kapanışlar, portföy riski ve AI/Pine sinyalleri ekler.
+- 🇹🇷 **Türkçe** — ~90M speakers. TradeForge, geçmiş veride test ettiğiniz stratejinin canlıda bayt bayt aynısını çalıştıran bir TypeScript motorudur — yalnızca saat değişir. Botları çökerten hataları (look-ahead yanlılığı, çökme bozulması, sessiz emir reddi, yukarı ortalama) API düzeyinde ortadan kaldırır; üstüne DCA, kısmi kapanışlar, portföy riski ve AI/Pine sinyalleri ekler.
 
 </details>
 

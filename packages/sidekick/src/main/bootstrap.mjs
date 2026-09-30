@@ -1,4 +1,4 @@
-import { Backtest, listenError, overrideStrategySchema } from "backtest-kit";
+import { Backtest, listenError, overrideStrategySchema } from "tradeforge";
 
 import { getArgs } from "../utils/getArgs.mjs";
 

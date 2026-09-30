@@ -4,7 +4,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import CandleCacheService from "../cache/CandleCacheService";
-import { CandleInterval } from "backtest-kit";
+import { CandleInterval } from "tradeforge";
 
 export class CandleDbService extends BaseCRUD(CandleModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

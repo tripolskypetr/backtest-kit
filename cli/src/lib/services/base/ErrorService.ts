@@ -11,7 +11,7 @@ import {
   OrderRejectedError,
   OrderTransientError,
   GeneralExpectedError,
-} from "backtest-kit";
+} from "tradeforge";
 
 const ERROR_HANDLER_INSTALLED = Symbol.for("error-handler-installed");
 

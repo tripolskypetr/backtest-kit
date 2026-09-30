@@ -1,4 +1,4 @@
-import { CandleInterval } from "backtest-kit";
+import { CandleInterval } from "tradeforge";
 
 interface ICandleDto {
   symbol: string;

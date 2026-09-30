@@ -5,7 +5,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import BreakevenCacheService from "../cache/BreakevenCacheService";
-import { BreakevenData } from "backtest-kit";
+import { BreakevenData } from "tradeforge";
 
 export class BreakevenDbService extends BaseCRUD(BreakevenModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

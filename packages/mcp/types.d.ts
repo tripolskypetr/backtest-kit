@@ -1,6 +1,6 @@
 import http from 'http';
-import * as backtest_kit from 'backtest-kit';
-import { IMCPPositionOpenCommand, IMCPPositionCloseCommand, IMCPAverageBuyCommand, IMCPSignalNotifyCommand, IMCPMessage } from 'backtest-kit';
+import * as tradeforge from 'tradeforge';
+import { IMCPPositionOpenCommand, IMCPPositionCloseCommand, IMCPAverageBuyCommand, IMCPSignalNotifyCommand, IMCPMessage } from 'tradeforge';
 
 interface ILogger {
     log(topic: string, ...args: any[]): void;
@@ -58,7 +58,7 @@ declare class LoggerService implements ILogger {
 
 declare class MCPPrivateService {
     private readonly loggerService;
-    getStatus: (mcpName: string) => Promise<backtest_kit.IMCPMessage[]>;
+    getStatus: (mcpName: string) => Promise<tradeforge.IMCPMessage[]>;
     commitPositionOpen: (dto: IMCPPositionOpenCommand) => Promise<void>;
     commitPositionClose: (dto: IMCPPositionCloseCommand) => Promise<void>;
     commitAverageBuy: (dto: IMCPAverageBuyCommand) => Promise<boolean>;
@@ -68,7 +68,7 @@ declare class MCPPrivateService {
 declare class MCPPublicService {
     private readonly loggerService;
     private readonly mcpPrivateService;
-    getStatus: () => Promise<backtest_kit.IMCPMessage[]>;
+    getStatus: () => Promise<tradeforge.IMCPMessage[]>;
     commitPositionOpen: (dto: {
         symbol: string;
         position: "long" | "short";

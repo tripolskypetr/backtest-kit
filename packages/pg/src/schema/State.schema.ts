@@ -1,5 +1,5 @@
 import { EntitySchema } from "typeorm";
-import { StateData } from "backtest-kit";
+import { StateData } from "tradeforge";
 import { epochTransformer } from "../utils/epochTransformer";
 
 interface IStateDto {

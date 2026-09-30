@@ -3,7 +3,7 @@ import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
-import { IRuntimeInfo } from "backtest-kit";
+import { IRuntimeInfo } from "tradeforge";
 
 const MOCK_DATA_PATH = "./mock/runtime.json";
 

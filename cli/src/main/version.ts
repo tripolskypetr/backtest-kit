@@ -14,7 +14,7 @@ export const main = async () => {
     return;
   }
 
-  process.stdout.write(`@backtest-kit/cli ${__PACKAGE_VERSION__}\n`);
+  process.stdout.write(`@tradeforge/cli ${__PACKAGE_VERSION__}\n`);
   process.exit(0);
 };
 

@@ -2,7 +2,7 @@ import { IMeasureRow } from "../../../schema/Measure.schema";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
-import { MeasureData } from "backtest-kit";
+import { MeasureData } from "tradeforge";
 import BaseStorage from "../../common/BaseStorage";
 
 const GET_STORAGE_KEY_FN = (bucket: string, entryKey: string) => {

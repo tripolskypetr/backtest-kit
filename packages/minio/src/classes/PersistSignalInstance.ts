@@ -1,4 +1,4 @@
-import { ISignalRow, IPersistSignalInstance } from "backtest-kit";
+import { ISignalRow, IPersistSignalInstance } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

@@ -3,7 +3,7 @@ import treeKill from "../helpers/treeKill";
 
 const DRAIN_MAX_AWAIT = 250;
 
-const KILL_SYMBOL = Symbol.for("backtest-kit-kill");
+const KILL_SYMBOL = Symbol.for("tradeforge-kill");
 
 const drainStream = (stream: NodeJS.WriteStream): Promise<void> =>
   new Promise((resolve) => {

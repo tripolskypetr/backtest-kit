@@ -1,7 +1,7 @@
 import { inject } from "../../../lib/core/di";
 import LoggerService from "./LoggerService";
 import { TYPES } from "../../../lib/core/types";
-import { CandleInterval, Exchange, alignToInterval, listExchangeSchema } from "backtest-kit";
+import { CandleInterval, Exchange, alignToInterval, listExchangeSchema } from "tradeforge";
 
 type ExchangeName = string;
 

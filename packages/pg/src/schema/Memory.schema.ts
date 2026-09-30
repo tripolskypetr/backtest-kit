@@ -1,5 +1,5 @@
 import { EntitySchema } from "typeorm";
-import { MemoryData } from "backtest-kit";
+import { MemoryData } from "tradeforge";
 import { epochTransformer } from "../utils/epochTransformer";
 
 interface IMemoryDto {

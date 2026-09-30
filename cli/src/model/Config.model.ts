@@ -19,7 +19,7 @@ import {
   OrderContinueContract,
   OrderStopContract,
   SignalInfoContract,
-} from "backtest-kit";
+} from "tradeforge";
 
 export interface SymbolConfig {
   icon: string;

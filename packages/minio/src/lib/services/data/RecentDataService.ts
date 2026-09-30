@@ -2,7 +2,7 @@ import { IRecentRow } from "../../../schema/Recent.schema";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
-import { IPublicSignalRow } from "backtest-kit";
+import { IPublicSignalRow } from "tradeforge";
 import BaseStorage from "../../common/BaseStorage";
 
 const GET_STORAGE_KEY_FN = (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest: boolean) => {

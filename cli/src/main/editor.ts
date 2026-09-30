@@ -1,4 +1,4 @@
-import { serve } from "@backtest-kit/ui";
+import { serve } from "@tradeforge/ui";
 import open from "open";
 import { getArgs } from "../helpers/getArgs";
 import { getEnv } from "../helpers/getEnv";

@@ -4,7 +4,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import ScheduleCacheService from "../cache/ScheduleCacheService";
-import { IScheduledSignalRow } from "backtest-kit";
+import { IScheduledSignalRow } from "tradeforge";
 
 export class ScheduleDbService extends BaseCRUD(ScheduleModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

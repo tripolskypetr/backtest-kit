@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if [ $# -gt 0 ]; then
-  exec node /usr/local/lib/node_modules/@backtest-kit/cli/build/index.mjs "$@"
+  exec node /usr/local/lib/node_modules/@tradeforge/cli/build/index.mjs "$@"
 fi
 
 if [ -z "$STRATEGY_FILE" ]; then
@@ -31,4 +31,4 @@ ARGS="--${MODE} --symbol ${SYMBOL:-BTCUSDT}"
 [ -n "$NO_FLUSH" ] && ARGS="$ARGS --noFlush"
 [ -n "$ENTRY" ]    && ARGS="$ARGS --entry"
 
-exec node /usr/local/lib/node_modules/@backtest-kit/cli/build/index.mjs $ARGS "$STRATEGY_FILE"
+exec node /usr/local/lib/node_modules/@tradeforge/cli/build/index.mjs $ARGS "$STRATEGY_FILE"

@@ -1,4 +1,4 @@
-import { Cache } from "backtest-kit";
+import { Cache } from "tradeforge";
 
 import {
   run,

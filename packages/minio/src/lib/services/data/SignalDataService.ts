@@ -2,7 +2,7 @@ import { ISignalRowDoc } from "../../../schema/Signal.schema";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
-import { ISignalRow } from "backtest-kit";
+import { ISignalRow } from "tradeforge";
 import BaseStorage from "../../common/BaseStorage";
 
 const GET_STORAGE_KEY_FN = (symbol: string, strategyName: string, exchangeName: string) => {

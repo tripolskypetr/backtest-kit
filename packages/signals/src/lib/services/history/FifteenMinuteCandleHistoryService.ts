@@ -11,7 +11,7 @@
  * Used by commitFifteenMinuteHistory() for LLM context injection.
  */
 
-import { getCandles, ICandleData, formatPrice, formatQuantity, getDate } from "backtest-kit";
+import { getCandles, ICandleData, formatPrice, formatQuantity, getDate } from "tradeforge";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import LoggerService from "../common/LoggerService";

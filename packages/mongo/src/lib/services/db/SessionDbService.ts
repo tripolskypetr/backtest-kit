@@ -5,7 +5,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import SessionCacheService from "../cache/SessionCacheService";
-import { SessionData } from "backtest-kit";
+import { SessionData } from "tradeforge";
 
 export class SessionDbService extends BaseCRUD(SessionModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

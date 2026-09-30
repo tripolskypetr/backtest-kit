@@ -1,10 +1,10 @@
-import { Exchange, alignToInterval } from "backtest-kit";
+import { Exchange, alignToInterval } from "tradeforge";
 import { writeFile, mkdir } from "fs/promises";
 import { join, resolve } from "path";
 import { getArgs } from "../helpers/getArgs";
 import getEntry from "../helpers/getEntry";
 import cli from "../lib";
-import { CandleInterval, listExchangeSchema } from "backtest-kit";
+import { CandleInterval, listExchangeSchema } from "tradeforge";
 import path from "path";
 import dotenv from "dotenv";
 

@@ -7,12 +7,12 @@ import { ILoader, ILoaderParams } from "../interfaces/Loader.interface";
 
 import { kill } from "../utils/notifyKill";
 
-import * as BacktestKit from "backtest-kit";
-import * as BacktestKitUi from "@backtest-kit/ui";
-import * as BacktestKitGraph from "@backtest-kit/graph";
-import * as BacktestKitOllama from "@backtest-kit/ollama";
-import * as BacktestKitPinets from "@backtest-kit/pinets";
-import * as BacktestKitSignals from "@backtest-kit/signals";
+import * as TradeForge from "tradeforge";
+import * as TradeForgeUi from "@tradeforge/ui";
+import * as TradeForgeGraph from "@tradeforge/graph";
+import * as TradeForgeOllama from "@tradeforge/ollama";
+import * as TradeForgePinets from "@tradeforge/pinets";
+import * as TradeForgeSignals from "@tradeforge/signals";
 
 import { overrideModule } from "../helpers/overrideModule";
 
@@ -196,13 +196,13 @@ const CREATE_BASE_REQUIRE_FN = (self: ClientLoader, seen: Set<string>) => {
     apply(_target, _this, args) {
       const id = args[0];
       if (IMPORT_ALIAS[id]) return IMPORT_ALIAS[id];
-      if (id === "backtest-kit") return globalThis.BacktestKit;
-      if (id === "@backtest-kit/cli") return globalThis.BacktestKitCli;
-      if (id === "@backtest-kit/ui") return globalThis.BacktestKitUi;
-      if (id === "@backtest-kit/graph") return globalThis.BacktestKitGraph;
-      if (id === "@backtest-kit/ollama") return globalThis.BacktestKitOllama;
-      if (id === "@backtest-kit/pinets") return globalThis.BacktestKitPinets;
-      if (id === "@backtest-kit/signals") return globalThis.BacktestKitSignals;
+      if (id === "tradeforge") return globalThis.TradeForge;
+      if (id === "@tradeforge/cli") return globalThis.TradeForgeCli;
+      if (id === "@tradeforge/ui") return globalThis.TradeForgeUi;
+      if (id === "@tradeforge/graph") return globalThis.TradeForgeGraph;
+      if (id === "@tradeforge/ollama") return globalThis.TradeForgeOllama;
+      if (id === "@tradeforge/pinets") return globalThis.TradeForgePinets;
+      if (id === "@tradeforge/signals") return globalThis.TradeForgeSignals;
       if (id.startsWith("./") || id.startsWith("../")) {
         const resolved = path.resolve(self.__dirname, id);
         const child = self.fork(path.dirname(resolved));
@@ -226,12 +226,12 @@ const CREATE_BASE_REQUIRE_FN = (self: ClientLoader, seen: Set<string>) => {
   });
 };
 
-const BacktestKitCli = new Proxy(
+const TradeForgeCli = new Proxy(
   {},
   {
     get(_target, prop) {
       throw new Error(
-        `@backtest-kit/cli is not available in this context (accessed: ${String(prop)})`,
+        `@tradeforge/cli is not available in this context (accessed: ${String(prop)})`,
       );
     },
   },
@@ -239,13 +239,13 @@ const BacktestKitCli = new Proxy(
 
 declare global {
   interface Window {
-    BacktestKit: typeof BacktestKit;
-    BacktestKitCli: typeof BacktestKitCli;
-    BacktestKitUi: typeof BacktestKitUi;
-    BacktestKitGraph: typeof BacktestKitGraph;
-    BacktestKitOllama: typeof BacktestKitOllama;
-    BacktestKitPinets: typeof BacktestKitPinets;
-    BacktestKitSignals: typeof BacktestKitSignals;
+    TradeForge: typeof TradeForge;
+    TradeForgeCli: typeof TradeForgeCli;
+    TradeForgeUi: typeof TradeForgeUi;
+    TradeForgeGraph: typeof TradeForgeGraph;
+    TradeForgeOllama: typeof TradeForgeOllama;
+    TradeForgePinets: typeof TradeForgePinets;
+    TradeForgeSignals: typeof TradeForgeSignals;
   }
 }
 
@@ -312,20 +312,20 @@ export class ClientLoader implements ILoader {
   }
 }
 
-globalThis.BacktestKit = BacktestKit;
-globalThis.BacktestKitCli = BacktestKitCli;
-globalThis.BacktestKitUi = BacktestKitUi;
-globalThis.BacktestKitGraph = BacktestKitGraph;
-globalThis.BacktestKitOllama = BacktestKitOllama;
-globalThis.BacktestKitPinets = BacktestKitPinets;
-globalThis.BacktestKitSignals = BacktestKitSignals;
+globalThis.TradeForge = TradeForge;
+globalThis.TradeForgeCli = TradeForgeCli;
+globalThis.TradeForgeUi = TradeForgeUi;
+globalThis.TradeForgeGraph = TradeForgeGraph;
+globalThis.TradeForgeOllama = TradeForgeOllama;
+globalThis.TradeForgePinets = TradeForgePinets;
+globalThis.TradeForgeSignals = TradeForgeSignals;
 
-overrideModule('backtest-kit', BacktestKit);
-overrideModule('@backtest-kit/cli', BacktestKitCli);
-overrideModule('@backtest-kit/ui', BacktestKitUi);
-overrideModule('@backtest-kit/graph', BacktestKitGraph);
-overrideModule('@backtest-kit/ollama', BacktestKitOllama);
-overrideModule('@backtest-kit/pinets', BacktestKitPinets);
-overrideModule('@backtest-kit/signals', BacktestKitSignals);
+overrideModule('tradeforge', TradeForge);
+overrideModule('@tradeforge/cli', TradeForgeCli);
+overrideModule('@tradeforge/ui', TradeForgeUi);
+overrideModule('@tradeforge/graph', TradeForgeGraph);
+overrideModule('@tradeforge/ollama', TradeForgeOllama);
+overrideModule('@tradeforge/pinets', TradeForgePinets);
+overrideModule('@tradeforge/signals', TradeForgeSignals);
 
 export default ClientLoader;

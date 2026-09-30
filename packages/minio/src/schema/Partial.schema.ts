@@ -1,4 +1,4 @@
-import { PartialData } from "backtest-kit";
+import { PartialData } from "tradeforge";
 
 interface IPartialDto {
   symbol: string;

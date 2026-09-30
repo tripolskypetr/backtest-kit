@@ -1,5 +1,5 @@
 import { singleshot } from "functools-kit";
-import { parseArgs } from "backtest-kit";
+import { parseArgs } from "tradeforge";
 
 import ExchangeName from "../enum/ExchangeName.mjs";
 import StrategyName from "../enum/StrategyName.mjs";

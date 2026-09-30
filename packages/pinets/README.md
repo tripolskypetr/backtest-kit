@@ -1,13 +1,13 @@
 <img src="https://github.com/tripolskypetr/backtest-kit/raw/refs/heads/master/assets/heraldry.svg" height="45px" align="right">
 
-# 📜 @backtest-kit/pinets
+# 📜 @tradeforge/pinets
 
-> Run TradingView Pine Script v5/v6 in a self-hosted Node.js environment for [backtest-kit](https://www.npmjs.com/package/backtest-kit). Execute your existing `.pine` indicators with 1:1 syntax compatibility and extract structured trading signals — no TradingView account, no rewrite.
+> Run TradingView Pine Script v5/v6 in a self-hosted Node.js environment for [tradeforge](https://www.npmjs.com/package/tradeforge). Execute your existing `.pine` indicators with 1:1 syntax compatibility and extract structured trading signals — no TradingView account, no rewrite.
 
 ![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
-[![npm](https://img.shields.io/npm/v/@backtest-kit/pinets.svg?style=flat-square)](https://npmjs.org/package/@backtest-kit/pinets)
+[![npm](https://img.shields.io/npm/v/@tradeforge/pinets.svg?style=flat-square)](https://npmjs.org/package/@tradeforge/pinets)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
 
 Powered by [PineTS](https://github.com/QuantForgeOrg/PineTS) — an open-source Pine Script transpiler & runtime.
@@ -15,18 +15,18 @@ Powered by [PineTS](https://github.com/QuantForgeOrg/PineTS) — an open-source 
 📚 **[Docs](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)** · 🌟 **[Reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example)** · 📜 **[PineTS Docs](https://quantforgeorg.github.io/PineTS/)** · 🐙 **[GitHub](https://github.com/tripolskypetr/backtest-kit)**
 
 ```bash
-npm install @backtest-kit/pinets pinets backtest-kit
+npm install @tradeforge/pinets pinets tradeforge
 ```
 
 ---
 
 ## Why
 
-Your edge already exists as a TradingView Pine Script — rewriting it in JavaScript is error-prone busywork that drifts from the original. This package runs the `.pine` **as-is** inside backtest-kit's execution context: `getCandles` feeds it look-ahead-safe data, 60+ indicators are built in (no manual TA math), and the same script powers both backtest and live. You map its `plot()` outputs to a structured signal and you're done.
+Your edge already exists as a TradingView Pine Script — rewriting it in JavaScript is error-prone busywork that drifts from the original. This package runs the `.pine` **as-is** inside tradeforge's execution context: `getCandles` feeds it look-ahead-safe data, 60+ indicators are built in (no manual TA math), and the same script powers both backtest and live. You map its `plot()` outputs to a structured signal and you're done.
 
 - 📜 **Pine Script v5/v6** — native TradingView syntax, 1:1 compatibility.
 - 🎯 **60+ indicators** — SMA, EMA, RSI, MACD, Bollinger Bands, ATR, Stochastic, ADX, …
-- 🔌 **Engine integration** — runs on backtest-kit's temporal context (no look-ahead).
+- 🔌 **Engine integration** — runs on tradeforge's temporal context (no look-ahead).
 - 📁 **File or inline** — load a `.pine` file or pass a code string.
 - 🗺️ **Flexible extraction** — map any `plot()` to typed data, with lookback & transforms.
 - ⚡ **Cached execution** — memoized file reads for repeated runs.
@@ -61,8 +61,8 @@ plot(60, "EstimatedTime")  // minutes
 ```
 
 ```typescript
-import { File, getSignal } from '@backtest-kit/pinets';
-import { addStrategy } from 'backtest-kit';
+import { File, getSignal } from '@tradeforge/pinets';
+import { addStrategy } from 'tradeforge';
 
 addStrategy({
   strategyName: 'pine-ema-cross', interval: '5m', riskName: 'demo',
@@ -74,7 +74,7 @@ addStrategy({
 Inline code needs no file:
 
 ```typescript
-import { Code, getSignal } from '@backtest-kit/pinets';
+import { Code, getSignal } from '@tradeforge/pinets';
 const signal = await getSignal(
   Code.fromString(`//@version=5\nindicator("RSI")\nrsi=ta.rsi(close,14)\natr=ta.atr(14)\nplot(close,"Close")\nplot(rsi<30?1:rsi>70?-1:0,"Signal")\nplot(close-atr*2,"StopLoss")\nplot(close+atr*3,"TakeProfit")`),
   { symbol: 'BTCUSDT', timeframe: '15m', limit: 100 });
@@ -104,7 +104,7 @@ Custom plots are fine too — use `run` + `extract` to remap them (below).
 <summary>extract() — latest bar values</summary>
 
 ```typescript
-import { File, run, extract } from '@backtest-kit/pinets';
+import { File, run, extract } from '@tradeforge/pinets';
 
 const plots = await run(File.fromPath('indicators.pine'), { symbol: 'ETHUSDT', timeframe: '1h', limit: 200 });
 const data = await extract(plots, {
@@ -121,7 +121,7 @@ const data = await extract(plots, {
 <summary>extractRows() — every bar, timestamped</summary>
 
 ```typescript
-import { File, run, extractRows } from '@backtest-kit/pinets';
+import { File, run, extractRows } from '@tradeforge/pinets';
 
 const plots = await run(File.fromPath('indicators.pine'), { symbol: 'ETHUSDT', timeframe: '1h', limit: 200 });
 const rows = await extractRows(plots, {
@@ -139,10 +139,10 @@ const rows = await extractRows(plots, {
 <details>
 <summary>toSignalDto() — turn extracted values into a signal</summary>
 
-The helper `getSignal` uses internally, exposed for custom graphs (e.g. multi-timeframe via `@backtest-kit/graph`). Maps `position` `1`/`-1`/`0` → `long`/`short`/`null`, carrying TP/SL/estimated-time, with an optional explicit `priceOpen`:
+The helper `getSignal` uses internally, exposed for custom graphs (e.g. multi-timeframe via `@tradeforge/graph`). Maps `position` `1`/`-1`/`0` → `long`/`short`/`null`, carrying TP/SL/estimated-time, with an optional explicit `priceOpen`:
 
 ```typescript
-import { run, extract, toSignalDto } from '@backtest-kit/pinets';
+import { run, extract, toSignalDto } from '@tradeforge/pinets';
 import { randomString } from 'functools-kit';
 
 const plots = await run(File.fromPath('strategy.pine'), { symbol, timeframe: '15m', limit: 100 });
@@ -160,7 +160,7 @@ const signal = toSignalDto(randomString(), data, null); // ISignalDto | null
 <summary>dumpPlotData / markdown — inspect plot output</summary>
 
 ```typescript
-import { File, run, dumpPlotData, toMarkdown } from '@backtest-kit/pinets';
+import { File, run, dumpPlotData, toMarkdown } from '@tradeforge/pinets';
 const plots = await run(File.fromPath('strategy.pine'), { symbol: 'BTCUSDT', timeframe: '1h', limit: 100 });
 await dumpPlotData('signal-001', plots, 'ema-cross', './dump/ta');  // → markdown files
 const md = await toMarkdown(plots);                                 // markdown table as a string
@@ -172,7 +172,7 @@ const md = await toMarkdown(plots);                                 // markdown 
 <summary>usePine / useIndicator / setLogger — swap internals</summary>
 
 ```typescript
-import { usePine, useIndicator, setLogger } from '@backtest-kit/pinets';
+import { usePine, useIndicator, setLogger } from '@tradeforge/pinets';
 import { Pine } from 'pinets';
 
 usePine(Pine);                       // register a custom Pine constructor

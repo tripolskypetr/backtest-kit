@@ -2,7 +2,7 @@ import { IDictionaryRow } from "../../../schema/Dictionary.schema";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
-import { DictionaryData } from "backtest-kit";
+import { DictionaryData } from "tradeforge";
 import BaseStorage from "../../common/BaseStorage";
 
 const GET_STORAGE_KEY_FN = (signalId: string, dictionaryName: string) => {

@@ -1,4 +1,4 @@
-import { listenSignal } from "backtest-kit";
+import { listenSignal } from "tradeforge";
 import { singleshot } from "functools-kit";
 
 export const notifyVerbose = singleshot(() => {

@@ -1,4 +1,4 @@
-import { MemoryData } from "backtest-kit";
+import { MemoryData } from "tradeforge";
 
 interface IMemoryDto {
   signalId: string;

@@ -1,5 +1,5 @@
 import { EntitySchema } from "typeorm";
-import { NotificationModel as NotificationPayload } from "backtest-kit";
+import { NotificationModel as NotificationPayload } from "tradeforge";
 
 interface INotificationDto {
   backtest: boolean;

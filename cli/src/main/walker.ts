@@ -1,4 +1,4 @@
-import { Walker } from "backtest-kit";
+import { Walker } from "tradeforge";
 import { getArgs, getPositionals } from "../helpers/getArgs";
 import { singleshot } from "functools-kit";
 import notifyShutdown from "../utils/notifyShutdown";

@@ -5,7 +5,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import StateCacheService from "../cache/StateCacheService";
-import { StateData } from "backtest-kit";
+import { StateData } from "tradeforge";
 
 export class StateDbService extends BaseCRUD(StateModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

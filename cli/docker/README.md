@@ -1,16 +1,16 @@
 <img src="https://github.com/tripolskypetr/backtest-kit/raw/refs/heads/master/assets/square_compasses.svg" height="45px" align="right">
 
-# 🧿 Backtest Kit Docker
+# 🧿 TradeForge Docker
 
 > A TypeScript framework for backtesting and live trading strategies on multi-asset, crypto, forex or [DEX (peer-to-peer marketplace)](https://en.wikipedia.org/wiki/Decentralized_finance#Decentralized_exchanges), spot, futures with crash-safe persistence, signal validation, and AI optimization.
 
 ![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
-[![npm](https://img.shields.io/npm/v/backtest-kit.svg?style=flat-square)](https://npmjs.org/package/backtest-kit)
+[![npm](https://img.shields.io/npm/v/tradeforge.svg?style=flat-square)](https://npmjs.org/package/tradeforge)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
 
-A self-contained Docker workspace for running [backtest-kit](https://github.com/tripolskypetr/backtest-kit) strategies with automatic restarts and zero-downtime trading.
+A self-contained Docker workspace for running [tradeforge](https://github.com/tripolskypetr/backtest-kit) strategies with automatic restarts and zero-downtime trading.
 
 ---
 

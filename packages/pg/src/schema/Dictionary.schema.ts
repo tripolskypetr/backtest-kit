@@ -1,5 +1,5 @@
 import { EntitySchema } from "typeorm";
-import { DictionaryData } from "backtest-kit";
+import { DictionaryData } from "tradeforge";
 import { epochTransformer } from "../utils/epochTransformer";
 
 interface IDictionaryDto {

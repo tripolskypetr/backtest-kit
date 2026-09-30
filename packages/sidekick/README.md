@@ -1,17 +1,17 @@
-# 🧿 @backtest-kit/sidekick
+# 🧿 @tradeforge/sidekick
 
-> The fastest way to start a [backtest-kit](https://www.npmjs.com/package/backtest-kit) trading bot — but the *full-control* one. Scaffolds a complete multi-timeframe crypto strategy where every wire (exchange, frames, risk, actions, runner) is editable source in **your** project: a 4H trend filter + 15m signal generator in Pine Script, partial profit taking, breakeven trailing stops, and risk validation.
+> The fastest way to start a [tradeforge](https://www.npmjs.com/package/tradeforge) trading bot — but the *full-control* one. Scaffolds a complete multi-timeframe crypto strategy where every wire (exchange, frames, risk, actions, runner) is editable source in **your** project: a 4H trend filter + 15m signal generator in Pine Script, partial profit taking, breakeven trailing stops, and risk validation.
 
 ![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
-[![npm](https://img.shields.io/npm/v/@backtest-kit/sidekick.svg?style=flat-square)](https://npmjs.org/package/@backtest-kit/sidekick)
-[![License](https://img.shields.io/npm/l/@backtest-kit/sidekick.svg)](https://github.com/tripolskypetr/backtest-kit/blob/master/LICENSE)
+[![npm](https://img.shields.io/npm/v/@tradeforge/sidekick.svg?style=flat-square)](https://npmjs.org/package/@tradeforge/sidekick)
+[![License](https://img.shields.io/npm/l/@tradeforge/sidekick.svg)](https://github.com/tripolskypetr/backtest-kit/blob/master/LICENSE)
 
 📚 **[Docs](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)** · 🌟 **[Reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example)** · 🐙 **[GitHub](https://github.com/tripolskypetr/backtest-kit)**
 
 ```bash
-npx -y @backtest-kit/sidekick my-trading-bot
+npx -y @tradeforge/sidekick my-trading-bot
 cd my-trading-bot && npm start
 ```
 
@@ -19,18 +19,18 @@ cd my-trading-bot && npm start
 
 ## Init vs. Sidekick — pick your level of control
 
-`@backtest-kit/cli --init` keeps the boilerplate *inside* the CLI; your repo holds only strategy files. **Sidekick is the "eject":** it writes the entire wiring — exchange adapter, frames, risk rules, actions, bootstrap, runner — as plain, editable source in your project, with no CLI in the loop and nothing hidden. Choose Sidekick when you want to read and own every line, not just the strategy.
+`@tradeforge/cli --init` keeps the boilerplate *inside* the CLI; your repo holds only strategy files. **Sidekick is the "eject":** it writes the entire wiring — exchange adapter, frames, risk rules, actions, bootstrap, runner — as plain, editable source in your project, with no CLI in the loop and nothing hidden. Choose Sidekick when you want to read and own every line, not just the strategy.
 
 What you get out of the box: a working multi-timeframe Pine Script strategy (4H trend + 15m signals), SL/TP distance risk validation, partial profit taking + breakeven trailing stops, cache utilities and debug scripts, a `CLAUDE.md` for AI-assisted iteration, and environment config.
 
 - 🚀 **Zero config** — one command, no setup.
 - 📊 **Multi-timeframe** — 4H trend filter (RSI+MACD+ADX) + 15m entries (EMA crossover + volume spike + momentum).
-- 📜 **Pine Script v5** — strategies run locally via `@backtest-kit/pinets`, no TradingView.
+- 📜 **Pine Script v5** — strategies run locally via `@tradeforge/pinets`, no TradingView.
 - 🛡️ **Risk management** — SL/TP distance validation, 33/33/34 partial profit, breakeven trailing.
 - 🔄 **Full lifecycle** — scheduled/opened/closed/cancelled event logging.
 - 🔌 **Binance via CCXT** — OHLCV, order-book depth, tick-precise formatting.
 - 🕐 **Historical frames** — bull, sharp-drop, and sideways periods predefined.
-- 🎨 **Web dashboard** — `@backtest-kit/ui` charting.
+- 🎨 **Web dashboard** — `@tradeforge/ui` charting.
 - 💾 **Crash-safe storage** — atomic persistence for backtest and live.
 
 ---
@@ -146,8 +146,8 @@ my-trading-bot/
 ## CLI options & dependencies
 
 ```bash
-npx -y @backtest-kit/sidekick my-bot   # named project
-npx -y @backtest-kit/sidekick .        # current directory (must be empty)
+npx -y @tradeforge/sidekick my-bot   # named project
+npx -y @tradeforge/sidekick .        # current directory (must be empty)
 ```
 
 <details>
@@ -155,10 +155,10 @@ npx -y @backtest-kit/sidekick .        # current directory (must be empty)
 
 | Package | Purpose |
 |---------|---------|
-| [backtest-kit](https://www.npmjs.com/package/backtest-kit) | Core backtesting / trading framework |
-| [@backtest-kit/pinets](https://www.npmjs.com/package/@backtest-kit/pinets) | Pine Script v5 runtime for Node.js |
-| [@backtest-kit/ui](https://www.npmjs.com/package/@backtest-kit/ui) | Interactive charting dashboard |
-| [@backtest-kit/ollama](https://www.npmjs.com/package/@backtest-kit/ollama) | LLM inference integration |
+| [tradeforge](https://www.npmjs.com/package/tradeforge) | Core backtesting / trading framework |
+| [@tradeforge/pinets](https://www.npmjs.com/package/@tradeforge/pinets) | Pine Script v5 runtime for Node.js |
+| [@tradeforge/ui](https://www.npmjs.com/package/@tradeforge/ui) | Interactive charting dashboard |
+| [@tradeforge/ollama](https://www.npmjs.com/package/@tradeforge/ollama) | LLM inference integration |
 | [ccxt](https://github.com/ccxt/ccxt) | Binance exchange connectivity |
 | [functools-kit](https://www.npmjs.com/package/functools-kit) | `singleshot`, `randomString` utilities |
 | [pinolog](https://www.npmjs.com/package/pinolog) | File-based structured logging |

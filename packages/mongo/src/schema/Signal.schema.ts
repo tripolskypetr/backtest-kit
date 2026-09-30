@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { ISignalRow } from "backtest-kit";
+import { ISignalRow } from "tradeforge";
 
 interface ISignalDto {
   symbol: string;

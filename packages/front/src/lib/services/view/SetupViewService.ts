@@ -15,7 +15,7 @@ import {
     Backtest,
     Live,
     getConfig,
-} from "backtest-kit";
+} from "tradeforge";
 import { getConfig as getParamsConfig } from "../../../config/params";
 import SetupMockService from "../mock/SetupMockService";
 

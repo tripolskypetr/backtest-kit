@@ -1,4 +1,4 @@
-import { emitters } from "backtest-kit";
+import { emitters } from "tradeforge";
 import { BehaviorSubject, singleshot, Subject } from "functools-kit";
 
 const getEntrySubject = singleshot(() => {

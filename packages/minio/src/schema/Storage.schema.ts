@@ -1,4 +1,4 @@
-import { IStorageSignalRow } from "backtest-kit";
+import { IStorageSignalRow } from "tradeforge";
 
 interface IStorageDto {
   backtest: boolean;

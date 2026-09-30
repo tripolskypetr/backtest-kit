@@ -1,7 +1,7 @@
 {
-  "name": "@backtest-kit/pg",
-  "version": "20.1.0",
-  "description": "backtest-kit persistence on PostgreSQL (TypeORM) + Redis cache, with atomic ON CONFLICT upserts and a Pgpool-II replica cluster for dev.",
+  "name": "@tradeforge/pg",
+  "version": "1.1.0",
+  "description": "tradeforge persistence on PostgreSQL (TypeORM) + Redis cache, with atomic ON CONFLICT upserts and a Pgpool-II replica cluster for dev.",
   "author": {
     "name": "Petr Tripolsky",
     "email": "tripolskypetr@gmail.com",
@@ -14,7 +14,7 @@
   "license": "MIT",
   "homepage": "https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html",
   "keywords": [
-    "backtest-kit",
+    "tradeforge",
     "backtesting",
     "trading",
     "postgres",
@@ -30,7 +30,7 @@
     "atomicity",
     "upsert",
     "docker",
-    "docker-compose"  
+    "docker-compose"
   ],
   "files": [
     "build",
@@ -72,7 +72,7 @@
     "ts-morph": "27.0.2",
     "tslib": "2.7.0",
     "typedoc": "0.27.9",
-    "backtest-kit": "20.1.0",
+    "tradeforge": "1.1.0",
     "typeorm": "0.3.30",
     "ioredis": "5.6.1",
     "worker-testbed": "4.0.0"
@@ -81,7 +81,7 @@
     "@types/pg": "^8.20.0",
     "reflect-metadata": "^0.2.2",
     "pg": "^8.22.0",
-    "backtest-kit": "^20.1.0",
+    "tradeforge": "^1.1.0",
     "typeorm": "^0.3.30",
     "ioredis": "^5.6.1",
     "typescript": "^5.0.0"

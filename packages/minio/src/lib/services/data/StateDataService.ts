@@ -2,7 +2,7 @@ import { IStateRow } from "../../../schema/State.schema";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
-import { StateData } from "backtest-kit";
+import { StateData } from "tradeforge";
 import BaseStorage from "../../common/BaseStorage";
 
 const GET_STORAGE_KEY_FN = (signalId: string, bucketName: string) => {

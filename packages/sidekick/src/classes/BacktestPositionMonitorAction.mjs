@@ -1,4 +1,4 @@
-import { ActionBase } from "backtest-kit";
+import { ActionBase } from "tradeforge";
 
 /**
  * Monitors position lifecycle and logs open/close events in backtest mode

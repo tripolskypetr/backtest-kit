@@ -9,7 +9,7 @@ import {
   intervalStepMs,
   alignToInterval,
   PersistCandleAdapter,
-} from "backtest-kit";
+} from "tradeforge";
 import { getErrorMessage, retry } from "functools-kit";
 
 const GET_TIMEFRAME_RANGE_FN = async (frameName: string) => {

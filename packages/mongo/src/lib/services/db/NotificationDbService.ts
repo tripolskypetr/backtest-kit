@@ -5,7 +5,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import NotificationCacheService from "../cache/NotificationCacheService";
-import { NotificationModel as NotificationPayload } from "backtest-kit";
+import { NotificationModel as NotificationPayload } from "tradeforge";
 
 const LIST_LIMIT = 200;
 

@@ -1,6 +1,6 @@
 import {
   Live,
-} from "backtest-kit";
+} from "tradeforge";
 import { getArgs } from "../helpers/getArgs";
 import { singleshot } from "functools-kit";
 import notifyShutdown from "../utils/notifyShutdown";

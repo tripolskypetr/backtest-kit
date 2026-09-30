@@ -1,4 +1,4 @@
-import { StrategyData, IPersistStrategyInstance } from "backtest-kit";
+import { StrategyData, IPersistStrategyInstance } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

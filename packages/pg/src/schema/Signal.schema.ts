@@ -1,5 +1,5 @@
 import { EntitySchema } from "typeorm";
-import { ISignalRow } from "backtest-kit";
+import { ISignalRow } from "tradeforge";
 
 interface ISignalDto {
   symbol: string;

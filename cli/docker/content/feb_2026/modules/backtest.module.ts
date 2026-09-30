@@ -1,4 +1,4 @@
-import { addExchangeSchema, addFrameSchema, roundTicks } from "backtest-kit";
+import { addExchangeSchema, addFrameSchema, roundTicks } from "tradeforge";
 import { singleshot } from "functools-kit";
 import ccxt from "ccxt";
 

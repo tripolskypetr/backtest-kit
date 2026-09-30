@@ -3,7 +3,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import NotificationConnectionService from "../connection/NotificationConnectionService";
-import { NotificationModel as NotificationPayload } from "backtest-kit";
+import { NotificationModel as NotificationPayload } from "tradeforge";
 import BaseStorage from "../../common/BaseStorage";
 
 const LIST_LIMIT = 200;

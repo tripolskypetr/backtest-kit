@@ -7,7 +7,7 @@ import {
   Live,
   alignToInterval,
   listExchangeSchema,
-} from "backtest-kit";
+} from "tradeforge";
 import StorageViewService from "./StorageViewService";
 import ExchangeService from "../base/ExchangeService";
 import ExchangeMockService from "../mock/ExchangeMockService";

@@ -1,7 +1,7 @@
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
-import { listMCPSchema } from "backtest-kit";
+import { listMCPSchema } from "tradeforge";
 import { getConfig } from "../../../config/params";
 import MCPPrivateService from "../private/MCPPrivateService";
 

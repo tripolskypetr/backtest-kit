@@ -1,4 +1,4 @@
-import { CandleInterval, getDate } from "backtest-kit";
+import { CandleInterval, getDate } from "tradeforge";
 import { IProvider } from "../../../interface/Provider.interface";
 import { inject } from "../../core/di";
 import { CandleModel } from "../../../model/Candle.model";

@@ -1,4 +1,4 @@
-import { RiskData } from "backtest-kit";
+import { RiskData } from "tradeforge";
 
 interface IRiskDto {
   riskName: string;

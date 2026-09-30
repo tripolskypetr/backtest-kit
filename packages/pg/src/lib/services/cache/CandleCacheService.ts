@@ -1,7 +1,7 @@
 import BaseMap from "../../common/BaseMap";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
-import { CandleInterval } from "backtest-kit";
+import { CandleInterval } from "tradeforge";
 import LoggerService from "../base/LoggerService";
 import { ICandleRow } from "../../../schema/Candle.schema";
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`Log` from `backtest-kit` writes structured entries to a `.jsonl` file during backtests. Each line is a JSON object. After running a backtest, you analyse the file to understand why signals fired or were blocked, then adjust thresholds.
+`Log` from `tradeforge` writes structured entries to a `.jsonl` file during backtests. Each line is a JSON object. After running a backtest, you analyse the file to understand why signals fired or were blocked, then adjust thresholds.
 
 ---
 
@@ -11,7 +11,7 @@
 Call `Log.useJsonl` **once at module level**, before any schema registrations:
 
 ```ts
-import { Log } from "backtest-kit";
+import { Log } from "tradeforge";
 
 Log.useJsonl("bounce_strategy", "./dump/log");
 // Writes to: ./dump/log/bounce_strategy.jsonl

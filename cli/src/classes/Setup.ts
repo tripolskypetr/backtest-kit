@@ -29,7 +29,7 @@ import {
   MarkdownWriter,
   ReportWriter,
   Cron,
-} from "backtest-kit";
+} from "tradeforge";
 
 import {
   PersistSignalAdapter,
@@ -49,7 +49,7 @@ import {
   PersistDictionaryAdapter,
   PersistSessionAdapter,
   PersistStrategyAdapter,
-} from "backtest-kit";
+} from "tradeforge";
 
 import { cli } from "../lib";
 

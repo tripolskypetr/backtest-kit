@@ -5,7 +5,7 @@ import {
   listFrameSchema,
   listStrategySchema,
   overrideExchangeSchema,
-} from "backtest-kit";
+} from "tradeforge";
 import { singleshot } from "functools-kit";
 import { getArgs, getPositionals } from "../../../helpers/getArgs";
 import { inject } from "../../../lib/core/di";

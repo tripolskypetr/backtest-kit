@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { StateData } from "backtest-kit";
+import { StateData } from "tradeforge";
 
 interface IStateDto {
   signalId: string;

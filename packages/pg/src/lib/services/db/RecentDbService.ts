@@ -4,7 +4,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import RecentCacheService from "../cache/RecentCacheService";
-import { IPublicSignalRow } from "backtest-kit";
+import { IPublicSignalRow } from "tradeforge";
 
 export class RecentDbService extends BaseCRUD(RecentModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

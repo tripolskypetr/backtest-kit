@@ -3,7 +3,7 @@ import getEntry from "../helpers/getEntry";
 
 declare const __PACKAGE_VERSION__: string;
 
-const ENTRY_PATH = "./node_modules/@backtest-kit/cli/build/index.mjs";
+const ENTRY_PATH = "./node_modules/@tradeforge/cli/build/index.mjs";
 
 const HELP_TEXT = `
 Usage:
@@ -183,13 +183,13 @@ Flush flags (--flush):
 
 Init flags (--init):
 
-  --output <string>   Target directory name (default: backtest-kit-project)
+  --output <string>   Target directory name (default: tradeforge-project)
 
   Scaffolds a project and runs scripts/fetch_docs.mjs to download library docs.
 
 Docker flags (--docker):
 
-  --output <string>   Target directory name (default: backtest-kit-docker)
+  --output <string>   Target directory name (default: tradeforge-docker)
 
   Scaffolds a Docker workspace: docker-compose.yaml, .env.example, package.json,
   tsconfig.json, and a sample strategy under content/. Run npm install then
@@ -255,7 +255,7 @@ export const main = async () => {
     return;
   }
 
-  process.stdout.write(`@backtest-kit/cli ${__PACKAGE_VERSION__}\n\n`);
+  process.stdout.write(`@tradeforge/cli ${__PACKAGE_VERSION__}\n\n`);
   process.stdout.write(HELP_TEXT);
   process.exit(0);
 };

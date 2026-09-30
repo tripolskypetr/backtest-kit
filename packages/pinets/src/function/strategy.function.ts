@@ -1,4 +1,4 @@
-import { CandleInterval, ISignalDto } from "backtest-kit";
+import { CandleInterval, ISignalDto } from "tradeforge";
 import { Code } from "../classes/Code";
 import { File } from "../classes/File";
 import lib from "../lib";

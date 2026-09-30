@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { StrategyData } from "backtest-kit";
+import { StrategyData } from "tradeforge";
 
 interface IStrategyDto {
   symbol: string;

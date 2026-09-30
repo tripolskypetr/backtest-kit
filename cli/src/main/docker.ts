@@ -64,7 +64,7 @@ export const main = async () => {
     return;
   }
 
-  const projectName = <string>values.output || "backtest-kit-docker";
+  const projectName = <string>values.output || "tradeforge-docker";
   const projectPath = join(process.cwd(), projectName);
   const templatePath = join(__dirname, "../docker");
 

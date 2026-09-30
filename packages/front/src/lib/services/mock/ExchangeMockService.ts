@@ -1,7 +1,7 @@
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
 import { inject } from "../../../lib/core/di";
-import { Backtest, CandleInterval, Live, alignToInterval, listExchangeSchema } from "backtest-kit";
+import { Backtest, CandleInterval, Live, alignToInterval, listExchangeSchema } from "tradeforge";
 import StorageMockService from "./StorageMockService";
 import ExchangeService from "../base/ExchangeService";
 

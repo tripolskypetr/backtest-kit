@@ -1,4 +1,4 @@
-import { addFrameSchema } from "backtest-kit";
+import { addFrameSchema } from "tradeforge";
 import FrameName from "../../enum/FrameName.mjs";
 
 addFrameSchema({

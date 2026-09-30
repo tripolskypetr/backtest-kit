@@ -1,6 +1,6 @@
 import http from 'http';
-import * as backtest_kit from 'backtest-kit';
-import { CandleInterval, NotificationModel, IStorageSignalRow, ILogEntry, IPublicSignalRow, IRuntimeInfo } from 'backtest-kit';
+import * as tradeforge from 'tradeforge';
+import { CandleInterval, NotificationModel, IStorageSignalRow, ILogEntry, IPublicSignalRow, IRuntimeInfo } from 'tradeforge';
 import * as functools_kit from 'functools-kit';
 
 type CallbackFn = (error?: Error) => void;
@@ -67,13 +67,13 @@ declare class ExchangeService {
         exchangeName: ExchangeName$1;
         signalStartTime: number;
         signalStopTime: number;
-    }) => Promise<backtest_kit.ICandleData[]>;
+    }) => Promise<tradeforge.ICandleData[]>;
     getPointCandles: (dto: {
         symbol: string;
         interval: CandleInterval;
         exchangeName: ExchangeName$1;
         currentTime: number;
-    }) => Promise<backtest_kit.ICandleData[]>;
+    }) => Promise<tradeforge.ICandleData[]>;
     getLastCandles: (dto: {
         symbol: string;
         interval: CandleInterval;
@@ -86,7 +86,7 @@ declare class ExchangeService {
         limit?: number;
         sDate?: number;
         eDate?: number;
-    }) => Promise<backtest_kit.ICandleData[]>;
+    }) => Promise<tradeforge.ICandleData[]>;
 }
 
 declare class NotificationMockService {
@@ -107,8 +107,8 @@ declare class ExchangeMockService {
     private readonly loggerService;
     private readonly storageMockService;
     private readonly exchangeService;
-    getSignalCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
-    getLiveCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
+    getSignalCandles: (signalId: string, interval: CandleInterval) => Promise<tradeforge.ICandleData[]>;
+    getLiveCandles: (signalId: string, interval: CandleInterval) => Promise<tradeforge.ICandleData[]>;
     getLastCandles: (symbol: string, interval: CandleInterval) => Promise<any>;
 }
 
@@ -269,9 +269,9 @@ declare class StatusViewService {
 declare class StorageViewService {
     private readonly loggerService;
     private readonly storageMockService;
-    findSignalById: (signalId: string) => Promise<backtest_kit.IStorageSignalRow>;
-    listSignalLive: () => Promise<backtest_kit.IStorageSignalRow[]>;
-    listSignalBacktest: () => Promise<backtest_kit.IStorageSignalRow[]>;
+    findSignalById: (signalId: string) => Promise<tradeforge.IStorageSignalRow>;
+    listSignalLive: () => Promise<tradeforge.IStorageSignalRow[]>;
+    listSignalBacktest: () => Promise<tradeforge.IStorageSignalRow[]>;
 }
 
 declare class ExchangeViewService {
@@ -280,8 +280,8 @@ declare class ExchangeViewService {
     private readonly exchangeService;
     private readonly exchangeMockService;
     private readonly signalViewService;
-    getSignalCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
-    getLiveCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
+    getSignalCandles: (signalId: string, interval: CandleInterval) => Promise<tradeforge.ICandleData[]>;
+    getLiveCandles: (signalId: string, interval: CandleInterval) => Promise<tradeforge.ICandleData[]>;
     getLastCandles: (symbol: string, interval: CandleInterval) => Promise<any>;
 }
 
@@ -337,7 +337,7 @@ declare class SignalViewService {
     private readonly loggerService;
     private readonly signalMockService;
     getLastUpdateTimestamp: (signalId: string) => Promise<number>;
-    getPendingSignal: (symbol: string) => Promise<backtest_kit.IPublicSignalRow>;
+    getPendingSignal: (symbol: string) => Promise<tradeforge.IPublicSignalRow>;
 }
 
 declare class HeatViewService {

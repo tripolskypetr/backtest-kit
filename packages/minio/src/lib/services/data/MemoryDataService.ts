@@ -2,7 +2,7 @@ import { IMemoryRow } from "../../../schema/Memory.schema";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
-import { MemoryData } from "backtest-kit";
+import { MemoryData } from "tradeforge";
 import BaseStorage from "../../common/BaseStorage";
 
 const GET_STORAGE_KEY_FN = (signalId: string, bucketName: string, memoryId: string) => {

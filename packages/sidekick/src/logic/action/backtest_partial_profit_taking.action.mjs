@@ -1,4 +1,4 @@
-import { addActionSchema } from "backtest-kit";
+import { addActionSchema } from "tradeforge";
 import ActionName from "../../enum/ActionName.mjs";
 import { BacktestPartialProfitTakingAction } from "../../classes/BacktestPartialProfitTakingAction.mjs";
 

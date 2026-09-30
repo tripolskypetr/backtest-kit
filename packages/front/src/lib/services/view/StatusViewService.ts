@@ -8,7 +8,7 @@ import {
   IPublicSignalRow,
   lib,
   Live,
-} from "backtest-kit";
+} from "tradeforge";
 import StatusMockService from "../mock/StatusMockService";
 import SignalViewService from "./SignalViewService";
 import { getConfig } from "../../../config/params";

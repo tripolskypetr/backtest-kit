@@ -1,4 +1,4 @@
-import { IntervalData } from "backtest-kit";
+import { IntervalData } from "tradeforge";
 
 interface IIntervalDto {
   bucket: string;

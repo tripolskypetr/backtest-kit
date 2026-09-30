@@ -1,4 +1,4 @@
-import { CandleData, CandleInterval, IPersistCandleInstance, intervalStepMs } from "backtest-kit";
+import { CandleData, CandleInterval, IPersistCandleInstance, intervalStepMs } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

@@ -14,7 +14,7 @@ import {
   listExchangeSchema,
   runInMockContext,
   alignToInterval,
-} from "backtest-kit";
+} from "tradeforge";
 import { singleshot, trycatch } from "functools-kit";
 import { getArgs } from "../helpers/getArgs";
 import getEntry from "../helpers/getEntry";

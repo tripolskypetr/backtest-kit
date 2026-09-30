@@ -1,5 +1,5 @@
 import { BehaviorSubject, singleshot, sleep } from "functools-kit";
-import { serve, lib } from "@backtest-kit/ui";
+import { serve, lib } from "@tradeforge/ui";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";

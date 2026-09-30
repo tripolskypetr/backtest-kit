@@ -6,7 +6,7 @@ import {
   addExchangeSchema,
   listExchangeSchema,
   roundTicks,
-} from "backtest-kit";
+} from "tradeforge";
 import { getExchange } from "../../../config/ccxt";
 import ExchangeName from "../../../enum/ExchangeName";
 

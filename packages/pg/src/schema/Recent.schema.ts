@@ -1,5 +1,5 @@
 import { EntitySchema } from "typeorm";
-import { IPublicSignalRow } from "backtest-kit";
+import { IPublicSignalRow } from "tradeforge";
 import { epochTransformer } from "../utils/epochTransformer";
 
 interface IRecentDto {

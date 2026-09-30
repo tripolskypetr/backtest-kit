@@ -2,7 +2,7 @@ import { inject } from "../../core/di";
 import { PlotModel } from "../../../model/Plot.model";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../core/types";
-import { ExecutionContextService, MarkdownWriter, MarkdownName, MethodContextService, lib } from "backtest-kit";
+import { ExecutionContextService, MarkdownWriter, MarkdownName, MethodContextService, lib } from "tradeforge";
 import { PlotExtractConfig, PlotMapping } from "../data/PineDataService";
 
 const TABLE_ROWS_LIMIT = 48;

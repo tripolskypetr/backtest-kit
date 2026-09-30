@@ -5,7 +5,7 @@ import {
   listenError,
   Cache,
   Log,
-} from "backtest-kit";
+} from "tradeforge";
 import {
   errorData,
   getErrorMessage,
@@ -13,8 +13,8 @@ import {
   singleshot,
 } from "functools-kit";
 import ccxt from "ccxt";
-import { run, File, extract } from "@backtest-kit/pinets";
-import { outputNode, resolve, sourceNode } from "@backtest-kit/graph";
+import { run, File, extract } from "@tradeforge/pinets";
+import { outputNode, resolve, sourceNode } from "@tradeforge/graph";
 
 const getExchange = singleshot(async () => {
   const exchange = new ccxt.binance({

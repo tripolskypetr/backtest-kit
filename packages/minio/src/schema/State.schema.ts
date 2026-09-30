@@ -1,4 +1,4 @@
-import { StateData } from "backtest-kit";
+import { StateData } from "tradeforge";
 
 interface IStateDto {
   signalId: string;

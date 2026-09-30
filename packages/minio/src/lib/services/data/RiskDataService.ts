@@ -2,7 +2,7 @@ import { IRiskRow } from "../../../schema/Risk.schema";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
-import { RiskData } from "backtest-kit";
+import { RiskData } from "tradeforge";
 import BaseStorage from "../../common/BaseStorage";
 
 const GET_STORAGE_KEY_FN = (riskName: string, exchangeName: string) => {

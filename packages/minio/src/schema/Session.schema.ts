@@ -1,4 +1,4 @@
-import { SessionData } from "backtest-kit";
+import { SessionData } from "tradeforge";
 
 interface ISessionDto {
   strategyName: string;

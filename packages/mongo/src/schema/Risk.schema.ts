@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { RiskData } from "backtest-kit";
+import { RiskData } from "tradeforge";
 
 interface IRiskDto {
   riskName: string;

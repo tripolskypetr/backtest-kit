@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { MemoryData } from "backtest-kit";
+import { MemoryData } from "tradeforge";
 
 interface IMemoryDto {
   signalId: string;

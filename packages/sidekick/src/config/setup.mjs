@@ -8,7 +8,7 @@ import {
   StorageBacktest,
   NotificationLive,
   NotificationBacktest,
-} from "backtest-kit";
+} from "tradeforge";
 import { serve } from "@backtest-kit/ui";
 import { createLogger } from "pinolog";
 

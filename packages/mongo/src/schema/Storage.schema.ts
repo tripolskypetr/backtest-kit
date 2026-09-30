@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { IStorageSignalRow } from "backtest-kit";
+import { IStorageSignalRow } from "tradeforge";
 
 interface IStorageDto {
   backtest: boolean;

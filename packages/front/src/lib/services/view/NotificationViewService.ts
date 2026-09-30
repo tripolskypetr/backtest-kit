@@ -1,4 +1,4 @@
-import { Notification, NotificationModel } from "backtest-kit";
+import { Notification, NotificationModel } from "tradeforge";
 import { pickDocuments, singleshot } from "functools-kit";
 
 import LoggerService from "../base/LoggerService";

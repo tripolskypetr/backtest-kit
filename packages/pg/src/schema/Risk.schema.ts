@@ -1,5 +1,5 @@
 import { EntitySchema } from "typeorm";
-import { RiskData } from "backtest-kit";
+import { RiskData } from "tradeforge";
 import { epochTransformer } from "../utils/epochTransformer";
 
 interface IRiskDto {

@@ -1,4 +1,4 @@
-import { MeasureData, IPersistMeasureInstance } from "backtest-kit";
+import { MeasureData, IPersistMeasureInstance } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

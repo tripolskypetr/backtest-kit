@@ -1,4 +1,4 @@
-import { LogData, IPersistLogInstance } from "backtest-kit";
+import { LogData, IPersistLogInstance } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

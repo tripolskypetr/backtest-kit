@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
 import { inject } from "../../../lib/core/di";
-import { ILogEntry } from "backtest-kit";
+import { ILogEntry } from "tradeforge";
 import { pickDocuments, singleshot } from "functools-kit";
 
 const MOCK_PATH = "./mock/logs.json";

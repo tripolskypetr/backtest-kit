@@ -1,19 +1,19 @@
 <img src="https://github.com/tripolskypetr/backtest-kit/raw/refs/heads/master/assets/monade.svg" height="45px" align="right">
 
-# 🤖 @backtest-kit/ollama
+# 🤖 @tradeforge/ollama
 
-> Universal LLM adapter for [backtest-kit](https://www.npmjs.com/package/backtest-kit) trading strategies. One higher-order-function API across **12 providers**, schema-enforced structured output, userspace prompt modules, token rotation — plus an **LLM strategy optimizer** that generates runnable strategy code.
+> Universal LLM adapter for [tradeforge](https://www.npmjs.com/package/tradeforge) trading strategies. One higher-order-function API across **12 providers**, schema-enforced structured output, userspace prompt modules, token rotation — plus an **LLM strategy optimizer** that generates runnable strategy code.
 
 ![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
-[![npm](https://img.shields.io/npm/v/@backtest-kit/ollama.svg?style=flat-square)](https://npmjs.org/package/@backtest-kit/ollama)
+[![npm](https://img.shields.io/npm/v/@tradeforge/ollama.svg?style=flat-square)](https://npmjs.org/package/@tradeforge/ollama)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
 
 📚 **[Docs](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)** · 🌟 **[Reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example)** · 🐙 **[GitHub](https://github.com/tripolskypetr/backtest-kit)**
 
 ```bash
-npm install @backtest-kit/ollama backtest-kit agent-swarm-kit
+npm install @tradeforge/ollama tradeforge agent-swarm-kit
 ```
 
 ---
@@ -36,8 +36,8 @@ AI strategies normally mean per-provider SDK boilerplate and JSON you can't trus
 The whole adapter is one shape, repeated for 12 providers: `provider(fn, model, apiKey?) => fn`. It returns a function with the **same signature** as `fn`, executed inside the provider's inference context (so any `agent-swarm-kit` completion inside resolves to that provider).
 
 ```typescript
-import { deepseek } from '@backtest-kit/ollama';
-import { addStrategy } from 'backtest-kit';
+import { deepseek } from '@tradeforge/ollama';
+import { addStrategy } from 'tradeforge';
 
 addStrategy({
   strategyName: 'llm-signal', interval: '5m',
@@ -101,7 +101,7 @@ export type TSignalSchema = z.infer<typeof SignalSchema>;
 import { addOutline } from 'agent-swarm-kit';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { SignalSchema, TSignalSchema } from '../schema/Signal.schema';
-import { CompletionName } from '@backtest-kit/ollama';
+import { CompletionName } from '@tradeforge/ollama';
 
 addOutline<TSignalSchema>({
   outlineName: 'SignalOutline',
@@ -124,7 +124,7 @@ addOutline<TSignalSchema>({
 
 ```typescript
 import { addOutline, IOutlineFormat } from 'agent-swarm-kit';
-import { CompletionName } from '@backtest-kit/ollama';
+import { CompletionName } from '@tradeforge/ollama';
 
 const format: IOutlineFormat = {
   type: 'object',
@@ -176,7 +176,7 @@ module.exports = {
 ```
 
 ```typescript
-import { Module, Prompt, commitPrompt, MessageModel } from '@backtest-kit/ollama';
+import { Module, Prompt, commitPrompt, MessageModel } from '@tradeforge/ollama';
 
 // from a .cjs module (default baseDir: {cwd}/config/prompt/), memoized
 const signalModule = Module.fromPath('./signal.prompt.cjs');
@@ -191,8 +191,8 @@ Full strategy: register the outline, build messages from a prompt, request struc
 
 ```typescript
 import './outline/signal.outline';
-import { deepseek, Module, commitPrompt, MessageModel } from '@backtest-kit/ollama';
-import { addStrategy } from 'backtest-kit';
+import { deepseek, Module, commitPrompt, MessageModel } from '@tradeforge/ollama';
+import { addStrategy } from 'tradeforge';
 import { json } from 'agent-swarm-kit';
 
 const signalModule = Module.fromPath('./signal.prompt.cjs');
@@ -225,13 +225,13 @@ Into `{outputDir}/{signalId}/` (default `./dump/strategy`): `00_system_prompt.md
 
 ## Strategy optimizer — generate runnable strategy code
 
-The most powerful piece, and the one the rest of the package feeds: `Optimizer` uses an LLM to analyze a symbol across training ranges and emit a **complete, executable strategy file** — imports, helpers, strategies, walker, and launcher — that you can run with backtest-kit directly.
+The most powerful piece, and the one the rest of the package feeds: `Optimizer` uses an LLM to analyze a symbol across training ranges and emit a **complete, executable strategy file** — imports, helpers, strategies, walker, and launcher — that you can run with tradeforge directly.
 
 <details>
 <summary>Optimizer API + addOptimizerSchema + progress events</summary>
 
 ```typescript
-import { Optimizer, addOptimizerSchema, listenOptimizerProgress } from '@backtest-kit/ollama';
+import { Optimizer, addOptimizerSchema, listenOptimizerProgress } from '@tradeforge/ollama';
 
 // describe sources, training ranges, strategy/template generation (see IOptimizer* interfaces)
 addOptimizerSchema({ optimizerName: 'my-optimizer', /* sources, ranges, strategy, template */ });

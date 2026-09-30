@@ -1,26 +1,26 @@
 <img src="https://github.com/tripolskypetr/backtest-kit/raw/refs/heads/master/assets/chronos.svg" height="45px" align="right">
 
-# 📊 @backtest-kit/signals
+# 📊 @tradeforge/signals
 
-> Multi-timeframe technical analysis for AI trading on [backtest-kit](https://www.npmjs.com/package/backtest-kit). Computes 50+ indicators across four timeframes plus order-book depth, and emits LLM-ready markdown reports — drop the whole market context into an LLM prompt in one call.
+> Multi-timeframe technical analysis for AI trading on [tradeforge](https://www.npmjs.com/package/tradeforge). Computes 50+ indicators across four timeframes plus order-book depth, and emits LLM-ready markdown reports — drop the whole market context into an LLM prompt in one call.
 
 ![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
-[![npm](https://img.shields.io/npm/v/@backtest-kit/signals.svg?style=flat-square)](https://npmjs.org/package/@backtest-kit/signals)
+[![npm](https://img.shields.io/npm/v/@tradeforge/signals.svg?style=flat-square)](https://npmjs.org/package/@tradeforge/signals)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
 
 📚 **[Docs](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)** · 🌟 **[Reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example)** · 🐙 **[GitHub](https://github.com/tripolskypetr/backtest-kit)**
 
 ```bash
-npm install @backtest-kit/signals backtest-kit
+npm install @tradeforge/signals tradeforge
 ```
 
 ---
 
 ## Why
 
-An LLM trading strategy is only as good as the market context you hand it. Computing 50+ indicators across four timeframes, formatting order-book depth, and laying it all out as clean markdown — by hand, every tick — is the unglamorous 200 lines that decides signal quality. This package is that work, pre-computed, cached, and synchronized with backtest-kit's timeline: one `commitHistorySetup(symbol, messages)` appends order book + candle history + indicators for 1m/15m/30m/1h to your LLM message array.
+An LLM trading strategy is only as good as the market context you hand it. Computing 50+ indicators across four timeframes, formatting order-book depth, and laying it all out as clean markdown — by hand, every tick — is the unglamorous 200 lines that decides signal quality. This package is that work, pre-computed, cached, and synchronized with tradeforge's timeline: one `commitHistorySetup(symbol, messages)` appends order book + candle history + indicators for 1m/15m/30m/1h to your LLM message array.
 
 - 📈 **Four synchronized timeframes** — MicroTerm 1m · ShortTerm 15m · SwingTerm 30m · LongTerm 1h.
 - 🎯 **50+ indicators** — RSI, MACD, Bollinger, Stochastic, ADX, ATR, CCI, Fibonacci, support/resistance, squeeze, volume trend.
@@ -34,7 +34,7 @@ An LLM trading strategy is only as good as the market context you hand it. Compu
 ## Quick start — one call
 
 ```typescript
-import { commitHistorySetup } from '@backtest-kit/signals';
+import { commitHistorySetup } from '@tradeforge/signals';
 
 const messages = [];
 await commitHistorySetup('BTCUSDT', messages);
@@ -48,8 +48,8 @@ const signal = await llm(messages);
 
 ```typescript
 import { v4 as uuid } from 'uuid';
-import { addStrategy, dumpSignal } from 'backtest-kit';
-import { commitHistorySetup } from '@backtest-kit/signals';
+import { addStrategy, dumpSignal } from 'tradeforge';
+import { commitHistorySetup } from '@tradeforge/signals';
 import { json } from './utils/json.mjs';   // your LLM wrapper
 
 addStrategy({
@@ -89,7 +89,7 @@ import {
   commitThirtyMinuteHistory, commitHourHistory,
   commitMicroTermMath, commitShortTermMath,             // indicator tables per timeframe
   commitSwingTermMath, commitLongTermMath,
-} from '@backtest-kit/signals';
+} from '@tradeforge/signals';
 
 const messages = [];
 await commitBookDataReport('BTCUSDT', messages);
@@ -140,7 +140,7 @@ await commitMicroTermMath('BTCUSDT', messages);
 <summary>Custom logger (default is no-op)</summary>
 
 ```typescript
-import { setLogger } from '@backtest-kit/signals';
+import { setLogger } from '@tradeforge/signals';
 setLogger({ log: console.log, debug: console.debug, info: console.info, warn: console.warn });
 ```
 

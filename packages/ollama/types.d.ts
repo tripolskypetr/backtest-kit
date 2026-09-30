@@ -1,4 +1,4 @@
-import { ISignalDto } from 'backtest-kit';
+import { ISignalDto } from 'tradeforge';
 import * as di_scoped from 'di-scoped';
 import { ISwarmCompletionArgs, ISwarmMessage, IOutlineCompletionArgs, IOutlineMessage } from 'agent-swarm-kit';
 import * as functools_kit from 'functools-kit';
@@ -424,7 +424,7 @@ interface MessageModel {
  *
  * @example
  * ```typescript
- * import { getCandles } from "backtest-kit";
+ * import { getCandles } from "tradeforge";
  * import { dumpSignal } from "@backtest-kit/ollama";
  * import { v4 as uuid } from "uuid";
  *

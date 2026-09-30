@@ -32,7 +32,7 @@ import {
   OrderStopContract,
   SignalInfoContract,
   listenSignalNotify,
-} from "backtest-kit";
+} from "tradeforge";
 import TelegramTemplateService from "../template/TelegramTemplateService";
 import TelegramWebService from "../web/TelegramWebService";
 

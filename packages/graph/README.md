@@ -1,19 +1,19 @@
 <img src="https://github.com/tripolskypetr/backtest-kit/raw/refs/heads/master/assets/assignation.svg" height="45px" align="right">
 
-# 🕸️ @backtest-kit/graph
+# 🕸️ @tradeforge/graph
 
-> Compose [backtest-kit](https://www.npmjs.com/package/backtest-kit) computations as a typed directed acyclic graph. Declare **source nodes** that fetch market data and **output nodes** that derive values from them — then resolve the whole graph in topological order, in parallel, fully type-inferred.
+> Compose [tradeforge](https://www.npmjs.com/package/tradeforge) computations as a typed directed acyclic graph. Declare **source nodes** that fetch market data and **output nodes** that derive values from them — then resolve the whole graph in topological order, in parallel, fully type-inferred.
 
 ![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
-[![npm](https://img.shields.io/npm/v/@backtest-kit/graph.svg?style=flat-square)](https://npmjs.org/package/@backtest-kit/graph)
+[![npm](https://img.shields.io/npm/v/@tradeforge/graph.svg?style=flat-square)](https://npmjs.org/package/@tradeforge/graph)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
 
 📚 **[Docs](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)** · 🌟 **[Reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example)** · 🐙 **[GitHub](https://github.com/tripolskypetr/backtest-kit)**
 
 ```bash
-npm install @backtest-kit/graph backtest-kit
+npm install @tradeforge/graph tradeforge
 ```
 
 ---
@@ -22,7 +22,7 @@ npm install @backtest-kit/graph backtest-kit
 
 A trading signal is rarely one number — it's a small computation: pull 4h trend, pull 15m entry, combine them, maybe gate on RSI. Written inline, that becomes a tangle of `await`s with hand-managed ordering. This package lets you declare it as a **graph of typed nodes**: leaves (`sourceNode`) fetch data, branches (`outputNode`) compute from their children, and `resolve()` walks the tree bottom-up — resolving every node's dependencies **in parallel** (`Promise.all`) before computing the node itself. Swapping a timeframe or adding a filter node needs no change to the strategy wiring, and TypeScript infers the value type through the entire graph.
 
-It plugs straight into a `getSignal` and runs inside backtest-kit's execution context, so a `sourceNode`'s `fetch` automatically receives `(symbol, when, currentPrice, exchangeName)` — the same look-ahead-safe "now" the rest of the engine sees.
+It plugs straight into a `getSignal` and runs inside tradeforge's execution context, so a `sourceNode`'s `fetch` automatically receives `(symbol, when, currentPrice, exchangeName)` — the same look-ahead-safe "now" the rest of the engine sees.
 
 ---
 
@@ -34,10 +34,10 @@ A two-timeframe strategy: a **4h Pine Script** acts as a trend filter, a **15m P
 <summary>The Code</summary>
 
 ```typescript
-import { extract, run, toSignalDto, File } from '@backtest-kit/pinets';
-import { addStrategySchema, Cache } from 'backtest-kit';
+import { extract, run, toSignalDto, File } from '@tradeforge/pinets';
+import { addStrategySchema, Cache } from 'tradeforge';
 import { randomString } from 'functools-kit';
-import { sourceNode, outputNode, resolve } from '@backtest-kit/graph';
+import { sourceNode, outputNode, resolve } from '@tradeforge/graph';
 
 // SourceNode — 4h trend filter, cached per candle interval
 const higherTimeframe = sourceNode(Cache.fn(async (symbol) => {
@@ -92,7 +92,7 @@ Two layers, by design: a **low-level runtime interface** (`INode`) that serializ
 `outputNode` infers the type of `values` in `compute` from the nodes you pass:
 
 ```typescript
-import { sourceNode, outputNode, resolve } from '@backtest-kit/graph';
+import { sourceNode, outputNode, resolve } from '@tradeforge/graph';
 
 const closePrice = sourceNode(async (symbol, when, currentPrice, exchangeName) => {
   const candles = await getCandles(symbol, '1h', 1, exchangeName);
@@ -129,7 +129,7 @@ const result = outputNode(
 <summary>Inline anonymous composition — a single object literal</summary>
 
 ```typescript
-import { NodeType, TypedNode, resolve } from '@backtest-kit/graph';
+import { NodeType, TypedNode, resolve } from '@tradeforge/graph';
 
 const signal: TypedNode = {
   type: NodeType.OutputNode,
@@ -150,11 +150,11 @@ const result = await resolve(signal);
 </details>
 
 <details>
-<summary>Inside a backtest-kit strategy</summary>
+<summary>Inside a tradeforge strategy</summary>
 
 ```typescript
-import { addStrategy } from 'backtest-kit';
-import { sourceNode, outputNode, resolve } from '@backtest-kit/graph';
+import { addStrategy } from 'tradeforge';
+import { sourceNode, outputNode, resolve } from '@tradeforge/graph';
 
 const rsi = sourceNode(async (symbol, when, currentPrice, exchangeName) => 55.2 /* compute RSI */);
 const signal = outputNode(([rsiValue]) => rsiValue < 30 ? 1 : rsiValue > 70 ? -1 : 0, rsi);
@@ -178,8 +178,8 @@ addStrategy({
 <summary>Low-level INode — manual construction (post-deserialize / DI)</summary>
 
 ```typescript
-import { INode, Value } from '@backtest-kit/graph';
-import NodeType from '@backtest-kit/graph/enum/NodeType';
+import { INode, Value } from '@tradeforge/graph';
+import NodeType from '@tradeforge/graph/enum/NodeType';
 
 const priceNode: INode = { type: NodeType.SourceNode, description: 'Close price', fetch: async (symbol, when, currentPrice, exchangeName) => 42 };
 const doubled:   INode = { type: NodeType.OutputNode, description: 'Doubled price', nodes: [priceNode], compute: ([price]) => (price as number) * 2 };
@@ -195,7 +195,7 @@ const doubled:   INode = { type: NodeType.OutputNode, description: 'Doubled pric
 `serialize` flattens the graph into `IFlatNode[]`, replacing object references in `nodes` with `nodeIds`; `deserialize` rebuilds the tree:
 
 ```typescript
-import { serialize, deserialize, IFlatNode } from '@backtest-kit/graph';
+import { serialize, deserialize, IFlatNode } from '@tradeforge/graph';
 
 const flat: IFlatNode[] = serialize([vwap]);
 // [ { id:'abc', type:'source_node', nodeIds:[] },          // closePrice
@@ -217,7 +217,7 @@ const roots: INode[] = deserialize(stored);    // nodes[] re-wired from nodeIds
 Returns all nodes in topological order (dependencies before parents), deduplicated by reference:
 
 ```typescript
-import { deepFlat } from '@backtest-kit/graph';
+import { deepFlat } from '@tradeforge/graph';
 const all = deepFlat([vwap]); // [closePrice, volume, vwap]
 all.forEach(node => console.log(node.description));
 ```
@@ -232,7 +232,7 @@ all.forEach(node => console.log(node.description));
 |--------|-------------|
 | `sourceNode(fetch)` | Builder — typed source (leaf) node; `fetch(symbol, when, currentPrice, exchangeName)` |
 | `outputNode(compute, ...nodes)` | Builder — typed output node; infers `values` types from `nodes` |
-| `resolve(node)` | Recursively resolves a graph within backtest-kit execution context |
+| `resolve(node)` | Recursively resolves a graph within tradeforge execution context |
 | `serialize(roots)` | Flattens a node tree into `IFlatNode[]` for DB storage |
 | `deserialize(flat)` | Reconstructs a node tree from `IFlatNode[]`, returns root nodes |
 | `deepFlat(nodes)` | Returns all nodes in topological order (dependencies first) |

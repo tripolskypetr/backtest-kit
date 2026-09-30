@@ -1,27 +1,27 @@
 <img src="https://github.com/tripolskypetr/backtest-kit/raw/refs/heads/master/assets/decart.svg" height="45px" align="right">
 
-# 📊 @backtest-kit/ui
+# 📊 @tradeforge/ui
 
-> The web cockpit for [backtest-kit](https://www.npmjs.com/package/backtest-kit). A self-hosted dashboard that turns a running backtest or live session into screens you can read: portfolio cards, KPI boards, candlestick charts with signal overlays, a notification feed, a strategy heatmap, markdown reports, a dump-file explorer, a live manual-control panel, and an in-browser Pine Script editor.
+> The web cockpit for [tradeforge](https://www.npmjs.com/package/tradeforge). A self-hosted dashboard that turns a running backtest or live session into screens you can read: portfolio cards, KPI boards, candlestick charts with signal overlays, a notification feed, a strategy heatmap, markdown reports, a dump-file explorer, a live manual-control panel, and an in-browser Pine Script editor.
 
 ![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
-[![npm](https://img.shields.io/npm/v/@backtest-kit/ui.svg?style=flat-square)](https://npmjs.org/package/@backtest-kit/ui)
+[![npm](https://img.shields.io/npm/v/@tradeforge/ui.svg?style=flat-square)](https://npmjs.org/package/@tradeforge/ui)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
 
-Interactive dashboard for backtest-kit with signal visualization, candle charts, risk analysis, and notification management. Built with React 18, Material-UI, and Lightweight Charts.
+Interactive dashboard for tradeforge with signal visualization, candle charts, risk analysis, and notification management. Built with React 18, Material-UI, and Lightweight Charts.
 
-📚 **[Backtest Kit Docs](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)** | 🌟 **[GitHub](https://github.com/tripolskypetr/backtest-kit)**
+📚 **[TradeForge Docs](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)** | 🌟 **[GitHub](https://github.com/tripolskypetr/backtest-kit)**
 
 > **New here?** The fastest real setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there, not from scratch.
 
 ```bash
-npm install @backtest-kit/ui backtest-kit
+npm install @tradeforge/ui tradeforge
 ```
 
 ```typescript
-import { serve } from "@backtest-kit/ui";
+import { serve } from "@tradeforge/ui";
 serve("0.0.0.0", 60050); // → http://localhost:60050
 ```
 

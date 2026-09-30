@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createContext, runInContext } from "vm";
 import { errorData, getErrorMessage, isObject, singleshot } from "functools-kit";
-import * as BacktestKit from "backtest-kit";
+import * as BacktestKit from "tradeforge";
 
 import { ioc } from "../lib";
 

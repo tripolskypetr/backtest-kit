@@ -4,7 +4,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import IntervalCacheService from "../cache/IntervalCacheService";
-import { IntervalData } from "backtest-kit";
+import { IntervalData } from "tradeforge";
 
 export class IntervalDbService extends BaseCRUD(IntervalModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

@@ -5,7 +5,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import MemoryCacheService from "../cache/MemoryCacheService";
-import { MemoryData } from "backtest-kit";
+import { MemoryData } from "tradeforge";
 
 export class MemoryDbService extends BaseCRUD(MemoryModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

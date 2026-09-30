@@ -1,4 +1,4 @@
-import { ISignalDto } from "backtest-kit";
+import { ISignalDto } from "tradeforge";
 
 type ResultId = string | number;
 

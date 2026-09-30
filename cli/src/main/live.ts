@@ -1,4 +1,4 @@
-import { listenDoneLive, Live } from "backtest-kit";
+import { listenDoneLive, Live } from "tradeforge";
 import { getArgs } from "../helpers/getArgs";
 import { singleshot } from "functools-kit";
 import notifyShutdown from "../utils/notifyShutdown";

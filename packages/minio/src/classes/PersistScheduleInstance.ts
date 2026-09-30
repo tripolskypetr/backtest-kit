@@ -1,4 +1,4 @@
-import { IScheduledSignalRow, IPersistScheduleInstance } from "backtest-kit";
+import { IScheduledSignalRow, IPersistScheduleInstance } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

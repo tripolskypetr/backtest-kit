@@ -2,7 +2,7 @@ import { inject } from "../../../lib/core/di";
 import { MessageModel } from "../../../model/Message.model";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
-import { MarkdownWriter, ISignalDto } from "backtest-kit";
+import { MarkdownWriter, ISignalDto } from "tradeforge";
 import path from "path";
 
 type MarkdownName = any;

@@ -1,4 +1,4 @@
-import { validate } from "backtest-kit";
+import { validate } from "tradeforge";
 import ExchangeName from "../enum/ExchangeName.mjs";
 import FrameName from "../enum/FrameName.mjs";
 import RiskName from "../enum/RiskName.mjs";

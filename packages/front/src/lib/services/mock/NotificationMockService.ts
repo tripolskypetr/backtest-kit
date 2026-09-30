@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
 import { inject } from "../../../lib/core/di";
-import { NotificationModel } from "backtest-kit";
+import { NotificationModel } from "tradeforge";
 import { pickDocuments, singleshot } from "functools-kit";
 
 const MOCK_PATH = "./mock/notifications.json";

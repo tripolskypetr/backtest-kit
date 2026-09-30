@@ -1,8 +1,8 @@
-# Pine Script Integration (@backtest-kit/pinets)
+# Pine Script Integration (@tradeforge/pinets)
 
 ## Overview
 
-`@backtest-kit/pinets` runs `.pine` files against exchange data and returns named plot series. In a strategy file you use two functions: `run()` to execute the script and `extract()` to read the last bar's values.
+`@tradeforge/pinets` runs `.pine` files against exchange data and returns named plot series. In a strategy file you use two functions: `run()` to execute the script and `extract()` to read the last bar's values.
 
 ---
 
@@ -20,7 +20,7 @@ In strategy files, both arguments are injected automatically by the runtime. Do 
 ## `run(source, params)` — Execute Pine Script
 
 ```ts
-import { run, File } from "@backtest-kit/pinets";
+import { run, File } from "@tradeforge/pinets";
 
 const plots = await run(
   File.fromPath("master_trend_15m.pine", "../math"),
@@ -52,7 +52,7 @@ const plots = await run(
 `extract` reads the **last valid bar** from each named plot and returns a typed record.
 
 ```ts
-import { extract } from "@backtest-kit/pinets";
+import { extract } from "@tradeforge/pinets";
 
 const result = await extract(plots, {
   position: "Position",  // JS key → Pine plot name (case-sensitive)
@@ -107,9 +107,9 @@ Plots without `display=display.data_window` are not accessible via `extract()`.
 The standard pattern in a strategy — wrap in `Cache.fn` inside `sourceNode`:
 
 ```ts
-import { run, extract, File } from "@backtest-kit/pinets";
-import { Cache } from "backtest-kit";
-import { sourceNode } from "@backtest-kit/graph";
+import { run, extract, File } from "@tradeforge/pinets";
+import { Cache } from "tradeforge";
+import { sourceNode } from "@tradeforge/graph";
 
 const masterTrendSource = sourceNode(
   Cache.fn(
@@ -153,7 +153,7 @@ plot(estimated_time, "EstimatedTime", display=display.data_window)  // optional,
 ```
 
 ```ts
-import { getSignal, File } from "@backtest-kit/pinets";
+import { getSignal, File } from "@tradeforge/pinets";
 
 const signal = await getSignal(
   File.fromPath("my_signal.pine", "../math"),

@@ -1,4 +1,4 @@
-import { RiskData, IPersistRiskInstance } from "backtest-kit";
+import { RiskData, IPersistRiskInstance } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

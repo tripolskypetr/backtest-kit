@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { MeasureData } from "backtest-kit";
+import { MeasureData } from "tradeforge";
 
 interface IMeasureDto {
   bucket: string;

@@ -12,7 +12,7 @@ const ALLOWED_EXTENSIONS = [
 
 const DISALLOWED_PATHS = [
   "node_modules",
-  "@backtest-kit",
+  "@tradeforge",
   "cli/build/index.mjs",
   "cli/build/index.js",
   "cli\\build\\index.mjs",

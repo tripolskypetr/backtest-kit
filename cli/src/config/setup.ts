@@ -1,4 +1,4 @@
-import { listenExit, setConfig } from "backtest-kit";
+import { listenExit, setConfig } from "tradeforge";
 import { errorData, getErrorMessage } from "functools-kit";
 import { kill } from "../utils/notifyKill";
 

@@ -1,4 +1,4 @@
-import { RecentData, IPersistRecentInstance } from "backtest-kit";
+import { RecentData, IPersistRecentInstance } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

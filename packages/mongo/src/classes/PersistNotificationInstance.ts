@@ -1,4 +1,4 @@
-import { NotificationData, IPersistNotificationInstance } from "backtest-kit";
+import { NotificationData, IPersistNotificationInstance } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

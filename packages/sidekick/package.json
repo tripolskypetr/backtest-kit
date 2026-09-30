@@ -1,7 +1,7 @@
 {
-  "name": "@backtest-kit/sidekick",
-  "version": "20.1.0",
-  "description": "The easiest way to create a new Backtest Kit trading bot project. Like create-react-app, but for algorithmic trading with LLM integration and technical analysis.",
+  "name": "@tradeforge/sidekick",
+  "version": "1.1.0",
+  "description": "The easiest way to create a new TradeForge trading bot project. Like create-react-app, but for algorithmic trading with LLM integration and technical analysis.",
   "author": {
     "name": "Petr Tripolsky",
     "email": "tripolskypetr@gmail.com",
@@ -15,7 +15,7 @@
   "homepage": "https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html",
   "keywords": [
     "create-backtest-app",
-    "backtest-kit",
+    "tradeforge",
     "scaffolding",
     "generator",
     "cli",
@@ -53,7 +53,7 @@
     "start": "node ./src/index.mjs"
   },
   "bin": {
-    "@backtest-kit/sidekick": "./scripts/init.mjs"
+    "@tradeforge/sidekick": "./scripts/init.mjs"
   },
   "publishConfig": {
     "access": "public"
@@ -66,4 +66,3 @@
     "picocolors": "^1.1.1"
   }
 }
- 

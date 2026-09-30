@@ -1,5 +1,5 @@
 import engine from "../lib";
-import { ISignalDto } from "backtest-kit";
+import { ISignalDto } from "tradeforge";
 import { MessageModel } from "../model/Message.model";
 
 const DUMP_SIGNAL_METHOD_NAME = "dump.dumpSignal";
@@ -23,7 +23,7 @@ const DUMP_SIGNAL_METHOD_NAME = "dump.dumpSignal";
  *
  * @example
  * ```typescript
- * import { getCandles } from "backtest-kit";
+ * import { getCandles } from "tradeforge";
  * import { dumpSignal } from "@backtest-kit/ollama";
  * import { v4 as uuid } from "uuid";
  *

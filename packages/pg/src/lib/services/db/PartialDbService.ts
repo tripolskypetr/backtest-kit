@@ -4,7 +4,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import PartialCacheService from "../cache/PartialCacheService";
-import { PartialData } from "backtest-kit";
+import { PartialData } from "tradeforge";
 
 export class PartialDbService extends BaseCRUD(PartialModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

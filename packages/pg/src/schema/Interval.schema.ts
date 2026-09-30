@@ -1,5 +1,5 @@
 import { EntitySchema } from "typeorm";
-import { IntervalData } from "backtest-kit";
+import { IntervalData } from "tradeforge";
 import { epochTransformer } from "../utils/epochTransformer";
 
 interface IIntervalDto {

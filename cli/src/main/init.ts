@@ -101,7 +101,7 @@ export const main = async () => {
     return;
   }
 
-  const projectName = <string>values.output || "backtest-kit-project";
+  const projectName = <string>values.output || "tradeforge-project";
   const projectPath = join(process.cwd(), projectName);
   const templatePath = join(__dirname, "../template/project");
 

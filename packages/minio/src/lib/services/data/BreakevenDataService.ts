@@ -1,7 +1,7 @@
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
-import { BreakevenData } from "backtest-kit";
+import { BreakevenData } from "tradeforge";
 import BaseStorage from "../../common/BaseStorage";
 import { IBreakevenRow } from "../../../schema/Breakeven.schema";
 

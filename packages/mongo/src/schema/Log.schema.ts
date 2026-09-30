@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { ILogEntry } from "backtest-kit";
+import { ILogEntry } from "tradeforge";
 
 interface ILogDto {
   entryId: string;

@@ -1,5 +1,5 @@
 import { EntitySchema } from "typeorm";
-import { CandleInterval } from "backtest-kit";
+import { CandleInterval } from "tradeforge";
 import { epochTransformer } from "../utils/epochTransformer";
 
 interface ICandleDto {

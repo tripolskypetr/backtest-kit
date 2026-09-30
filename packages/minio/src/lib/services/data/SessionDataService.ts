@@ -2,7 +2,7 @@ import { ISessionRow } from "../../../schema/Session.schema";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
-import { SessionData } from "backtest-kit";
+import { SessionData } from "tradeforge";
 import BaseStorage from "../../common/BaseStorage";
 
 const GET_STORAGE_KEY_FN = (strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean) => {

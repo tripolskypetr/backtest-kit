@@ -17,8 +17,8 @@ garchSource ────────►  risk validator (resolve directly)
 ## Full Pattern
 
 ```ts
-import { sourceNode, outputNode, resolve } from "@backtest-kit/graph";
-import { getPendingSignal, commitClosePending } from "backtest-kit";
+import { sourceNode, outputNode, resolve } from "@tradeforge/graph";
+import { getPendingSignal, commitClosePending } from "tradeforge";
 
 // --- Source nodes ---
 
@@ -107,7 +107,7 @@ addStrategySchema({
 
 ## Shared Node Deduplication
 
-`masterTrendSource` is a dependency of both `enterSignal` and `exitSignal`. When both are resolved in the same tick, `@backtest-kit/graph` deduplicates by reference — the Pine script runs **once**, not twice.
+`masterTrendSource` is a dependency of both `enterSignal` and `exitSignal`. When both are resolved in the same tick, `@tradeforge/graph` deduplicates by reference — the Pine script runs **once**, not twice.
 
 This is the main reason to split logic into multiple output nodes rather than one large node: each source is computed once regardless of how many output nodes depend on it.
 

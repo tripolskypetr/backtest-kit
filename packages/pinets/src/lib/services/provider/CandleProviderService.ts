@@ -5,7 +5,7 @@ import {
   getRawCandles,
   MethodContextService,
   lib,
-} from "backtest-kit";
+} from "tradeforge";
 import { IProvider } from "../../../interface/Provider.interface";
 import { inject } from "../../core/di";
 import { CandleModel } from "../../../model/Candle.model";

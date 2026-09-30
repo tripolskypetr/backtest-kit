@@ -1,7 +1,7 @@
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
-import { Exchange, Live, Position, getConfig } from "backtest-kit";
+import { Exchange, Live, Position, getConfig } from "tradeforge";
 import ControlMockService from "../mock/ControlMockService";
 import { getConfig as getParamsConfig } from "../../../config/params";
 import { PauseMockService } from "../mock/PauseMockService";

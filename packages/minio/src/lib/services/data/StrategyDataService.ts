@@ -2,7 +2,7 @@ import { IStrategyRow } from "../../../schema/Strategy.schema";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
-import { StrategyData } from "backtest-kit";
+import { StrategyData } from "tradeforge";
 import BaseStorage from "../../common/BaseStorage";
 
 const GET_STORAGE_KEY_FN = (symbol: string, strategyName: string, exchangeName: string) => {

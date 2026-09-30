@@ -26,12 +26,12 @@ export class BabelService implements IBabel {
           "plugin-transform-modules-umd",
           {
             globals: {
-              "backtest-kit": "BacktestKit",
-              "@backtest-kit/ui": "BacktestKitUi",
-              "@backtest-kit/graph": "BacktestKitGraph",
-              "@backtest-kit/ollama": "BacktestKitOllama",
-              "@backtest-kit/pinets": "BacktestKitPinets",
-              "@backtest-kit/signals": "BacktestKitSignals",
+              "tradeforge": "TradeForge",
+              "@tradeforge/ui": "TradeForgeUi",
+              "@tradeforge/graph": "TradeForgeGraph",
+              "@tradeforge/ollama": "TradeForgeOllama",
+              "@tradeforge/pinets": "TradeForgePinets",
+              "@tradeforge/signals": "TradeForgeSignals",
             },
             moduleId: "Executor",
           },

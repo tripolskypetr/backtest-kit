@@ -1,4 +1,4 @@
-import { ExecutionContextService, MethodContextService, getAveragePrice, lib } from "backtest-kit";
+import { ExecutionContextService, MethodContextService, getAveragePrice, lib } from "tradeforge";
 
 import NodeType from '../enum/NodeType';
 import { TypedNode, SourceNode, OutputNode } from '../interfaces/TypedNode.interface';

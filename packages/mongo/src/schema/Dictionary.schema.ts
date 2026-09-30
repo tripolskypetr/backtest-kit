@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { DictionaryData } from "backtest-kit";
+import { DictionaryData } from "tradeforge";
 
 interface IDictionaryDto {
   signalId: string;

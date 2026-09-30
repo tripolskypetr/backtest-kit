@@ -1,27 +1,27 @@
 <img src="https://github.com/tripolskypetr/backtest-kit/raw/refs/heads/master/assets/consciousness.svg" height="45px" align="right">
 
-# 💾 @backtest-kit/mongo
+# 💾 @tradeforge/mongo
 
-> MongoDB + Redis persistence for [backtest-kit](https://www.npmjs.com/package/backtest-kit). Swaps the default file storage for a production backend — durable, queryable, atomic, with O(1) cached reads — in **one `setup()` call and zero strategy-code changes**.
+> MongoDB + Redis persistence for [tradeforge](https://www.npmjs.com/package/tradeforge). Swaps the default file storage for a production backend — durable, queryable, atomic, with O(1) cached reads — in **one `setup()` call and zero strategy-code changes**.
 
 ![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
-[![npm](https://img.shields.io/npm/v/@backtest-kit/mongo.svg?style=flat-square)](https://npmjs.org/package/@backtest-kit/mongo)
+[![npm](https://img.shields.io/npm/v/@tradeforge/mongo.svg?style=flat-square)](https://npmjs.org/package/@tradeforge/mongo)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
 
 📚 **[Docs](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)** · 🌟 **[Reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example)** · 🐙 **[GitHub](https://github.com/tripolskypetr/backtest-kit)**
 
 ```bash
-npm install @backtest-kit/mongo backtest-kit mongoose ioredis
+npm install @tradeforge/mongo tradeforge mongoose ioredis
 ```
 
 ```typescript
-import { setup } from '@backtest-kit/mongo';
+import { setup } from '@tradeforge/mongo';
 setup(); // reads connection settings from env; call once before any trading operation
 ```
 
-That single call reimplements all **16** of backtest-kit's `IPersist*Instance` contracts against MongoDB (source of truth) with a Redis O(1) read cache. Your strategy code does not change.
+That single call reimplements all **16** of tradeforge's `IPersist*Instance` contracts against MongoDB (source of truth) with a Redis O(1) read cache. Your strategy code does not change.
 
 ---
 
@@ -44,7 +44,7 @@ File storage is perfect on day one and a bottleneck the day you're doing thousan
 <summary>Explicit parameters & environment variables</summary>
 
 ```typescript
-import { setup } from '@backtest-kit/mongo';
+import { setup } from '@tradeforge/mongo';
 setup({
   CC_MONGO_CONNECTION_STRING: 'mongodb://mongo:27017/mydb',
   CC_REDIS_HOST: 'redis', CC_REDIS_PORT: 6379, CC_REDIS_PASSWORD: 'secret',
@@ -53,7 +53,7 @@ setup({
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CC_MONGO_CONNECTION_STRING` | `mongodb://localhost:27017/backtest-kit?wtimeoutMS=15000` | MongoDB connection string |
+| `CC_MONGO_CONNECTION_STRING` | `mongodb://localhost:27017/tradeforge?wtimeoutMS=15000` | MongoDB connection string |
 | `CC_REDIS_HOST` | `127.0.0.1` | Redis host |
 | `CC_REDIS_PORT` | `6379` | Redis port |
 | `CC_REDIS_USER` | _(empty)_ | Redis username |
@@ -81,7 +81,7 @@ Values passed to `setup()` / `setConfig()` always take precedence over env vars.
 
 ## The 16 adapters
 
-Each adapter covers one persistence slot in backtest-kit. The unique index is the compound key MongoDB enforces at the storage engine.
+Each adapter covers one persistence slot in tradeforge. The unique index is the compound key MongoDB enforces at the storage engine.
 
 | Adapter | Collection | Unique index |
 |---------|------------|--------------|
@@ -133,7 +133,7 @@ After every write the Redis entry is refreshed in the same call, so write-then-r
 <details>
 <summary>Atomic writes — read-after-write with no race</summary>
 
-backtest-kit requires that once `write*Data()` returns, the next `read*Data()` sees the new value. Every write is one `findOneAndUpdate` round-trip:
+tradeforge requires that once `write*Data()` returns, the next `read*Data()` sees the new value. Every write is one `findOneAndUpdate` round-trip:
 
 ```typescript
 const document = await SignalModel.findOneAndUpdate(
@@ -151,7 +151,7 @@ The filter matches the unique compound index, so MongoDB rejects any concurrent 
 <details>
 <summary>Look-ahead bias protection in the DB layer</summary>
 
-Adapters whose data influences decisions (Risk, Partial, Breakeven, Recent, State, Session, Memory, Interval) store `when: Number` — the simulation timestamp in ms — alongside the payload, so backtest-kit can verify no read returns data written at a *future* simulation time. **Measure is exempt** because it caches LLM / external-API responses, where look-ahead bias is not meaningful.
+Adapters whose data influences decisions (Risk, Partial, Breakeven, Recent, State, Session, Memory, Interval) store `when: Number` — the simulation timestamp in ms — alongside the payload, so tradeforge can verify no read returns data written at a *future* simulation time. **Measure is exempt** because it caches LLM / external-API responses, where look-ahead bias is not meaningful.
 
 </details>
 
@@ -164,7 +164,7 @@ Adapters whose data influences decisions (Risk, Partial, Breakeven, Recent, Stat
 
 **Public surface** — `functions/setup.ts` (`setup`/`install`/`setConfig`/`getConfig`/`setLogger`), `index.ts` re-exports + `getMongo`/`getRedis`.
 
-**Adapter classes** (`classes/Persist*Instance.ts`, 16) — each implements one backtest-kit `IPersist*Instance` contract and delegates to its domain DbService: `PersistCandleInstance`, `PersistSignalInstance`, `PersistStrategyInstance`, `PersistScheduleInstance`, `PersistRiskInstance`, `PersistPartialInstance`, `PersistBreakevenInstance`, `PersistStorageInstance`, `PersistNotificationInstance`, `PersistLogInstance`, `PersistMeasureInstance`, `PersistIntervalInstance`, `PersistMemoryInstance`, `PersistRecentInstance`, `PersistStateInstance`, `PersistSessionInstance`.
+**Adapter classes** (`classes/Persist*Instance.ts`, 16) — each implements one tradeforge `IPersist*Instance` contract and delegates to its domain DbService: `PersistCandleInstance`, `PersistSignalInstance`, `PersistStrategyInstance`, `PersistScheduleInstance`, `PersistRiskInstance`, `PersistPartialInstance`, `PersistBreakevenInstance`, `PersistStorageInstance`, `PersistNotificationInstance`, `PersistLogInstance`, `PersistMeasureInstance`, `PersistIntervalInstance`, `PersistMemoryInstance`, `PersistRecentInstance`, `PersistStateInstance`, `PersistSessionInstance`.
 
 **Service layer** (`lib/services/`):
 - `base/` — `MongoService` (lazy Mongoose connection), `RedisService` (lazy ioredis), `LoggerService`.

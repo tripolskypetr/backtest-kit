@@ -2,7 +2,7 @@
 
 ## Overview
 
-A backtest-kit strategy file registers four schemas and wires them together. The CLI reads all `.ts` / `.mjs` files in the target directory and calls the registered schemas at runtime.
+A tradeforge strategy file registers four schemas and wires them together. The CLI reads all `.ts` / `.mjs` files in the target directory and calls the registered schemas at runtime.
 
 ```
 addExchangeSchema  — data source (candles, trades, order book)
@@ -16,7 +16,7 @@ addRiskSchema      — optional position filters
 ## Minimal Strategy File
 
 ```ts
-import { addExchangeSchema, addFrameSchema, addStrategySchema, getCandles, Log } from "backtest-kit";
+import { addExchangeSchema, addFrameSchema, addStrategySchema, getCandles, Log } from "tradeforge";
 import { randomString } from "functools-kit";
 
 // 1. Data source
@@ -186,7 +186,7 @@ Notes:
 Filters that run before a signal is accepted. If any validation returns a rejection string, the signal is blocked.
 
 ```ts
-import { addRiskSchema } from "backtest-kit";
+import { addRiskSchema } from "tradeforge";
 
 addRiskSchema({
   riskName: "max_positions",
@@ -246,5 +246,5 @@ Strategy files must be importable by the CLI. Use either:
 
 The CLI entry point from `package.json`:
 ```
-npx @backtest-kit/cli ./strategies/feb_2024/index.mjs --backtest --ui --noCache
+npx @tradeforge/cli ./strategies/feb_2024/index.mjs --backtest --ui --noCache
 ```

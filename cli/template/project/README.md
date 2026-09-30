@@ -1,15 +1,15 @@
-# 🧿 Backtest Kit Project
+# 🧿 TradeForge Project
 
 > A TypeScript framework for backtesting and live trading strategies on multi-asset, crypto, forex or [DEX (peer-to-peer marketplace)](https://en.wikipedia.org/wiki/Decentralized_finance#Decentralized_exchanges), spot, futures with crash-safe persistence, signal validation, and AI optimization.
 
 ![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
-[![npm](https://img.shields.io/npm/v/backtest-kit.svg?style=flat-square)](https://npmjs.org/package/backtest-kit)
+[![npm](https://img.shields.io/npm/v/tradeforge.svg?style=flat-square)](https://npmjs.org/package/tradeforge)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
 [![Build](https://github.com/tripolskypetr/backtest-kit/actions/workflows/webpack.yml/badge.svg)](https://github.com/tripolskypetr/backtest-kit/actions/workflows/webpack.yml)
 
-A minimal project scaffold for [backtest-kit](https://github.com/tripolskypetr/backtest-kit). All infrastructure (exchange registration, candle caching, runner, UI, Telegram) is handled by `@backtest-kit/cli` — this project contains only your strategy files.
+A minimal project scaffold for [tradeforge](https://github.com/tripolskypetr/backtest-kit). All infrastructure (exchange registration, candle caching, runner, UI, Telegram) is handled by `@tradeforge/cli` — this project contains only your strategy files.
 
 
 ## 📂 Strategy Index
@@ -228,7 +228,7 @@ CC_WWWROOT_PORT=60050
 │   └── feb_2026.strategy.ts
 ├── docs/                     # Documentation
 │   ├── lib/                  # Auto-fetched library READMEs (via sync:lib)
-│   └── *.md                  # Backtest Kit how-to guides
+│   └── *.md                  # TradeForge how-to guides
 ├── math/                     # PineScript indicator files (.pine)
 │   └── feb_2026.pine
 ├── modules/                  # Side-effect module hooks (loaded automatically)

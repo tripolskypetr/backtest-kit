@@ -1,4 +1,4 @@
-import { addExchangeSchema, roundTicks } from "backtest-kit";
+import { addExchangeSchema, roundTicks } from "tradeforge";
 import { getExchange } from "../../config/ccxt.mjs";
 import ExchangeName from "../../enum/ExchangeName.mjs";
 

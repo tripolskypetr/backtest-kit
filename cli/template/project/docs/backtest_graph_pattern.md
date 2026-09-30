@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`@backtest-kit/graph` provides a typed directed acyclic graph (DAG) for composing strategy logic. Instead of a single monolithic `getSignal` function, you define reusable **source nodes** (data fetchers) and **output nodes** (computations that combine them).
+`@tradeforge/graph` provides a typed directed acyclic graph (DAG) for composing strategy logic. Instead of a single monolithic `getSignal` function, you define reusable **source nodes** (data fetchers) and **output nodes** (computations that combine them).
 
 Benefits:
 - Each node caches independently via `Cache.fn`
@@ -14,8 +14,8 @@ Benefits:
 ## Core API
 
 ```ts
-import { sourceNode, outputNode, resolve } from "@backtest-kit/graph";
-import { Cache } from "backtest-kit";
+import { sourceNode, outputNode, resolve } from "@tradeforge/graph";
+import { Cache } from "tradeforge";
 ```
 
 ### `sourceNode(fetch)`
@@ -107,9 +107,9 @@ Cache.fn is designed to be passed directly as the `fetch` argument to `sourceNod
 ## Full Pattern Example
 
 ```ts
-import { extract, run, File } from "@backtest-kit/pinets";
-import { getCandles, getAggregatedTrades, Cache } from "backtest-kit";
-import { sourceNode, outputNode, resolve } from "@backtest-kit/graph";
+import { extract, run, File } from "@tradeforge/pinets";
+import { getCandles, getAggregatedTrades, Cache } from "tradeforge";
+import { sourceNode, outputNode, resolve } from "@tradeforge/graph";
 import * as garch from "garch";
 import * as anomaly from "volume-anomaly";
 

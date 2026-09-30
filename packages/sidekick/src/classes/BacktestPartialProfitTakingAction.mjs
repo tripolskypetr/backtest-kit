@@ -1,4 +1,4 @@
-import { ActionBase, Constant, commitPartialProfit } from "backtest-kit";
+import { ActionBase, Constant, commitPartialProfit } from "tradeforge";
 
 /**
  * Scale out at Kelly-optimized levels

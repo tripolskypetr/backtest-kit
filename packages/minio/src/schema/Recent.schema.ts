@@ -1,4 +1,4 @@
-import { IPublicSignalRow } from "backtest-kit";
+import { IPublicSignalRow } from "tradeforge";
 
 interface IRecentDto {
   symbol: string;

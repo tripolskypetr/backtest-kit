@@ -1,4 +1,4 @@
-import { IStorageSignalRow } from "backtest-kit";
+import { IStorageSignalRow } from "tradeforge";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";

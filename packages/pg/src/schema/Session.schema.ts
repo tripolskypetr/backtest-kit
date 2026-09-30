@@ -1,5 +1,5 @@
 import { EntitySchema } from "typeorm";
-import { SessionData } from "backtest-kit";
+import { SessionData } from "tradeforge";
 import { epochTransformer } from "../utils/epochTransformer";
 
 interface ISessionDto {

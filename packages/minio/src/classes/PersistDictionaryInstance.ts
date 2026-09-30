@@ -1,4 +1,4 @@
-import { DictionaryData, IPersistDictionaryInstance } from "backtest-kit";
+import { DictionaryData, IPersistDictionaryInstance } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

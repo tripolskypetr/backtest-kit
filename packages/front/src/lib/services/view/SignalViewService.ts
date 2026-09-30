@@ -1,7 +1,7 @@
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
-import { Backtest, Exchange, Live, StorageBacktest, StorageLive } from "backtest-kit";
+import { Backtest, Exchange, Live, StorageBacktest, StorageLive } from "tradeforge";
 import SignalMockService from "../mock/SignalMockService";
 import { getConfig } from "../../../config/params";
 

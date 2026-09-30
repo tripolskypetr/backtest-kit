@@ -1,13 +1,13 @@
 <img src="https://github.com/tripolskypetr/backtest-kit/raw/refs/heads/master/assets/square_compasses.svg" height="45px" align="right">
 
-# 📟 @backtest-kit/cli
+# 📟 @tradeforge/cli
 
-> Zero-boilerplate CLI for [backtest-kit](https://www.npmjs.com/package/backtest-kit). Point it at a strategy file, pick a mode, and it handles exchange connectivity, candle caching, the web dashboard, Telegram alerts, and graceful shutdown for you — no setup code.
+> Zero-boilerplate CLI for [tradeforge](https://www.npmjs.com/package/tradeforge). Point it at a strategy file, pick a mode, and it handles exchange connectivity, candle caching, the web dashboard, Telegram alerts, and graceful shutdown for you — no setup code.
 
 ![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
-[![npm](https://img.shields.io/npm/v/@backtest-kit/cli.svg?style=flat-square)](https://npmjs.org/package/@backtest-kit/cli)
+[![npm](https://img.shields.io/npm/v/@tradeforge/cli.svg?style=flat-square)](https://npmjs.org/package/@tradeforge/cli)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
 
 📚 **[Docs](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)** · 🌟 **[Reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example)** · 🐙 **[GitHub](https://github.com/tripolskypetr/backtest-kit)**
@@ -20,22 +20,22 @@
 
 ```bash
 # Scaffold a project (boilerplate stays inside the CLI; docs auto-fetched)
-npx @backtest-kit/cli --init --output backtest-kit-project
-cd backtest-kit-project && npm install && npm start -- --help
+npx @tradeforge/cli --init --output tradeforge-project
+cd tradeforge-project && npm install && npm start -- --help
 ```
 
-The whole onboarding is: write a strategy file that registers schemas via `backtest-kit`, point the CLI at it, choose a flag.
+The whole onboarding is: write a strategy file that registers schemas via `tradeforge`, point the CLI at it, choose a flag.
 
 ```bash
-npx @backtest-kit/cli --backtest ./content/feb_2026.strategy/index.ts --symbol BTCUSDT
+npx @tradeforge/cli --backtest ./content/feb_2026.strategy/index.ts --symbol BTCUSDT
 ```
 
 <details>
 <summary>The strategy entry point (the CLI is only the runner)</summary>
 
 ```javascript
-// src/index.mjs — registers schemas via backtest-kit; @backtest-kit/cli just runs it
-import { addStrategySchema, addExchangeSchema, addFrameSchema } from 'backtest-kit';
+// src/index.mjs — registers schemas via tradeforge; @tradeforge/cli just runs it
+import { addStrategySchema, addExchangeSchema, addFrameSchema } from 'tradeforge';
 import ccxt from 'ccxt';
 
 addExchangeSchema({
@@ -62,11 +62,11 @@ Wire it into `package.json` once and the positional path never changes:
 ```json
 {
   "scripts": {
-    "backtest": "npx @backtest-kit/cli --backtest ./src/index.mjs",
-    "paper":    "npx @backtest-kit/cli --paper    ./src/index.mjs",
-    "start":    "npx @backtest-kit/cli --live     ./src/index.mjs"
+    "backtest": "npx @tradeforge/cli --backtest ./src/index.mjs",
+    "paper":    "npx @tradeforge/cli --paper    ./src/index.mjs",
+    "start":    "npx @tradeforge/cli --live     ./src/index.mjs"
   },
-  "dependencies": { "@backtest-kit/cli": "latest", "backtest-kit": "latest", "ccxt": "latest" }
+  "dependencies": { "@tradeforge/cli": "latest", "tradeforge": "latest", "ccxt": "latest" }
 }
 ```
 
@@ -80,7 +80,7 @@ npm run backtest -- --symbol BTCUSDT --ui --telegram   # add integrations with f
 
 ## 🤔 Philosophy — React vs Next.js, but for trading
 
-`@backtest-kit/cli` does **two things well with one tool**.
+`@tradeforge/cli` does **two things well with one tool**.
 
 **1. The lightest runner for a solo quant on day one.** Write a strategy, point the CLI at it, you're trading. No DI container to learn, no scaffold to fight, no infra to copy-paste. The day you have an idea you can backtest it; the week you have an edge you can paper-trade it; the month you have a P&L you can run it live — same CLI, different flag.
 
@@ -151,19 +151,19 @@ The four modes that actually run strategies share one engine and one set of guar
 **Backtest** (`--backtest`) — runs against historical candles via a registered `FrameSchema`. Before running, the CLI removes the `report`, `log`, `markdown`, and `agent` folders from the strategy's `dump/` dir, then warms the candle cache for every interval in `--cacheInterval`; subsequent runs reuse the cache with no API calls. `--noCache` skips warming, `--noFlush` keeps output folders.
 
 ```json
-{ "scripts": { "backtest": "npx @backtest-kit/cli --backtest --symbol ETHUSDT --strategy my-strategy --exchange binance --frame feb-2024 --cacheInterval \"1m, 15m, 1h, 4h\" ./src/index.mjs" } }
+{ "scripts": { "backtest": "npx @tradeforge/cli --backtest --symbol ETHUSDT --strategy my-strategy --exchange binance --frame feb-2024 --cacheInterval \"1m, 15m, 1h, 4h\" ./src/index.mjs" } }
 ```
 
 **Paper** (`--paper`) — connects to the live exchange but places no real orders. **Identical code path to live** — the safe way to validate a strategy.
 
 ```json
-{ "scripts": { "paper": "npx @backtest-kit/cli --paper --symbol BTCUSDT ./src/index.mjs" } }
+{ "scripts": { "paper": "npx @tradeforge/cli --paper --symbol BTCUSDT ./src/index.mjs" } }
 ```
 
 **Live** (`--live`) — deploys a real bot. Requires exchange API keys in `.env`. Combine with `--ui --telegram` for a monitored deployment.
 
 ```json
-{ "scripts": { "start": "npx @backtest-kit/cli --live --ui --telegram --symbol BTCUSDT ./src/index.mjs" } }
+{ "scripts": { "start": "npx @tradeforge/cli --live --ui --telegram --symbol BTCUSDT ./src/index.mjs" } }
 ```
 
 </details>
@@ -173,7 +173,7 @@ The four modes that actually run strategies share one engine and one set of guar
 Runs the same historical period against multiple strategy files and prints a ranked report. Use it to pick the best variant before deploying.
 
 ```bash
-npx @backtest-kit/cli --walker --symbol BTCUSDT --noCache --markdown --output feb_2026_comparison \
+npx @tradeforge/cli --walker --symbol BTCUSDT --noCache --markdown --output feb_2026_comparison \
   ./content/feb_2026_v1.strategy.ts ./content/feb_2026_v2.strategy.ts ./content/feb_2026_v3.strategy.ts
 # → ./dump/feb_2026_comparison.md
 ```
@@ -216,7 +216,7 @@ Although the CLI starts nothing itself, any `Backtest`/`Live`/`Walker` run **you
 | `--noFlush` | boolean | Skip removing output folders before the run |
 
 ```json
-{ "scripts": { "main": "npx @backtest-kit/cli --main ./tools/fetch_fear_and_greed.ts" } }
+{ "scripts": { "main": "npx @tradeforge/cli --main ./tools/fetch_fear_and_greed.ts" } }
 ```
 
 </details>
@@ -232,7 +232,7 @@ Although the CLI starts nothing itself, any `Backtest`/`Live`/`Walker` run **you
 
 ```javascript
 // src/multi-symbol.mjs
-import { addExchangeSchema, addFrameSchema, addStrategySchema, Backtest, warmCandles } from "backtest-kit";
+import { addExchangeSchema, addFrameSchema, addStrategySchema, Backtest, warmCandles } from "tradeforge";
 import ccxt from "ccxt";
 
 addExchangeSchema({ exchangeName: "binance",
@@ -256,7 +256,7 @@ for (const symbol of ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]) {
 ```
 
 ```bash
-npx @backtest-kit/cli --backtest --entry ./src/multi-symbol.mjs
+npx @tradeforge/cli --backtest --entry ./src/multi-symbol.mjs
 ```
 
 The same shape works for `--live --entry` / `--paper --entry` (call `Live.background()` per symbol with your broker adapter).
@@ -269,14 +269,14 @@ The same shape works for `--live --entry` / `--paper --entry` (call `Live.backgr
 
 Utilities that don't run a strategy. They share one convention, explained once here and referenced below.
 
-> **The `<mode>.module` convention.** By default the CLI auto-registers CCXT Binance. To use a different exchange (custom API keys, rate limits, a non-spot market), drop a `modules/<mode>.module.ts` that calls `addExchangeSchema` from `backtest-kit`. The CLI loads it automatically before running, trying `.ts`/`.mjs`/`.cjs`; it's searched **next to the target file first, then in the project root**. `.env` is loaded root-first then the target-file dir (override), so API keys stay out of code.
+> **The `<mode>.module` convention.** By default the CLI auto-registers CCXT Binance. To use a different exchange (custom API keys, rate limits, a non-spot market), drop a `modules/<mode>.module.ts` that calls `addExchangeSchema` from `tradeforge`. The CLI loads it automatically before running, trying `.ts`/`.mjs`/`.cjs`; it's searched **next to the target file first, then in the project root**. `.env` is loaded root-first then the target-file dir (override), so API keys stay out of code.
 
 <details>
 <summary>The shared <code>&lt;mode&gt;.module.ts</code> shape (pine / editor / dump / pnldebug / brokerdebug / sweep)</summary>
 
 ```typescript
 // modules/pine.module.ts  (same shape for editor/dump/pnldebug.module; brokerdebug registers a Broker instead)
-import { addExchangeSchema } from "backtest-kit";
+import { addExchangeSchema } from "tradeforge";
 import ccxt from "ccxt";
 
 addExchangeSchema({
@@ -306,7 +306,7 @@ BYBIT_API_SECRET=yyy
 Executes any local `.pine` file against a real exchange and prints results as a Markdown table — no TradingView account. Reads every `plot()` that uses `display=display.data_window` as an output column (others ignored); column names come straight from the plot names.
 
 ```bash
-npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine --symbol BTCUSDT --timeframe 15m --limit 180 --when "2025-09-24T12:00:00.000Z"
+npx @tradeforge/cli --pine ./math/impulse_trend_15m.pine --symbol BTCUSDT --timeframe 15m --limit 180 --when "2025-09-24T12:00:00.000Z"
 ```
 
 <details>
@@ -350,16 +350,16 @@ Output (stdout, or `--markdown`/`--json`/`--jsonl` to `<pine-dir>/dump/`):
 
 ![pine](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot32.png)
 
-A browser-based Pine Script editor (powered by `@backtest-kit/ui`) with a live chart that updates on **▶ Run**.
+A browser-based Pine Script editor (powered by `@tradeforge/ui`) with a live chart that updates on **▶ Run**.
 
 ```bash
-npx @backtest-kit/cli --editor   # → http://localhost:60050?pine=1 opens automatically
+npx @tradeforge/cli --editor   # → http://localhost:60050?pine=1 opens automatically
 ```
 
 <details>
 <summary>Editor behavior & exchange</summary>
 
-The CLI loads `./modules/editor.module` if present (register your exchange, same as `pine.module`), starts the `@backtest-kit/ui` server on `CC_WWWROOT_PORT` (default `60050`), and opens the editor in your browser. **Ctrl+C** stops it. Env: `CC_WWWROOT_HOST` (default `0.0.0.0`), `CC_WWWROOT_PORT` (default `60050`).
+The CLI loads `./modules/editor.module` if present (register your exchange, same as `pine.module`), starts the `@tradeforge/ui` server on `CC_WWWROOT_PORT` (default `60050`), and opens the editor in your browser. **Ctrl+C** stops it. Env: `CC_WWWROOT_HOST` (default `0.0.0.0`), `CC_WWWROOT_PORT` (default `60050`).
 
 </details>
 
@@ -368,7 +368,7 @@ The CLI loads `./modules/editor.module` if present (register your exchange, same
 Fetch raw OHLCV candles from any registered exchange and save them — no strategy file required. `dump/` is created in the current working directory.
 
 ```bash
-npx @backtest-kit/cli --dump --symbol BTCUSDT --timeframe 15m --limit 500 --when "2026-02-28T00:00:00.000Z" --jsonl --output feb2026_btc
+npx @tradeforge/cli --dump --symbol BTCUSDT --timeframe 15m --limit 500 --when "2026-02-28T00:00:00.000Z" --jsonl --output feb2026_btc
 # → ./dump/feb2026_btc.jsonl
 ```
 
@@ -396,7 +396,7 @@ Exchange via `dump.module` (see convention above), searched in the current worki
 Simulate a hypothetical position minute by minute — running PnL, peak profit, max drawdown per candle — without placing trades or loading a strategy.
 
 ```bash
-npx @backtest-kit/cli --pnldebug --symbol BTCUSDT --priceopen 64069.50 --direction short --when "2025-02-25" --minutes 120
+npx @tradeforge/cli --pnldebug --symbol BTCUSDT --priceopen 64069.50 --direction short --when "2025-02-25" --minutes 120
 ```
 
 <details>
@@ -431,7 +431,7 @@ Symbol: BTCUSDT | Direction: short | PriceOpen: 64069.50 | From: 2025-02-25T00:0
 Fire a single broker commit against your live adapter without a full strategy — verify your `brokerdebug.module` wires exchange calls correctly before waiting hours for a real signal.
 
 ```bash
-npx @backtest-kit/cli --brokerdebug --commit signal-open --symbol BTCUSDT
+npx @tradeforge/cli --brokerdebug --commit signal-open --symbol BTCUSDT
 ```
 
 <details>
@@ -455,9 +455,9 @@ The CLI loads `./modules/brokerdebug.module`, fetches the last candle for `--sym
 A **grid sweep** over a feed of crowd trading ideas: the grid axes come from a positional JSON config of the consumer — from a small feasibility probe to a full parameter search. Without a config the engine defaults apply. Authors are graded by ONE binary outcome — **profit-before-stop**: walking each point's own hold window candle by candle, an idea is a HIT when a fixation (the profit lock if lock > 0, OR the trailing arm level) fires BEFORE the hard stop, a MISS when the hard stop fires first, the window times out, or the candles run out. Prints a Markdown report with the corridor share, the ranking winners, and the **raw author tracks** (ideas/hits/hitRate per grading rule) — the engine grades every author but bans none; who to trust is userspace.
 
 ```bash
-npx @backtest-kit/cli --sweep --symbol BTCUSDT ./assets/tv-ideas.normalized.jsonl
+npx @tradeforge/cli --sweep --symbol BTCUSDT ./assets/tv-ideas.normalized.jsonl
 # → engine-default grid; add a config to shape the sweep:
-npx @backtest-kit/cli --sweep --symbol BTCUSDT ./assets/tv-ideas.normalized.jsonl ./assets/probe.config.json
+npx @tradeforge/cli --sweep --symbol BTCUSDT ./assets/tv-ideas.normalized.jsonl ./assets/probe.config.json
 ```
 
 <details>
@@ -484,7 +484,7 @@ Under the hood: one candle pass per idea to the grid's longest hold (lazy chunke
 Delete generated output folders from one or more strategy dump dirs **without** touching cached candle data.
 
 ```bash
-npx @backtest-kit/cli --flush ./content/feb_2026.strategy/modules/backtest.module.ts ./content/mar_2026.strategy/modules/backtest.module.ts
+npx @tradeforge/cli --flush ./content/feb_2026.strategy/modules/backtest.module.ts ./content/mar_2026.strategy/modules/backtest.module.ts
 ```
 
 <details>
@@ -503,15 +503,15 @@ For each positional entry point the CLI resolves its directory and removes from 
 Bootstraps a ready-to-use project with an example strategy, an example Pine indicator, an AI-agent `CLAUDE.md`, and documentation fetched automatically. The target dir must not exist or be empty.
 
 ```bash
-npx @backtest-kit/cli --init --output my-trading-bot   # → ./my-trading-bot/
+npx @tradeforge/cli --init --output my-trading-bot   # → ./my-trading-bot/
 ```
 
 <details>
 <summary>Generated structure & automatic docs fetch</summary>
 
 ```
-backtest-kit-project/
-├── package.json              # pre-configured with all backtest-kit deps
+tradeforge-project/
+├── package.json              # pre-configured with all tradeforge deps
 ├── CLAUDE.md                 # AI-agent guide for writing strategies
 ├── content/feb_2026.strategy.ts   # example strategy entry point
 ├── math/feb_2026.pine             # example PineScript indicator
@@ -521,7 +521,7 @@ backtest-kit-project/
 └── scripts/fetch_docs.mjs         # downloads library READMEs into docs/lib/
 ```
 
-After scaffolding the CLI runs `scripts/fetch_docs.mjs`, downloading the latest READMEs for `backtest-kit`, `@backtest-kit/graph`, `@backtest-kit/pinets`, `@backtest-kit/cli`, `garch`, `volume-anomaly`, `agent-swarm-kit`, `functools-kit` into `docs/lib/`. Re-run anytime with `node ./scripts/fetch_docs.mjs` or `npm run sync:lib`.
+After scaffolding the CLI runs `scripts/fetch_docs.mjs`, downloading the latest READMEs for `tradeforge`, `@tradeforge/graph`, `@tradeforge/pinets`, `@tradeforge/cli`, `garch`, `volume-anomaly`, `agent-swarm-kit`, `functools-kit` into `docs/lib/`. Re-run anytime with `node ./scripts/fetch_docs.mjs` or `npm run sync:lib`.
 
 </details>
 
@@ -530,7 +530,7 @@ After scaffolding the CLI runs `scripts/fetch_docs.mjs`, downloading the latest 
 Scaffolds a self-contained Docker workspace with `docker-compose.yaml` and a strategy entry point, for zero-downtime live trading.
 
 ```bash
-npx @backtest-kit/cli --docker && cd backtest-kit-docker
+npx @tradeforge/cli --docker --output tradeforge-docker && cd tradeforge-docker
 MODE=live SYMBOL=TRXUSDT STRATEGY_FILE=./content/feb_2026/feb_2026.strategy.ts docker-compose up -d
 ```
 
@@ -633,7 +633,7 @@ The CLI auto-detects the format and loads it with the right runtime — no flags
 
 ## 🔌 Broker adapter — transactional live orders
 
-Mode-specific module files register a `Broker` adapter via side-effect import before the strategy starts. From then on, `backtest-kit` intercepts **every** trade-mutating call through the adapter *before* updating internal state — if the adapter throws, the position state is never changed (atomic rollback, retried next tick). No manual wiring; in backtest mode no adapter is called at all.
+Mode-specific module files register a `Broker` adapter via side-effect import before the strategy starts. From then on, `tradeforge` intercepts **every** trade-mutating call through the adapter *before* updating internal state — if the adapter throws, the position state is never changed (atomic rollback, retried next tick). No manual wiring; in backtest mode no adapter is called at all.
 
 | Mode flag | Module file | Loaded before |
 |-----------|-------------|----------------|
@@ -651,7 +651,7 @@ Mode-specific module files register a `Broker` adapter via side-effect import be
 
 ```javascript
 // live.module.mjs
-import { Broker } from 'backtest-kit';
+import { Broker } from 'tradeforge';
 import { myExchange } from './exchange.mjs';
 
 class MyBroker {
@@ -691,18 +691,18 @@ Loaded from `{projectRoot}/config/`. The three runtime configs load in order —
 Loaded once before any persistence call. **When present, the CLI skips its own default adapter registration** — your config takes full ownership of the persistence layer.
 
 <details>
-<summary>MongoDB + Redis via @backtest-kit/mongo</summary>
+<summary>MongoDB + Redis via @tradeforge/mongo</summary>
 
 `setup()` registers all 15 persistence adapters in one call, reading connection params from env (or passed explicitly):
 
 ```ts
 // config/setup.config.ts
-import { setup } from '@backtest-kit/mongo';
+import { setup } from '@tradeforge/mongo';
 setup(); // or setup({ CC_MONGO_CONNECTION_STRING, CC_REDIS_HOST, CC_REDIS_PORT, CC_REDIS_PASSWORD })
 ```
 
 ```env
-CC_MONGO_CONNECTION_STRING=mongodb://localhost:27017/backtest-kit
+CC_MONGO_CONNECTION_STRING=mongodb://localhost:27017/tradeforge
 CC_REDIS_HOST=127.0.0.1
 CC_REDIS_PORT=6379
 ```
@@ -729,7 +729,7 @@ export default async () => { await mongoose.connect(process.env.CC_MONGO_CONNECT
 export const loader = async () => { /* … */ };
 ```
 
-`@backtest-kit/mongo`'s `setup()` registers adapters synchronously but doesn't block on the connection; gate the run on a real connection here. To stitch microfrontends: `import "@my-org/brokers"; import "@my-org/signals";` (the `@my-org` alias is declared in `alias.config`).
+`@tradeforge/mongo`'s `setup()` registers adapters synchronously but doesn't block on the connection; gate the run on a real connection here. To stitch microfrontends: `import "@my-org/brokers"; import "@my-org/signals";` (the `@my-org` alias is declared in `alias.config`).
 
 </details>
 
@@ -811,7 +811,7 @@ By default messages render from Mustache templates (`template/*.mustache`). Expo
 
 ```ts
 // config/telegram.config.ts
-import { IStrategyTickResultOpened, IStrategyTickResultClosed, RiskContract } from "backtest-kit";
+import { IStrategyTickResultOpened, IStrategyTickResultClosed, RiskContract } from "tradeforge";
 export default {
   async getOpenedMarkdown(e: IStrategyTickResultOpened) { return `**Opened** ${e.symbol} at ${e.priceOpen}`; },
   async getClosedMarkdown(e: IStrategyTickResultClosed) { return `**Closed** ${e.symbol} at ${e.priceClosed}`; },
@@ -829,7 +829,7 @@ Methods → event types: `getOpenedMarkdown`/`getClosedMarkdown`/`getScheduledMa
 
 ### Web dashboard (`--ui`)
 
-Starts the `@backtest-kit/ui` server at `http://localhost:60050` (host/port via `CC_WWWROOT_HOST` / `CC_WWWROOT_PORT`). Restrict the symbol list with `symbol.config` and notification categories with `notification.config` (above).
+Starts the `@tradeforge/ui` server at `http://localhost:60050` (host/port via `CC_WWWROOT_HOST` / `CC_WWWROOT_PORT`). Restrict the symbol list with `symbol.config` and notification categories with `notification.config` (above).
 
 ### Telegram (`--telegram`)
 
@@ -842,7 +842,7 @@ Sends formatted HTML messages with 1m / 15m / 1h price charts for every position
 Use the CLI as a library — call `run()` from your own script, no child process or flag parsing.
 
 ```typescript
-import { run } from '@backtest-kit/cli';
+import { run } from '@tradeforge/cli';
 
 await run('backtest', { entryPoint: './src/index.mjs', symbol: 'ETHUSDT', frame: 'feb-2024', cacheInterval: ['1m','15m','1h'], verbose: true });
 await run('paper',    { entryPoint: './src/index.mjs', symbol: 'BTCUSDT' });
@@ -886,15 +886,15 @@ CC_QUICKCHART_HOST=                        # optional self-hosted QuickChart URL
 
 ---
 
-## 💡 Why @backtest-kit/cli
+## 💡 Why @tradeforge/cli
 
 Instead of writing infrastructure for every project — manual logger/storage/notification setup, CLI arg parsing, exchange registration, cache warming, Telegram bot, SIGINT handling, run wiring — the whole thing is one script:
 
 ```json
-{ "scripts": { "backtest": "npx @backtest-kit/cli --backtest --ui --telegram ./src/index.mjs" } }
+{ "scripts": { "backtest": "npx @tradeforge/cli --backtest --ui --telegram ./src/index.mjs" } }
 ```
 
-Zero to running backtest in seconds · automatic candle-cache warming with retry · production web dashboard out of the box · Telegram alerts with charts (no chart code) · graceful SIGINT shutdown (no hanging processes) · pluggable logger — override the built-in one with `setLogger()` from your strategy module · works with any `backtest-kit` strategy as-is · broker hooks via side-effect modules (no CLI internals to touch).
+Zero to running backtest in seconds · automatic candle-cache warming with retry · production web dashboard out of the box · Telegram alerts with charts (no chart code) · graceful SIGINT shutdown (no hanging processes) · pluggable logger — override the built-in one with `setLogger()` from your strategy module · works with any `tradeforge` strategy as-is · broker hooks via side-effect modules (no CLI internals to touch).
 
 ## 🤝 Contribute
 

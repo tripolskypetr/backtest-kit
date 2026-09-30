@@ -27,7 +27,7 @@ import {
   FasterMOM as MOM,
   FasterROC as ROC,
 } from "trading-signals";
-import { getCandles, ICandleData, formatPrice, getDate } from "backtest-kit";
+import { getCandles, ICandleData, formatPrice, getDate } from "tradeforge";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import LoggerService from "../common/LoggerService";

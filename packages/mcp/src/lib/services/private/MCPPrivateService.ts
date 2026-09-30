@@ -1,4 +1,4 @@
-import { IMCPAverageBuyCommand, IMCPPositionCloseCommand, IMCPPositionOpenCommand, IMCPSignalNotifyCommand, MCPMessageId, MCP } from "backtest-kit";
+import { IMCPAverageBuyCommand, IMCPPositionCloseCommand, IMCPPositionOpenCommand, IMCPSignalNotifyCommand, MCPMessageId, MCP } from "tradeforge";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";

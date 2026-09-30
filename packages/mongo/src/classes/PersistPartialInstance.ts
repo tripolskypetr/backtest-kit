@@ -1,4 +1,4 @@
-import { PartialData, IPersistPartialInstance } from "backtest-kit";
+import { PartialData, IPersistPartialInstance } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

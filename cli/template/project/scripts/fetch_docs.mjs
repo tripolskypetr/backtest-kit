@@ -3,23 +3,23 @@ import path from "path";
 
 const LIBRARY_LIST = [
   {
-    name: "backtest-kit",
+    name: "tradeforge",
     readme: "https://raw.githubusercontent.com/tripolskypetr/backtest-kit/refs/heads/master/README.md",
   },
   {
-    name: "backtest-kit/graph",
+    name: "tradeforge/graph",
     readme: "https://raw.githubusercontent.com/tripolskypetr/backtest-kit/refs/heads/master/packages/graph/README.md",
   },
   {
-    name: "backtest-kit/pinets",
+    name: "tradeforge/pinets",
     readme: "https://raw.githubusercontent.com/tripolskypetr/backtest-kit/refs/heads/master/packages/pinets/README.md",
   },
   {
-    name: "backtest-kit/ollama",
+    name: "tradeforge/ollama",
     readme: "https://raw.githubusercontent.com/tripolskypetr/backtest-kit/refs/heads/master/packages/ollama/README.md",
   },
   {
-    name: "backtest-kit/cli",
+    name: "tradeforge/cli",
     readme: "https://raw.githubusercontent.com/tripolskypetr/backtest-kit/refs/heads/master/cli/README.md",
   },
   {

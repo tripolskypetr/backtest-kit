@@ -1,7 +1,7 @@
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
-import { Backtest, Heat, Live } from "backtest-kit";
+import { Backtest, Heat, Live } from "tradeforge";
 import { getConfig } from "../../../config/params";
 import HeatMockService from "../mock/HeatMockService";
 

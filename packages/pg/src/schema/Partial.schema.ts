@@ -1,5 +1,5 @@
 import { EntitySchema } from "typeorm";
-import { PartialData } from "backtest-kit";
+import { PartialData } from "tradeforge";
 import { epochTransformer } from "../utils/epochTransformer";
 
 interface IPartialDto {

@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { SessionData } from "backtest-kit";
+import { SessionData } from "tradeforge";
 
 interface ISessionDto {
   strategyName: string;

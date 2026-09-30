@@ -4,7 +4,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import StorageCacheService from "../cache/StorageCacheService";
-import { IStorageSignalRow } from "backtest-kit";
+import { IStorageSignalRow } from "tradeforge";
 
 export class StorageDbService extends BaseCRUD(StorageModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

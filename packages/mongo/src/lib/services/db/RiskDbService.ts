@@ -5,7 +5,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import RiskCacheService from "../cache/RiskCacheService";
-import { RiskData } from "backtest-kit";
+import { RiskData } from "tradeforge";
 
 export class RiskDbService extends BaseCRUD(RiskModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

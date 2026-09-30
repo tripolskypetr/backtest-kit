@@ -1,5 +1,5 @@
-import { addSweepSchema, Sweep, listExchangeSchema, overrideExchangeSchema } from "backtest-kit";
-import type { ISweepIdea, ISweepResult, ISweepGridAxes, ISweepSchema } from "backtest-kit";
+import { addSweepSchema, Sweep, listExchangeSchema, overrideExchangeSchema } from "tradeforge";
+import type { ISweepIdea, ISweepResult, ISweepGridAxes, ISweepSchema } from "tradeforge";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { join, resolve } from "path";
 import { getArgs } from "../helpers/getArgs";

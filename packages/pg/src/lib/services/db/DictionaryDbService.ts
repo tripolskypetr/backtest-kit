@@ -4,7 +4,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import DictionaryCacheService from "../cache/DictionaryCacheService";
-import { DictionaryData } from "backtest-kit";
+import { DictionaryData } from "tradeforge";
 
 export class DictionaryDbService extends BaseCRUD(DictionaryModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

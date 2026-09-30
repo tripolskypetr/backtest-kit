@@ -3,7 +3,7 @@ import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { getConfig } from "../../../config/params";
 import { fetchApi, randomString } from "functools-kit";
-import { IMCPMessage } from "backtest-kit";
+import { IMCPMessage } from "tradeforge";
 
 const CLIENT_ID = randomString();
 const SERVICE_NAME = "backtest-kit-mcp";

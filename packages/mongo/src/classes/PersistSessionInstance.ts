@@ -1,4 +1,4 @@
-import { SessionData, IPersistSessionInstance } from "backtest-kit";
+import { SessionData, IPersistSessionInstance } from "tradeforge";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
 

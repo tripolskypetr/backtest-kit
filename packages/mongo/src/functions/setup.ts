@@ -18,7 +18,7 @@ import {
   PersistStateAdapter,
   PersistDictionaryAdapter,
   PersistSessionAdapter,
-} from "backtest-kit";
+} from "tradeforge";
 
 import PersistCandleInstance from "../classes/PersistCandleInstance";
 import PersistSignalInstance from "../classes/PersistSignalInstance";

@@ -1,4 +1,4 @@
-import { Backtest, Live, Performance } from "backtest-kit";
+import { Backtest, Live, Performance } from "tradeforge";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";

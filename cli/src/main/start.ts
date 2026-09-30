@@ -5,7 +5,7 @@ declare const __PACKAGE_VERSION__: string;
 
 const MODES = ["backtest", "walker", "paper", "live", "main", "pine", "editor", "dump", "pnldebug", "brokerdebug", "sweep", "flush", "init", "docker", "help", "version"] as const;
 
-const ENTRY_PATH = "./node_modules/@backtest-kit/cli/build/index.mjs";
+const ENTRY_PATH = "./node_modules/@tradeforge/cli/build/index.mjs";
 
 const HELP_TEXT = `
 Example:
@@ -24,7 +24,7 @@ export const main = async () => {
     return;
   }
 
-  process.stdout.write(`@backtest-kit/cli ${__PACKAGE_VERSION__}\n`);
+  process.stdout.write(`@tradeforge/cli ${__PACKAGE_VERSION__}\n`);
   process.stdout.write("\n");
   process.stdout.write(`Run with --help to see available commands.\n`);
   process.stdout.write("\n");

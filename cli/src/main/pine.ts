@@ -1,10 +1,10 @@
-import { run, Code, toMarkdown } from "@backtest-kit/pinets";
+import { run, Code, toMarkdown } from "@tradeforge/pinets";
 import { writeFile, mkdir } from "fs/promises";
 import { basename, extname, join, resolve } from "path";
 import { getArgs, getPositionals } from "../helpers/getArgs";
 import getEntry from "../helpers/getEntry";
 import cli from "../lib";
-import { CandleInterval, listExchangeSchema } from "backtest-kit";
+import { CandleInterval, listExchangeSchema } from "tradeforge";
 import path from "path";
 import dotenv from "dotenv";
 

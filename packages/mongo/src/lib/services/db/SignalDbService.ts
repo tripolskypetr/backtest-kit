@@ -5,7 +5,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import SignalCacheService from "../cache/SignalCacheService";
-import { ISignalRow } from "backtest-kit";
+import { ISignalRow } from "tradeforge";
 
 export class SignalDbService extends BaseCRUD(SignalModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

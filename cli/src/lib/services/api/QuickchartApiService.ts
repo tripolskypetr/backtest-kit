@@ -1,7 +1,7 @@
 import QuickChart from "quickchart-js";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
-import { CandleInterval, getCandles } from "backtest-kit";
+import { CandleInterval, getCandles } from "tradeforge";
 import LoggerService from "../base/LoggerService";
 import { getEnv } from "../../../helpers/getEnv";
 

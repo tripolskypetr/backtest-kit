@@ -17,7 +17,7 @@
  * Only available in live mode (skipped in backtest mode).
  */
 
-import { formatPrice, formatQuantity, getOrderBook, IBidData, getDate } from "backtest-kit";
+import { formatPrice, formatQuantity, getOrderBook, IBidData, getDate } from "tradeforge";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import LoggerService from "../common/LoggerService";

@@ -1,5 +1,5 @@
 import { EntitySchema } from "typeorm";
-import { ILogEntry } from "backtest-kit";
+import { ILogEntry } from "tradeforge";
 
 interface ILogDto {
   entryId: string;

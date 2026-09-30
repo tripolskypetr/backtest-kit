@@ -2,7 +2,7 @@ import { ICandleDto, ICandleRow } from "../../../schema/Candle.schema";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
-import { CandleInterval } from "backtest-kit";
+import { CandleInterval } from "tradeforge";
 import BaseStorage from "../../common/BaseStorage";
 
 const GET_STORAGE_KEY_FN = (exchangeName: string, symbol: string, interval: CandleInterval, timestamp: number) => {

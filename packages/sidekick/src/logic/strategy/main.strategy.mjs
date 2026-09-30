@@ -1,4 +1,4 @@
-import { addStrategySchema } from "backtest-kit";
+import { addStrategySchema } from "tradeforge";
 import { randomString } from "functools-kit";
 
 import * as math_15m from "../../math/timeframe_15m.math.mjs";

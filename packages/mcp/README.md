@@ -1,24 +1,24 @@
 <img src="https://github.com/tripolskypetr/backtest-kit/raw/refs/heads/master/assets/consciousness.svg" height="45px" align="right">
 
-# 🤖 @backtest-kit/mcp
+# 🤖 @tradeforge/mcp
 
-> Model Context Protocol server for [backtest-kit](https://www.npmjs.com/package/backtest-kit). Lets an LLM agent (Claude, or any MCP client) watch your live trading portfolio and open, average or close positions — through **five guarded tools**, while the trading engine keeps every level, limit and validation on its side.
+> Model Context Protocol server for [tradeforge](https://www.npmjs.com/package/tradeforge). Lets an LLM agent (Claude, or any MCP client) watch your live trading portfolio and open, average or close positions — through **five guarded tools**, while the trading engine keeps every level, limit and validation on its side.
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
-[![npm](https://img.shields.io/npm/v/@backtest-kit/mcp.svg?style=flat-square)](https://npmjs.org/package/@backtest-kit/mcp)
+[![npm](https://img.shields.io/npm/v/@tradeforge/mcp.svg?style=flat-square)](https://npmjs.org/package/@tradeforge/mcp)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
 
 📚 **[Docs](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)** · 🌟 **[Reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example)** · 🐙 **[GitHub](https://github.com/tripolskypetr/backtest-kit)**
 
 ```bash
-npm install @backtest-kit/mcp backtest-kit @modelcontextprotocol/sdk
+npm install @tradeforge/mcp tradeforge @modelcontextprotocol/sdk
 ```
 
 **In the trading process** — register an MCP schema and expose the HTTP bridge:
 
 ```typescript
-import { addMCPSchema } from 'backtest-kit';
-import { serve } from '@backtest-kit/mcp';
+import { addMCPSchema } from 'tradeforge';
+import { serve } from '@tradeforge/mcp';
 
 addMCPSchema({
   mcpName: 'my-mcp',
@@ -35,7 +35,7 @@ serve(); // HTTP bridge on 127.0.0.1:60051 (CC_MCP_HOST / CC_MCP_PORT)
   "mcpServers": {
     "trading-signals": {
       "command": "npx",
-      "args": ["@backtest-kit/mcp"],
+      "args": ["@tradeforge/mcp"],
       "env": { "CC_MCP_HOST": "127.0.0.1", "CC_MCP_PORT": "60051" }
     }
   }
@@ -48,7 +48,7 @@ The agent gets `get_status`, `open_position` and `close_position`. Your strategy
 
 ## Why
 
-**The agent decides *when and which way* — the engine decides *everything else*.** An LLM given raw exchange API keys is a liability: one hallucinated parameter and it buys the wrong size at the wrong price with no stop. Here the agent's whole vocabulary is five tools, and the open command carries only `symbol`, `position` and a human-readable `description`. Take profit, stop-loss and entry cost are computed by backtest-kit (fixed 50% moonbag TP; hard stop snapped to a 2.5% grid strictly below `CC_MAX_STOPLOSS_DISTANCE_PERCENT`; cost from the MCP schema). Every command passes the same validation chain — MCP → strategy → risk profiles → actions — as any other signal source, and an open against a symbol that already holds a position is rejected by the engine, not by prompt engineering.
+**The agent decides *when and which way* — the engine decides *everything else*.** An LLM given raw exchange API keys is a liability: one hallucinated parameter and it buys the wrong size at the wrong price with no stop. Here the agent's whole vocabulary is five tools, and the open command carries only `symbol`, `position` and a human-readable `description`. Take profit, stop-loss and entry cost are computed by tradeforge (fixed 50% moonbag TP; hard stop snapped to a 2.5% grid strictly below `CC_MAX_STOPLOSS_DISTANCE_PERCENT`; cost from the MCP schema). Every command passes the same validation chain — MCP → strategy → risk profiles → actions — as any other signal source, and an open against a symbol that already holds a position is rejected by the engine, not by prompt engineering.
 
 **Text-first status built for LLM consumption.** `get_status` returns one message per traded symbol with the current price, invested balance, the queued entry order, the active position with unrealized PnL and the queued close order. Empty slots are stated explicitly ("Entry queue: empty") so the model never has to guess whether a field was omitted or just missing — the difference between an agent that reasons and one that hallucinates. A custom `getMessages` in the schema can replace or extend the default renderer, including base64 chart images, which map 1:1 onto MCP image content blocks.
 
@@ -58,7 +58,7 @@ The agent gets `get_status`, `open_position` and `close_position`. Your strategy
 - 🧷 **Engine-owned levels** — moonbag TP/SL and entry cost are computed server-side; the agent cannot override them.
 - 💬 **Human-readable portfolio** — per-symbol text messages with explicit empty slots; images supported.
 - 🔌 **Process isolation** — stdio server ↔ HTTP bridge ↔ trading engine; stdout carries only JSON-RPC.
-- ✅ **At-most-once semantics** — commands reuse backtest-kit's `commitCreateSignal` / `commitClosePending` machinery.
+- ✅ **At-most-once semantics** — commands reuse tradeforge's `commitCreateSignal` / `commitClosePending` machinery.
 - 🧪 **Testable** — `IMCPCallbacks` (`onStatus`, `onPositionOpen`, `onPositionClose`) fire after each accepted effect with the raw data it was built from.
 
 ---
@@ -69,7 +69,7 @@ The agent gets `get_status`, `open_position` and `close_position`. Your strategy
 <summary>Explicit parameters & environment variables</summary>
 
 ```typescript
-import { setConfig } from '@backtest-kit/mcp';
+import { setConfig } from '@tradeforge/mcp';
 setConfig({
   CC_MCP_HOST: '127.0.0.1',
   CC_MCP_PORT: 60051,
@@ -90,10 +90,10 @@ Values passed to `setConfig()` always take precedence over env vars.
 <details>
 <summary>Command-line arguments (stdio server or sse)</summary>
 
-When the package runs as the **stdio MCP server** (`npx @backtest-kit/mcp`, the `backtest-kit-mcp` command, or `node build/index.mjs`), the bridge address can be passed as CLI arguments instead of env vars:
+When the package runs as the **stdio MCP server** (`npx @tradeforge/mcp`, the `tradeforge-mcp` command, or `node build/index.mjs`), the bridge address can be passed as CLI arguments instead of env vars:
 
 ```bash
-npx -y @backtest-kit/mcp@latest --host 127.0.0.1 --port 60051
+npx -y @tradeforge/mcp@latest --host 127.0.0.1 --port 60051
 ```
 
 ```json
@@ -101,7 +101,7 @@ npx -y @backtest-kit/mcp@latest --host 127.0.0.1 --port 60051
   "mcpServers": {
     "trading-signals": {
       "command": "npx",
-      "args": ["@backtest-kit/mcp@latest", "--host", "127.0.0.1", "--port", "60051"]
+      "args": ["@tradeforge/mcp@latest", "--host", "127.0.0.1", "--port", "60051"]
     }
   }
 }
@@ -110,7 +110,7 @@ npx -y @backtest-kit/mcp@latest --host 127.0.0.1 --port 60051
 or
 
 ```bash
-npx -y @backtest-kit/mcp@latest --sse 8081
+npx -y @tradeforge/mcp@latest --sse 8081
 ```
 
 ```bash
@@ -137,10 +137,10 @@ By default the stdio server registers all five tools. `--tools` takes a comma-se
 
 ```bash
 # Read-only agent: it can watch the portfolio but not touch it
-npx @backtest-kit/mcp --tools get_status
+npx @tradeforge/mcp --tools get_status
 
 # Observe and exit, but never open or average
-npx @backtest-kit/mcp --tools get_status,close_position,notify_user
+npx @tradeforge/mcp --tools get_status,close_position,notify_user
 ```
 
 ```json
@@ -148,7 +148,7 @@ npx @backtest-kit/mcp --tools get_status,close_position,notify_user
   "mcpServers": {
     "trading-signals": {
       "command": "npx",
-      "args": ["@backtest-kit/mcp", "--tools", "get_status,close_position"]
+      "args": ["@tradeforge/mcp", "--tools", "get_status,close_position"]
     }
   }
 }
@@ -167,10 +167,10 @@ By default the server speaks **stdio**: the agent spawns the process and talks t
 
 ```bash
 # Default port 8080
-npx @backtest-kit/mcp --sse
+npx @tradeforge/mcp --sse
 
 # Explicit port
-npx @backtest-kit/mcp --sse 9000
+npx @tradeforge/mcp --sse 9000
 ```
 
 Two endpoints are exposed:
@@ -187,14 +187,14 @@ Point a connector that bridges an external MCP endpoint to a local HTTP one at `
 `--sse` composes with everything else — `--tools` still narrows the surface, `--host` / `--port` still point at the trading bridge (those describe where the *engine* lives, which is unrelated to how the *agent* connects):
 
 ```bash
-npx @backtest-kit/mcp --tools get_status --sse 9000
+npx @tradeforge/mcp --tools get_status --sse 9000
 ```
 
 **The optional value is positional**, so a path immediately after the flag is read as the port:
 
 ```bash
-npx @backtest-kit/mcp --sse ./strategy.ts   # ✗ fails: "./strategy.ts" is not a port
-npx @backtest-kit/mcp ./strategy.ts --sse   # ✓ path first, then the flag
+npx @tradeforge/mcp --sse ./strategy.ts   # ✗ fails: "./strategy.ts" is not a port
+npx @tradeforge/mcp ./strategy.ts --sse   # ✓ path first, then the flag
 ```
 
 A non-port value **fails the startup** rather than being ignored — silently treating it as "no port given" would swallow the strategy path and start with nothing loaded.
@@ -214,7 +214,7 @@ A non-port value **fails the startup** rather than being ignored — silently tr
 | `setLogger(logger)` | Replace the internal no-op logger with your own implementation. |
 | `lib` | The IoC container (`mcpCommandService`, `mcpPublicService`, `mcpPrivateService`) for advanced wiring and tests. |
 
-Running the package binary (`npx @backtest-kit/mcp`, the installed `backtest-kit-mcp` command, or `node build/index.mjs`) starts the **stdio MCP server** — that side needs no imports, only `CC_MCP_HOST`/`CC_MCP_PORT` pointing at the trading process.
+Running the package binary (`npx @tradeforge/mcp`, the installed `tradeforge-mcp` command, or `node build/index.mjs`) starts the **stdio MCP server** — that side needs no imports, only `CC_MCP_HOST`/`CC_MCP_PORT` pointing at the trading process.
 
 ---
 
@@ -243,11 +243,11 @@ Every failure reaches the agent as an `isError` tool result carrying the engine'
 
 ```
 agent (Claude / any MCP client)
-  └─ stdio JSON-RPC ─ backtest-kit-mcp          (this package, binary)
+  └─ stdio JSON-RPC ─ tradeforge-mcp          (this package, binary)
        tools/*.tool.ts
        └─ MCPCommandService ── HTTP POST ──► serve()   (this package, imported)
                                               routes/mcp.ts
-                                              └─ MCPPublicService ─► MCP.* (backtest-kit)
+                                              └─ MCPPublicService ─► MCP.* (tradeforge)
                                                                       └─ Live.commitCreateSignal / commitClosePending
 ```
 
@@ -301,7 +301,7 @@ Request envelope: `{ clientId, serviceName, userId, requestId, data }`. The `mcp
 **Service layer** (`lib/services/`):
 - `command/MCPCommandService.ts` — HTTP client used by the tools (`fetchApi` against `CC_MCP_HOST:CC_MCP_PORT`).
 - `public/MCPPublicService.ts` — server-side entry: resolves `mcpName` (`CC_MCP_NAME` or first schema), validates arguments, delegates down.
-- `private/MCPPrivateService.ts` — thin logging proxy over the backtest-kit `MCP` singleton.
+- `private/MCPPrivateService.ts` — thin logging proxy over the tradeforge `MCP` singleton.
 - `base/LoggerService.ts` — no-op by default (keeps stdio stdout clean); swap via `setLogger`.
 
 **DI & config** — `lib/core/{di,provide,types}.ts`, `lib/index.ts` (container bootstrap), `utils/omit.ts` (log payload trimming).

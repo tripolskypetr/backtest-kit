@@ -1,7 +1,7 @@
 import micro from "micro";
 import Router from "router";
 import { errorData, getErrorMessage } from "functools-kit";
-import { CandleInterval } from "backtest-kit";
+import { CandleInterval } from "tradeforge";
 
 import omit from "../utils/omit";
 

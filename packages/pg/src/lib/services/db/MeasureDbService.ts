@@ -4,7 +4,7 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import MeasureCacheService from "../cache/MeasureCacheService";
-import { MeasureData } from "backtest-kit";
+import { MeasureData } from "tradeforge";
 
 export class MeasureDbService extends BaseCRUD(MeasureModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

@@ -2,7 +2,7 @@ import { IIntervalRow } from "../../../schema/Interval.schema";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
-import { IntervalData } from "backtest-kit";
+import { IntervalData } from "tradeforge";
 import BaseStorage from "../../common/BaseStorage";
 
 const GET_STORAGE_KEY_FN = (bucket: string, entryKey: string) => {

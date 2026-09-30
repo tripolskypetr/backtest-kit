@@ -1,4 +1,4 @@
-import { CandleInterval } from "backtest-kit";
+import { CandleInterval } from "tradeforge";
 import mongoose, { Document, Schema } from "mongoose";
 
 const INTERVAL_ENUM = [

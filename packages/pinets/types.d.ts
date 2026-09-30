@@ -1,4 +1,4 @@
-import { CandleInterval, ISignalDto } from 'backtest-kit';
+import { CandleInterval, ISignalDto } from 'tradeforge';
 
 declare class Code {
     readonly source: string;

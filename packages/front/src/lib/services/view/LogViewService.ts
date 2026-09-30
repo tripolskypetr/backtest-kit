@@ -1,4 +1,4 @@
-import { Log, ILogEntry } from "backtest-kit";
+import { Log, ILogEntry } from "tradeforge";
 import { pickDocuments, singleshot } from "functools-kit";
 
 import LoggerService from "../base/LoggerService";
