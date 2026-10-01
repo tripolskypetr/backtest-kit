@@ -12,6 +12,7 @@ import {
     useAsyncValue,
 } from "react-declarative";
 import { t } from "../../i18n";
+import formatMinutes from "../../utils/formatMinutes";
 
 interface IStatusWidgetProps {
     outlinePaper: boolean;
@@ -172,6 +173,21 @@ export const StatusWidget = ({
         return null;
     };
 
+    const renderMinutesInPosition = () => {
+        if (!data.pendingAt || !data.updatedAt) {
+            return null;
+        }
+        const minutes = Math.max(
+            0,
+            Math.round((data.updatedAt - data.pendingAt) / 60_000),
+        );
+        return (
+            <Typography className={classes.text} variant="body2">
+                {formatMinutes(minutes)}
+            </Typography>
+        );
+    };
+
     const renderStatus = () => {
         if (data.status) {
             return (
@@ -200,6 +216,7 @@ export const StatusWidget = ({
                     </Typography>
                     {renderChip()}
                     {renderStatus()}
+                    {renderMinutesInPosition()}
                 </div>
                 <IconButton
                     className={classes.icon}
