@@ -6,6 +6,7 @@ import {
   CandleInterval,
   Live,
   alignToInterval,
+  intervalStepMs,
   listExchangeSchema,
 } from "backtest-kit";
 import StorageViewService from "./StorageViewService";
@@ -14,7 +15,21 @@ import ExchangeMockService from "../mock/ExchangeMockService";
 import SignalViewService from "./SignalViewService";
 import { getConfig } from "../../../config/params";
 
-const HISTORY_LAST_CANDLES_LIMIT = 200;
+const HISTORY_LAST_CANDLES_LIMIT = 1_000;
+
+/**
+ * Range requests asking for more candles than this return an empty array
+ * instead of flooding the client
+ */
+const MAX_RANGE_CANDLES_LIMIT = 5_000;
+
+const exceedsCandleLimit = (
+  startTime: number,
+  stopTime: number,
+  interval: CandleInterval,
+) =>
+  Math.ceil((stopTime - startTime) / intervalStepMs(interval)) >
+  MAX_RANGE_CANDLES_LIMIT;
 
 export class ExchangeViewService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -55,6 +70,9 @@ export class ExchangeViewService {
       createdAt = pendingAt || scheduledAt,
       updatedAt,
     } = signal;
+    if (exceedsCandleLimit(createdAt, updatedAt, interval)) {
+      return [];
+    }
     return await this.exchangeService.getRangeCandles({
       symbol: signal.symbol,
       exchangeName: signal.exchangeName,
@@ -86,11 +104,15 @@ export class ExchangeViewService {
     const startAt = alignToInterval(new Date(eventAt), interval).getTime();
     const updatedAt =
       await this.signalViewService.getLastUpdateTimestamp(signalId);
+    const stopAt = alignToInterval(new Date(updatedAt), interval).getTime();
+    if (exceedsCandleLimit(startAt, stopAt, interval)) {
+      return [];
+    }
     return await this.exchangeService.getRangeCandles({
       symbol: signal.symbol,
       exchangeName: signal.exchangeName,
       signalStartTime: startAt,
-      signalStopTime: alignToInterval(new Date(updatedAt), interval).getTime(),
+      signalStopTime: stopAt,
       interval,
     });
   };
