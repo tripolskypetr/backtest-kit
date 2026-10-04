@@ -4,7 +4,7 @@
   "position": "long",
   "priceTakeProfit": 46537.4497,
   "priceStopLoss": 44278.3502,
-  "minuteEstimatedTime": 60,
+  "minuteEstimatedTime": 2880,
   "multiplier": 1,
   "symbol": "BTCUSDT",
   "exchangeName": "binance_exchange",
@@ -18,7 +18,7 @@
   "partialExecuted": 0,
   "status": "closed",
   "priority": 1769442906988,
-  "updatedAt": 1707404580000,
+  "updatedAt": 1707573780000,
   "pnl": {
     "pnlPercentage": -1.2,
     "priceOpen": 45181.99,

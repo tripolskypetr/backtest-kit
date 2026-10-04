@@ -1,4 +1,4 @@
-import { Chip, IconButton, Paper, SxProps, Typography } from "@mui/material";
+import { Box, Chip, IconButton, Paper, SxProps, Typography } from "@mui/material";
 import StatusModel from "../../model/Status.model";
 import { makeStyles } from "../../styles";
 import { Info } from "@mui/icons-material";
@@ -13,6 +13,9 @@ import {
 } from "react-declarative";
 import { t } from "../../i18n";
 import formatMinutes from "../../utils/formatMinutes";
+import TimeframePicker from "./components/TimeframePicker";
+import { useState } from "react";
+import { Timeframe } from "./model/Timeframe.model";
 
 interface IStatusWidgetProps {
     outlinePaper: boolean;
@@ -54,8 +57,9 @@ const useStyles = makeStyles()((theme) => ({
     },
     title: {
         display: "flex",
+        width: "100%",
         alignItems: "center",
-        justifyContent: "center",
+        justifyContent: "stretch",
         gap: "8px",
     },
     icon: {
@@ -96,16 +100,19 @@ export const StatusWidget = ({
 }: IStatusWidgetProps) => {
     const { classes, cx } = useStyles();
 
+    const [timeframe, setTimeframe] = useState<Timeframe>("1m");
+
     const [candles, { loading }] = useAsyncValue(
         async () => {
             return await ioc.exchangeViewService.getLiveCandles(
                 data.signalId,
-                "1m",
+                timeframe,
             );
         },
         {
             onLoadStart: () => ioc.layoutService.setAppbarLoader(true),
             onLoadEnd: () => ioc.layoutService.setAppbarLoader(false),
+            deps: [timeframe],
         },
     );
 
@@ -123,13 +130,14 @@ export const StatusWidget = ({
             );
         }
         return (
-            <AutoSizer style={{ position: "absolute", top: 0, left: 0 }}>
+            <AutoSizer style={{ position: "absolute", top: 0, left: 0 }} payload={timeframe}>
                 {({ height, width }) => (
                     <StockChart
                         items={candles}
                         height={height}
                         width={width}
                         position={data.position}
+                        timeframe={timeframe}
                         status={data.status}
                         pendingAt={data.pendingAt}
                         updatedAt={data.updatedAt}
@@ -217,6 +225,11 @@ export const StatusWidget = ({
                     {renderChip()}
                     {renderStatus()}
                     {renderMinutesInPosition()}
+                    <Box flex={1} />
+                    <TimeframePicker 
+                        value={timeframe} 
+                        onChange={setTimeframe} 
+                    />
                 </div>
                 <IconButton
                     className={classes.icon}

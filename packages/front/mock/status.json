@@ -18,7 +18,7 @@
     "totalEntries": 1,
     "totalPartials": 0,
     "partialExecuted": 0,
-    "minuteEstimatedTime": 60,
+    "minuteEstimatedTime": 1440,
     "multiplier": 1,
     "pnl": {
       "pnlPercentage": 1.67,
@@ -30,7 +30,7 @@
     "scheduledAt": 1708388340000,
     "pendingAt": 1708388340000,
     "createdAt": 1708388340000,
-    "updatedAt": 1708391940000,
+    "updatedAt": 1708474740000,
     "timestamp": 1708388340000,
     "_isScheduled": false,
     "_entry": [
@@ -73,7 +73,7 @@
     "totalEntries": 2,
     "totalPartials": 2,
     "partialExecuted": 40,
-    "minuteEstimatedTime": 60,
+    "minuteEstimatedTime": 2880,
     "multiplier": 1,
     "pnl": {
       "pnlPercentage": -1.2,
@@ -85,7 +85,7 @@
     "scheduledAt": 1707400980000,
     "pendingAt": 1707400980000,
     "createdAt": 1707400980000,
-    "updatedAt": 1707404580000,
+    "updatedAt": 1707573780000,
     "timestamp": 1707400980000,
     "_isScheduled": false,
     "_entry": [

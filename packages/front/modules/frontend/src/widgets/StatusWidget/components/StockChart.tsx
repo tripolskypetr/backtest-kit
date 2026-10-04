@@ -16,16 +16,33 @@ import {
 import { createChart } from "lightweight-charts";
 import { makeStyles } from "../../../styles";
 import { colors } from "@mui/material";
-import { dayjs, formatAmount } from "react-declarative";
+import { dayjs, formatAmount, getMomentStamp } from "react-declarative";
 import getPriceScale from "../../../utils/getPriceScale";
 import { t } from "../../../i18n";
+import { Timeframe } from "../model/Timeframe.model";
 
 declare function parseFloat(value: unknown): number;
 
-const MS_PER_MINUTE = 60_000;
-
-const alignToInterval = (timestamp: number): number => {
-    return Math.floor(timestamp / MS_PER_MINUTE) * MS_PER_MINUTE;
+/**
+ * lightweight-charts hack: candle times are fed as momentStamp (minutes or
+ * hours since the dayjs epoch) aligned to the timeframe, so 15m/1h series
+ * keep even spacing. Labels are restored from the original timestamp
+ */
+const getAlignedMomentStamp = (
+    date: dayjs.Dayjs,
+    timeframe: Timeframe,
+): number => {
+    if (timeframe === "15m") {
+        const minute = Math.floor(date.minute() / 15) * 15;
+        return getMomentStamp(
+            date.startOf("hour").add(minute, "minute"),
+            "minute",
+        );
+    }
+    if (timeframe === "1h") {
+        return getMomentStamp(date.startOf("hour"), "hour");
+    }
+    return getMomentStamp(date, "minute");
 };
 
 type PositionPartial = {
@@ -45,6 +62,7 @@ interface IChartProps {
     height: number;
     width: number;
     items: ICandleData[];
+    timeframe: Timeframe;
     position: "long" | "short";
     status?: string;
     pendingAt: number;
@@ -123,6 +141,7 @@ export const StockChart = ({
     height,
     width,
     items,
+    timeframe,
     position,
     status,
     pendingAt,
@@ -150,6 +169,34 @@ export const StockChart = ({
             (c) => c.timestamp >= pendingAt && c.timestamp <= exitAt,
         );
 
+        const candles = visibleItems
+            .map(({ close, timestamp }, idx) => {
+                const date = dayjs(timestamp);
+                if (!date.isValid()) {
+                    console.warn(
+                        `Invalid timestamp at index ${idx}: ${timestamp}`,
+                    );
+                    return null;
+                }
+                const momentStamp = getAlignedMomentStamp(date, timeframe);
+                return {
+                    time: momentStamp as Time,
+                    originalTime: timestamp,
+                    momentStamp,
+                    value: parseFloat(close),
+                };
+            })
+            .filter((item): item is NonNullable<typeof item> => !!item);
+
+        // Markers only render on an existing bar: snap the aligned stamp to
+        // the nearest candle at or after it (filtering can drop the exact bar)
+        const snapToCandle = (stamp: number): Time | null => {
+            const candle =
+                candles.find((c) => c.momentStamp >= stamp) ||
+                candles[candles.length - 1];
+            return candle ? (candle.momentStamp as Time) : null;
+        };
+
         const chart = createChart(chartElement, {
             ...chartOptions,
             localization: {
@@ -164,20 +211,26 @@ export const StockChart = ({
             },
             timeScale: {
                 timeVisible: true,
-                secondsVisible: true,
+                secondsVisible: timeframe === "1m",
                 tickMarkFormatter: (time: Time) => {
                     // Поиск свечи по momentStamp
                     const candle =
-                        visibleItems.find((c) => c.timestamp === Number(time)) ||
-                        visibleItems[0];
-                    if (!candle || !candle.timestamp) {
+                        candles.find((c) => c.momentStamp === Number(time)) ||
+                        candles[0];
+                    if (!candle || !candle.originalTime) {
                         return t("Invalid date");
                     }
-                    const date = dayjs(candle.timestamp);
+                    const date = dayjs(candle.originalTime);
                     if (!date.isValid()) {
                         return t("Invalid date");
                     }
-                    return date.format("HH:mm:ss");
+                    if (timeframe === "1m") {
+                        return date.format("HH:mm:ss");
+                    }
+                    if (timeframe === "15m") {
+                        return date.format("HH:mm");
+                    }
+                    return date.format("DD/MM HH:mm");
                 },
             },
         });
@@ -187,12 +240,7 @@ export const StockChart = ({
             color: colors.blue[400],
         });
 
-        const data = visibleItems.map((c) => ({
-            time: Math.floor(c.timestamp) as Time,
-            value: parseFloat(c.close),
-        }));
-
-        series.setData(data);
+        series.setData(candles);
 
         const positionLabel = position === "long" ? "LONG" : "SHORT";
         const positionColor = colors.blue[700];
@@ -265,19 +313,26 @@ export const StockChart = ({
 
         const markers: SeriesMarker<Time>[] = [];
 
-        if (pendingAt) {
-            markers.push({
-                time: alignToInterval(pendingAt) as Time,
-                position: position === "short" ? "aboveBar" : "belowBar",
-                color: positionColor,
-                shape: position === "short" ? "arrowDown" : "arrowUp",
-                size: 1,
-                text: t("Entry"),
-            });
+        const toMarkerTime = (ts: number): Time | null =>
+            snapToCandle(getAlignedMomentStamp(dayjs(ts), timeframe));
 
-            if (status === "closed") {
+        if (pendingAt) {
+            const entryTime = toMarkerTime(pendingAt);
+            if (entryTime !== null) {
                 markers.push({
-                    time: alignToInterval(exitAt) as Time,
+                    time: entryTime,
+                    position: position === "short" ? "aboveBar" : "belowBar",
+                    color: positionColor,
+                    shape: position === "short" ? "arrowDown" : "arrowUp",
+                    size: 1,
+                    text: t("Entry"),
+                });
+            }
+
+            const exitTime = toMarkerTime(exitAt);
+            if (status === "closed" && exitTime !== null) {
+                markers.push({
+                    time: exitTime,
                     position: position === "short" ? "belowBar" : "aboveBar",
                     color: positionColor,
                     shape: position === "short" ? "arrowUp" : "arrowDown",
@@ -294,8 +349,12 @@ export const StockChart = ({
             if (idx === 0) {
                 continue;
             }
+            const entryTime = toMarkerTime(entry.timestamp);
+            if (entryTime === null) {
+                continue;
+            }
             markers.push({
-                time: alignToInterval(entry.timestamp) as Time,
+                time: entryTime,
                 position: "belowBar",
                 color: colors.amber[400],
                 shape: "circle",
@@ -306,8 +365,12 @@ export const StockChart = ({
 
         for (const partial of positionPartials) {
             const isProfit = partial.type === "profit";
+            const partialTime = toMarkerTime(partial.timestamp);
+            if (partialTime === null) {
+                continue;
+            }
             markers.push({
-                time: alignToInterval(partial.timestamp) as Time,
+                time: partialTime,
                 position: isProfit ? "aboveBar" : "belowBar",
                 color: isProfit ? colors.green[400] : colors.red[400],
                 shape: "square",
@@ -321,14 +384,21 @@ export const StockChart = ({
 
         chart.subscribeCrosshairMove((param) => {
             if (param.time) {
-                const data = visibleItems.find(
-                    (d) => d.timestamp === Number(param.time),
+                const data = candles.find(
+                    (d) => d.momentStamp === Number(param.time),
                 );
                 if (data) {
-                    const dateTime = dayjs(data.timestamp).format(
-                        "DD/MM/YYYY HH:mm:ss",
+                    const dateFormat =
+                        timeframe === "1m"
+                            ? "DD/MM/YYYY HH:mm:ss"
+                            : "DD/MM/YYYY HH:mm";
+                    const dateTime = dayjs(data.originalTime).format(
+                        dateFormat,
                     );
-                    const price = formatAmount(data.close, getPriceScale(data.close));
+                    const price = formatAmount(
+                        data.value,
+                        getPriceScale(data.value),
+                    );
                     setTooltipDate(`${dateTime}: ${price}`);
                 } else {
                     setTooltipDate(null);
@@ -347,6 +417,7 @@ export const StockChart = ({
         height,
         width,
         items,
+        timeframe,
         position,
         status,
         pendingAt,

@@ -266,6 +266,8 @@ export const LOCALE: Record<string, string> = {
   "Timeframe 1m": "Timeframe 1m",
   "Timeframe 15m": "Timeframe 15m",
   "Timeframe 1h": "Timeframe 1h",
+  "Timeframe Picker": "Seletor de intervalo",
+  "Timeframe": "Intervalo",
   "Download JSON": "Baixar JSON",
   "Download Markdown": "Baixar Markdown",
   "Download PDF": "Baixar PDF",

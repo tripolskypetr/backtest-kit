@@ -266,6 +266,8 @@ export const LOCALE: Record<string, string> = {
   "Timeframe 1m": "Zaman Dilimi 1m",
   "Timeframe 15m": "Zaman Dilimi 15m",
   "Timeframe 1h": "Zaman Dilimi 1h",
+  "Timeframe Picker": "Zaman aralığı seçici",
+  "Timeframe": "Zaman aralığı",
   "Download JSON": "JSON İndir",
   "Download Markdown": "Markdown İndir",
   "Download PDF": "PDF İndir",
