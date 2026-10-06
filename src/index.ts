@@ -880,6 +880,7 @@ export { getEffectivePriceOpen } from "./helpers/getEffectivePriceOpen";
 export { getTotalClosed } from "./helpers/getTotalClosed";
 export { getLiquidationPrice } from "./helpers/getLiquidationPrice";
 export { getPriceScale } from "./helpers/getPriceScale";
+export { getCandlesFilled } from "./helpers/getCandlesFilled";
 
 export { OrderDeletedError } from "./error/OrderDeletedError";
 export { OrderRejectedError } from "./error/OrderRejectedError";

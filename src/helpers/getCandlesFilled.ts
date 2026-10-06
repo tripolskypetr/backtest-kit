@@ -8,14 +8,14 @@ export interface ICandle {
 }
 
 /**
- * Сырая OHLCV-свеча биржи: [timestamp, open, high, low, close, volume].
- * Элементы допускают undefined, чтобы подходил любой источник без кастов.
+ * Raw exchange OHLCV candle: [timestamp, open, high, low, close, volume].
+ * Elements allow undefined so any source fits without casts.
  */
 export type TRawOHLCV = (number | undefined)[];
 
 /**
- * Источник сырых свечей. since в миллисекундах; должен вернуть
- * до limit свечей начиная с первой свечи >= since.
+ * Raw candle source. since is in milliseconds; must return
+ * up to limit candles starting from the first candle >= since.
  */
 export type TFetchOHLCV = (
   symbol: string,
@@ -45,7 +45,7 @@ const getIntervalMs = (interval: string) => {
   return Number(match[1]) * INTERVAL_UNITS[match[2]];
 };
 
-// Последний известный close ДО момента ts: смотрим только в прошлое, без look ahead
+// Last known close BEFORE ts: look only into the past, no look ahead
 const fetchLastCloseBefore = async (
   fetchOHLCV: TFetchOHLCV,
   symbol: string,
@@ -65,12 +65,13 @@ const fetchLastCloseBefore = async (
 };
 
 /**
- * Возвращает limit свечей начиная с since непрерывной сеткой интервала.
- * Пропуски источника (даунтайм биржи) заполняются плоской свечой из
- * последнего известного close (volume = 0) - строго без look ahead:
- * для дыры в начале окна последний close ищется в прошлом до окна.
- * Если дыру нечем заполнить (истории до окна нет - символ еще не
- * торговался), бросает исключение: результат всегда ровно limit свечей.
+ * Returns limit candles starting from since on a continuous interval grid.
+ * Source gaps (exchange downtime) are filled with a flat candle from the
+ * last known close (volume = 0) - strictly without look ahead:
+ * for a gap at the start of the window, the last close is searched in the
+ * past before the window. If a gap cannot be filled (no history before the
+ * window - the symbol was not traded yet), throws an exception: the result
+ * is always exactly limit candles.
  */
 export const getCandlesFilled = async (
   fetchOHLCV: TFetchOHLCV,
@@ -111,9 +112,9 @@ export const getCandlesFilled = async (
   }
   if (result.length !== limit) {
     throw new Error(
-      `getCandlesFilled: ожидалось ${limit} свечей, получено ${result.length} ` +
-        `(${symbol} ${interval} с ${new Date(start).toISOString()}) - ` +
-        `нет данных для заполнения пропуска без look ahead`,
+      `getCandlesFilled: expected ${limit} candles, got ${result.length} ` +
+        `(${symbol} ${interval} from ${new Date(start).toISOString()}) - ` +
+        `no data to fill the gap without look ahead`,
     );
   }
   return result;
