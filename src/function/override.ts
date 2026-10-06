@@ -7,6 +7,7 @@ import { IRiskSchema } from "../interfaces/Risk.interface";
 import { IActionSchema } from "../interfaces/Action.interface";
 import { ISweepSchema } from "../interfaces/Sweep.interface";
 import { IMCPSchema } from "../interfaces/MCP.interface";
+import { ILauncherSchema } from "../interfaces/Launcher.interface";
 import backtest from "../lib/index";
 
 const METHOD_NAME_OVERRIDE_STRATEGY = "function.override.overrideStrategySchema";
@@ -18,6 +19,7 @@ const METHOD_NAME_OVERRIDE_RISK = "function.override.overrideRiskSchema";
 const METHOD_NAME_OVERRIDE_ACTION = "function.override.overrideActionSchema";
 const METHOD_NAME_OVERRIDE_SIMULATOR = "function.override.overrideSweepSchema";
 const METHOD_NAME_OVERRIDE_MCP = "function.override.overrideMCPSchema";
+const METHOD_NAME_OVERRIDE_LAUNCHER = "function.override.overrideLauncherSchema";
 
 /**
  * Partial strategy schema for override operations.
@@ -622,5 +624,64 @@ export async function overrideMCPSchema(mcpSchema: TMCPSchema) {
   return backtest.mcpSchemaService.override(
     mcpSchema.mcpName,
     mcpSchema
+  );
+}
+
+/**
+ * Partial launcher schema for override operations.
+ *
+ * Requires only the launcher name identifier, all other fields are optional.
+ * Used by overrideLauncherSchema() to perform partial updates without replacing entire configuration.
+ *
+ * @property launcherName - Required: Unique launcher identifier (must exist in registry)
+ * @property strategyName - Optional: Strategy to run
+ * @property exchangeName - Optional: Exchange to run on
+ * @property callbacks - Optional: Updated lifecycle callbacks
+ *
+ * @example
+ * ```typescript
+ * const partialUpdate: TLauncherSchema = {
+ *   launcherName: "my-launcher",
+ *   strategyName: "another-strategy" // Only update the strategy, keep the run mode
+ * };
+ * ```
+ */
+type TLauncherSchema = {
+  launcherName: ILauncherSchema["launcherName"];
+} & Partial<ILauncherSchema>;
+
+/**
+ * Overrides an existing launcher configuration in the framework.
+ *
+ * This function partially updates a previously registered launcher with new configuration.
+ * Only the provided fields will be updated, other fields remain unchanged.
+ *
+ * @param launcherSchema - Partial launcher configuration object
+ * @param launcherSchema.launcherName - Unique launcher identifier (must exist)
+ * @param launcherSchema.strategyName - Optional: Strategy to run
+ * @param launcherSchema.exchangeName - Optional: Exchange to run on
+ * @param launcherSchema.callbacks - Optional: Lifecycle callbacks
+ *
+ * @example
+ * ```typescript
+ * overrideLauncherSchema({
+ *   launcherName: "my-launcher",
+ *   strategyName: "another-strategy", // Only update the strategy
+ * });
+ * ```
+ */
+export async function overrideLauncherSchema(launcherSchema: TLauncherSchema) {
+  backtest.loggerService.log(METHOD_NAME_OVERRIDE_LAUNCHER, {
+    launcherSchema,
+  });
+
+  await backtest.launcherValidationService.validate(
+    launcherSchema.launcherName,
+    METHOD_NAME_OVERRIDE_LAUNCHER
+  );
+
+  return backtest.launcherSchemaService.override(
+    launcherSchema.launcherName,
+    launcherSchema
   );
 }

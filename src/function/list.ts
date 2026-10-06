@@ -7,6 +7,7 @@ import { ISizingSchema } from "../interfaces/Sizing.interface";
 import { IRiskSchema } from "../interfaces/Risk.interface";
 import { ISweepSchema } from "../interfaces/Sweep.interface";
 import { IMCPSchema } from "../interfaces/MCP.interface";
+import { ILauncherSchema } from "../interfaces/Launcher.interface";
 
 const LIST_EXCHANGES_METHOD_NAME = "list.listExchangeSchema";
 const LIST_STRATEGIES_METHOD_NAME = "list.listStrategySchema";
@@ -16,6 +17,7 @@ const LIST_SIZINGS_METHOD_NAME = "list.listSizingSchema";
 const LIST_RISKS_METHOD_NAME = "list.listRiskSchema";
 const LIST_SIMULATORS_METHOD_NAME = "list.listSweepSchema";
 const LIST_MCP_METHOD_NAME = "list.listMCPSchema";
+const LIST_LAUNCHERS_METHOD_NAME = "list.listLauncherSchema";
 
 /**
  * Returns a list of all registered exchange schemas.
@@ -273,4 +275,33 @@ export async function listSweepSchema(): Promise<ISweepSchema[]> {
 export async function listMCPSchema(): Promise<IMCPSchema[]> {
   backtest.loggerService.log(LIST_MCP_METHOD_NAME);
   return await backtest.mcpValidationService.list();
+}
+
+/**
+ * Returns a list of all registered launcher schemas.
+ *
+ * Retrieves all launchers that have been registered via addLauncherSchema().
+ * Useful for debugging, documentation, or building dynamic UIs.
+ *
+ * @returns Array of launcher schemas with their configurations
+ *
+ * @example
+ * ```typescript
+ * import { listLauncherSchema, addLauncherSchema } from "backtest-kit";
+ *
+ * addLauncherSchema({
+ *   launcherName: "my-launcher",
+ *   symbolList: ["BTCUSDT"],
+ *   strategyName: "my-strategy",
+ *   backtest: true,
+ * });
+ *
+ * const launchers = await listLauncherSchema();
+ * console.log(launchers);
+ * // [{ launcherName: "my-launcher", symbolList: ["BTCUSDT"], strategyName: "my-strategy", backtest: true }]
+ * ```
+ */
+export async function listLauncherSchema(): Promise<ILauncherSchema[]> {
+  backtest.loggerService.log(LIST_LAUNCHERS_METHOD_NAME);
+  return await backtest.launcherValidationService.list();
 }

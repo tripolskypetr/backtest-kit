@@ -7,6 +7,7 @@ import { RiskName } from "../interfaces/Risk.interface";
 import { ActionName } from "../interfaces/Action.interface";
 import { SweepName } from "../interfaces/Sweep.interface";
 import { MCPName } from "../interfaces/MCP.interface";
+import { LauncherName } from "../interfaces/Launcher.interface";
 import backtest from "../lib";
 
 const GET_STRATEGY_METHOD_NAME = "get.getStrategySchema";
@@ -18,6 +19,7 @@ const GET_RISK_METHOD_NAME = "get.getRiskSchema";
 const GET_ACTION_METHOD_NAME = "get.getActionSchema";
 const GET_SIMULATOR_METHOD_NAME = "get.getSweepSchema";
 const GET_MCP_METHOD_NAME = "get.getMCPSchema";
+const GET_LAUNCHER_METHOD_NAME = "get.getLauncherSchema";
 
 /**
  * Retrieves a registered strategy schema by name.
@@ -264,4 +266,30 @@ export function getMCPSchema(mcpName: MCPName) {
   );
 
   return backtest.mcpSchemaService.get(mcpName);
+}
+
+/**
+ * Retrieves a registered launcher schema by name.
+ *
+ * @param launcherName - Unique launcher identifier
+ * @returns The launcher schema configuration object
+ * @throws Error if launcher is not registered
+ *
+ * @example
+ * ```typescript
+ * const launcher = getLauncherSchema("my-launcher");
+ * console.log(launcher.strategyName); // "my-strategy"
+ * ```
+ */
+export function getLauncherSchema(launcherName: LauncherName) {
+  backtest.loggerService.log(GET_LAUNCHER_METHOD_NAME, {
+    launcherName,
+  });
+
+  backtest.launcherValidationService.validate(
+    launcherName,
+    GET_LAUNCHER_METHOD_NAME
+  );
+
+  return backtest.launcherSchemaService.get(launcherName);
 }

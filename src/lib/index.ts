@@ -87,6 +87,8 @@ import SweepGlobalService from "./services/global/SweepGlobalService";
 import SweepCoreService from "./services/core/SweepCoreService";
 import MCPSchemaService from "./services/schema/MCPSchemaService";
 import MCPValidationService from "./services/validation/MCPValidationService";
+import LauncherSchemaService from "./services/schema/LauncherSchemaService";
+import LauncherValidationService from "./services/validation/LauncherValidationService";
 
 const baseServices = {
   loggerService: inject<TLoggerService>(TYPES.loggerService),
@@ -145,6 +147,9 @@ const schemaServices = {
   actionSchemaService: inject<ActionSchemaService>(TYPES.actionSchemaService),
   sweepSchemaService: inject<SweepSchemaService>(TYPES.sweepSchemaService),
   mcpSchemaService: inject<MCPSchemaService>(TYPES.mcpSchemaService),
+  launcherSchemaService: inject<LauncherSchemaService>(
+    TYPES.launcherSchemaService
+  ),
 };
 
 const coreServices = {
@@ -300,6 +305,9 @@ const validationServices = {
     TYPES.sweepValidationService,
   ),
   mcpValidationService: inject<MCPValidationService>(TYPES.mcpValidationService),
+  launcherValidationService: inject<LauncherValidationService>(
+    TYPES.launcherValidationService
+  ),
 };
 
 export const backtest = {

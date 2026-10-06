@@ -82,6 +82,8 @@ import SweepCoreService from "../services/core/SweepCoreService";
 import SweepGlobalService from "../services/global/SweepGlobalService";
 import MCPSchemaService from "../services/schema/MCPSchemaService";
 import MCPValidationService from "../services/validation/MCPValidationService";
+import LauncherSchemaService from "../services/schema/LauncherSchemaService";
+import LauncherValidationService from "../services/validation/LauncherValidationService";
 
 {
     provide(TYPES.loggerService, () => new LoggerService());
@@ -114,6 +116,7 @@ import MCPValidationService from "../services/validation/MCPValidationService";
     provide(TYPES.actionSchemaService, () => new ActionSchemaService());
     provide(TYPES.sweepSchemaService, () => new SweepSchemaService());
     provide(TYPES.mcpSchemaService, () => new MCPSchemaService());
+    provide(TYPES.launcherSchemaService, () => new LauncherSchemaService());
 }
 
 {
@@ -205,4 +208,5 @@ import MCPValidationService from "../services/validation/MCPValidationService";
     provide(TYPES.columnValidationService, () => new ColumnValidationService());
     provide(TYPES.sweepValidationService, () => new SweepValidationService());
     provide(TYPES.mcpValidationService, () => new MCPValidationService());
+    provide(TYPES.launcherValidationService, () => new LauncherValidationService());
 }

@@ -8,6 +8,7 @@ import { IRiskSchema } from "../interfaces/Risk.interface";
 import { IActionSchema } from "../interfaces/Action.interface";
 import { ISweepSchema } from "../interfaces/Sweep.interface";
 import { IMCPSchema } from "../interfaces/MCP.interface";
+import { ILauncherSchema } from "../interfaces/Launcher.interface";
 
 const ADD_STRATEGY_METHOD_NAME = "add.addStrategySchema";
 const ADD_EXCHANGE_METHOD_NAME = "add.addExchangeSchema";
@@ -18,6 +19,7 @@ const ADD_RISK_METHOD_NAME = "add.addRiskSchema";
 const ADD_ACTION_METHOD_NAME = "add.addActionSchema";
 const ADD_SIMULATOR_METHOD_NAME = "add.addSweepSchema";
 const ADD_MCP_METHOD_NAME = "add.addMCPSchema";
+const ADD_LAUNCHER_METHOD_NAME = "add.addLauncherSchema";
 
 /**
  * Registers a trading strategy in the framework.
@@ -511,5 +513,43 @@ export function addMCPSchema(mcpSchema: IMCPSchema) {
   backtest.mcpSchemaService.register(
     mcpSchema.mcpName,
     mcpSchema
+  );
+}
+
+/**
+ * Registers a launcher in the framework.
+ *
+ * A launcher binds a run mode (backtest, paper or live) to optional
+ * strategy, exchange and frame references resolved at launch time.
+ *
+ * @param launcherSchema - Launcher configuration object
+ * @param launcherSchema.launcherName - Unique launcher identifier
+ * @param launcherSchema.symbolList - Trading pair symbols the launcher runs
+ * @param launcherSchema.strategyName - Optional strategy to run (default: the single registered strategy)
+ * @param launcherSchema.exchangeName - Optional exchange to run on (default: the single registered exchange)
+ * @param launcherSchema.frameName - Optional timeframe for backtest launchers (default: the single registered frame)
+ * @param launcherSchema.callbacks - Optional lifecycle callbacks
+ *
+ * @example
+ * ```typescript
+ * addLauncherSchema({
+ *   launcherName: "my-launcher",
+ *   symbolList: ["BTCUSDT", "ETHUSDT"],
+ *   strategyName: "my-strategy",
+ *   backtest: true,
+ * });
+ * ```
+ */
+export function addLauncherSchema(launcherSchema: ILauncherSchema) {
+  backtest.loggerService.info(ADD_LAUNCHER_METHOD_NAME, {
+    launcherSchema,
+  });
+  backtest.launcherValidationService.addLauncher(
+    launcherSchema.launcherName,
+    launcherSchema
+  );
+  backtest.launcherSchemaService.register(
+    launcherSchema.launcherName,
+    launcherSchema
   );
 }

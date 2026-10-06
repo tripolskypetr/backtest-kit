@@ -15,6 +15,7 @@ export {
   getActionSchema,
   getSweepSchema,
   getMCPSchema,
+  getLauncherSchema,
 } from "./function/get";
 export {
   waitForReady,
@@ -101,6 +102,7 @@ export {
   addRiskSchema,
   addSweepSchema,
   addMCPSchema,
+  addLauncherSchema,
 } from "./function/add";
 export {
   overrideActionSchema,
@@ -112,6 +114,7 @@ export {
   overrideWalkerSchema,
   overrideSweepSchema,
   overrideMCPSchema,
+  overrideLauncherSchema,
 } from "./function/override";
 export {
   listExchangeSchema,
@@ -122,6 +125,7 @@ export {
   listRiskSchema,
   listSweepSchema,
   listMCPSchema,
+  listLauncherSchema,
 } from "./function/list";
 export {
   listenSignal,
@@ -343,6 +347,10 @@ export {
   IMCPSchema,
   MCPMessageId,
 } from "./interfaces/MCP.interface";
+
+export {
+  ILauncherSchema,
+} from "./interfaces/Launcher.interface";
 
 export {
   IPublicAction,
@@ -791,6 +799,7 @@ export { Level } from "./classes/Level";
 export { Strategy } from "./classes/Strategy";
 export { ActionBase } from "./classes/ActionBase";
 export { MCP } from "./classes/MCP";
+export { Launcher } from "./classes/Launcher";
 
 export { 
   Broker,
