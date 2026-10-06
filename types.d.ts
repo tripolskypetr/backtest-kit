@@ -35885,6 +35885,10 @@ declare class LauncherUtils {
     /**
      * Subscribes a listener function to be notified when the launcher is scheduled for run.
      *
+     * Support asynchronous callback or a Promise-returning function. The listener is called
+     * once when the launcher is ready to run, allowing for lazy schema registration or other
+     * promise-based initialization tasks before the actual run.
+     *
      * @param fn - Listener function to be called when the launcher is ready
      * @returns Subscription object that can be used to unsubscribe
      */
