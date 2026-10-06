@@ -35853,22 +35853,29 @@ type Function = (...args: any[]) => any | Promise<any>;
  */
 declare class LauncherUtils {
     /**
-     * Runs a registered launcher.
+     * Runs a registered launcher in the background and returns a dispose
+     * function that stops every instance the launch started.
      *
-     * Resolution order: the launcher itself (explicit name or the FIRST
-     * registered one), then — after waitForReady unblocks — its strategy,
-     * exchange and, for backtest mode, frame, each falling back to the
-     * single registered schema when the launcher omits it. Backtest runs
-     * warm the 1m candle cache over the frame window before starting (skip
-     * it with `cache: false` on the schema); then
-     * every symbol of the schema's symbolList is launched in the background
-     * via Backtest.background or Live.background (paper and live modes both
-     * run the live pipeline).
+     * Fire-and-forget: the method returns synchronously while {@link RUN_FN}
+     * resolves the launcher (explicit name or the FIRST registered one), its
+     * strategy, exchange and — for backtest mode — frame, warms the candle
+     * cache (skip it with `cache: false` on the schema) and launches every
+     * symbol of the schema's symbolList via Backtest.background or
+     * Live.background (paper and live modes both run the live pipeline).
+     * A resolution failure is routed to exitEmitter — the same fatal-error
+     * channel the background launches themselves report through — so it
+     * surfaces via listenExit instead of an unhandled rejection.
+     *
+     * The returned dispose is safe to call at any moment: invoked while the
+     * launch is still initializing, it marks the run as stopped and the
+     * instances are disposed right after they start; invoked later, it stops
+     * them immediately.
      *
      * The optional onWaitForInit callback fires before run blocks on
      * waitForReady — the place to kick off lazy schema registration.
      *
      * @param launcherName - Launcher to run; omit to take the first registered one
+     * @returns Dispose function stopping every started instance
      *
      * @example
      * ```typescript
@@ -35878,10 +35885,12 @@ declare class LauncherUtils {
      *   backtest: true,
      * });
      *
-     * await Launcher.run();
+     * const dispose = Launcher.run();
+     * // ...later
+     * dispose();
      * ```
      */
-    run: (launcherName?: LauncherName) => Promise<void>;
+    run: (launcherName?: LauncherName) => () => void;
     /**
      * Subscribes a listener function to be notified when the launcher is scheduled for run.
      *

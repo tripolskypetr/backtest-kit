@@ -7,7 +7,8 @@ import { LauncherName } from "../interfaces/Launcher.interface";
 import { StrategyName } from "../interfaces/Strategy.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
-import { Subject } from "functools-kit";
+import { compose, getErrorMessage, Subject } from "functools-kit";
+import { exitEmitter } from "../config/emitters";
 
 const METHOD_NAME_RUN = "LauncherUtils.run";
 const METHOD_NAME_LISTEN = "LauncherUtils.listen";
@@ -19,6 +20,12 @@ const METHOD_NAME_LISTEN = "LauncherUtils.listen";
  */
 type Function = (...args: any[]) => any | Promise<any>;
 
+/**
+ * Type alias for a cleanup function returned by a background launch.
+ *
+ * Calling it stops the corresponding backtest or live instance.
+ */
+type Dispose = (...args: any[]) => any;
 
 /**
  * Subject for notifying listeners when the launcher is ready to run.
@@ -201,6 +208,89 @@ const CACHE_CANDLES_FN = async (
 };
 
 /**
+ * Resolves a launcher schema and starts its backtest or live instances.
+ *
+ * Notifies listen subscribers first (the place lazy schema registration
+ * hooks in), waits for the registries to fill, resolves the launcher
+ * (explicit name or the FIRST registered one) and its strategy, exchange
+ * and — for backtest mode — frame, each falling back to the single
+ * registered schema when the launcher omits it. Backtest runs warm the
+ * 1m candle cache over the frame window unless the schema opts out with
+ * `cache: false`, then every symbol of symbolList is launched in the
+ * background; paper and live modes both run the live pipeline.
+ *
+ * Collects the dispose function of every started instance and composes
+ * them into a single cleanup that stops the whole launch.
+ *
+ * @param launcherName - Launcher to run; omit to take the first registered one
+ * @returns Promise resolving to the composed dispose function
+ * @throws Error when the launcher or one of its dependencies cannot be resolved
+ */
+const RUN_FN = async (launcherName?: LauncherName) => {
+
+  await listenSubject.next();
+  await waitForReady(false);
+
+  const resolvedName = await GET_LAUNCHER_NAME_FN(
+    launcherName,
+    METHOD_NAME_RUN,
+  );
+
+  backtest.launcherValidationService.validate(resolvedName, METHOD_NAME_RUN);
+
+  const launcherSchema = backtest.launcherSchemaService.get(resolvedName);
+
+  const isBacktest = "backtest" in launcherSchema && launcherSchema.backtest;
+
+  if (launcherSchema.callbacks?.onWaitForInit) {
+    await launcherSchema.callbacks.onWaitForInit(resolvedName);
+  }
+
+  if (isBacktest) {
+      await waitForReady(true);
+  }
+
+  const strategyName = await GET_STRATEGY_NAME_FN(
+    resolvedName,
+    METHOD_NAME_RUN,
+  );
+  const exchangeName = await GET_EXCHANGE_NAME_FN(
+    resolvedName,
+    METHOD_NAME_RUN,
+  );
+
+  const { symbolList } = launcherSchema;
+  const disposeList: Dispose[] = [];
+
+  if (isBacktest) {
+    const frameName = await GET_FRAME_NAME_FN(resolvedName, METHOD_NAME_RUN);
+    const isCache = !("cache" in launcherSchema) || launcherSchema.cache !== false;
+    if (isCache) {
+      await CACHE_CANDLES_FN(symbolList, exchangeName, frameName);
+    }
+    for (const symbol of symbolList) {
+      const disposeFn = Backtest.background(symbol, {
+        strategyName,
+        exchangeName,
+        frameName,
+      });
+      disposeList.push(() => disposeFn());
+    }
+    return compose(...disposeList);
+  }
+
+  for (const symbol of symbolList) {
+    const disposeFn = Live.background(symbol, {
+      strategyName,
+      exchangeName,
+    });
+    disposeList.push(() => disposeFn());
+  }
+
+  return compose(...disposeList);
+}
+
+/**
  * Entry point that turns a registered launcher schema into running
  * backtest or live instances.
  *
@@ -212,22 +302,29 @@ const CACHE_CANDLES_FN = async (
  */
 export class LauncherUtils {
   /**
-   * Runs a registered launcher.
+   * Runs a registered launcher in the background and returns a dispose
+   * function that stops every instance the launch started.
    *
-   * Resolution order: the launcher itself (explicit name or the FIRST
-   * registered one), then — after waitForReady unblocks — its strategy,
-   * exchange and, for backtest mode, frame, each falling back to the
-   * single registered schema when the launcher omits it. Backtest runs
-   * warm the 1m candle cache over the frame window before starting (skip
-   * it with `cache: false` on the schema); then
-   * every symbol of the schema's symbolList is launched in the background
-   * via Backtest.background or Live.background (paper and live modes both
-   * run the live pipeline).
+   * Fire-and-forget: the method returns synchronously while {@link RUN_FN}
+   * resolves the launcher (explicit name or the FIRST registered one), its
+   * strategy, exchange and — for backtest mode — frame, warms the candle
+   * cache (skip it with `cache: false` on the schema) and launches every
+   * symbol of the schema's symbolList via Backtest.background or
+   * Live.background (paper and live modes both run the live pipeline).
+   * A resolution failure is routed to exitEmitter — the same fatal-error
+   * channel the background launches themselves report through — so it
+   * surfaces via listenExit instead of an unhandled rejection.
+   *
+   * The returned dispose is safe to call at any moment: invoked while the
+   * launch is still initializing, it marks the run as stopped and the
+   * instances are disposed right after they start; invoked later, it stops
+   * them immediately.
    *
    * The optional onWaitForInit callback fires before run blocks on
    * waitForReady — the place to kick off lazy schema registration.
    *
    * @param launcherName - Launcher to run; omit to take the first registered one
+   * @returns Dispose function stopping every started instance
    *
    * @example
    * ```typescript
@@ -237,69 +334,35 @@ export class LauncherUtils {
    *   backtest: true,
    * });
    *
-   * await Launcher.run();
+   * const dispose = Launcher.run();
+   * // ...later
+   * dispose();
    * ```
    */
-  public run = async (launcherName?: LauncherName) => {
+  public run = (launcherName?: LauncherName) => {
     backtest.loggerService.info(METHOD_NAME_RUN, {
       launcherName,
     });
 
-    await listenSubject.next();
-    await waitForReady(false);
+    let isStopped = false;
+    let disposeFn = () => {
+      isStopped = true;
+    };
 
-    const resolvedName = await GET_LAUNCHER_NAME_FN(
-      launcherName,
-      METHOD_NAME_RUN,
-    );
-
-    backtest.launcherValidationService.validate(resolvedName, METHOD_NAME_RUN);
-
-    const launcherSchema = backtest.launcherSchemaService.get(resolvedName);
-
-    const isBacktest = "backtest" in launcherSchema && launcherSchema.backtest;
-
-    if (launcherSchema.callbacks?.onWaitForInit) {
-      await launcherSchema.callbacks.onWaitForInit(resolvedName);
-    }
-
-    if (isBacktest) {
-        await waitForReady(true);
-    }
-
-    const strategyName = await GET_STRATEGY_NAME_FN(
-      resolvedName,
-      METHOD_NAME_RUN,
-    );
-    const exchangeName = await GET_EXCHANGE_NAME_FN(
-      resolvedName,
-      METHOD_NAME_RUN,
-    );
-
-    const { symbolList } = launcherSchema;
-
-    if (isBacktest) {
-      const frameName = await GET_FRAME_NAME_FN(resolvedName, METHOD_NAME_RUN);
-      const isCache = !("cache" in launcherSchema) || launcherSchema.cache !== false;
-      if (isCache) {
-        await CACHE_CANDLES_FN(symbolList, exchangeName, frameName);
+    {
+      const main = async () => {
+        disposeFn = await RUN_FN(launcherName);
+        if (isStopped) {
+          disposeFn();
+        }
       }
-      for (const symbol of symbolList) {
-        Backtest.background(symbol, {
-          strategyName,
-          exchangeName,
-          frameName,
-        });
-      }
-      return;
+
+      main().catch((error) =>
+        exitEmitter.next(new Error(getErrorMessage(error))),
+      );
     }
 
-    for (const symbol of symbolList) {
-      Live.background(symbol, {
-        strategyName,
-        exchangeName,
-      });
-    }
+    return () => disposeFn();
   };
 
   /**
