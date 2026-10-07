@@ -35890,7 +35890,7 @@ declare class LauncherUtils {
      * dispose();
      * ```
      */
-    run: (launcherName?: LauncherName) => () => void;
+    run: ((launcherName?: LauncherName) => () => void) & functools_kit.ISingleshotClearable<(launcherName?: LauncherName) => () => void>;
     /**
      * Subscribes a listener function to be notified when the launcher is scheduled for run.
      *

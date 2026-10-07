@@ -7,7 +7,7 @@ import { LauncherName } from "../interfaces/Launcher.interface";
 import { StrategyName } from "../interfaces/Strategy.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
-import { compose, getErrorMessage, Subject } from "functools-kit";
+import { compose, getErrorMessage, singleshot, Subject } from "functools-kit";
 import { exitEmitter } from "../config/emitters";
 
 const METHOD_NAME_RUN = "LauncherUtils.run";
@@ -339,7 +339,7 @@ export class LauncherUtils {
    * dispose();
    * ```
    */
-  public run = (launcherName?: LauncherName) => {
+  public run = singleshot((launcherName?: LauncherName) => {
     backtest.loggerService.info(METHOD_NAME_RUN, {
       launcherName,
     });
@@ -362,8 +362,11 @@ export class LauncherUtils {
       );
     }
 
-    return () => disposeFn();
-  };
+    return () => {
+      disposeFn && disposeFn();
+      this.run.clear();
+    }
+  });
 
   /**
    * Subscribes a listener function to be notified when the launcher is scheduled for run.
