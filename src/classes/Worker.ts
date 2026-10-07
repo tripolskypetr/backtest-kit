@@ -15,6 +15,7 @@ import { join, resolve } from "path";
 
 const METHOD_NAME_RUN = "WorkerUtils.run";
 const METHOD_NAME_GET_WORKER_SYMBOL = "WorkerUtils.getWorkerSymbol";
+const METHOD_NAME_GET_WORKER_INDEX = "WorkerUtils.getWorkerIndex";
 
 /**
  * Global-registry symbol the CLI entry stamps onto globalThis.
@@ -38,6 +39,17 @@ const CLI_SYMBOL = Symbol.for("backtest-kit-cli");
  * inline.
  */
 const WORKER_SYMBOL_KEY = "BACKTEST_KIT_WORKER";
+
+/**
+ * Environment key carrying the index of the owned symbol within the
+ * symbolList of the Worker.run call that forked this child.
+ *
+ * Travels next to {@link WORKER_SYMBOL_KEY} and serves ordinal needs the
+ * symbol itself cannot: staggered start delays, per-worker port or
+ * account offsets. The index is per run() call — two calls each start
+ * counting from zero.
+ */
+const WORKER_SYMBOL_INDEX = "BACKTEST_KIT_WORKER_INDEX";
 
 /**
  * Type alias for a cleanup function returned by a background launch.
@@ -384,7 +396,7 @@ const RUN_FORK_FN = async (
     : GET_WORKER_PATH_FN(METHOD_NAME_RUN);
   const disposeList: Dispose[] = [];
 
-  for (const symbol of symbolList) {
+  for (const [index, symbol] of symbolList.entries()) {
     const cwd = join(process.cwd(), "job", symbol);
     mkdirSync(cwd, { recursive: true });
     const child = fork(modulePath, process.argv.slice(2), {
@@ -392,6 +404,7 @@ const RUN_FORK_FN = async (
       env: {
         ...process.env,
         [WORKER_SYMBOL_KEY]: symbol,
+        [WORKER_SYMBOL_INDEX]: String(index),
       },
       silent: true,
     });
@@ -547,6 +560,23 @@ export class WorkerUtils {
   public getWorkerSymbol = (): string | null => {
     backtest.loggerService.log(METHOD_NAME_GET_WORKER_SYMBOL);
     return process.env[WORKER_SYMBOL_KEY] || null;
+  };
+
+  /**
+   * Returns the index of the owned symbol within the symbolList of the
+   * Worker.run call that forked this child, or null in the parent.
+   *
+   * Travels next to {@link getWorkerSymbol} through the environment and
+   * serves ordinal needs the symbol itself cannot: staggered start
+   * delays, per-worker port or account offsets. The index is per run()
+   * call — two calls each start counting from zero.
+   *
+   * @returns Zero-based index inside a worker child, null otherwise
+   */
+  public getWorkerIndex = (): number | null => {
+    backtest.loggerService.log(METHOD_NAME_GET_WORKER_INDEX);
+    const index = process.env[WORKER_SYMBOL_INDEX];
+    return index ? Number(index) : null;
   };
 }
 
