@@ -358,7 +358,6 @@ export {
 
 export {
   IWorkerSchema,
-  IWorkerRunParams,
 } from "./interfaces/Worker.interface";
 
 export {
