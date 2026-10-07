@@ -7,7 +7,7 @@ import { IWorkerRunParams, WorkerName } from "../interfaces/Worker.interface";
 import { StrategyName } from "../interfaces/Strategy.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
-import { compose, getErrorMessage } from "functools-kit";
+import { compose, getErrorMessage, singleshot } from "functools-kit";
 import { exitEmitter } from "../config/emitters";
 import { fork } from "child_process";
 import { mkdirSync, realpathSync } from "fs";
@@ -77,6 +77,28 @@ let RUN_CALL_ORDINAL = 0;
  * spawned while any cache download, own or foreign, is still running.
  */
 let CACHE_BARRIER: Promise<void> = Promise.resolve();
+
+/**
+ * Orphan protection of a worker child: exits the process when the parent
+ * dies.
+ *
+ * fork() always opens an IPC channel between parent and child; when the
+ * parent terminates — cleanly or by crash/kill — the channel closes and
+ * the child receives "disconnect". Without this handler the child would
+ * keep running headless (for a live worker that means unsupervised real
+ * trading), because Node never kills children on parent death by itself.
+ *
+ * Exits with code 0: dying together with the parent is expected cleanup,
+ * not a failure — and there is nobody left to read a non-zero code
+ * anyway. Wrapped in singleshot so repeated run calls inside the child
+ * attach the handler once.
+ */
+const EXIT_ORPHAN_FN = singleshot(() => {
+  process.on("disconnect", () => {
+    console.error("backtest-kit worker lost its parent process, exiting");
+    process.exit(0);
+  });
+});
 
 /**
  * Resolves the effective worker to run.
@@ -400,8 +422,12 @@ const RUN_SYMBOLS_FN = async (
  * (explicit name or the FIRST registered one), validate, fire
  * onWaitForInit, wait for the registries. For backtest mode it then
  * appends the 1m candle download over the frame window to the global
- * {@link CACHE_BARRIER} (skip it with `cache: false` on the schema).
- * EVERY fork — cached or not — waits for the barrier to drain via
+ * {@link CACHE_BARRIER} — ONLY when the schema opts in with
+ * `cache: true`: the candle cache directory is cwd-relative, children
+ * run in their own `./job` directories and would not see the parent's
+ * files, so warming is off by default until the setup reads candles
+ * from a cwd-independent source. EVERY fork — cached or not — waits
+ * for the barrier to drain via
  * {@link WAIT_FOR_CACHE_FN}: no child process starts while any cache
  * download in the process is still running. The cache warm-up is the
  * ONLY work the parent does; everything else happens inside the worker.
@@ -456,7 +482,7 @@ const RUN_FORK_FN = async (
   }
 
   if (isBacktest) {
-    const isCache = !("cache" in workerSchema) || workerSchema.cache !== false;
+    const isCache = "cache" in workerSchema && workerSchema.cache === true;
     if (isCache) {
       const exchangeName = await GET_EXCHANGE_NAME_FN(
         resolvedName,
@@ -529,10 +555,11 @@ export class WorkerUtils {
    * user code:
    *
    * - PARENT (no worker environment): for backtest mode appends the 1m
-   *   candle cache download to the GLOBAL cache mutex (skip with
-   *   `cache: false` on the schema), then waits until EVERY queued
-   *   download in the process has finished — no child starts against a
-   *   partial cache — and forks ONE child for the whole list. The child
+   *   candle cache download to the GLOBAL cache mutex (opt-in via
+   *   `cache: true` on the schema, off by default), then waits until
+   *   EVERY queued download in the process has finished — no child
+   *   starts against a partial cache — and forks ONE child for the
+   *   whole list. The child
    *   gets the symbol list and the call ordinal via the environment (argv
    *   is passed through untouched) and its own working directory
    *   `./job/<symbols joined with "-">` (created lazily). The child's
@@ -544,6 +571,9 @@ export class WorkerUtils {
    *   symbols inline via Backtest.background or Live.background (paper
    *   and live modes both run the live pipeline), every other call is a
    *   no-op. No candle caching here — the parent already drained it.
+   *   The child kills itself when the parent dies: the IPC channel
+   *   fork() opened closes and the "disconnect" handler exits the
+   *   process, so no orphan keeps trading unsupervised.
    *
    * The worker entry resolves automatically: with workerPath omitted the
    * process's OWN entry script (process.argv[1], symlinks unwrapped) is
@@ -601,6 +631,10 @@ export class WorkerUtils {
     const callIndex = RUN_CALL_ORDINAL++;
 
     const workerIndex = this.getWorkerIndex();
+
+    if (workerIndex !== null) {
+      EXIT_ORPHAN_FN();
+    }
 
     if (workerIndex !== null && workerIndex !== callIndex) {
       return () => {};
