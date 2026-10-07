@@ -21,7 +21,7 @@ export interface IWorkerCallbacks {
  *
  * A worker binds a run mode to optional strategy and exchange references;
  * the symbol list is NOT part of the schema — it is passed to Worker.run,
- * which forks one child process per symbol. Everything left out is
+ * which forks ONE child process for the whole list. Everything left out is
  * resolved implicitly from the registries at run time — a setup with one
  * strategy and one exchange needs nothing but a name and a mode flag.
  */
@@ -38,22 +38,22 @@ export interface IWorkerArgs {
 
 /**
  * Worker running every symbol through the backtest pipeline
- * (Backtest.background) over a historical frame window, one child
- * process per symbol.
+ * (Backtest.background) over a historical frame window — all symbols of
+ * one Worker.run call share a single child process.
  */
 export interface IWorkerBacktestArgs extends IWorkerArgs {
     /** Discriminator for type-safe union: run the backtest pipeline */
     backtest: true;
     /** Timeframe bounding the run. Optional: defaults to the single registered frame; ambiguous (2+ registered) requires it */
     frameName?: FrameName;
-    /** Warm the 1m candle cache over the frame window in the PARENT before forking (once per process). Default: true */
+    /** Warm the 1m candle cache over the frame window in the PARENT before forking; downloads of all Worker.run calls are serialized by a global mutex and no child starts until every queued download completes. Default: true */
     cache?: boolean;
 }
 
 /**
  * Worker running every symbol through the live pipeline
- * (Live.background) without placing real orders, one child process
- * per symbol.
+ * (Live.background) without placing real orders — all symbols of one
+ * Worker.run call share a single child process.
  */
 export interface IWorkerPaperArgs extends IWorkerArgs {
     /** Discriminator for type-safe union: run the live pipeline in paper mode */
@@ -62,7 +62,8 @@ export interface IWorkerPaperArgs extends IWorkerArgs {
 
 /**
  * Worker running every symbol through the live pipeline
- * (Live.background) with real trading, one child process per symbol.
+ * (Live.background) with real trading — all symbols of one Worker.run
+ * call share a single child process.
  */
 export interface IWorkerLiveArgs extends IWorkerArgs {
     /** Discriminator for type-safe union: run the live pipeline */
@@ -86,8 +87,8 @@ export interface IWorkerRunParams {
  * Registration schema of a worker instance.
  *
  * Discriminated union over the run mode: exactly one of the backtest,
- * paper or live flags picks the pipeline Worker.run starts in a forked
- * child process for every symbol it receives.
+ * paper or live flags picks the pipeline Worker.run starts in the forked
+ * child process owning the whole symbol list of the call.
  * - workerName — registry key; duplicate registration is a validation error.
  * - strategyName / exchangeName / frameName — optional: when omitted, the
  *   SINGLE registered schema of that kind is used; with two or more

@@ -561,8 +561,8 @@ export function addLauncherSchema(launcherSchema: ILauncherSchema) {
  *
  * A worker binds a run mode (backtest, paper or live) to optional
  * strategy, exchange and frame references; the symbol list is NOT part
- * of the schema — Worker.run receives it per call and forks one child
- * process per symbol.
+ * of the schema — Worker.run receives it per call and forks ONE child
+ * process for the whole list.
  *
  * @param workerSchema - Worker configuration object
  * @param workerSchema.workerName - Unique worker identifier
