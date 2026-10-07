@@ -8,6 +8,7 @@ import { IActionSchema } from "../interfaces/Action.interface";
 import { ISweepSchema } from "../interfaces/Sweep.interface";
 import { IMCPSchema } from "../interfaces/MCP.interface";
 import { ILauncherSchema } from "../interfaces/Launcher.interface";
+import { IWorkerSchema } from "../interfaces/Worker.interface";
 import backtest from "../lib/index";
 
 const METHOD_NAME_OVERRIDE_STRATEGY = "function.override.overrideStrategySchema";
@@ -20,6 +21,7 @@ const METHOD_NAME_OVERRIDE_ACTION = "function.override.overrideActionSchema";
 const METHOD_NAME_OVERRIDE_SIMULATOR = "function.override.overrideSweepSchema";
 const METHOD_NAME_OVERRIDE_MCP = "function.override.overrideMCPSchema";
 const METHOD_NAME_OVERRIDE_LAUNCHER = "function.override.overrideLauncherSchema";
+const METHOD_NAME_OVERRIDE_WORKER = "function.override.overrideWorkerSchema";
 
 /**
  * Partial strategy schema for override operations.
@@ -683,5 +685,64 @@ export async function overrideLauncherSchema(launcherSchema: TLauncherSchema) {
   return backtest.launcherSchemaService.override(
     launcherSchema.launcherName,
     launcherSchema
+  );
+}
+
+/**
+ * Partial worker schema for override operations.
+ *
+ * Requires only the worker name identifier, all other fields are optional.
+ * Used by overrideWorkerSchema() to perform partial updates without replacing entire configuration.
+ *
+ * @property workerName - Required: Unique worker identifier (must exist in registry)
+ * @property strategyName - Optional: Strategy to run
+ * @property exchangeName - Optional: Exchange to run on
+ * @property callbacks - Optional: Updated lifecycle callbacks
+ *
+ * @example
+ * ```typescript
+ * const partialUpdate: TWorkerSchema = {
+ *   workerName: "my-worker",
+ *   strategyName: "another-strategy" // Only update the strategy, keep the run mode
+ * };
+ * ```
+ */
+type TWorkerSchema = {
+  workerName: IWorkerSchema["workerName"];
+} & Partial<IWorkerSchema>;
+
+/**
+ * Overrides an existing worker configuration in the framework.
+ *
+ * This function partially updates a previously registered worker with new configuration.
+ * Only the provided fields will be updated, other fields remain unchanged.
+ *
+ * @param workerSchema - Partial worker configuration object
+ * @param workerSchema.workerName - Unique worker identifier (must exist)
+ * @param workerSchema.strategyName - Optional: Strategy to run
+ * @param workerSchema.exchangeName - Optional: Exchange to run on
+ * @param workerSchema.callbacks - Optional: Lifecycle callbacks
+ *
+ * @example
+ * ```typescript
+ * overrideWorkerSchema({
+ *   workerName: "my-worker",
+ *   strategyName: "another-strategy", // Only update the strategy
+ * });
+ * ```
+ */
+export async function overrideWorkerSchema(workerSchema: TWorkerSchema) {
+  backtest.loggerService.log(METHOD_NAME_OVERRIDE_WORKER, {
+    workerSchema,
+  });
+
+  await backtest.workerValidationService.validate(
+    workerSchema.workerName,
+    METHOD_NAME_OVERRIDE_WORKER
+  );
+
+  return backtest.workerSchemaService.override(
+    workerSchema.workerName,
+    workerSchema
   );
 }

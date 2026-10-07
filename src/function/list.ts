@@ -8,6 +8,7 @@ import { IRiskSchema } from "../interfaces/Risk.interface";
 import { ISweepSchema } from "../interfaces/Sweep.interface";
 import { IMCPSchema } from "../interfaces/MCP.interface";
 import { ILauncherSchema } from "../interfaces/Launcher.interface";
+import { IWorkerSchema } from "../interfaces/Worker.interface";
 
 const LIST_EXCHANGES_METHOD_NAME = "list.listExchangeSchema";
 const LIST_STRATEGIES_METHOD_NAME = "list.listStrategySchema";
@@ -18,6 +19,7 @@ const LIST_RISKS_METHOD_NAME = "list.listRiskSchema";
 const LIST_SIMULATORS_METHOD_NAME = "list.listSweepSchema";
 const LIST_MCP_METHOD_NAME = "list.listMCPSchema";
 const LIST_LAUNCHERS_METHOD_NAME = "list.listLauncherSchema";
+const LIST_WORKERS_METHOD_NAME = "list.listWorkerSchema";
 
 /**
  * Returns a list of all registered exchange schemas.
@@ -304,4 +306,31 @@ export async function listMCPSchema(): Promise<IMCPSchema[]> {
 export async function listLauncherSchema(): Promise<ILauncherSchema[]> {
   backtest.loggerService.log(LIST_LAUNCHERS_METHOD_NAME);
   return await backtest.launcherValidationService.list();
+}
+
+/**
+ * Returns a list of all registered worker schemas.
+ *
+ * Retrieves all workers that have been registered via addWorkerSchema().
+ * Useful for debugging, documentation, or building dynamic UIs.
+ *
+ * @returns Array of worker schemas with their configurations
+ *
+ * @example
+ * ```typescript
+ * import { listWorkerSchema, addWorkerSchema } from "backtest-kit";
+ *
+ * addWorkerSchema({
+ *   workerName: "my-worker",
+ *   live: true,
+ * });
+ *
+ * const workers = await listWorkerSchema();
+ * console.log(workers);
+ * // [{ workerName: "my-worker", live: true }]
+ * ```
+ */
+export async function listWorkerSchema(): Promise<IWorkerSchema[]> {
+  backtest.loggerService.log(LIST_WORKERS_METHOD_NAME);
+  return await backtest.workerValidationService.list();
 }

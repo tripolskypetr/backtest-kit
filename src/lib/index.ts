@@ -89,6 +89,8 @@ import MCPSchemaService from "./services/schema/MCPSchemaService";
 import MCPValidationService from "./services/validation/MCPValidationService";
 import LauncherSchemaService from "./services/schema/LauncherSchemaService";
 import LauncherValidationService from "./services/validation/LauncherValidationService";
+import WorkerSchemaService from "./services/schema/WorkerSchemaService";
+import WorkerValidationService from "./services/validation/WorkerValidationService";
 
 const baseServices = {
   loggerService: inject<TLoggerService>(TYPES.loggerService),
@@ -149,6 +151,9 @@ const schemaServices = {
   mcpSchemaService: inject<MCPSchemaService>(TYPES.mcpSchemaService),
   launcherSchemaService: inject<LauncherSchemaService>(
     TYPES.launcherSchemaService
+  ),
+  workerSchemaService: inject<WorkerSchemaService>(
+    TYPES.workerSchemaService
   ),
 };
 
@@ -307,6 +312,9 @@ const validationServices = {
   mcpValidationService: inject<MCPValidationService>(TYPES.mcpValidationService),
   launcherValidationService: inject<LauncherValidationService>(
     TYPES.launcherValidationService
+  ),
+  workerValidationService: inject<WorkerValidationService>(
+    TYPES.workerValidationService
   ),
 };
 

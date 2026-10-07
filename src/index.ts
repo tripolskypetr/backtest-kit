@@ -16,6 +16,7 @@ export {
   getSweepSchema,
   getMCPSchema,
   getLauncherSchema,
+  getWorkerSchema,
 } from "./function/get";
 export {
   waitForReady,
@@ -103,6 +104,7 @@ export {
   addSweepSchema,
   addMCPSchema,
   addLauncherSchema,
+  addWorkerSchema,
 } from "./function/add";
 export {
   overrideActionSchema,
@@ -115,6 +117,7 @@ export {
   overrideSweepSchema,
   overrideMCPSchema,
   overrideLauncherSchema,
+  overrideWorkerSchema,
 } from "./function/override";
 export {
   listExchangeSchema,
@@ -126,6 +129,7 @@ export {
   listSweepSchema,
   listMCPSchema,
   listLauncherSchema,
+  listWorkerSchema,
 } from "./function/list";
 export {
   listenSignal,
@@ -351,6 +355,11 @@ export {
 export {
   ILauncherSchema,
 } from "./interfaces/Launcher.interface";
+
+export {
+  IWorkerSchema,
+  IWorkerRunParams,
+} from "./interfaces/Worker.interface";
 
 export {
   IPublicAction,
@@ -800,6 +809,7 @@ export { Strategy } from "./classes/Strategy";
 export { ActionBase } from "./classes/ActionBase";
 export { MCP } from "./classes/MCP";
 export { Launcher } from "./classes/Launcher";
+export { Worker } from "./classes/Worker";
 
 export { 
   Broker,

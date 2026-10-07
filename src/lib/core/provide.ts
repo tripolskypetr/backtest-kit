@@ -84,6 +84,8 @@ import MCPSchemaService from "../services/schema/MCPSchemaService";
 import MCPValidationService from "../services/validation/MCPValidationService";
 import LauncherSchemaService from "../services/schema/LauncherSchemaService";
 import LauncherValidationService from "../services/validation/LauncherValidationService";
+import WorkerSchemaService from "../services/schema/WorkerSchemaService";
+import WorkerValidationService from "../services/validation/WorkerValidationService";
 
 {
     provide(TYPES.loggerService, () => new LoggerService());
@@ -117,6 +119,7 @@ import LauncherValidationService from "../services/validation/LauncherValidation
     provide(TYPES.sweepSchemaService, () => new SweepSchemaService());
     provide(TYPES.mcpSchemaService, () => new MCPSchemaService());
     provide(TYPES.launcherSchemaService, () => new LauncherSchemaService());
+    provide(TYPES.workerSchemaService, () => new WorkerSchemaService());
 }
 
 {
@@ -209,4 +212,5 @@ import LauncherValidationService from "../services/validation/LauncherValidation
     provide(TYPES.sweepValidationService, () => new SweepValidationService());
     provide(TYPES.mcpValidationService, () => new MCPValidationService());
     provide(TYPES.launcherValidationService, () => new LauncherValidationService());
+    provide(TYPES.workerValidationService, () => new WorkerValidationService());
 }

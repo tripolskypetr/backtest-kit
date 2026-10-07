@@ -8,6 +8,7 @@ import { ActionName } from "../interfaces/Action.interface";
 import { SweepName } from "../interfaces/Sweep.interface";
 import { MCPName } from "../interfaces/MCP.interface";
 import { LauncherName } from "../interfaces/Launcher.interface";
+import { WorkerName } from "../interfaces/Worker.interface";
 import backtest from "../lib";
 
 const GET_STRATEGY_METHOD_NAME = "get.getStrategySchema";
@@ -20,6 +21,7 @@ const GET_ACTION_METHOD_NAME = "get.getActionSchema";
 const GET_SIMULATOR_METHOD_NAME = "get.getSweepSchema";
 const GET_MCP_METHOD_NAME = "get.getMCPSchema";
 const GET_LAUNCHER_METHOD_NAME = "get.getLauncherSchema";
+const GET_WORKER_METHOD_NAME = "get.getWorkerSchema";
 
 /**
  * Retrieves a registered strategy schema by name.
@@ -292,4 +294,30 @@ export function getLauncherSchema(launcherName: LauncherName) {
   );
 
   return backtest.launcherSchemaService.get(launcherName);
+}
+
+/**
+ * Retrieves a registered worker schema by name.
+ *
+ * @param workerName - Unique worker identifier
+ * @returns The worker schema configuration object
+ * @throws Error if worker is not registered
+ *
+ * @example
+ * ```typescript
+ * const worker = getWorkerSchema("my-worker");
+ * console.log(worker.strategyName); // "my-strategy"
+ * ```
+ */
+export function getWorkerSchema(workerName: WorkerName) {
+  backtest.loggerService.log(GET_WORKER_METHOD_NAME, {
+    workerName,
+  });
+
+  backtest.workerValidationService.validate(
+    workerName,
+    GET_WORKER_METHOD_NAME
+  );
+
+  return backtest.workerSchemaService.get(workerName);
 }

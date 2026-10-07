@@ -9,6 +9,7 @@ import { IActionSchema } from "../interfaces/Action.interface";
 import { ISweepSchema } from "../interfaces/Sweep.interface";
 import { IMCPSchema } from "../interfaces/MCP.interface";
 import { ILauncherSchema } from "../interfaces/Launcher.interface";
+import { IWorkerSchema } from "../interfaces/Worker.interface";
 
 const ADD_STRATEGY_METHOD_NAME = "add.addStrategySchema";
 const ADD_EXCHANGE_METHOD_NAME = "add.addExchangeSchema";
@@ -20,6 +21,7 @@ const ADD_ACTION_METHOD_NAME = "add.addActionSchema";
 const ADD_SIMULATOR_METHOD_NAME = "add.addSweepSchema";
 const ADD_MCP_METHOD_NAME = "add.addMCPSchema";
 const ADD_LAUNCHER_METHOD_NAME = "add.addLauncherSchema";
+const ADD_WORKER_METHOD_NAME = "add.addWorkerSchema";
 
 /**
  * Registers a trading strategy in the framework.
@@ -551,5 +553,44 @@ export function addLauncherSchema(launcherSchema: ILauncherSchema) {
   backtest.launcherSchemaService.register(
     launcherSchema.launcherName,
     launcherSchema
+  );
+}
+
+/**
+ * Registers a worker in the framework.
+ *
+ * A worker binds a run mode (backtest, paper or live) to optional
+ * strategy, exchange and frame references; the symbol list is NOT part
+ * of the schema — Worker.run receives it per call and forks one child
+ * process per symbol.
+ *
+ * @param workerSchema - Worker configuration object
+ * @param workerSchema.workerName - Unique worker identifier
+ * @param workerSchema.strategyName - Optional strategy to run (default: the single registered strategy)
+ * @param workerSchema.exchangeName - Optional exchange to run on (default: the single registered exchange)
+ * @param workerSchema.frameName - Optional timeframe for backtest workers (default: the single registered frame)
+ * @param workerSchema.callbacks - Optional lifecycle callbacks
+ *
+ * @example
+ * ```typescript
+ * addWorkerSchema({
+ *   workerName: "my-worker",
+ *   live: true,
+ * });
+ *
+ * Worker.run(["BTCUSDT", "ETHUSDT"]);
+ * ```
+ */
+export function addWorkerSchema(workerSchema: IWorkerSchema) {
+  backtest.loggerService.info(ADD_WORKER_METHOD_NAME, {
+    workerSchema,
+  });
+  backtest.workerValidationService.addWorker(
+    workerSchema.workerName,
+    workerSchema
+  );
+  backtest.workerSchemaService.register(
+    workerSchema.workerName,
+    workerSchema
   );
 }

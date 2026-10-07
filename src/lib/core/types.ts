@@ -30,6 +30,7 @@ const schemaServices = {
     sweepSchemaService: Symbol('sweepSchemaService'),
     mcpSchemaService: Symbol('mcpSchemaService'),
     launcherSchemaService: Symbol('launcherSchemaService'),
+    workerSchemaService: Symbol('workerSchemaService'),
 }
 
 const coreServices = {
@@ -123,6 +124,7 @@ const validationServices = {
     sweepValidationService: Symbol('sweepValidationService'),
     mcpValidationService: Symbol('mcpValidationService'),
     launcherValidationService: Symbol('launcherValidationService'),
+    workerValidationService: Symbol('workerValidationService'),
 }
 
 export const TYPES = {
