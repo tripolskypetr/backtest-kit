@@ -1,4 +1,4 @@
-# 🧵 Launchers and Workers: the whole rig in one file  (v21.7.0, 08/10/2026)
+# 🧵 Strategy Sharding  (v21.7.0, 08/10/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/21.7.0)
 
