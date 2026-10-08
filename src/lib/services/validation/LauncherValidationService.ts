@@ -46,13 +46,14 @@ export class LauncherValidationService {
   };
 
   /**
-   * Validates that a launcher instance is registered and its strategy,
-   * exchange and frame dependencies pass validation. Memoized by
-   * launcher name — the check runs once per name, later calls are no-ops.
+   * Validates that a launcher instance is registered, its symbol list is
+   * not empty and its strategy, exchange and frame dependencies pass
+   * validation. Memoized by launcher name — the check runs once per name,
+   * later calls are no-ops.
    *
    * @param launcherName - Launcher name to validate
    * @param source - Caller tag included in error messages
-   * @throws Error when the launcher or one of its dependencies is unknown
+   * @throws Error when the launcher is unknown, its symbolList is empty or one of its dependencies is unknown
    */
   public validate = memoize(
     ([launcherName]) => launcherName,
@@ -65,6 +66,12 @@ export class LauncherValidationService {
       if (!launcher) {
         throw new Error(
           `launcher ${launcherName} not found source=${source}`
+        );
+      }
+
+      if (!launcher.symbolList.length) {
+        throw new Error(
+          `launcher ${launcherName} has an empty symbolList source=${source}`
         );
       }
 

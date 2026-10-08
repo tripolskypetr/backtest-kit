@@ -599,7 +599,7 @@ export class WorkerUtils {
    * @param params.workerPath - Path to the worker entry module; omit to fork the process's own entry script
    * @param params.workerName - Worker to resolve; omit to take the first registered one
    * @returns Dispose function stopping everything this call started
-   * @throws Error when running under the backtest-kit CLI
+   * @throws Error when running under the backtest-kit CLI or when symbolList is empty
    *
    * @example
    * ```typescript
@@ -626,6 +626,10 @@ export class WorkerUtils {
       throw new Error(
         `Worker.run is not supported in CLI mode: the CLI owns the process tree and cannot fork worker entries`,
       );
+    }
+
+    if (!symbolList.length) {
+      throw new Error(`Worker.run received an empty symbolList`);
     }
 
     const callIndex = RUN_CALL_ORDINAL++;

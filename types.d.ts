@@ -36178,7 +36178,7 @@ declare class WorkerUtils {
      * @param params.workerPath - Path to the worker entry module; omit to fork the process's own entry script
      * @param params.workerName - Worker to resolve; omit to take the first registered one
      * @returns Dispose function stopping everything this call started
-     * @throws Error when running under the backtest-kit CLI
+     * @throws Error when running under the backtest-kit CLI or when symbolList is empty
      *
      * @example
      * ```typescript
@@ -47263,13 +47263,14 @@ declare class LauncherValidationService {
      */
     addLauncher: (launcherName: LauncherName, launcherSchema: ILauncherSchema) => void;
     /**
-     * Validates that a launcher instance is registered and its strategy,
-     * exchange and frame dependencies pass validation. Memoized by
-     * launcher name — the check runs once per name, later calls are no-ops.
+     * Validates that a launcher instance is registered, its symbol list is
+     * not empty and its strategy, exchange and frame dependencies pass
+     * validation. Memoized by launcher name — the check runs once per name,
+     * later calls are no-ops.
      *
      * @param launcherName - Launcher name to validate
      * @param source - Caller tag included in error messages
-     * @throws Error when the launcher or one of its dependencies is unknown
+     * @throws Error when the launcher is unknown, its symbolList is empty or one of its dependencies is unknown
      */
     validate: (launcherName: LauncherName, source: string) => void;
     /**
