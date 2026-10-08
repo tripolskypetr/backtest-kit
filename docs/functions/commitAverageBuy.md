@@ -23,4 +23,4 @@ Automatically fetches current price via getAveragePrice.
 | Parameter | Description |
 |-----------|-------------|
 | `symbol` | Trading pair symbol |
-| `cost` | |
+| `cost` | Dollar amount of the new entry, weights the effective average price (defaults to CC_POSITION_ENTRY_COST) |

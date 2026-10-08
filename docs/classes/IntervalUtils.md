@@ -38,7 +38,7 @@ Each function reference gets its own isolated persistent instance.
 ### fn
 
 ```ts
-fn: <F extends Function>(run: F, context: { interval: CandleInterval; key?: (args: Parameters<F>) => string; }) => F & { clear(): void; gc(): number; hasValue(...args: Parameters<...>): boolean; }
+fn: <F extends Function$1>(run: F, context: { interval: CandleInterval; key?: (args: Parameters<F>) => string; }) => F & { clear(): void; gc(): number; hasValue(...args: Parameters<...>): boolean; }
 ```
 
 Wrap a signal function with in-memory once-per-interval firing.
@@ -67,7 +67,7 @@ The `run` function reference is used as the memoization key for the underlying
 ### dispose
 
 ```ts
-dispose: (run: Function) => void
+dispose: (run: Function$1) => void
 ```
 
 Dispose (remove) the memoized `IntervalFnInstance` for a specific function.

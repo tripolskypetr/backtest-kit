@@ -6,7 +6,8 @@ group: docs
 # Function$2
 
 ```ts
-type Function$2<T extends unknown = any> = () => T | Promise<T>;
+type Function$2 = (...args: any[]) => any;
 ```
 
-A zero-argument function that may be synchronous or asynchronous.
+Generic function type that accepts any arguments and returns any value.
+Used as a constraint for cached functions.

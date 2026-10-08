@@ -6,8 +6,9 @@ group: docs
 # Function
 
 ```ts
-type Function = (...args: any[]) => any;
+type Function = (...args: any[]) => any | Promise<any>;
 ```
 
-Generic function type that accepts any arguments and returns any value.
-Used as a constraint for interval functions.
+Type alias for a generic function signature.
+
+Represents any function that takes any number of arguments and returns any type.

@@ -39,7 +39,7 @@ Each function gets its own isolated file-cache instance.
 ### fn
 
 ```ts
-fn: <T extends Function$1, K = symbol>(run: T, context: { interval: CandleInterval; key?: (args: Parameters<T>) => K; }) => T & { clear(): void; gc(): number; hasValue(...args: Parameters<...>): boolean; }
+fn: <T extends Function$2, K = symbol>(run: T, context: { interval: CandleInterval; key?: (args: Parameters<T>) => K; }) => T & { clear(): void; gc(): number; hasValue(...args: Parameters<...>): boolean; }
 ```
 
 Wrap a function with caching based on timeframe intervals.
@@ -66,7 +66,7 @@ Pass the same function reference each time to reuse the same cache.
 ### dispose
 
 ```ts
-dispose: <T extends Function$1>(run: T) => void
+dispose: <T extends Function$2>(run: T) => void
 ```
 
 Dispose (remove) the memoized CacheFnInstance for a specific function.
