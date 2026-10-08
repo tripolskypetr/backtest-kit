@@ -1,3 +1,88 @@
+# 🧵 Launchers and Workers: the whole rig in one file  (v21.7.0, 08/10/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/21.7.0)
+
+> 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
+
+## Launcher API
+
+The CLI starts ONE symbol per run — the `--symbol` flag (the `SYMBOL` env in the Docker workspace, default `BTCUSDT`) is all a `--backtest`/`--live` invocation passes to the engine. This release gives multi-symbol rigs two first-class routes: the **Launcher** keeps the CLI and moves the symbol set into the strategy file; the **Worker** drops the CLI entirely and shards the portfolio across child processes from your own entry file.
+
+**Launcher: the symbol set lives in the strategy file.** `addLauncherSchema` binds a run mode (`backtest: true` | `paper: true` | `live: true`, a discriminated union) to a `symbolList` and optional `strategyName` / `exchangeName` / `frameName` — anything omitted resolves implicitly from the registries, the same *first registered wins* convention the CLI already uses for `STRATEGY`/`EXCHANGE`/`FRAME`. The start call goes into `config/loader.config.ts`: the CLI resolves config files from the workspace `config/` folder and executes the loader BEFORE the strategy file is attached — and that ordering is exactly why `Launcher.run` is fire-and-forget: it blocks on `waitForReady` behind the scenes, so calling it before a single schema exists is the intended usage, not a race. When the registries fill in, it takes the FIRST registered launcher (or the one named in the argument) and starts every symbol of the list in the background:
+
+```typescript
+// content/apr_2022/main.test.ts — the strategy file the CLI loads
+import { addStrategySchema, addLauncherSchema } from "backtest-kit";
+
+addStrategySchema({
+  strategyName: "main_strategy",
+  getSignal: async (symbol, when, currentPrice) => {
+    /* ... */
+  },
+});
+
+addLauncherSchema({
+  launcherName: "main_launcher",
+  backtest: true,
+  symbolList: ["CELOUSDT", "XLMUSDT", "XMRUSDT", "ZRXUSDT"], // ← was: one --symbol per run
+});
+```
+
+```typescript
+// config/loader.config.ts — the CLI executes this before attaching the strategy
+import { Launcher, listenError, Log } from "backtest-kit";
+import { getErrorMessage } from "functools-kit";
+
+Launcher.run(); // waits for the registries, takes the first registered launcher
+
+listenError((error) => {
+  Log.debug("error", { message: getErrorMessage(error) });
+});
+```
+
+`Launcher.run` is `singleshot` (one launch per process; the returned dispose stops every started instance and re-arms it), routes resolution failures to `exitEmitter` instead of unhandled rejections, and `Launcher.listen(fn)` fires before the registry wait — a hook for promise-based setup. Validation is strict where it matters: an empty `symbolList` is rejected by `LauncherValidationService`, duplicate launcher names are rejected at registration, and ambiguity (two strategies registered, none named) is an error, not a guess.
+
+## Worker API
+
+**Worker: no CLI at all — your own entry file, sharded across processes.** The alternative route throws the CLI away: a root `index.ts` barrel-imports the schema modules and calls `Worker.run(symbolList)` — one call = one forked child process running the WHOLE list. The symbol list is NOT part of the worker schema (`addWorkerSchema` carries only the mode and the bindings); it arrives per call, so sharding is just calling `run` twice. The magic is the matching: run calls arrive synchronously from the same barrel import in BOTH processes, so the Nth call in the parent IS the Nth call in the child. The parent stamps the ordinal into the environment; in the child the matching call starts its symbols inline and every other call is a no-op — no `if (isWorker)` branching in user code:
+
+```typescript
+// index.ts — the root file, doubles as the worker entry
+import "./modules/exchange.module"; // addExchangeSchema
+import "./modules/strategy.module"; // addStrategySchema
+
+import { addWorkerSchema, Worker } from "backtest-kit";
+
+addWorkerSchema({
+  workerName: "sharded-live",
+  live: true,
+});
+
+Worker.run(["BTCUSDT", "ETHUSDT"]); // child #0 runs both symbols
+Worker.run(["BNBUSDT"]);            // child #1 runs the third
+```
+
+Each child gets its own working directory `./job/<symbols joined with "-">` (created lazily), so relative-path artifacts — logs, dumps, persisted signals — never collide between pools; its stdout/stderr are piped into the root process (`end: false`, so one exiting child never closes the parent's streams); a non-zero exit lands in `exitEmitter`. Orphans are healed: fork's IPC channel doubles as a dead-man switch — when the parent dies, the child catches `disconnect` and exits instead of trading unsupervised. The child reads its identity via `Worker.getWorkerSymbolList()` / `Worker.getWorkerIndex()` (environment-borne: argv passes through untouched, your own CLI flags keep working).
+
+**The cache mutex.** Backtest workers can warm the 1m candle cache in the parent before any child spawns — downloads from every `Worker.run` call enter ONE global promise chain (strictly sequential, rate-limit friendly), and every fork waits for the chain to drain completely: no child ever starts against a half-written cache. Off by default (`cache: true` opts in): the candle store is cwd-relative, and children living in `./job/<pool>` only see the parent's cache when the exchange adapter reads from a cwd-independent source.
+
+`Worker.run` refuses to run under the backtest-kit CLI (the `Symbol.for("backtest-kit-cli")` marker the CLI stamps onto globalThis): the CLI owns the process tree, and a forked entry would boot the CLI itself, not the worker. The two routes do not mix — Launcher for the CLI workspace, Worker for the standalone entry.
+
+## Public Exports
+
+- `addLauncherSchema` / `getLauncherSchema` / `overrideLauncherSchema` / `listLauncherSchema` — launcher registration surface; `LauncherSchemaService` + `LauncherValidationService` behind it (duplicate names rejected, empty `symbolList` rejected, dependency chain validated).
+- `Launcher.run(launcherName?)` — singleshot fire-and-forget start of the first (or named) registered launcher; returns a dispose stopping every started instance. `Launcher.listen(fn)` — pre-init hook.
+- Types: `ILauncherSchema` (`ILauncherBacktestArgs | ILauncherPaperArgs | ILauncherLiveArgs`).
+- `addWorkerSchema` / `getWorkerSchema` / `overrideWorkerSchema` / `listWorkerSchema` — worker registration surface (schema carries the mode and bindings, NOT the symbols).
+- `Worker.run(symbolList, params?)` — one forked child per call running the whole list, ordinal-matched against the parent; returns a dispose killing the child (or stopping the inline instances in the child). `Worker.getWorkerSymbolList()` / `Worker.getWorkerIndex()` — child identity, `null` in the parent.
+- Types: `IWorkerSchema` (`IWorkerBacktestArgs | IWorkerPaperArgs | IWorkerLiveArgs`), `IWorkerRunParams`.
+
+
+
+
+
+
+
 # 📈 Signal-level leverage: the PNL multiplier (v19.0.0, 07/09/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/19.0.0)
