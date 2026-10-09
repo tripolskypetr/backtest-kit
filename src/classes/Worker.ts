@@ -41,7 +41,7 @@ const CLI_SYMBOL = Symbol.for("backtest-kit-cli");
  * HAND in a docker-compose shard. Env, NOT argv: the entry script keeps
  * full ownership of its own CLI arguments.
  */
-const WORKER_SYMBOL_INDEX = "BACKTEST_KIT_WORKER_INDEX";
+const WORKER_SYMBOL_INDEX = "BT_WORKER_INDEX";
 
 /**
  * Tells a forked worker child apart from a manual docker-compose shard.
