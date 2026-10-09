@@ -14,6 +14,7 @@ import { mkdirSync, realpathSync } from "fs";
 import { join, resolve } from "path";
 
 const METHOD_NAME_RUN = "WorkerUtils.run";
+const METHOD_NAME_GET_WORKER_SYMBOL_LIST = "WorkerUtils.getWorkerSymbolList";
 const METHOD_NAME_GET_WORKER_INDEX = "WorkerUtils.getWorkerIndex";
 
 /**
@@ -72,6 +73,18 @@ type Dispose = (...args: any[]) => any;
  * Parent and child run the same entry script, so the sequences match 1:1.
  */
 let RUN_CALL_ORDINAL = 0;
+
+/**
+ * Symbol lists of every Worker.run call seen in THIS process, keyed by
+ * call ordinal.
+ *
+ * Written synchronously at the top of run — the environment carries only
+ * the ordinal, so this map is where getWorkerSymbolList resolves the
+ * owned list from, uniformly for a forked child and a manual
+ * docker-compose shard: both replay the same run calls with the same
+ * arrays in code.
+ */
+const RUN_SYMBOL_MAP = new Map<number, string[]>();
 
 /**
  * Global mutex over candle cache downloads, shared by every Worker.run
@@ -673,6 +686,8 @@ export class WorkerUtils {
 
     const callIndex = RUN_CALL_ORDINAL++;
 
+    RUN_SYMBOL_MAP.set(callIndex, symbolList);
+
     const workerIndex = this.getWorkerIndex();
 
     if (workerIndex !== null && IS_FORKED_FN()) {
@@ -704,6 +719,28 @@ export class WorkerUtils {
     }
 
     return () => disposeFn();
+  };
+
+  /**
+   * Returns the symbol list this worker process owns, or null in the
+   * parent.
+   *
+   * The environment carries only the call ordinal, so the list is
+   * resolved from {@link RUN_SYMBOL_MAP} — populated synchronously by
+   * every run call. Works uniformly for a forked child and a manual
+   * docker-compose shard. Returns null in the parent (no owned index)
+   * and before the matching run call has executed (the map has no entry
+   * yet) — call it after the run calls, not before.
+   *
+   * @returns The owned symbols inside a worker process, null otherwise
+   */
+  public getWorkerSymbolList = (): string[] | null => {
+    backtest.loggerService.log(METHOD_NAME_GET_WORKER_SYMBOL_LIST);
+    const index = process.env[WORKER_SYMBOL_INDEX];
+    if (!index) {
+      return null;
+    }
+    return RUN_SYMBOL_MAP.get(Number(index)) ?? null;
   };
 
   /**
