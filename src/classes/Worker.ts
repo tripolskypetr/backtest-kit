@@ -14,7 +14,6 @@ import { mkdirSync, realpathSync } from "fs";
 import { join, resolve } from "path";
 
 const METHOD_NAME_RUN = "WorkerUtils.run";
-const METHOD_NAME_GET_WORKER_SYMBOL_LIST = "WorkerUtils.getWorkerSymbolList";
 const METHOD_NAME_GET_WORKER_INDEX = "WorkerUtils.getWorkerIndex";
 
 /**
@@ -28,26 +27,33 @@ const METHOD_NAME_GET_WORKER_INDEX = "WorkerUtils.getWorkerIndex";
 const CLI_SYMBOL = Symbol.for("backtest-kit-cli");
 
 /**
- * Environment key carrying the JSON-encoded symbol list a forked worker
- * child owns — one child runs the WHOLE symbolList of its Worker.run call.
+ * The ONLY environment key of the worker protocol: the ordinal of the
+ * Worker.run call this process owns.
  *
- * Deliberately env, NOT argv: the entry script parses its own CLI
- * arguments, so the child receives the parent's argv untouched. The key
- * doubles as the worker flag: its presence means the process IS a worker.
- */
-const WORKER_SYMBOL_KEY = "BACKTEST_KIT_WORKER";
-
-/**
- * Environment key carrying the ordinal of the Worker.run call that forked
- * this child.
- *
- * The matching key of the magic: run calls arrive synchronously from the
- * same barrel import in BOTH processes, so the Nth call in the parent is
- * the Nth call in the child. The child counts its own run calls and only
- * the call whose ordinal equals this value starts its symbols inline —
- * every other call is a no-op there.
+ * The symbol list deliberately does NOT travel through the environment —
+ * the matching run call carries it in code, identical in every process.
+ * The matching works because run calls arrive synchronously from the
+ * same barrel import everywhere: the Nth call in the parent is the Nth
+ * call in the worker. The worker counts its own run calls and only the
+ * call whose ordinal equals this value starts its symbols inline —
+ * every other call is a no-op there. Set automatically on fork, or BY
+ * HAND in a docker-compose shard. Env, NOT argv: the entry script keeps
+ * full ownership of its own CLI arguments.
  */
 const WORKER_SYMBOL_INDEX = "BACKTEST_KIT_WORKER_INDEX";
+
+/**
+ * Tells a forked worker child apart from a manual docker-compose shard.
+ *
+ * Both carry the same index environment key, so the env cannot tell them
+ * apart — the IPC channel can: fork() always opens one, so process.send
+ * exists only in a forked child; a docker container runs plain and has
+ * none. The difference matters twice: a fork rides the IPC channel
+ * (orphan protection applies) and trusts the parent to have warmed the
+ * candle cache; a manual shard has neither parent nor IPC — it warms
+ * its own cache and must not wait for anyone.
+ */
+const IS_FORKED_FN = () => typeof process.send === "function";
 
 /**
  * Type alias for a cleanup function returned by a background launch.
@@ -347,8 +353,11 @@ const WAIT_FOR_CACHE_FN = async () => {
  * mode, frame, and starts each symbol of the list via Backtest.background
  * or Live.background (paper and live modes both run the live pipeline).
  *
- * No candle caching here: the PARENT drained the cache mutex before
- * forking — all subsequent work happens inside the worker.
+ * Candle caching depends on who started the process: a FORKED child
+ * skips it — the parent drained the cache mutex before forking; a manual
+ * docker-compose shard has no parent, so with `cache: true` on the
+ * schema it warms its own cache (into its own cwd-relative store)
+ * through the same mutex before launching.
  *
  * @param symbolList - The symbols this worker child owns
  * @param workerName - Worker to resolve; omit to take the first registered one
@@ -391,6 +400,13 @@ const RUN_SYMBOLS_FN = async (
 
   if (isBacktest) {
     const frameName = await GET_FRAME_NAME_FN(resolvedName, METHOD_NAME_RUN);
+    {
+      const isCache = "cache" in workerSchema && workerSchema.cache === true;
+      if (isCache && !IS_FORKED_FN()) {
+        ENQUEUE_CACHE_FN(symbolList, exchangeName, frameName);
+        await WAIT_FOR_CACHE_FN();
+      }
+    }
     for (const symbol of symbolList) {
       const disposeFn = Backtest.background(symbol, {
         strategyName,
@@ -432,9 +448,11 @@ const RUN_SYMBOLS_FN = async (
  * download in the process is still running. The cache warm-up is the
  * ONLY work the parent does; everything else happens inside the worker.
  *
- * The single child receives the JSON-encoded symbol list and the ordinal
- * of this run call via the environment (argv is passed through from the
- * parent untouched) and runs in its own working directory
+ * The single child receives the ordinal of this run call via the
+ * environment — the ONLY key of the protocol, the symbol list comes from
+ * the matching run call in the re-executed entry script itself (argv is
+ * passed through from the parent untouched) — and runs in its own
+ * working directory
  * `./job/<symbols joined with "-">` (created lazily), so relative-path
  * artifacts — logs, dumps, persisted signals — never collide between
  * worker pools.
@@ -506,7 +524,6 @@ const RUN_FORK_FN = async (
     cwd,
     env: {
       ...process.env,
-      [WORKER_SYMBOL_KEY]: JSON.stringify(symbolList),
       [WORKER_SYMBOL_INDEX]: String(callIndex),
     },
     silent: true,
@@ -560,7 +577,7 @@ export class WorkerUtils {
    *   EVERY queued download in the process has finished — no child
    *   starts against a partial cache — and forks ONE child for the
    *   whole list. The child
-   *   gets the symbol list and the call ordinal via the environment (argv
+   *   gets the call ordinal via the environment (argv
    *   is passed through untouched) and its own working directory
    *   `./job/<symbols joined with "-">` (created lazily). The child's
    *   stdout/stderr are piped into the root process; a non-zero exit is
@@ -571,6 +588,13 @@ export class WorkerUtils {
    *   symbols inline via Backtest.background or Live.background (paper
    *   and live modes both run the live pipeline), every other call is a
    *   no-op. No candle caching here — the parent already drained it.
+   * - MANUAL SHARD (docker-compose): set `BACKTEST_KIT_WORKER_INDEX` by
+   *   hand — one container per run call, nothing is forked. The matching
+   *   call runs its symbols inline exactly like a forked child, except it
+   *   warms its OWN candle cache when the schema opts in with
+   *   `cache: true` (there is no parent to do it) and skips the orphan
+   *   guard (there is no IPC channel). Each container has its own
+   *   filesystem, so the `./job` isolation happens for free.
    *   The child kills itself when the parent dies: the IPC channel
    *   fork() opened closes and the "disconnect" handler exits the
    *   process, so no orphan keeps trading unsupervised.
@@ -612,6 +636,21 @@ export class WorkerUtils {
    * Worker.run(["BTCUSDT", "ETHUSDT"]); // child #0 runs both symbols
    * Worker.run(["BNBUSDT"]);            // child #1 runs the third
    * ```
+   *
+   * @example
+   * ```yaml
+   * # docker-compose.yaml — manual sharding: same image, same entry,
+   * # the shard number comes from the environment
+   * services:
+   *   shard-0:
+   *     image: my-trading-rig
+   *     environment:
+   *       BACKTEST_KIT_WORKER_INDEX: "0" # runs Worker.run(["BTCUSDT", "ETHUSDT"])
+   *   shard-1:
+   *     image: my-trading-rig
+   *     environment:
+   *       BACKTEST_KIT_WORKER_INDEX: "1" # runs Worker.run(["BNBUSDT"])
+   * ```
    */
   public run = (
     symbolList: string[],
@@ -636,7 +675,7 @@ export class WorkerUtils {
 
     const workerIndex = this.getWorkerIndex();
 
-    if (workerIndex !== null) {
+    if (workerIndex !== null && IS_FORKED_FN()) {
       EXIT_ORPHAN_FN();
     }
 
@@ -668,32 +707,18 @@ export class WorkerUtils {
   };
 
   /**
-   * Returns the symbol list this worker child owns, or null in the parent.
+   * Returns the ordinal of the Worker.run call this process owns, or
+   * null in the parent.
    *
-   * The list travels through the environment as JSON, NOT argv — the
-   * entry script keeps full ownership of its own CLI arguments. Usually
-   * there is no need to call this: {@link run} detects the role itself.
-   * Useful for conditional setup around the run calls (logging,
-   * monitoring).
+   * Set automatically on a forked child, or BY HAND in a docker-compose
+   * shard (`BACKTEST_KIT_WORKER_INDEX: "1"` in the service environment —
+   * one container per run call). This is the matching key of the magic:
+   * the process counts its own run calls and the call whose ordinal
+   * equals this value runs its symbols inline. Also serves ordinal needs
+   * outside run: staggered start delays, per-worker port or account
+   * offsets.
    *
-   * @returns The owned symbols inside a worker child, null otherwise
-   */
-  public getWorkerSymbolList = (): string[] | null => {
-    backtest.loggerService.log(METHOD_NAME_GET_WORKER_SYMBOL_LIST);
-    const symbolList = process.env[WORKER_SYMBOL_KEY];
-    return symbolList ? JSON.parse(symbolList) : null;
-  };
-
-  /**
-   * Returns the ordinal of the Worker.run call that forked this child,
-   * or null in the parent.
-   *
-   * This is the child-matching key of the magic: the child counts its
-   * own run calls and the call whose ordinal equals this value runs its
-   * symbols inline. Also serves ordinal needs outside run: staggered
-   * start delays, per-worker port or account offsets.
-   *
-   * @returns Zero-based run-call ordinal inside a worker child, null otherwise
+   * @returns Zero-based run-call ordinal inside a worker process, null otherwise
    */
   public getWorkerIndex = (): number | null => {
     backtest.loggerService.log(METHOD_NAME_GET_WORKER_INDEX);
