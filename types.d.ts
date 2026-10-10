@@ -6924,7 +6924,7 @@ interface ILauncherBacktestArgs extends ILauncherArgs {
     backtest: true;
     /** Timeframe bounding the run. Optional: defaults to the single registered frame; ambiguous (2+ registered) requires it */
     frameName?: FrameName;
-    /** Warm the 1m candle cache over the frame window before launching. Default: true */
+    /** Warm the 1m candle cache over the frame window before launching. Default: GLOBAL_CONFIG.CC_LAUNCHER_CANDLE_CACHE_DEFAULT */
     cache?: boolean;
 }
 /**
@@ -7005,7 +7005,7 @@ interface IWorkerBacktestArgs extends IWorkerArgs {
     backtest: true;
     /** Timeframe bounding the run. Optional: defaults to the single registered frame; ambiguous (2+ registered) requires it */
     frameName?: FrameName;
-    /** Opt-in: warm the 1m candle cache over the frame window in the PARENT before forking; downloads of all Worker.run calls are serialized by a global mutex and no child starts until every queued download completes. Default: false — the cache directory is cwd-relative and children run in their own ./job directories, so enable only when candles are read from a cwd-independent source */
+    /** Warm the 1m candle cache over the frame window in the PARENT before forking (a manual docker-compose shard warms its own instead); downloads of all Worker.run calls are serialized by a global mutex and no child starts until every queued download completes. Default: GLOBAL_CONFIG.CC_WORKER_CANDLE_CACHE_DEFAULT (false — the cache directory is cwd-relative and children run in their own ./job directories, so enable only when candles are read from a cwd-independent source) */
     cache?: boolean;
 }
 /**
@@ -9206,6 +9206,35 @@ declare const GLOBAL_CONFIG: {
      * Default: 5 consecutive rejections tolerated
      */
     CC_ORDER_CLOSE_RETRY_ATTEMPTS: number;
+    /**
+     * Candle cache warm-up default for launchers (`cache` in ILauncherBacktestArgs).
+     * When true, Launcher.run downloads and validates the 1m candles of every symbol
+     * of the launcher over the frame window BEFORE starting the backtest instances,
+     * so the run itself never hits the exchange for data.
+     * A launcher opts out of the default explicitly via `cache: false`.
+     * Only backtest launchers read it — paper and live runs do not use frames.
+     *
+     * Default: true (warm the cache; the launcher runs in the caller's own process,
+     * so the cwd-relative candle store is the very one the backtest reads from)
+     */
+    CC_LAUNCHER_CANDLE_CACHE_DEFAULT: boolean;
+    /**
+     * Candle cache warm-up default for workers (`cache` in IWorkerBacktestArgs).
+     * When true, the PARENT of Worker.run downloads the 1m candles over the frame
+     * window before forking (a manual docker-compose shard warms its own cache
+     * instead, having no parent); downloads of all run calls are serialized by a
+     * global mutex and NO child starts until every queued download completes.
+     * A worker opts out of the default explicitly via `cache: false`.
+     *
+     * Unlike the launcher default this is OFF: the candle store is cwd-relative
+     * and every worker child runs in its own `./job/<pool>` directory, so a
+     * parent-warmed cache is invisible to the children unless the exchange
+     * adapter reads candles from a cwd-independent source (a database, an
+     * absolute path). Turn it on once that holds.
+     *
+     * Default: false (no warm-up — children would not see the parent's files)
+     */
+    CC_WORKER_CANDLE_CACHE_DEFAULT: boolean;
 };
 /**
  * Type for global configuration object.
@@ -9354,6 +9383,8 @@ declare function getConfig(): {
     CC_ORDER_OPEN_RETRY_ATTEMPTS: number;
     CC_ORDER_CHECK_RETRY_ATTEMPTS: number;
     CC_ORDER_CLOSE_RETRY_ATTEMPTS: number;
+    CC_LAUNCHER_CANDLE_CACHE_DEFAULT: boolean;
+    CC_WORKER_CANDLE_CACHE_DEFAULT: boolean;
 };
 /**
  * Retrieves the default configuration object for the framework.
@@ -9424,6 +9455,8 @@ declare function getDefaultConfig(): Readonly<{
     CC_ORDER_OPEN_RETRY_ATTEMPTS: number;
     CC_ORDER_CHECK_RETRY_ATTEMPTS: number;
     CC_ORDER_CLOSE_RETRY_ATTEMPTS: number;
+    CC_LAUNCHER_CANDLE_CACHE_DEFAULT: boolean;
+    CC_WORKER_CANDLE_CACHE_DEFAULT: boolean;
 }>;
 /**
  * Sets custom column configurations for markdown report generation.
@@ -36059,7 +36092,8 @@ declare class LauncherUtils {
      * Fire-and-forget: the method returns synchronously while {@link RUN_FN}
      * resolves the launcher (explicit name or the FIRST registered one), its
      * strategy, exchange and — for backtest mode — frame, warms the candle
-     * cache (skip it with `cache: false` on the schema) and launches every
+     * cache (GLOBAL_CONFIG.CC_LAUNCHER_CANDLE_CACHE_DEFAULT; override per schema
+     * with `cache`) and launches every
      * symbol of the schema's symbolList via Backtest.background or
      * Live.background (paper and live modes both run the live pipeline).
      * A resolution failure is routed to exitEmitter — the same fatal-error
@@ -36135,11 +36169,12 @@ declare class WorkerUtils {
      *
      * - PARENT (no worker environment): for backtest mode appends the 1m
      *   candle cache download to the GLOBAL cache mutex (opt-in via
-     *   `cache: true` on the schema, off by default), then waits until
+     *   GLOBAL_CONFIG.CC_WORKER_CANDLE_CACHE_DEFAULT or `cache` on the schema,
+     *   off by default), then waits until
      *   EVERY queued download in the process has finished — no child
      *   starts against a partial cache — and forks ONE child for the
      *   whole list. The child
-     *   gets the symbol list and the call ordinal via the environment (argv
+     *   gets the call ordinal via the environment (argv
      *   is passed through untouched) and its own working directory
      *   `./job/<symbols joined with "-">` (created lazily). The child's
      *   stdout/stderr are piped into the root process; a non-zero exit is
@@ -36150,6 +36185,13 @@ declare class WorkerUtils {
      *   symbols inline via Backtest.background or Live.background (paper
      *   and live modes both run the live pipeline), every other call is a
      *   no-op. No candle caching here — the parent already drained it.
+     * - MANUAL SHARD (docker-compose): set `BACKTEST_KIT_WORKER_INDEX` by
+     *   hand — one container per run call, nothing is forked. The matching
+     *   call runs its symbols inline exactly like a forked child, except it
+     *   warms its OWN candle cache when caching is enabled (there is no
+     *   parent to do it) and skips the orphan
+     *   guard (there is no IPC channel). Each container has its own
+     *   filesystem, so the `./job` isolation happens for free.
      *   The child kills itself when the parent dies: the IPC channel
      *   fork() opened closes and the "disconnect" handler exits the
      *   process, so no orphan keeps trading unsupervised.
@@ -36191,30 +36233,50 @@ declare class WorkerUtils {
      * Worker.run(["BTCUSDT", "ETHUSDT"]); // child #0 runs both symbols
      * Worker.run(["BNBUSDT"]);            // child #1 runs the third
      * ```
+     *
+     * @example
+     * ```yaml
+     * # docker-compose.yaml — manual sharding: same image, same entry,
+     * # the shard number comes from the environment
+     * services:
+     *   shard-0:
+     *     image: my-trading-rig
+     *     environment:
+     *       BACKTEST_KIT_WORKER_INDEX: "0" # runs Worker.run(["BTCUSDT", "ETHUSDT"])
+     *   shard-1:
+     *     image: my-trading-rig
+     *     environment:
+     *       BACKTEST_KIT_WORKER_INDEX: "1" # runs Worker.run(["BNBUSDT"])
+     * ```
      */
     run: (symbolList: string[], params?: Partial<IWorkerRunParams>) => () => void;
     /**
-     * Returns the symbol list this worker child owns, or null in the parent.
+     * Returns the symbol list this worker process owns, or null in the
+     * parent.
      *
-     * The list travels through the environment as JSON, NOT argv — the
-     * entry script keeps full ownership of its own CLI arguments. Usually
-     * there is no need to call this: {@link run} detects the role itself.
-     * Useful for conditional setup around the run calls (logging,
-     * monitoring).
+     * The environment carries only the call ordinal, so the list is
+     * resolved from {@link RUN_SYMBOL_MAP} — populated synchronously by
+     * every run call. Works uniformly for a forked child and a manual
+     * docker-compose shard. Returns null in the parent (no owned index)
+     * and before the matching run call has executed (the map has no entry
+     * yet) — call it after the run calls, not before.
      *
-     * @returns The owned symbols inside a worker child, null otherwise
+     * @returns The owned symbols inside a worker process, null otherwise
      */
     getWorkerSymbolList: () => string[] | null;
     /**
-     * Returns the ordinal of the Worker.run call that forked this child,
-     * or null in the parent.
+     * Returns the ordinal of the Worker.run call this process owns, or
+     * null in the parent.
      *
-     * This is the child-matching key of the magic: the child counts its
-     * own run calls and the call whose ordinal equals this value runs its
-     * symbols inline. Also serves ordinal needs outside run: staggered
-     * start delays, per-worker port or account offsets.
+     * Set automatically on a forked child, or BY HAND in a docker-compose
+     * shard (`BACKTEST_KIT_WORKER_INDEX: "1"` in the service environment —
+     * one container per run call). This is the matching key of the magic:
+     * the process counts its own run calls and the call whose ordinal
+     * equals this value runs its symbols inline. Also serves ordinal needs
+     * outside run: staggered start delays, per-worker port or account
+     * offsets.
      *
-     * @returns Zero-based run-call ordinal inside a worker child, null otherwise
+     * @returns Zero-based run-call ordinal inside a worker process, null otherwise
      */
     getWorkerIndex: () => number | null;
 }
