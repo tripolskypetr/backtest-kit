@@ -46,7 +46,7 @@ export interface IWorkerBacktestArgs extends IWorkerArgs {
     backtest: true;
     /** Timeframe bounding the run. Optional: defaults to the single registered frame; ambiguous (2+ registered) requires it */
     frameName?: FrameName;
-    /** Opt-in: warm the 1m candle cache over the frame window in the PARENT before forking; downloads of all Worker.run calls are serialized by a global mutex and no child starts until every queued download completes. Default: false — the cache directory is cwd-relative and children run in their own ./job directories, so enable only when candles are read from a cwd-independent source */
+    /** Warm the 1m candle cache over the frame window in the PARENT before forking (a manual docker-compose shard warms its own instead); downloads of all Worker.run calls are serialized by a global mutex and no child starts until every queued download completes. Default: GLOBAL_CONFIG.CC_WORKER_CANDLE_CACHE_DEFAULT (false — the cache directory is cwd-relative and children run in their own ./job directories, so enable only when candles are read from a cwd-independent source) */
     cache?: boolean;
 }
 

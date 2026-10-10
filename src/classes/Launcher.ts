@@ -9,6 +9,7 @@ import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
 import { compose, getErrorMessage, singleshot, Subject } from "functools-kit";
 import { exitEmitter } from "../config/emitters";
+import { GLOBAL_CONFIG } from "../config/params";
 
 const METHOD_NAME_RUN = "LauncherUtils.run";
 const METHOD_NAME_LISTEN = "LauncherUtils.listen";
@@ -216,7 +217,8 @@ const CACHE_CANDLES_FN = async (
  * and — for backtest mode — frame, each falling back to the single
  * registered schema when the launcher omits it. Backtest runs warm the
  * 1m candle cache over the frame window unless the schema opts out with
- * `cache: false`, then every symbol of symbolList is launched in the
+ * `cache: false` (the default comes from
+ * GLOBAL_CONFIG.CC_LAUNCHER_CANDLE_CACHE_DEFAULT), then every symbol of symbolList is launched in the
  * background; paper and live modes both run the live pipeline.
  *
  * Collects the dispose function of every started instance and composes
@@ -264,7 +266,10 @@ const RUN_FN = async (launcherName?: LauncherName) => {
 
   if (isBacktest) {
     const frameName = await GET_FRAME_NAME_FN(resolvedName, METHOD_NAME_RUN);
-    const isCache = !("cache" in launcherSchema) || launcherSchema.cache !== false;
+    const isCache =
+      "cache" in launcherSchema && launcherSchema.cache !== undefined
+        ? launcherSchema.cache
+        : GLOBAL_CONFIG.CC_LAUNCHER_CANDLE_CACHE_DEFAULT;
     if (isCache) {
       await CACHE_CANDLES_FN(symbolList, exchangeName, frameName);
     }
@@ -308,7 +313,8 @@ export class LauncherUtils {
    * Fire-and-forget: the method returns synchronously while {@link RUN_FN}
    * resolves the launcher (explicit name or the FIRST registered one), its
    * strategy, exchange and — for backtest mode — frame, warms the candle
-   * cache (skip it with `cache: false` on the schema) and launches every
+   * cache (GLOBAL_CONFIG.CC_LAUNCHER_CANDLE_CACHE_DEFAULT; override per schema
+   * with `cache`) and launches every
    * symbol of the schema's symbolList via Backtest.background or
    * Live.background (paper and live modes both run the live pipeline).
    * A resolution failure is routed to exitEmitter — the same fatal-error

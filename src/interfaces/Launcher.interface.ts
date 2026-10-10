@@ -46,7 +46,7 @@ export interface ILauncherBacktestArgs extends ILauncherArgs {
     backtest: true;
     /** Timeframe bounding the run. Optional: defaults to the single registered frame; ambiguous (2+ registered) requires it */
     frameName?: FrameName;
-    /** Warm the 1m candle cache over the frame window before launching. Default: true */
+    /** Warm the 1m candle cache over the frame window before launching. Default: GLOBAL_CONFIG.CC_LAUNCHER_CANDLE_CACHE_DEFAULT */
     cache?: boolean;
 }
 

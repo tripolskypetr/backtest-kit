@@ -525,6 +525,37 @@ export const GLOBAL_CONFIG = {
    * Default: 5 consecutive rejections tolerated
    */
   CC_ORDER_CLOSE_RETRY_ATTEMPTS: 5,
+
+  /**
+   * Candle cache warm-up default for launchers (`cache` in ILauncherBacktestArgs).
+   * When true, Launcher.run downloads and validates the 1m candles of every symbol
+   * of the launcher over the frame window BEFORE starting the backtest instances,
+   * so the run itself never hits the exchange for data.
+   * A launcher opts out of the default explicitly via `cache: false`.
+   * Only backtest launchers read it — paper and live runs do not use frames.
+   *
+   * Default: true (warm the cache; the launcher runs in the caller's own process,
+   * so the cwd-relative candle store is the very one the backtest reads from)
+   */
+  CC_LAUNCHER_CANDLE_CACHE_DEFAULT: true,
+
+  /**
+   * Candle cache warm-up default for workers (`cache` in IWorkerBacktestArgs).
+   * When true, the PARENT of Worker.run downloads the 1m candles over the frame
+   * window before forking (a manual docker-compose shard warms its own cache
+   * instead, having no parent); downloads of all run calls are serialized by a
+   * global mutex and NO child starts until every queued download completes.
+   * A worker opts out of the default explicitly via `cache: false`.
+   *
+   * Unlike the launcher default this is OFF: the candle store is cwd-relative
+   * and every worker child runs in its own `./job/<pool>` directory, so a
+   * parent-warmed cache is invisible to the children unless the exchange
+   * adapter reads candles from a cwd-independent source (a database, an
+   * absolute path). Turn it on once that holds.
+   *
+   * Default: false (no warm-up — children would not see the parent's files)
+   */
+  CC_WORKER_CANDLE_CACHE_DEFAULT: false,
 };
 
 export const DEFAULT_CONFIG = Object.freeze({...GLOBAL_CONFIG});

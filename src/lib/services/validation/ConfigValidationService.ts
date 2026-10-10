@@ -78,6 +78,14 @@ export class ConfigValidationService {
       errors.push(`CC_SIGNAL_ISOLATED_MARGIN must be a boolean, got ${GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN}`);
     }
 
+    if (typeof GLOBAL_CONFIG.CC_LAUNCHER_CANDLE_CACHE_DEFAULT !== "boolean") {
+      errors.push(`CC_LAUNCHER_CANDLE_CACHE_DEFAULT must be a boolean, got ${GLOBAL_CONFIG.CC_LAUNCHER_CANDLE_CACHE_DEFAULT}`);
+    }
+
+    if (typeof GLOBAL_CONFIG.CC_WORKER_CANDLE_CACHE_DEFAULT !== "boolean") {
+      errors.push(`CC_WORKER_CANDLE_CACHE_DEFAULT must be a boolean, got ${GLOBAL_CONFIG.CC_WORKER_CANDLE_CACHE_DEFAULT}`);
+    }
+
     // Calculate minimum required TP distance to cover costs
     const slippageEffect = GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE * 2; // Applied twice (entry + exit)
     const feesTotal = GLOBAL_CONFIG.CC_PERCENT_FEE * 2; // Applied twice (entry + exit)

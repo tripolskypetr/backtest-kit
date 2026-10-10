@@ -9,6 +9,7 @@ import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
 import { compose, getErrorMessage, singleshot } from "functools-kit";
 import { exitEmitter } from "../config/emitters";
+import { GLOBAL_CONFIG } from "../config/params";
 import { fork } from "child_process";
 import { mkdirSync, realpathSync } from "fs";
 import { join, resolve } from "path";
@@ -368,9 +369,10 @@ const WAIT_FOR_CACHE_FN = async () => {
  *
  * Candle caching depends on who started the process: a FORKED child
  * skips it — the parent drained the cache mutex before forking; a manual
- * docker-compose shard has no parent, so with `cache: true` on the
- * schema it warms its own cache (into its own cwd-relative store)
- * through the same mutex before launching.
+ * docker-compose shard has no parent, so when caching is enabled
+ * (GLOBAL_CONFIG.CC_WORKER_CANDLE_CACHE_DEFAULT, or `cache` on the schema) it
+ * warms its own cache (into its own cwd-relative store) through the
+ * same mutex before launching.
  *
  * @param symbolList - The symbols this worker child owns
  * @param workerName - Worker to resolve; omit to take the first registered one
@@ -414,7 +416,10 @@ const RUN_SYMBOLS_FN = async (
   if (isBacktest) {
     const frameName = await GET_FRAME_NAME_FN(resolvedName, METHOD_NAME_RUN);
     {
-      const isCache = "cache" in workerSchema && workerSchema.cache === true;
+      const isCache =
+        "cache" in workerSchema && workerSchema.cache !== undefined
+          ? workerSchema.cache
+          : GLOBAL_CONFIG.CC_WORKER_CANDLE_CACHE_DEFAULT;
       if (isCache && !IS_FORKED_FN()) {
         ENQUEUE_CACHE_FN(symbolList, exchangeName, frameName);
         await WAIT_FOR_CACHE_FN();
@@ -451,8 +456,9 @@ const RUN_SYMBOLS_FN = async (
  * (explicit name or the FIRST registered one), validate, fire
  * onWaitForInit, wait for the registries. For backtest mode it then
  * appends the 1m candle download over the frame window to the global
- * {@link CACHE_BARRIER} — ONLY when the schema opts in with
- * `cache: true`: the candle cache directory is cwd-relative, children
+ * {@link CACHE_BARRIER} — only when caching is enabled
+ * (GLOBAL_CONFIG.CC_WORKER_CANDLE_CACHE_DEFAULT, or `cache` on the schema;
+ * OFF by default): the candle cache directory is cwd-relative, children
  * run in their own `./job` directories and would not see the parent's
  * files, so warming is off by default until the setup reads candles
  * from a cwd-independent source. EVERY fork — cached or not — waits
@@ -586,7 +592,8 @@ export class WorkerUtils {
    *
    * - PARENT (no worker environment): for backtest mode appends the 1m
    *   candle cache download to the GLOBAL cache mutex (opt-in via
-   *   `cache: true` on the schema, off by default), then waits until
+   *   GLOBAL_CONFIG.CC_WORKER_CANDLE_CACHE_DEFAULT or `cache` on the schema,
+   *   off by default), then waits until
    *   EVERY queued download in the process has finished — no child
    *   starts against a partial cache — and forks ONE child for the
    *   whole list. The child
@@ -604,8 +611,8 @@ export class WorkerUtils {
    * - MANUAL SHARD (docker-compose): set `BACKTEST_KIT_WORKER_INDEX` by
    *   hand — one container per run call, nothing is forked. The matching
    *   call runs its symbols inline exactly like a forked child, except it
-   *   warms its OWN candle cache when the schema opts in with
-   *   `cache: true` (there is no parent to do it) and skips the orphan
+   *   warms its OWN candle cache when caching is enabled (there is no
+   *   parent to do it) and skips the orphan
    *   guard (there is no IPC channel). Each container has its own
    *   filesystem, so the `./job` isolation happens for free.
    *   The child kills itself when the parent dies: the IPC channel
