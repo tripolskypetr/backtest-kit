@@ -35,6 +35,9 @@ const GET_CLIENT_FN = memoize(
         new OpenAI({
             baseURL: "https://api.perplexity.ai",
             apiKey,
+            defaultHeaders: {
+                "X-Pplx-Integration": "backtest-kit",
+            },
         }),
 );
 
