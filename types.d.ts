@@ -8781,6 +8781,32 @@ declare const GLOBAL_CONFIG: {
      */
     CC_MAX_CANDLES_PER_REQUEST: number;
     /**
+     * Backtest iteration step in minutes. Candles stay 1m — only how often the
+     * backtest LOOKS at them changes.
+     *
+     * Applies in two places:
+     * - ClientFrame.getTimeframe: the tick cadence between signals (overrides the
+     *   frame schema `interval`), so getSignal is polled once per step.
+     * - ClientStrategy.backtest: the candle loops (pending TP/SL monitoring and
+     *   scheduled activation) advance `step` 1m candles per iteration instead of
+     *   one. The skipped candles are NOT ignored: stop-loss / liquidation and
+     *   scheduled activation/cancel are checked against the min low / max high of
+     *   the whole skipped span, so an intra-span touch still fires; VWAP, pings,
+     *   partial/breakeven callbacks, the commit-queue drain and the per-candle
+     *   "active"/"waiting" emissions run once per step.
+     *
+     * Use case: a candle source that only has DAILY bars (Yahoo Finance) with the
+     * 1m feed polyfilled by repeating the daily bar 1440 times — every minute of a
+     * day is identical, so a per-minute loop does 1440x the work for the same
+     * result. With 24 * 60 the backtest evaluates one candle per day.
+     *
+     * Applies to backtest only: live/paper tick on the real clock.
+     * Set to 0 to use the frame schema interval and a per-candle loop (legacy).
+     *
+     * Default: 0
+     */
+    CC_BACKTEST_STEP_MINUTES: number;
+    /**
      * Maximum allowed deviation factor for price anomaly detection.
      * Price should not be more than this factor lower than reference price.
      *
@@ -9341,6 +9367,7 @@ declare function getConfig(): {
     CC_GET_CANDLES_RETRY_COUNT: number;
     CC_GET_CANDLES_RETRY_DELAY_MS: number;
     CC_MAX_CANDLES_PER_REQUEST: number;
+    CC_BACKTEST_STEP_MINUTES: number;
     CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
     CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
     CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
@@ -9413,6 +9440,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_GET_CANDLES_RETRY_COUNT: number;
     CC_GET_CANDLES_RETRY_DELAY_MS: number;
     CC_MAX_CANDLES_PER_REQUEST: number;
+    CC_BACKTEST_STEP_MINUTES: number;
     CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
     CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
     CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
@@ -41818,7 +41846,8 @@ declare class StrategyConnectionService implements TStrategy$1 {
  * Features:
  * - Generates timestamp arrays for backtest iteration
  * - Singleshot caching prevents redundant generation
- * - Configurable interval spacing (1m to 1d)
+ * - Configurable interval spacing (1m to 1d), overridable by
+ *   GLOBAL_CONFIG.CC_BACKTEST_STEP_MINUTES for arbitrary minute steps
  * - Callback support for validation and logging
  *
  * Used by BacktestLogicPrivateService to iterate through historical periods.
