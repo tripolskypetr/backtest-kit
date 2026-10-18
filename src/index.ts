@@ -890,6 +890,7 @@ export { getTotalClosed } from "./helpers/getTotalClosed";
 export { getLiquidationPrice } from "./helpers/getLiquidationPrice";
 export { getPriceScale } from "./helpers/getPriceScale";
 export { getCandlesFilled } from "./helpers/getCandlesFilled";
+export { getCandlesSampled } from "./helpers/getCandlesSampled";
 
 export { OrderDeletedError } from "./error/OrderDeletedError";
 export { OrderRejectedError } from "./error/OrderRejectedError";
