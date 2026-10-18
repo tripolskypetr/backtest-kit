@@ -37,7 +37,11 @@ const INTERVAL_UNITS: Record<string, number> = {
   d: 86_400_000,
 };
 
-const getIntervalMs = (interval: string) => {
+/**
+ * Interval string ("1m", "15m", "4h", "1d") to its duration in milliseconds.
+ * @throws Error if the interval is not <number><m|h|d>
+ */
+export const getIntervalMs = (interval: string) => {
   const match = interval.match(/^(\d+)([mhd])$/);
   if (!match) {
     throw new Error(`unsupported interval: ${interval}`);

@@ -63,6 +63,7 @@ import "./e2e/broker_cancel.test.mjs";
 import "./e2e/strategy_fn.test.mjs";
 import "./e2e/edge_fn.test.mjs";
 import "./e2e/listen_backtest.test.mjs";
+import "./e2e/step.test.mjs";
 
 import "./spec/audit.test.mjs";
 import "./spec/live.test.mjs";
@@ -85,6 +86,7 @@ import "./spec/multiplier.test.mjs";
 import "./spec/multiplier_markdown.test.mjs";
 import "./spec/liquidation.test.mjs";
 import "./spec/config.test.mjs"
+import "./spec/sample.test.mjs"
 import "./spec/candle_cache.test.mjs"
 import "./spec/columns.test.mjs"
 import "./spec/lookahead.test.mjs";

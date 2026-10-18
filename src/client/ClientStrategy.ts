@@ -1522,6 +1522,82 @@ const GET_AVG_PRICE_FN = (candles: ICandleData[]): number => {
     : sumPriceVolume / totalVolume;
 };
 
+/**
+ * Number of 1m candles the backtest candle loops advance per iteration
+ * (CC_BACKTEST_STEP_MINUTES; 0 = legacy per-candle loop). The backtest candle
+ * feed is always 1m, so minutes map 1:1 to candles.
+ */
+const GET_BACKTEST_STEP_CANDLES_FN = (): number =>
+  GLOBAL_CONFIG.CC_BACKTEST_STEP_MINUTES > 0
+    ? GLOBAL_CONFIG.CC_BACKTEST_STEP_MINUTES
+    : 1;
+
+/**
+ * First evaluation index of a strided candle loop: the END of the first span
+ * (`buffer + step - 1`), not its start. Evaluating at the span end keeps the
+ * VWAP window (the last CC_AVG_PRICE_CANDLES_COUNT candles) entirely inside the
+ * span — at the span START the window would straddle the previous span (e.g.
+ * 4 candles of yesterday + 1 of today on a daily stride) and blend two days'
+ * prices into every TP check / time_expired close. With step 1 this is
+ * `buffer`, the legacy first index.
+ *
+ * When the array is shorter than one span (a chunk of CC_MAX_CANDLES_PER_REQUEST
+ * candles smaller than the stride for an Infinity-hold signal) the last candle
+ * is evaluated instead, so every chunk gets at least one evaluation.
+ */
+const GET_FIRST_STEP_INDEX_FN = (
+  bufferCandlesCount: number,
+  stepCandles: number,
+  lastIndex: number
+): number => {
+  const first = bufferCandlesCount + stepCandles - 1;
+  if (first <= lastIndex) {
+    return first;
+  }
+  return lastIndex >= bufferCandlesCount ? lastIndex : lastIndex + 1;
+};
+
+/**
+ * Next evaluation index of a strided candle loop: `index + step`, clamped to the
+ * last candle so a trailing partial span (array length not a multiple of the
+ * stride) is still evaluated at its end. Returns `lastIndex + 1` (loop exit)
+ * once the last candle has been evaluated. With step 1 this is `index + 1`.
+ */
+const GET_NEXT_STEP_INDEX_FN = (
+  index: number,
+  stepCandles: number,
+  lastIndex: number
+): number => {
+  if (index >= lastIndex) {
+    return lastIndex + 1;
+  }
+  return Math.min(index + stepCandles, lastIndex);
+};
+
+/**
+ * Touch extremes for one loop iteration: the min low / max high over
+ * candles[spanStart .. index] — every candle since the previous evaluation
+ * (inclusive of the evaluated one). With step 1 the span is exactly
+ * candles[index], i.e. the legacy single-candle touch check. A stop-loss /
+ * liquidation / scheduled activation that happened on a skipped candle
+ * therefore still fires on this iteration instead of being lost. The caller
+ * advances spanStart to index + 1 after each iteration, so spans never overlap.
+ */
+const GET_TOUCH_RANGE_FN = (
+  candles: ICandleData[],
+  spanStart: number,
+  index: number
+): { low: number; high: number } => {
+  let low = candles[index].low;
+  let high = candles[index].high;
+  for (let j = spanStart; j < index; j++) {
+    const c = candles[j];
+    if (c.low < low) low = c.low;
+    if (c.high > high) high = c.high;
+  }
+  return { low, high };
+};
+
 // Static reads (like WAIT_FOR_DISPOSE_FN): symbol/strategyName/exchangeName/
 // frameName/backtest come from ctor params — the same values the instance is
 // memoized by — so those no longer touch method/execution contexts. The RESTORE
@@ -5774,18 +5850,27 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
   const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
   const maxTimeToWait = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES * 60 * 1000;
   const bufferCandlesCount = candlesCount - 1;
+  // CC_BACKTEST_STEP_MINUTES: stride of the loop in 1m candles (1 = legacy).
+  // Each span is evaluated at its END (VWAP window fully inside the span) and
+  // activation/cancel touches are taken over the whole span (see
+  // GET_TOUCH_RANGE_FN), so a coarse stride does not miss an intra-span breach.
+  const stepCandles = GET_BACKTEST_STEP_CANDLES_FN();
+  const lastIndex = candles.length - 1;
+  let spanStart = bufferCandlesCount;
 
-  for (let i = 0; i < candles.length; i++) {
+  // КРИТИЧНО: Пропускаем первые bufferCandlesCount свечей (буфер для VWAP)
+  // BacktestLogicPrivateService запросил свечи начиная с (when - bufferMinutes)
+  for (
+    let i = GET_FIRST_STEP_INDEX_FN(bufferCandlesCount, stepCandles, lastIndex);
+    i <= lastIndex;
+    i = GET_NEXT_STEP_INDEX_FN(i, stepCandles, lastIndex)
+  ) {
     const candle = candles[i];
-
-    // КРИТИЧНО: Пропускаем первые bufferCandlesCount свечей (буфер для VWAP)
-    // BacktestLogicPrivateService запросил свечи начиная с (when - bufferMinutes)
-    if (i < bufferCandlesCount) {
-      continue;
-    }
 
     const recentCandles = candles.slice(Math.max(0, i - (candlesCount - 1)), i + 1);
     const averagePrice = GET_AVG_PRICE_FN(recentCandles);
+    const { low: touchLow, high: touchHigh } = GET_TOUCH_RANGE_FN(candles, spanStart, i);
+    spanStart = i + 1;
 
     // Если timestamp свечи вышел за frameEndTime — отменяем scheduled сигнал
     if (candle.timestamp > frameEndTime) {
@@ -6156,9 +6241,9 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       // => Отмена имеет ПРИОРИТЕТ! (SL пробит ДО или ВМЕСТЕ с активацией)
       // Сигнал НЕ открывается, сразу отменяется
 
-      if (candle.low <= scheduled.priceStopLoss) {
+      if (touchLow <= scheduled.priceStopLoss) {
         shouldCancel = true;
-      } else if (candle.low <= scheduled.priceOpen) {
+      } else if (touchLow <= scheduled.priceOpen) {
         shouldActivate = true;
       }
     }
@@ -6173,9 +6258,9 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       // => Отмена имеет ПРИОРИТЕТ! (SL пробит ДО или ВМЕСТЕ с активацией)
       // Сигнал НЕ открывается, сразу отменяется
 
-      if (candle.high >= scheduled.priceStopLoss) {
+      if (touchHigh >= scheduled.priceStopLoss) {
         shouldCancel = true;
-      } else if (candle.high >= scheduled.priceOpen) {
+      } else if (touchHigh >= scheduled.priceOpen) {
         shouldActivate = true;
       }
     }
@@ -6305,23 +6390,31 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   }
   const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
   const bufferCandlesCount = candlesCount - 1;
+  // CC_BACKTEST_STEP_MINUTES: stride of the loop in 1m candles (1 = legacy).
+  // Each span is evaluated at its END (VWAP window fully inside the span) and
+  // stop/liquidation touches are taken over the whole span (see
+  // GET_TOUCH_RANGE_FN), so a coarse stride does not miss an intra-span touch.
+  const stepCandles = GET_BACKTEST_STEP_CANDLES_FN();
+  const lastIndex = candles.length - 1;
+  let spanStart = bufferCandlesCount;
 
-  // КРИТИЧНО: проверяем TP/SL на КАЖДОЙ свече начиная после буфера
+  // КРИТИЧНО: проверяем TP/SL на каждой ИТЕРАЦИИ начиная после буфера.
   // Первые bufferCandlesCount свечей - это буфер для VWAP
-  for (let i = 0; i < candles.length; i++) {
+  // (BacktestLogicPrivateService запросил свечи начиная с when - bufferMinutes)
+  for (
+    let i = GET_FIRST_STEP_INDEX_FN(bufferCandlesCount, stepCandles, lastIndex);
+    i <= lastIndex;
+    i = GET_NEXT_STEP_INDEX_FN(i, stepCandles, lastIndex)
+  ) {
     const currentCandle = candles[i];
     const currentCandleTimestamp = currentCandle.timestamp;
-
-    // КРИТИЧНО: Пропускаем первые bufferCandlesCount свечей (буфер для VWAP)
-    // BacktestLogicPrivateService запросил свечи начиная с (when - bufferMinutes)
-    if (i < bufferCandlesCount) {
-      continue;
-    }
 
     // Берем последние candlesCount свечей для VWAP (включая буфер)
     const startIndex = Math.max(0, i - (candlesCount - 1));
     const recentCandles = candles.slice(startIndex, i + 1);
     const averagePrice = GET_AVG_PRICE_FN(recentCandles);
+    const { low: touchLow, high: touchHigh } = GET_TOUCH_RANGE_FN(candles, spanStart, i);
+    spanStart = i + 1;
 
     // Если timestamp свечи вышел за frameEndTime — закрываем pending сигнал по time_expired
     if (currentCandleTimestamp > frameEndTime) {
@@ -6402,7 +6495,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       const stopPrice = useLiquidation ? liquidationPrice : effectiveStopLoss;
       // Для LONG: стоп/ликвидация если low <= уровень (касание, пессимизм — первым),
       // TP если VWAP >= TP
-      if (currentCandle.low <= stopPrice) {
+      if (touchLow <= stopPrice) {
         shouldClose = true;
         closeReason = useLiquidation ? "liquidation" : "stop_loss";
       } else if (averagePrice >= effectiveTakeProfit) {
@@ -6416,7 +6509,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       const stopPrice = useLiquidation ? liquidationPrice : effectiveStopLoss;
       // Для SHORT: стоп/ликвидация если high >= уровень (касание, пессимизм — первым),
       // TP если VWAP <= TP
-      if (currentCandle.high >= stopPrice) {
+      if (touchHigh >= stopPrice) {
         shouldClose = true;
         closeReason = useLiquidation ? "liquidation" : "stop_loss";
       } else if (averagePrice <= effectiveTakeProfit) {

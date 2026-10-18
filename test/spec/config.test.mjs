@@ -435,3 +435,46 @@ test("ConfigValidationService: multiple errors aggregated", async ({ pass, fail 
     }
   }
 });
+
+test("ConfigValidationService: negative BACKTEST_STEP fails", async ({ pass, fail }) => {
+  setConfig(getDefaultConfig());
+
+  try {
+    setConfig({ CC_BACKTEST_STEP_MINUTES: -60 });
+    fail("Should have thrown error for negative BACKTEST_STEP");
+  } catch (error) {
+    if (error.message.includes("CC_BACKTEST_STEP_MINUTES must be a non-negative integer")) {
+      pass("Correctly rejected negative BACKTEST_STEP");
+    } else {
+      fail(`Wrong error message: ${error.message}`);
+    }
+  }
+});
+
+test("ConfigValidationService: non-integer BACKTEST_STEP fails", async ({ pass, fail }) => {
+  setConfig(getDefaultConfig());
+
+  try {
+    setConfig({ CC_BACKTEST_STEP_MINUTES: 1.5 });
+    fail("Should have thrown error for non-integer BACKTEST_STEP");
+  } catch (error) {
+    if (error.message.includes("CC_BACKTEST_STEP_MINUTES must be a non-negative integer")) {
+      pass("Correctly rejected non-integer BACKTEST_STEP");
+    } else {
+      fail(`Wrong error message: ${error.message}`);
+    }
+  }
+});
+
+test("ConfigValidationService: daily BACKTEST_STEP passes", async ({ pass, fail }) => {
+  setConfig(getDefaultConfig());
+
+  try {
+    setConfig({ CC_BACKTEST_STEP_MINUTES: 24 * 60 });
+    pass("Correctly accepted a 1440-minute timeframe step");
+  } catch (error) {
+    fail(`Should have passed for a daily timeframe step: ${error.message}`);
+  } finally {
+    setConfig(getDefaultConfig());
+  }
+});
