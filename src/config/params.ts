@@ -85,12 +85,15 @@ export const GLOBAL_CONFIG = {
    * Candles stay 1m — only how often the backtest LOOKS at them changes.
    *
    * The pending TP/SL monitoring loop and the scheduled activation loop advance
-   * `step` 1m candles per iteration instead of one. The skipped candles are NOT
-   * ignored: stop-loss / liquidation and scheduled activation/cancel are checked
-   * against the min low / max high of the whole skipped span, so an intra-span
-   * touch still fires; VWAP, pings, partial/breakeven callbacks, the
-   * commit-queue drain and the per-candle "active"/"waiting" emissions run once
-   * per step. The tick cadence between signals is NOT affected — that stays the
+   * `step` 1m candles per iteration instead of one. Each span is evaluated at
+   * its LAST candle, so the VWAP window (CC_AVG_PRICE_CANDLES_COUNT candles)
+   * lies entirely inside the span and never blends two spans' prices. The
+   * skipped candles are NOT ignored: stop-loss / liquidation and scheduled
+   * activation/cancel are checked against the min low / max high of the whole
+   * span, so an intra-span touch still fires; VWAP, pings, partial/breakeven
+   * callbacks, the commit-queue drain and the per-candle "active"/"waiting"
+   * emissions run once per step. A trailing partial span (or a candle chunk
+   * shorter than the step) is evaluated at its last candle. The tick cadence between signals is NOT affected — that stays the
    * frame schema `interval`.
    *
    * Use case: a candle source that only has DAILY bars (Yahoo Finance) with the
