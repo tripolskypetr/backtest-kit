@@ -8819,6 +8819,11 @@ declare const GLOBAL_CONFIG: {
      * - Factor 10000 might be too strict for low-cap altcoins
      *
      * Example: BTC at $50,000 median → threshold $50 (catches $0.01-1 anomalies)
+     *
+     * Read in two places: by the engine (validateCandles, on every candle batch
+     * the exchange adapter returns) AND by the helpers getCandlesFilled /
+     * getCandlesSampled, which apply the same rule to the raw source rows to
+     * decide which candles to repair (see CC_GET_CANDLES_MAX_ANOMALY_STREAK).
      */
     CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
     /**
@@ -8833,9 +8838,19 @@ declare const GLOBAL_CONFIG: {
      * - Average is more stable than median for small datasets (n < 20)
      *
      * Example: 3 candles = 12 points (use average), 5 candles = 20 points (use median)
+     *
+     * Read in two places: by the engine (validateCandles) AND by the helpers
+     * getCandlesFilled / getCandlesSampled, which compute the reference price of
+     * the raw source window with the same rule.
      */
     CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
     /**
+     * HELPER-ONLY PARAMETER. The engine itself never reads it: it is consumed
+     * exclusively by the exported candle-fetcher helpers getCandlesFilled and
+     * getCandlesSampled (the HOF wrappers an exchange adapter builds its
+     * getCandles from), as the default of their `maxAnomalyStreak` config.
+     * An adapter that does not use those helpers is unaffected.
+     *
      * Maximum number of CONSECUTIVE anomalous source candles that getCandlesFilled
      * replaces with a flat fill (last known close, volume 0) before throwing.
      *
@@ -8854,6 +8869,34 @@ declare const GLOBAL_CONFIG: {
      * Default: 3
      */
     CC_GET_CANDLES_MAX_ANOMALY_STREAK: number;
+    /**
+     * HELPER-ONLY PARAMETER. The engine itself never reads it: it is consumed
+     * exclusively by the exported candle-fetcher helpers getCandlesFilled and
+     * getCandlesSampled (the HOF wrappers an exchange adapter builds its
+     * getCandles from), as the default of their `maxGapStreak` config.
+     * An adapter that does not use those helpers is unaffected.
+     *
+     * Maximum number of CONSECUTIVE grid positions WITHOUT a sane source candle
+     * (missing rows and anomalous rows alike) that getCandlesFilled fills with a
+     * flat candle before throwing. Measured in candles of the requested interval
+     * and counted across request boundaries (from the last sane candle before
+     * the window), so a long outage cannot be laundered by many short requests.
+     *
+     * Tells a technical pause apart from a dead symbol: a long weekend or a few
+     * days of exchange downtime on a daily feed are filled flat from the last
+     * close, a delisting / suspension that lasts longer throws instead of
+     * fabricating weeks of a flat market where stops never fire.
+     *
+     * The default is sized for DAILY feeds (one trading week). For a 1m feed set
+     * it per call or globally to the longest maintenance window you accept, or
+     * Infinity to disable the limit (legacy unbounded fill).
+     *
+     * Default for the `maxGapStreak` config of getCandlesFilled /
+     * getCandlesSampled; overridable per call.
+     *
+     * Default: 7
+     */
+    CC_GET_CANDLES_MAX_GAP_STREAK: number;
     /**
      * Controls visibility of signal notes in markdown report tables.
      * When enabled, the "Note" column will be displayed in all markdown reports
@@ -9391,6 +9434,7 @@ declare function getConfig(): {
     CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
     CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
     CC_GET_CANDLES_MAX_ANOMALY_STREAK: number;
+    CC_GET_CANDLES_MAX_GAP_STREAK: number;
     CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
     CC_REPORT_SKIP_IDLE_EVENTS: boolean;
     CC_REPORT_PERFORMANCE_MIN_DURATION_MS: number;
@@ -9465,6 +9509,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
     CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
     CC_GET_CANDLES_MAX_ANOMALY_STREAK: number;
+    CC_GET_CANDLES_MAX_GAP_STREAK: number;
     CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
     CC_REPORT_SKIP_IDLE_EVENTS: boolean;
     CC_REPORT_PERFORMANCE_MIN_DURATION_MS: number;
@@ -47831,6 +47876,13 @@ interface IGetCandlesFilledConfig {
      * GLOBAL_CONFIG.CC_GET_CANDLES_MAX_ANOMALY_STREAK.
      */
     maxAnomalyStreak?: number;
+    /**
+     * How many CONSECUTIVE grid positions without a sane source candle (missing
+     * or anomalous rows) are filled flat before the function throws — tells a
+     * technical pause from a delisting. Counted across request boundaries.
+     * Infinity disables the limit. Default: GLOBAL_CONFIG.CC_GET_CANDLES_MAX_GAP_STREAK.
+     */
+    maxGapStreak?: number;
 }
 /**
  * Returns limit candles starting from since on a continuous interval grid.
@@ -47847,13 +47899,25 @@ interface IGetCandlesFilledConfig {
  * default GLOBAL_CONFIG.CC_GET_CANDLES_MAX_ANOMALY_STREAK): a longer streak
  * throws, because a feed that is broken for that long must not be replaced by
  * a fabricated flat market. A sane candle resets the streak; a plain gap
- * (missing row) neither counts nor resets it. The fill price itself is always
- * the close of a non-anomalous row (window or history before it).
+ * (missing row) neither counts nor resets it. The streak is counted ACROSS the
+ * window boundary: when the window does not open with a sane candle, the
+ * anomalous rows between the last sane close before the window and the window
+ * start are counted first (see fetchLastCloseBefore), so splitting a broken
+ * stretch into many short windows cannot launder it. The fill price itself is
+ * always the close of a non-anomalous row (window or history before it).
+ *
+ * Independently of the anomaly streak, the total run of grid positions WITHOUT
+ * a sane candle (missing rows and anomalous rows together) is capped by
+ * `maxGapStreak` (default GLOBAL_CONFIG.CC_GET_CANDLES_MAX_GAP_STREAK), also
+ * counted across the window boundary from the last sane candle before the
+ * window. A weekend or a short exchange outage is filled; a delisting that
+ * leaves the feed empty for longer throws instead of producing weeks of a
+ * flat market.
  *
  * A row with a null/undefined volume is a source contract violation and
  * throws its own error immediately (not counted as an anomaly).
  */
-declare const getCandlesFilled: (fetchOHLCV: TFetchOHLCV, { symbol, interval, since, limit }: IGetCandlesFilledParams, { maxAnomalyStreak }?: IGetCandlesFilledConfig) => Promise<ICandle[]>;
+declare const getCandlesFilled: (fetchOHLCV: TFetchOHLCV, { symbol, interval, since, limit }: IGetCandlesFilledParams, { maxAnomalyStreak, maxGapStreak, }?: IGetCandlesFilledConfig) => Promise<ICandle[]>;
 
 interface IGetCandlesSampledConfig extends IGetCandlesFilledConfig {
     /**

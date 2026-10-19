@@ -192,6 +192,15 @@ export class ConfigValidationService {
       );
     }
 
+    if (
+      GLOBAL_CONFIG.CC_GET_CANDLES_MAX_GAP_STREAK !== Infinity &&
+      (!Number.isInteger(GLOBAL_CONFIG.CC_GET_CANDLES_MAX_GAP_STREAK) || GLOBAL_CONFIG.CC_GET_CANDLES_MAX_GAP_STREAK < 0)
+    ) {
+      errors.push(
+        `CC_GET_CANDLES_MAX_GAP_STREAK must be a non-negative integer or Infinity, got ${GLOBAL_CONFIG.CC_GET_CANDLES_MAX_GAP_STREAK}`
+      );
+    }
+
     if (!Number.isInteger(GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST) || GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST <= 0) {
       errors.push(
         `CC_MAX_CANDLES_PER_REQUEST must be a positive integer, got ${GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST}`

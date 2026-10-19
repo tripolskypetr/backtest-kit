@@ -506,3 +506,31 @@ test("ConfigValidationService: zero GET_CANDLES_MAX_ANOMALY_STREAK passes", asyn
     setConfig(getDefaultConfig());
   }
 });
+
+test("ConfigValidationService: negative GET_CANDLES_MAX_GAP_STREAK fails", async ({ pass, fail }) => {
+  setConfig(getDefaultConfig());
+
+  try {
+    setConfig({ CC_GET_CANDLES_MAX_GAP_STREAK: -1 });
+    fail("Should have thrown error for negative GET_CANDLES_MAX_GAP_STREAK");
+  } catch (error) {
+    if (error.message.includes("CC_GET_CANDLES_MAX_GAP_STREAK must be a non-negative integer or Infinity")) {
+      pass("Correctly rejected negative GET_CANDLES_MAX_GAP_STREAK");
+    } else {
+      fail(`Wrong error message: ${error.message}`);
+    }
+  }
+});
+
+test("ConfigValidationService: Infinity GET_CANDLES_MAX_GAP_STREAK passes", async ({ pass, fail }) => {
+  setConfig(getDefaultConfig());
+
+  try {
+    setConfig({ CC_GET_CANDLES_MAX_GAP_STREAK: Infinity });
+    pass("Correctly accepted Infinity GET_CANDLES_MAX_GAP_STREAK (unbounded fill)");
+  } catch (error) {
+    fail(`Should have passed for Infinity gap streak: ${error.message}`);
+  } finally {
+    setConfig(getDefaultConfig());
+  }
+});
