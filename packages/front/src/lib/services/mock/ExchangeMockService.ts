@@ -1,11 +1,25 @@
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
 import { inject } from "../../../lib/core/di";
-import { Backtest, CandleInterval, Live, alignToInterval, listExchangeSchema } from "backtest-kit";
+import { Backtest, CandleInterval, Live, alignToInterval, intervalStepMs, listExchangeSchema } from "backtest-kit";
 import StorageMockService from "./StorageMockService";
 import ExchangeService from "../base/ExchangeService";
 
 const HISTORY_LAST_CANDLES_LIMIT = 200;
+
+/**
+ * Range requests asking for more candles than this return an empty array
+ * instead of flooding the client (same cap as ExchangeViewService)
+ */
+const MAX_RANGE_CANDLES_LIMIT = 5_000;
+
+const exceedsCandleLimit = (
+  startTime: number,
+  stopTime: number,
+  interval: CandleInterval,
+) =>
+  Math.ceil((stopTime - startTime) / intervalStepMs(interval)) >
+  MAX_RANGE_CANDLES_LIMIT;
 
 export class ExchangeMockService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -31,6 +45,9 @@ export class ExchangeMockService {
       createdAt = pendingAt || scheduledAt,
       updatedAt,
     } = signal;
+    if (exceedsCandleLimit(createdAt, updatedAt, interval)) {
+      return [];
+    }
     return await this.exchangeService.getRangeCandles({
       symbol: signal.symbol,
       exchangeName: signal.exchangeName,
@@ -51,11 +68,16 @@ export class ExchangeMockService {
     }
     const { pendingAt, scheduledAt, updatedAt } = signal;
     const eventAt = pendingAt || scheduledAt;
+    const startAt = alignToInterval(new Date(eventAt), interval).getTime();
+    const stopAt = alignToInterval(new Date(updatedAt), interval).getTime();
+    if (exceedsCandleLimit(startAt, stopAt, interval)) {
+      return [];
+    }
     return await this.exchangeService.getRangeCandles({
       symbol: signal.symbol,
       exchangeName: signal.exchangeName,
-      signalStartTime: eventAt,
-      signalStopTime: alignToInterval(new Date(updatedAt), interval).getTime(),
+      signalStartTime: startAt,
+      signalStopTime: stopAt,
       interval,
     });
   };
