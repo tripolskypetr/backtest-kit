@@ -139,6 +139,26 @@ export const GLOBAL_CONFIG = {
   CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: 5,
 
   /**
+   * Maximum number of CONSECUTIVE anomalous source candles that getCandlesFilled
+   * replaces with a flat fill (last known close, volume 0) before throwing.
+   *
+   * An anomalous candle is what validateCandles rejects: non-finite values,
+   * zero/negative prices or negative volume, high < low, or a price below
+   * reference / CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR (reference =
+   * median of the window, or average below CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN
+   * candles). A single bad tick (Yahoo: low 0.00043 at price 1.07) is repaired
+   * like a gap; a longer streak means the feed itself is broken — throw rather
+   * than fabricate a flat market.
+   *
+   * Default for the `maxAnomalyStreak` config of getCandlesFilled /
+   * getCandlesSampled; overridable per call. Set to 0 to throw on the first
+   * anomalous candle.
+   *
+   * Default: 3
+   */
+  CC_GET_CANDLES_MAX_ANOMALY_STREAK: 3,
+
+  /**
    * Controls visibility of signal notes in markdown report tables.
    * When enabled, the "Note" column will be displayed in all markdown reports
    * (backtest, live, schedule, risk, etc.)

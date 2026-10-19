@@ -8836,6 +8836,25 @@ declare const GLOBAL_CONFIG: {
      */
     CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
     /**
+     * Maximum number of CONSECUTIVE anomalous source candles that getCandlesFilled
+     * replaces with a flat fill (last known close, volume 0) before throwing.
+     *
+     * An anomalous candle is what validateCandles rejects: non-finite values,
+     * zero/negative prices or negative volume, high < low, or a price below
+     * reference / CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR (reference =
+     * median of the window, or average below CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN
+     * candles). A single bad tick (Yahoo: low 0.00043 at price 1.07) is repaired
+     * like a gap; a longer streak means the feed itself is broken — throw rather
+     * than fabricate a flat market.
+     *
+     * Default for the `maxAnomalyStreak` config of getCandlesFilled /
+     * getCandlesSampled; overridable per call. Set to 0 to throw on the first
+     * anomalous candle.
+     *
+     * Default: 3
+     */
+    CC_GET_CANDLES_MAX_ANOMALY_STREAK: number;
+    /**
      * Controls visibility of signal notes in markdown report tables.
      * When enabled, the "Note" column will be displayed in all markdown reports
      * (backtest, live, schedule, risk, etc.)
@@ -9371,6 +9390,7 @@ declare function getConfig(): {
     CC_BACKTEST_STEP_MINUTES: number;
     CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
     CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
+    CC_GET_CANDLES_MAX_ANOMALY_STREAK: number;
     CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
     CC_REPORT_SKIP_IDLE_EVENTS: boolean;
     CC_REPORT_PERFORMANCE_MIN_DURATION_MS: number;
@@ -9444,6 +9464,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_BACKTEST_STEP_MINUTES: number;
     CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
     CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
+    CC_GET_CANDLES_MAX_ANOMALY_STREAK: number;
     CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
     CC_REPORT_SKIP_IDLE_EVENTS: boolean;
     CC_REPORT_PERFORMANCE_MIN_DURATION_MS: number;
@@ -47803,6 +47824,14 @@ interface IGetCandlesFilledParams {
     since: Date;
     limit: number;
 }
+interface IGetCandlesFilledConfig {
+    /**
+     * How many CONSECUTIVE anomalous source candles are repaired with a flat
+     * fill before the function throws. Default:
+     * GLOBAL_CONFIG.CC_GET_CANDLES_MAX_ANOMALY_STREAK.
+     */
+    maxAnomalyStreak?: number;
+}
 /**
  * Returns limit candles starting from since on a continuous interval grid.
  * Source gaps (exchange downtime) are filled with a flat candle from the
@@ -47811,41 +47840,52 @@ interface IGetCandlesFilledParams {
  * past before the window. If a gap cannot be filled (no history before the
  * window - the symbol was not traded yet), throws an exception: the result
  * is always exactly limit candles.
+ *
+ * Anomalous source candles (see IS_ANOMALOUS_FN — the validateCandles rules
+ * with the GLOBAL_CONFIG thresholds) are treated as gaps and repaired the
+ * same way, but only up to `maxAnomalyStreak` in a row (config argument,
+ * default GLOBAL_CONFIG.CC_GET_CANDLES_MAX_ANOMALY_STREAK): a longer streak
+ * throws, because a feed that is broken for that long must not be replaced by
+ * a fabricated flat market. A sane candle resets the streak; a plain gap
+ * (missing row) neither counts nor resets it.
  */
-declare const getCandlesFilled: (fetchOHLCV: TFetchOHLCV, { symbol, interval, since, limit }: IGetCandlesFilledParams) => Promise<ICandle[]>;
+declare const getCandlesFilled: (fetchOHLCV: TFetchOHLCV, { symbol, interval, since, limit }: IGetCandlesFilledParams, { maxAnomalyStreak }?: IGetCandlesFilledConfig) => Promise<ICandle[]>;
 
-interface IGetCandlesSampledParams extends IGetCandlesFilledParams {
+interface IGetCandlesSampledConfig extends IGetCandlesFilledConfig {
     /**
      * Interval the exchange natively serves (e.g. "1d" for Yahoo Finance), as
-     * opposed to `interval` — the one the engine asks for. Must be a multiple
-     * of `interval`. Default: "1d".
+     * opposed to `interval` — the one the engine asks for. `interval` must be
+     * equal to it or divide it evenly. Default: "1d".
      */
     nativeInterval?: string;
 }
 /**
  * Returns limit candles of a LOWER interval (1m, 5m, 1h, ...) synthesized from
  * the exchange's NATIVE higher interval (default 1d) for sources that only
- * serve daily bars (Yahoo Finance).
+ * serve daily bars (Yahoo Finance). Asking for the native interval itself
+ * (`interval === nativeInterval`) passes the native candles through unchanged.
  *
  * Every target candle inside a native bar is a copy of that bar: same open /
  * high / low / close, volume = native volume / (native / target ratio), so
  * the volumes of the synthesized candles sum back to the native volume (VWAP
  * weights stay equal within a bar either way).
  *
- * The native window is read through getCandlesFilled, so gaps in the native
- * feed (holidays, downtime) are filled with a flat bar from the last known
- * close without look-ahead, and a gap with no history before it throws.
+ * The native window is read through getCandlesFilled with the same config, so
+ * gaps and anomalous bars in the native feed (holidays, bad ticks) are
+ * repaired with a flat bar from the last known close without look-ahead, a
+ * gap with no history before it throws, and more than `maxAnomalyStreak`
+ * anomalous bars in a row throw.
  *
  * NOTE on look-ahead: a daily bar's high/low/close are known only at the end
  * of the day, yet every synthesized minute of that day carries them. This is
  * inherent to sampling a daily source and is the accepted trade-off for
  * such backtests (combine with CC_BACKTEST_STEP_MINUTES to evaluate once per
- * source bar).
+ * native bar).
  *
- * @throws Error if `interval` is not strictly smaller than `nativeInterval`
- *   or does not divide it evenly (e.g. "7m" into "1d")
+ * @throws Error if `interval` is larger than `nativeInterval` or does not
+ *   divide it evenly (e.g. "7m" into "1d")
  */
-declare const getCandlesSampled: (fetchOHLCV: TFetchOHLCV, { symbol, interval, since, limit, nativeInterval }: IGetCandlesSampledParams) => Promise<ICandle[]>;
+declare const getCandlesSampled: (fetchOHLCV: TFetchOHLCV, { symbol, interval, since, limit }: IGetCandlesFilledParams, { nativeInterval, ...filledConfig }?: IGetCandlesSampledConfig) => Promise<ICandle[]>;
 
 /**
  * CONFIRMED order-not-found — "the exchange definitively reports there is no order

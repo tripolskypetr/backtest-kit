@@ -108,9 +108,27 @@ test("getCandlesSampled: a missing source day is filled flat from the previous c
   pass("holiday filled flat without look-ahead via getCandlesFilled");
 });
 
+test("getCandlesSampled: interval equal to nativeInterval passes native candles through", async ({ pass, fail }) => {
+  const { fetchOHLCV } = makeDailySource({
+    0: [100, 110, 90, 105, 1440],
+    1: [105, 120, 100, 115, 2880],
+  });
+  const candles = await getCandlesSampled(fetchOHLCV, {
+    symbol: "AAPL",
+    interval: "1d",
+    since: new Date(DAY0),
+    limit: 2,
+  }, { nativeInterval: "1d" });
+  if (candles.length !== 2) return fail(`expected 2 daily candles, got ${candles.length}`);
+  if (candles[0].timestamp !== DAY0 || candles[1].timestamp !== DAY0 + DAY_MS) return fail("daily grid broken");
+  if (candles[0].volume !== 1440 || candles[1].volume !== 2880) return fail("native volume must be untouched");
+  if (candles[1].close !== 115) return fail("native OHLC must be untouched");
+  pass("1d requested from a 1d source returns the native bars unchanged");
+});
+
 test("getCandlesSampled: rejects intervals that do not divide the source", async ({ pass, fail }) => {
   const { fetchOHLCV } = makeDailySource({ 0: [100, 110, 90, 105, 1] });
-  for (const interval of ["7m", "1d", "2d"]) {
+  for (const interval of ["7m", "2d"]) {
     try {
       await getCandlesSampled(fetchOHLCV, { symbol: "AAPL", interval, since: new Date(DAY0), limit: 1 });
       return fail(`interval ${interval} must be rejected`);
@@ -118,5 +136,5 @@ test("getCandlesSampled: rejects intervals that do not divide the source", async
       if (!String(error.message).includes("getCandlesSampled")) return fail(`wrong error for ${interval}: ${error.message}`);
     }
   }
-  pass("7m (not a divisor), 1d (equal) and 2d (larger) are rejected");
+  pass("7m (not a divisor) and 2d (larger) are rejected");
 });

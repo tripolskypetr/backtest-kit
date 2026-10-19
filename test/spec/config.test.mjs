@@ -478,3 +478,31 @@ test("ConfigValidationService: daily BACKTEST_STEP passes", async ({ pass, fail 
     setConfig(getDefaultConfig());
   }
 });
+
+test("ConfigValidationService: negative GET_CANDLES_MAX_ANOMALY_STREAK fails", async ({ pass, fail }) => {
+  setConfig(getDefaultConfig());
+
+  try {
+    setConfig({ CC_GET_CANDLES_MAX_ANOMALY_STREAK: -1 });
+    fail("Should have thrown error for negative GET_CANDLES_MAX_ANOMALY_STREAK");
+  } catch (error) {
+    if (error.message.includes("CC_GET_CANDLES_MAX_ANOMALY_STREAK must be a non-negative integer")) {
+      pass("Correctly rejected negative GET_CANDLES_MAX_ANOMALY_STREAK");
+    } else {
+      fail(`Wrong error message: ${error.message}`);
+    }
+  }
+});
+
+test("ConfigValidationService: zero GET_CANDLES_MAX_ANOMALY_STREAK passes", async ({ pass, fail }) => {
+  setConfig(getDefaultConfig());
+
+  try {
+    setConfig({ CC_GET_CANDLES_MAX_ANOMALY_STREAK: 0 });
+    pass("Correctly accepted zero GET_CANDLES_MAX_ANOMALY_STREAK (throw on first anomaly)");
+  } catch (error) {
+    fail(`Should have passed for zero streak: ${error.message}`);
+  } finally {
+    setConfig(getDefaultConfig());
+  }
+});
