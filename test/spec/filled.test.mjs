@@ -93,3 +93,34 @@ test("getCandlesFilled: non-finite / high<low / negative volume rows are anomalo
   if (candles.slice(1, 4).some((c) => c.close !== 105 || c.volume !== 0)) return fail("all three rows must be repaired");
   pass("NaN, inverted high/low and negative volume are treated as anomalies");
 });
+
+test("getCandlesFilled: the fill price before the window skips an anomalous close", async ({ pass, fail }) => {
+  setConfig(getDefaultConfig());
+  // day 0 sane (close 52), day 1 has a broken CLOSE (0.0004) but positive, day 2 broken low, day 3 sane.
+  // Window starts at day 2: its start candle is anomalous, so the fill price is looked up before
+  // the window - it must be day 0's close, not day 1's broken close.
+  const fetchOHLCV = makeDailySource({
+    0: [50, 55, 45, 52, 1000],
+    1: [50, 55, 45, 0.0004, 1000],
+    2: BROKEN_LOW,
+    3: SANE,
+  });
+  const candles = await getCandlesFilled(fetchOHLCV, { symbol: "X", interval: "1d", since: new Date(DAY0 + 2 * DAY_MS), limit: 2 });
+  if (candles[0].close !== 52 || candles[0].volume !== 0) return fail(`fill price must be 52 (last sane close), got ${JSON.stringify(candles[0])}`);
+  if (candles[1].close !== 105) return fail("day 3 must be kept");
+  pass("broken close before the window is not used as the fill price");
+});
+
+test("getCandlesFilled: a row without volume throws a dedicated error", async ({ pass, fail }) => {
+  setConfig(getDefaultConfig());
+  const fetchOHLCV = makeDailySource({ 0: SANE, 1: [100, 110, 90, 105, undefined], 2: SANE });
+  try {
+    await getCandlesFilled(fetchOHLCV, { symbol: "X", interval: "1d", since: new Date(DAY0), limit: 3 });
+    return fail("a row without volume must throw");
+  } catch (error) {
+    const message = String(error.message);
+    if (!message.includes("has no volume")) return fail(`wrong error: ${message}`);
+    if (message.includes("anomalous candles in a row")) return fail("must not be reported as an anomaly streak");
+  }
+  pass("missing volume reported as a source contract violation with its own message");
+});

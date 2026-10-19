@@ -85,6 +85,29 @@ const GET_MIN_VALID_PRICE_FN = (candles: TRawOHLCV[]): number => {
 };
 
 /**
+ * A row without a volume is a SOURCE CONTRACT violation, not a bad tick: the
+ * fetcher must put 0 when the exchange has no volume. Reported with its own
+ * message instead of being counted as an anomaly, so the operator sees the
+ * real cause rather than "anomalous candles in a row".
+ *
+ * @throws Error if any row has a null/undefined volume
+ */
+const ASSERT_VOLUME_PRESENT_FN = (
+  candles: TRawOHLCV[],
+  symbol: string,
+  interval: string,
+): void => {
+  for (const [timestamp, , , , , volume] of candles) {
+    if (volume == null) {
+      throw new Error(
+        `getCandlesFilled: candle at ${new Date(timestamp!).toISOString()} (${symbol} ${interval}) has no volume - ` +
+          `the source must return [timestamp, open, high, low, close, volume] with volume set (use 0 when the exchange has none)`,
+      );
+    }
+  }
+};
+
+/**
  * Anomalous raw candle — the validateCandles definition applied to a single
  * raw row: non-finite values, zero/negative prices, negative volume,
  * high < low, or any price below the window's minimum valid price.
@@ -107,8 +130,9 @@ const IS_ANOMALOUS_FN = (candle: TRawOHLCV, minValidPrice: number): boolean => {
 };
 
 // Last known close BEFORE ts: look only into the past, no look ahead.
-// Rows without a finite positive close are skipped (a broken bar must not
-// become the fill price).
+// The fill price comes from the last row before ts that passes the SAME
+// anomaly rules as the window itself (reference price taken over the rows of
+// this lookup call) - a broken bar must never become the fill price.
 const fetchLastCloseBefore = async (
   fetchOHLCV: TFetchOHLCV,
   symbol: string,
@@ -119,8 +143,10 @@ const fetchLastCloseBefore = async (
   for (let back = 1; back <= 3; back++) {
     const since = ts - back * 1000 * stepMs;
     const candles = await fetchOHLCV(symbol, interval, since, 1000);
+    ASSERT_VOLUME_PRESENT_FN(candles, symbol, interval);
+    const minValidPrice = GET_MIN_VALID_PRICE_FN(candles);
     const prev = candles
-      .filter(([timestamp, , , , close]) => timestamp! < ts && Number.isFinite(close) && close! > 0)
+      .filter((candle) => candle[0]! < ts && !IS_ANOMALOUS_FN(candle, minValidPrice))
       .pop();
     if (prev) {
       return prev[4]!;
@@ -144,7 +170,11 @@ const fetchLastCloseBefore = async (
  * default GLOBAL_CONFIG.CC_GET_CANDLES_MAX_ANOMALY_STREAK): a longer streak
  * throws, because a feed that is broken for that long must not be replaced by
  * a fabricated flat market. A sane candle resets the streak; a plain gap
- * (missing row) neither counts nor resets it.
+ * (missing row) neither counts nor resets it. The fill price itself is always
+ * the close of a non-anomalous row (window or history before it).
+ *
+ * A row with a null/undefined volume is a source contract violation and
+ * throws its own error immediately (not counted as an anomaly).
  */
 export const getCandlesFilled = async (
   fetchOHLCV: TFetchOHLCV,
@@ -154,6 +184,7 @@ export const getCandlesFilled = async (
   const stepMs = getIntervalMs(interval);
   const start = Math.ceil(since.getTime() / stepMs) * stepMs;
   const candles = await fetchOHLCV(symbol, interval, start, limit);
+  ASSERT_VOLUME_PRESENT_FN(candles, symbol, interval);
   const minValidPrice = GET_MIN_VALID_PRICE_FN(candles);
   const byTimestamp = new Map(candles.map((candle) => [candle[0], candle]));
   const startCandle = byTimestamp.get(start);

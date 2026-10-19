@@ -47847,7 +47847,11 @@ interface IGetCandlesFilledConfig {
  * default GLOBAL_CONFIG.CC_GET_CANDLES_MAX_ANOMALY_STREAK): a longer streak
  * throws, because a feed that is broken for that long must not be replaced by
  * a fabricated flat market. A sane candle resets the streak; a plain gap
- * (missing row) neither counts nor resets it.
+ * (missing row) neither counts nor resets it. The fill price itself is always
+ * the close of a non-anomalous row (window or history before it).
+ *
+ * A row with a null/undefined volume is a source contract violation and
+ * throws its own error immediately (not counted as an anomaly).
  */
 declare const getCandlesFilled: (fetchOHLCV: TFetchOHLCV, { symbol, interval, since, limit }: IGetCandlesFilledParams, { maxAnomalyStreak }?: IGetCandlesFilledConfig) => Promise<ICandle[]>;
 
