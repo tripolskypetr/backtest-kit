@@ -70,7 +70,12 @@ const formatTimeElapsed = (timestamp: number): string => {
 
 const getMinutesInPosition = (item: IStorageSignalRow): number => {
     const openedAt = item.pendingAt || item.scheduledAt;
-    const closedAt = item.status === "closed" ? item.closeTimestamp : item.updatedAt;
+    // Storage stamps closeTimestamp on close; rows persisted by older code or
+    // other adapters may lack it — the last update is the close moment then
+    const closedAt =
+        item.status === "closed" && item.closeTimestamp
+            ? item.closeTimestamp
+            : item.updatedAt;
     return Math.max(0, Math.round((closedAt - openedAt) / 60_000));
 };
 
