@@ -138,6 +138,48 @@ export type SignalInterval =
   | "1h";
 
 /**
+ * Kind of a dividend / staking accrual credited to an open position.
+ * - "cash": a fixed amount of quote currency (USD) — stock dividends, bond coupons.
+ * - "asset": a quantity of the traded asset itself — staking rewards (ETH), stock
+ *   dividends paid in shares. Valued at the price used for the PNL calculation
+ *   (the current / close price), so it keeps moving with the position.
+ */
+export type AccrualType = "cash" | "asset";
+
+/**
+ * One dividend / staking accrual recorded on a position (ISignalRow._accruals).
+ * Added by commitDividendAdd, removed by id with commitDividendRemove. The engine
+ * never schedules accruals itself — when and how much is application logic
+ * (ex-dates from a calendar, staking epochs), typically tracked with State.
+ */
+export interface ISignalAccrual {
+  /** Accrual identifier — unique within the position; used to remove the accrual */
+  id: string;
+  /** "cash" (quote currency) or "asset" (units of the traded asset) */
+  type: AccrualType;
+  /** Positive amount: USD for "cash", asset units for "asset" */
+  amount: number;
+  /** Unix timestamp in milliseconds when the accrual was recorded (execution-context time) */
+  timestamp: number;
+  /** Optional human-readable description (e.g. "Q3 dividend", "epoch 1234 staking reward") */
+  note?: string;
+}
+
+/**
+ * Dividend / staking accrual DTO accepted by commitDividendAdd.
+ */
+export interface IDividendDto {
+  /** Positive amount: USD for "cash", asset units for "asset" */
+  amount: number;
+  /** Accrual kind. Default: "cash" */
+  type?: AccrualType;
+  /** Optional accrual id (auto-generated when omitted); must be unique within the position */
+  id?: string;
+  /** Optional human-readable description */
+  note?: string;
+}
+
+/**
  * Signal data transfer object returned by getSignal.
  * Will be validated and augmented with auto-generated id.
  */
@@ -286,6 +328,16 @@ export interface ISignalRow extends ISignalDto {
     timestamp: number;
   }>;
   /**
+   * Dividend / staking accruals credited to this position (see ISignalAccrual).
+   * Appended by commitDividendAdd, removed by id with commitDividendRemove.
+   * Folded into the PNL by toProfitLossDto: "cash" amounts as-is, "asset"
+   * amounts valued at the PNL price; the sum is published as
+   * IStrategyPnL.pnlDividends (computed, never stored) and added to pnlCost.
+   * Not scaled by the leverage multiplier. Missing on rows persisted before the
+   * field existed — read as an empty array.
+   */
+  _accruals?: ISignalAccrual[];
+  /**
    * Trailing take-profit price that overrides priceTakeProfit when set.
    * Created and managed by trailingTake() method for dynamic TP adjustment.
    * Allows moving TP further from or closer to current price based on strategy.
@@ -375,6 +427,12 @@ export interface IPublicSignalRow extends ISignalRow {
    * 0 = no partial closes done. 1+ = partial closes executed.
    */
   totalPartials: number;
+  /**
+   * Dividend / staking accruals credited to this position (copy of _accruals,
+   * empty array when none). Their value is folded into pnl.pnlCost and
+   * published separately as pnl.pnlDividends.
+   */
+  accruals: ISignalAccrual[];
   /**
    * Original entry price set at signal creation (unchanged by averaging).
    * Mirrors signal.priceOpen which is preserved for identity/audit purposes.
@@ -580,6 +638,42 @@ export interface IAverageBuyCommitRow extends ICommitRowBase {
 }
 
 /**
+ * Queued dividend / staking accrual commit (commitDividendAdd).
+ */
+export interface IDividendAddCommitRow extends ICommitRowBase {
+  /** Discriminator */
+  action: "dividend-add";
+  /** Accrual identifier within the position */
+  accrualId: string;
+  /** "cash" (USD) or "asset" (units of the traded asset) */
+  accrualType: AccrualType;
+  /** Positive amount in USD or asset units */
+  amount: number;
+  /** Price at which the accrual was recorded */
+  currentPrice: number;
+  /** Total number of accruals in _accruals after this addition */
+  totalAccruals: number;
+}
+
+/**
+ * Queued dividend / staking accrual removal commit (commitDividendRemove).
+ */
+export interface IDividendRemoveCommitRow extends ICommitRowBase {
+  /** Discriminator */
+  action: "dividend-remove";
+  /** Identifier of the removed accrual */
+  accrualId: string;
+  /** Kind of the removed accrual */
+  accrualType: AccrualType;
+  /** Amount of the removed accrual */
+  amount: number;
+  /** Price at which the removal was recorded */
+  currentPrice: number;
+  /** Total number of accruals in _accruals after this removal */
+  totalAccruals: number;
+}
+
+/**
  * Queued trailing stop commit.
  */
 export interface ITrailingStopCommitRow extends ICommitRowBase {
@@ -624,6 +718,8 @@ export type ICommitRow =
   | IPartialLossCommitRow
   | IBreakevenCommitRow
   | IAverageBuyCommitRow
+  | IDividendAddCommitRow
+  | IDividendRemoveCommitRow
   | ITrailingStopCommitRow
   | ITrailingTakeCommitRow
   | IActivateScheduledCommitRow;
@@ -865,10 +961,18 @@ export interface IStrategyPnL {
   priceOpen: number;
   /** Exit price adjusted with slippage and fees */
   priceClose: number;
-  /** Absolute profit/loss in USD: pnlPercentage / 100 * pnlEntries */
+  /** Absolute profit/loss in USD: pnlPercentage / 100 * pnlEntries (dividends included) */
   pnlCost: number;
   /** Total invested capital in USD: sum of all entry costs */
   pnlEntries: number;
+  /**
+   * Value of the dividend / staking accruals (ISignalRow._accruals) in USD at
+   * the PNL price: sum of cash amounts + sum of asset amounts × priceClose.
+   * Computed on every PNL calculation, never stored. Already included in
+   * pnlCost and pnlPercentage; published separately so the price component can
+   * be reconstructed as pnlCost - pnlDividends. Not scaled by the multiplier.
+   */
+  pnlDividends: number;
 }
 
 /**
@@ -1842,6 +1946,70 @@ export interface IStrategy {
    * @returns `true` if `averageBuy` would execute, `false` otherwise
    */
   validateAverageBuy: (symbol: string, currentPrice: number) => Promise<boolean>;
+
+  /**
+   * Records a dividend / staking accrual on the open position (see ISignalAccrual).
+   *
+   * Appends the accrual to _accruals. From this moment every PNL calculation
+   * folds it in: a "cash" accrual adds its USD amount, an "asset" accrual adds
+   * amount × price at the PNL price. The sum is published as pnl.pnlDividends.
+   * The engine does not decide WHEN a dividend is due — that is application
+   * logic (ex-date calendars, staking epochs), typically tracked with State.
+   *
+   * Validations (throws): no pending signal; amount not a positive finite number;
+   * unknown type; duplicate accrual id within the position.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price (recorded with the commit event)
+   * @param backtest - Whether running in backtest mode
+   * @param timestamp - Unix timestamp (ms) of the tick/candle that triggered the accrual
+   * @param dto - Accrual: amount, type ("cash" default | "asset"), optional id and note
+   * @returns Promise<boolean> - true when the accrual was recorded
+   */
+  dividendAdd: (symbol: string, currentPrice: number, backtest: boolean, timestamp: number, dto: IDividendDto) => Promise<boolean>;
+
+  /**
+   * Checks whether dividendAdd would succeed without executing it. Never throws.
+   *
+   * @param symbol - Trading pair symbol
+   * @param dto - Accrual to validate
+   * @returns true if dividendAdd would execute, false otherwise
+   */
+  validateDividendAdd: (symbol: string, dto: IDividendDto) => Promise<boolean>;
+
+  /**
+   * Removes a previously recorded accrual by id (e.g. a staking reward that was
+   * slashed, a dividend that was announced but not paid). The PNL drops its value
+   * from the next calculation on.
+   *
+   * Validations (throws): no pending signal; no accrual with that id.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price (recorded with the commit event)
+   * @param backtest - Whether running in backtest mode
+   * @param timestamp - Unix timestamp (ms) of the tick/candle that triggered the removal
+   * @param accrualId - Id of the accrual to remove
+   * @returns Promise<boolean> - true when the accrual was removed
+   */
+  dividendRemove: (symbol: string, currentPrice: number, backtest: boolean, timestamp: number, accrualId: string) => Promise<boolean>;
+
+  /**
+   * Checks whether dividendRemove would succeed without executing it. Never throws.
+   *
+   * @param symbol - Trading pair symbol
+   * @param accrualId - Id of the accrual to validate
+   * @returns true if dividendRemove would execute, false otherwise
+   */
+  validateDividendRemove: (symbol: string, accrualId: string) => Promise<boolean>;
+
+  /**
+   * Returns the dividend / staking accruals recorded on the current pending signal.
+   * Returns null if no pending signal exists, an empty array when none were recorded.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to the accrual list or null
+   */
+  getPositionAccruals: (symbol: string) => Promise<ISignalAccrual[] | null>;
 
   /**
    * Checks if there is an active pending signal for the symbol.

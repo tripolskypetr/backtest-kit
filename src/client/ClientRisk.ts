@@ -38,7 +38,7 @@ type RiskMap = Map<string, IRiskActivePosition>;
 const POSITION_NEED_FETCH = Symbol("risk-need-fetch");
 
 /** Zero PNL constant for scheduled signals (which don't have priceOpen or PNL yet) */
-const ZERO_PNL: IStrategyPnL = { pnlPercentage: 0, priceOpen: 0, priceClose: 0, pnlCost: 0, pnlEntries: 0 };
+const ZERO_PNL: IStrategyPnL = { pnlPercentage: 0, priceOpen: 0, priceClose: 0, pnlCost: 0, pnlEntries: 0, pnlDividends: 0 };
 
 /**
  * Converts signal to risk validation format.
@@ -103,6 +103,7 @@ const TO_RISK_SIGNAL = <T extends ISignalRow>(signal: T, currentPrice: number, t
     timestamp: signal.timestamp ?? timestamp,
     totalEntries: 1,
     totalPartials: 0,
+    accruals: ("_accruals" in signal && Array.isArray(signal._accruals)) ? structuredClone(signal._accruals) : [],
     priceOpen: signal.priceOpen ?? currentPrice,
     priceStopLoss: hasTrailingSL ? signal._trailingPriceStopLoss : signal.priceStopLoss,
     priceTakeProfit: hasTrailingTP ? signal._trailingPriceTakeProfit : signal.priceTakeProfit,

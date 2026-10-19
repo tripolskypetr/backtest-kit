@@ -1,4 +1,4 @@
-import { StrategyName, IStrategyPnL, IPublicSignalRow } from "../interfaces/Strategy.interface";
+import { StrategyName, IStrategyPnL, IPublicSignalRow, AccrualType } from "../interfaces/Strategy.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
 
@@ -282,6 +282,62 @@ export interface AverageBuyCommit extends SignalCommitBase {
 }
 
 /**
+ * Fields shared by the dividend / staking accrual events.
+ */
+interface DividendCommitBase extends SignalCommitBase {
+  /** Accrual identifier within the position */
+  accrualId: string;
+  /** "cash" (USD) or "asset" (units of the traded asset) */
+  accrualType: AccrualType;
+  /** Amount of the accrual: USD for "cash", asset units for "asset" */
+  amount: number;
+  /** Market price at the moment of the event (values "asset" accruals) */
+  currentPrice: number;
+  /** USD value of ALL accruals of the position after this event (pnl.pnlDividends) */
+  pnlDividends: number;
+  /** Total number of accruals on the position after this event */
+  totalAccruals: number;
+  /** Unrealized PNL at the moment of the event (accruals included) */
+  pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Effective (DCA-averaged) entry price */
+  priceOpen: number;
+  /** Effective take profit price (may differ from original after trailing) */
+  priceTakeProfit: number;
+  /** Effective stop loss price (may differ from original after trailing) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Signal creation timestamp in milliseconds */
+  scheduledAt: number;
+  /** Position activation timestamp in milliseconds */
+  pendingAt: number;
+}
+
+/**
+ * Dividend / staking accrual recorded on an open position (commitDividendAdd).
+ */
+export interface DividendAddCommit extends DividendCommitBase {
+  /** Discriminator for dividend-add action */
+  action: "dividend-add";
+}
+
+/**
+ * Dividend / staking accrual removed from an open position (commitDividendRemove).
+ */
+export interface DividendRemoveCommit extends DividendCommitBase {
+  /** Discriminator for dividend-remove action */
+  action: "dividend-remove";
+}
+
+/**
  * Activate scheduled signal event.
  */
 export interface ActivateScheduledCommit extends SignalCommitBase {
@@ -337,6 +393,8 @@ export type StrategyCommitContract =
   | TrailingTakeCommit
   | BreakevenCommit
   | AverageBuyCommit
+  | DividendAddCommit
+  | DividendRemoveCommit
   | ActivateScheduledCommit;
 
 export default StrategyCommitContract;

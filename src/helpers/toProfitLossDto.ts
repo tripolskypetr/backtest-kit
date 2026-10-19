@@ -1,12 +1,46 @@
 import { ISignalDto, ISignalRow, IStrategyPnL } from "../interfaces/Strategy.interface";
 import { GLOBAL_CONFIG } from "../config/params";
 import { getEffectivePriceOpen, computeEffectivePriceAtPartial } from "./getEffectivePriceOpen";
+import { getAccrualsCost } from "./getAccrualsCost";
 
 interface Signal extends ISignalDto {
   priceOpen: number;
   _entry?: ISignalRow['_entry'];
   _partial?: ISignalRow['_partial'];
+  _accruals?: ISignalRow['_accruals'];
 }
+
+/**
+ * Folds the dividend / staking accruals into the price PNL.
+ *
+ * pricePnlPercentage is the leveraged price component (slippage, fees and
+ * multiplier applied). Accruals are earned funds, not a leveraged move: their
+ * USD value (getAccrualsCost at the PNL price) is added to pnlCost untouched by
+ * the multiplier, and pnlPercentage is re-derived from the total so that
+ * pnlCost === pnlPercentage / 100 × pnlEntries still holds. With no accruals
+ * the result is exactly the price PNL.
+ */
+const WITH_ACCRUALS_FN = (
+  signal: Signal,
+  pricePnlPercentage: number,
+  priceOpen: number,
+  priceClose: number,
+  totalInvested: number,
+): IStrategyPnL => {
+  const pnlDividends = getAccrualsCost(signal, priceClose);
+  const pnlCost = (pricePnlPercentage / 100) * totalInvested + pnlDividends;
+  const pnlPercentage = totalInvested > 0
+    ? (pnlCost / totalInvested) * 100
+    : pricePnlPercentage;
+  return {
+    pnlPercentage,
+    priceOpen,
+    priceClose,
+    pnlCost,
+    pnlEntries: totalInvested,
+    pnlDividends,
+  };
+};
 
 /**
  * Относительная составляющая допуска для guard'а «партиалы превысили вложения».
@@ -34,6 +68,10 @@ const PARTIAL_OVERCLOSE_RELATIVE_TOLERANCE = 1e-8;
  * Fee structure:
  *   - Open fee:  CC_PERCENT_FEE (charged once)
  *   - Close fee: CC_PERCENT_FEE × weight × (closeWithSlip / openWithSlip) per partial/remaining
+ *
+ * Dividend / staking accruals (_accruals) are folded in last, see WITH_ACCRUALS_FN:
+ * their USD value at priceClose becomes pnlDividends, is added to pnlCost without
+ * the multiplier, and pnlPercentage is re-derived from the total.
  *
  * @param signal - Closed signal with position details and optional partial history
  * @param priceClose - Actual close price at final exit
@@ -145,13 +183,7 @@ export const toProfitLossDto = (
 
     const pnlPercentage = (totalWeightedPnl - totalFees) * multiplier;
 
-    return {
-      pnlPercentage,
-      priceOpen,
-      priceClose,
-      pnlCost: (pnlPercentage / 100) * totalInvested,
-      pnlEntries: totalInvested,
-    };
+    return WITH_ACCRUALS_FN(signal, pnlPercentage, priceOpen, priceClose, totalInvested);
   }
 
   // No partial closes
@@ -183,13 +215,7 @@ export const toProfitLossDto = (
   pnlPercentage -= totalFee;
   pnlPercentage *= multiplier;
 
-  return {
-    pnlPercentage,
-    priceOpen,
-    priceClose,
-    pnlCost: (pnlPercentage / 100) * totalInvested,
-    pnlEntries: totalInvested,
-  };
+  return WITH_ACCRUALS_FN(signal, pnlPercentage, priceOpen, priceClose, totalInvested);
 };
 
 export default toProfitLossDto;

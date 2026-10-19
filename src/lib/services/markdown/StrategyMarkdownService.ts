@@ -2,7 +2,7 @@ import { inject } from "../../core/di";
 import LoggerService, { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import { compose, memoize, singleshot } from "functools-kit";
-import { IStrategyPnL, StrategyName } from "../../../interfaces/Strategy.interface";
+import { IStrategyPnL, StrategyName, AccrualType } from "../../../interfaces/Strategy.interface";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { MarkdownWriter } from "../../../classes/Writer";
@@ -16,6 +16,8 @@ import { strategyCommitSubject } from "../../../config/emitters";
 import {
   ActivateScheduledCommit,
   AverageBuyCommit,
+  DividendAddCommit,
+  DividendRemoveCommit,
   BreakevenCommit,
   CancelScheduledCommit,
   ClosePendingCommit,
@@ -154,6 +156,8 @@ class ReportStorage {
         breakevenCount: 0,
         activateScheduledCount: 0,
         averageBuyCount: 0,
+        dividendAddCount: 0,
+        dividendRemoveCount: 0,
       };
     }
 
@@ -169,6 +173,8 @@ class ReportStorage {
       breakevenCount: this._eventList.filter(e => e.action === "breakeven").length,
       activateScheduledCount: this._eventList.filter(e => e.action === "activate-scheduled").length,
       averageBuyCount: this._eventList.filter(e => e.action === "average-buy").length,
+      dividendAddCount: this._eventList.filter(e => e.action === "dividend-add").length,
+      dividendRemoveCount: this._eventList.filter(e => e.action === "dividend-remove").length,
     };
   }
 
@@ -232,6 +238,8 @@ class ReportStorage {
       `- Breakeven: ${stats.breakevenCount}`,
       `- Activate scheduled: ${stats.activateScheduledCount}`,
       `- Average buy: ${stats.averageBuyCount}`,
+      `- Dividend add: ${stats.dividendAddCount}`,
+      `- Dividend remove: ${stats.dividendRemoveCount}`,
     ].join("\n");
   }
 
@@ -964,6 +972,81 @@ export class StrategyMarkdownService {
   };
 
   /**
+   * Logs a dividend / staking accrual event (recorded or removed) on an open position.
+   */
+  public dividend = async (
+    action: "dividend-add" | "dividend-remove",
+    symbol: string,
+    currentPrice: number,
+    accrualId: string,
+    accrualType: AccrualType,
+    amount: number,
+    pnlDividends: number,
+    totalAccruals: number,
+    isBacktest: boolean,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    timestamp: number,
+    signalId: string,
+    pnl: IStrategyPnL,
+    totalEntries: number,
+    totalPartials: number,
+    position: "long" | "short",
+    priceOpen: number,
+    priceTakeProfit: number,
+    priceStopLoss: number,
+    originalPriceTakeProfit: number,
+    originalPriceStopLoss: number,
+    scheduledAt: number,
+    pendingAt: number,
+    originalPriceOpen: number,
+    note?: string,
+  ) => {
+    this.loggerService.log("strategyMarkdownService dividend", {
+      action,
+      symbol,
+      accrualId,
+      accrualType,
+      amount,
+      isBacktest,
+    });
+    if (!this.subscribe.hasValue()) {
+      return;
+    }
+    const createdAt = new Date(timestamp).toISOString();
+    const storage = this.getStorage(symbol, context.strategyName, context.exchangeName, context.frameName, isBacktest);
+    storage.addEvent({
+      timestamp,
+      symbol,
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: context.frameName,
+      signalId,
+      action,
+      pnl,
+      currentPrice,
+      accrualId,
+      accrualType,
+      amount,
+      pnlDividends,
+      totalAccruals,
+      totalEntries,
+      totalPartials,
+      createdAt,
+      backtest: isBacktest,
+      position,
+      priceOpen,
+      priceTakeProfit,
+      priceStopLoss,
+      originalPriceTakeProfit,
+      originalPriceStopLoss,
+      originalPriceOpen,
+      scheduledAt,
+      pendingAt,
+      note,
+    });
+  };
+
+  /**
    * Retrieves aggregated statistics from accumulated strategy events.
    *
    * Returns counts for each action type and the full event list from the
@@ -1367,6 +1450,42 @@ export class StrategyMarkdownService {
         )
       );
 
+    const unDividend = strategyCommitSubject
+      .filter(({ action }) => action === "dividend-add" || action === "dividend-remove")
+      .connect(async (event: DividendAddCommit | DividendRemoveCommit) =>
+        await this.dividend(
+          event.action,
+          event.symbol,
+          event.currentPrice,
+          event.accrualId,
+          event.accrualType,
+          event.amount,
+          event.pnlDividends,
+          event.totalAccruals,
+          event.backtest,
+          {
+            exchangeName: event.exchangeName,
+            frameName: event.frameName,
+            strategyName: event.strategyName,
+          },
+          event.timestamp,
+          event.signalId,
+          event.pnl,
+          event.totalEntries,
+          event.totalPartials,
+          event.position,
+          event.priceOpen,
+          event.priceTakeProfit,
+          event.priceStopLoss,
+          event.originalPriceTakeProfit,
+          event.originalPriceStopLoss,
+          event.scheduledAt,
+          event.pendingAt,
+          event.originalPriceOpen,
+          event.note,
+        )
+      );
+
     const disposeFn = compose(
       () => unCancelSchedule(),
       () => unClosePending(),
@@ -1377,6 +1496,7 @@ export class StrategyMarkdownService {
       () => unBreakeven(),
       () => unActivateScheduled(),
       () => unAverageBuy(),
+      () => unDividend(),
     );
 
     return () => {

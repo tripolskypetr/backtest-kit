@@ -33,6 +33,8 @@ import {
   CommitPayload,
   IStrategyPnL,
   StrategyStatus,
+  ISignalAccrual,
+  IDividendDto,
 } from "../interfaces/Strategy.interface";
 import toProfitLossDto from "../helpers/toProfitLossDto";
 import { getEffectivePriceOpen as GET_EFFECTIVE_PRICE_OPEN } from "../helpers/getEffectivePriceOpen";
@@ -981,11 +983,48 @@ const PROCESS_COMMIT_QUEUE_FN = async (
       });
       continue;
     }
+    if (commit.action === "dividend-add" || commit.action === "dividend-remove") {
+      const publicSignal = TO_PUBLIC_SIGNAL("pending", attributionSignal, commit.currentPrice);
+      await CALL_COMMIT_FN(self, {
+        action: commit.action,
+        symbol: commit.symbol,
+        strategyName: self.params.strategyName,
+        exchangeName: self.params.exchangeName,
+        frameName: self.params.frameName,
+        backtest: commit.backtest,
+        accrualId: commit.accrualId,
+        accrualType: commit.accrualType,
+        amount: commit.amount,
+        currentPrice: commit.currentPrice,
+        pnlDividends: publicSignal.pnl.pnlDividends,
+        totalAccruals: commit.totalAccruals,
+        pnl: publicSignal.pnl,
+        maxDrawdown: publicSignal.maxDrawdown,
+        peakProfit: publicSignal.peakProfit,
+        signal: publicSignal,
+        timestamp,
+        when: new Date(timestamp),
+        totalEntries: publicSignal.totalEntries,
+        totalPartials: publicSignal.totalPartials,
+        signalId: publicSignal.id,
+        position: publicSignal.position,
+        priceOpen: publicSignal.priceOpen,
+        priceTakeProfit: publicSignal.priceTakeProfit,
+        priceStopLoss: publicSignal.priceStopLoss,
+        originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
+        originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+        originalPriceOpen: publicSignal.originalPriceOpen,
+        scheduledAt: publicSignal.scheduledAt,
+        pendingAt: publicSignal.pendingAt,
+        note: publicSignal.note,
+      });
+      continue;
+    }
   }
 };
 
 /** Zero PNL constant for scheduled signals (which don't have priceOpen or PNL yet) */
-const ZERO_PNL: IStrategyPnL = { pnlPercentage: 0, priceOpen: 0, priceClose: 0, pnlCost: 0, pnlEntries: 0 };
+const ZERO_PNL: IStrategyPnL = { pnlPercentage: 0, priceOpen: 0, priceClose: 0, pnlCost: 0, pnlEntries: 0, pnlDividends: 0 };
 
 /**
  * Converts internal signal to public API format.
@@ -1046,6 +1085,9 @@ const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRo
   const totalPartials = ("_partial" in signal && Array.isArray(signal._partial))
     ? signal._partial.length
     : 0;
+  const accruals: ISignalAccrual[] = ("_accruals" in signal && Array.isArray(signal._accruals))
+    ? structuredClone(signal._accruals)
+    : [];
   const pnl = type === "scheduled" ? ZERO_PNL : toProfitLossDto(signal as ISignalRow, currentPrice);
   const maxDrawdown = type === "scheduled" ? ZERO_PNL : ("_fall" in signal ? !!signal["_fall"] ? ({ ...signal._fall }) : ZERO_PNL : ZERO_PNL);
   const peakProfit = type === "scheduled" ? ZERO_PNL : ("_peak" in signal ? signal["_peak"] ? ({ ...signal._peak }) : ZERO_PNL : ZERO_PNL);
@@ -1069,6 +1111,7 @@ const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRo
     partialExecuted,
     totalEntries,
     totalPartials,
+    accruals,
     pnl,
   };
 };
@@ -1338,12 +1381,12 @@ const GET_SIGNAL_FN = trycatch(
           timestamp: currentTime,
           _isScheduled: false,
           _entry: [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
-          _peak: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
-          _fall: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
+          _peak: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0, pnlDividends: 0 },
+          _fall: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0, pnlDividends: 0 },
         };
         {
-          const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(signalRow, signal.priceOpen);
-          signalRow._fall = { price: signal.priceOpen, timestamp: currentTime, pnlPercentage, pnlCost, priceClose, priceOpen, pnlEntries };
+          const { pnlPercentage, pnlCost, pnlEntries, pnlDividends, priceClose, priceOpen } = toProfitLossDto(signalRow, signal.priceOpen);
+          signalRow._fall = { price: signal.priceOpen, timestamp: currentTime, pnlPercentage, pnlCost, priceClose, priceOpen, pnlEntries, pnlDividends };
         }
 
         // Валидируем сигнал перед возвратом
@@ -1382,8 +1425,8 @@ const GET_SIGNAL_FN = trycatch(
         timestamp: currentTime,
         _isScheduled: true,
         _entry: [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
-        _peak: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
-        _fall: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
+        _peak: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0, pnlDividends: 0 },
+        _fall: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0, pnlDividends: 0 },
       };
 
       // Валидируем сигнал перед возвратом
@@ -1414,12 +1457,12 @@ const GET_SIGNAL_FN = trycatch(
       timestamp: currentTime,
       _isScheduled: false,
       _entry: [{ price: currentPrice, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
-      _peak: { price: currentPrice, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
-      _fall: { price: currentPrice, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
+      _peak: { price: currentPrice, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0, pnlDividends: 0 },
+      _fall: { price: currentPrice, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0, pnlDividends: 0 },
     };
     {
-      const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(signalRow, currentPrice);
-      signalRow._fall = { price: currentPrice, timestamp: currentTime, pnlPercentage, pnlCost, priceClose, priceOpen, pnlEntries };
+      const { pnlPercentage, pnlCost, pnlEntries, pnlDividends, priceClose, priceOpen } = toProfitLossDto(signalRow, currentPrice);
+      signalRow._fall = { price: currentPrice, timestamp: currentTime, pnlPercentage, pnlCost, priceClose, priceOpen, pnlEntries, pnlDividends };
     }
 
     // Валидируем сигнал перед возвратом
@@ -1481,7 +1524,7 @@ const RECORD_CLOSE_EXCURSION_FN = (
     timestamp,
     pnlPercentage: pnl.pnlPercentage,
     pnlCost: pnl.pnlCost,
-    pnlEntries: pnl.pnlEntries,
+    pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends,
     priceOpen: pnl.priceOpen,
     priceClose: pnl.priceClose,
   };
@@ -1780,6 +1823,11 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     if (pendingSignal.payload == null) {
       pendingSignal.payload = {};
     }
+    // Back-compat: rows persisted before the accruals field existed read back
+    // without it — restore the empty-list default.
+    if (pendingSignal._accruals == null) {
+      pendingSignal._accruals = [];
+    }
     self._pendingSignal = pendingSignal;
 
     // A restored position's id is consumed BY DEFINITION (mirror of the
@@ -1898,6 +1946,9 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     // without it — restore the empty-dictionary default.
     if (scheduledSignal.payload == null) {
       scheduledSignal.payload = {};
+    }
+    if (scheduledSignal._accruals == null) {
+      scheduledSignal._accruals = [];
     }
     self._scheduledSignal = scheduledSignal;
 
@@ -2737,6 +2788,81 @@ const AVERAGE_BUY_FN = (
   return true;
 };
 
+/**
+ * Accrual DTO normalized to a row: type defaults to "cash", id is generated
+ * when omitted. Shared by dividendAdd and validateDividendAdd so both see the
+ * same defaults.
+ */
+const TO_ACCRUAL_ROW_FN = (dto: IDividendDto, timestamp: number): ISignalAccrual => ({
+  id: dto.id || randomString(),
+  type: dto.type ?? "cash",
+  amount: dto.amount,
+  timestamp,
+  note: dto.note,
+});
+
+/**
+ * Reason an accrual DTO cannot be recorded on the signal, or null when it can.
+ * Checked by dividendAdd (throws the reason) and validateDividendAdd (false).
+ */
+const GET_DIVIDEND_ADD_REJECTION_FN = (signal: ISignalRow, accrual: ISignalAccrual): string | null => {
+  if (typeof accrual.amount !== "number" || !isFinite(accrual.amount) || accrual.amount <= 0) {
+    return `amount must be a positive finite number, got ${accrual.amount}`;
+  }
+  if (accrual.type !== "cash" && accrual.type !== "asset") {
+    return `type must be "cash" or "asset", got ${String(accrual.type)}`;
+  }
+  if (typeof accrual.id !== "string" || !accrual.id) {
+    return `id must be a non-empty string, got ${String(accrual.id)}`;
+  }
+  if ((signal._accruals ?? []).some((row) => row.id === accrual.id)) {
+    return `accrual id "${accrual.id}" already exists on signal ${signal.id}`;
+  }
+  return null;
+};
+
+const DIVIDEND_ADD_FN = (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  accrual: ISignalAccrual
+): void => {
+  if (!signal._accruals) signal._accruals = [];
+  signal._accruals.push(accrual);
+  self.params.logger.info("DIVIDEND_ADD_FN executed", {
+    signalId: signal.id,
+    accrualId: accrual.id,
+    accrualType: accrual.type,
+    amount: accrual.amount,
+    totalAccruals: signal._accruals.length,
+  });
+};
+
+/**
+ * Removes the accrual with the given id. Returns the removed row, or null when
+ * no accrual with that id exists.
+ */
+const DIVIDEND_REMOVE_FN = (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  accrualId: string
+): ISignalAccrual | null => {
+  const accruals = signal._accruals ?? [];
+  const index = accruals.findIndex((row) => row.id === accrualId);
+  if (index < 0) {
+    return null;
+  }
+  const [removed] = accruals.splice(index, 1);
+  signal._accruals = accruals;
+  self.params.logger.info("DIVIDEND_REMOVE_FN executed", {
+    signalId: signal.id,
+    accrualId,
+    accrualType: removed.type,
+    amount: removed.amount,
+    totalAccruals: accruals.length,
+  });
+  return removed;
+};
+
 const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
   self: ClientStrategy,
   scheduled: IScheduledSignalRow,
@@ -3100,12 +3226,12 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
     ...scheduled,
     pendingAt: activationTime,
     _isScheduled: false,
-    _peak: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 },
-    _fall: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 },
+    _peak: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, pnlDividends: 0, priceClose: 0, priceOpen: 0 },
+    _fall: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, pnlDividends: 0, priceClose: 0, priceOpen: 0 },
   };
   {
-    const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(activatedSignal, activatedSignal.priceOpen);
-    activatedSignal._fall = { price: activatedSignal.priceOpen, timestamp: activationTime, pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen };
+    const { pnlPercentage, pnlCost, pnlEntries, pnlDividends, priceClose, priceOpen } = toProfitLossDto(activatedSignal, activatedSignal.priceOpen);
+    activatedSignal._fall = { price: activatedSignal.priceOpen, timestamp: activationTime, pnlPercentage, pnlCost, pnlEntries, pnlDividends, priceClose, priceOpen };
   }
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
@@ -4822,7 +4948,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
           // не было»), отрицательный peakProfit наружу не публикуется, и
           // onHighestProfit не фейрится без фактической прибыли.
           if (pnl.pnlPercentage > 0) {
-            signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen};
+            signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen};
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
                 signal.symbol,
@@ -4881,7 +5007,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         percentSl = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
         if (currentPrice < signal._fall.price) {
           const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
-          signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen };
+          signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen };
           if (self.params.callbacks?.onWrite) {
             self.params.callbacks.onWrite(
               signal.symbol,
@@ -4945,7 +5071,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
           // Пик — только реальный плюс (зеркало LONG-ветки выше): реализуемый
           // PNL <= 0 пиком не считается, снапшот остаётся нулевым.
           if (pnl.pnlPercentage > 0) {
-            signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen };
+            signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
                 signal.symbol,
@@ -5004,7 +5130,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         percentSl = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
         if (currentPrice > signal._fall.price) {
           const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
-          signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen };
+          signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen };
           if (self.params.callbacks?.onWrite) {
             self.params.callbacks.onWrite(
               signal.symbol,
@@ -5348,12 +5474,12 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     ...scheduled,
     pendingAt: activationTime,
     _isScheduled: false,
-    _peak: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 },
-    _fall: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 },
+    _peak: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, pnlDividends: 0, priceClose: 0, priceOpen: 0 },
+    _fall: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, pnlDividends: 0, priceClose: 0, priceOpen: 0 },
   };
   {
-    const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(activatedSignal, activatedSignal.priceOpen);
-    activatedSignal._fall = { price: activatedSignal.priceOpen, timestamp: activationTime, pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen };
+    const { pnlPercentage, pnlCost, pnlEntries, pnlDividends, priceClose, priceOpen } = toProfitLossDto(activatedSignal, activatedSignal.priceOpen);
+    activatedSignal._fall = { price: activatedSignal.priceOpen, timestamp: activationTime, pnlPercentage, pnlCost, pnlEntries, pnlDividends, priceClose, priceOpen };
   }
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
@@ -6057,12 +6183,12 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         ...activatedSignal,
         pendingAt: candle.timestamp,
         _isScheduled: false,
-        _peak: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
-        _fall: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
+        _peak: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0, pnlDividends: 0 },
+        _fall: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0, pnlDividends: 0 },
       };
       {
-        const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(pendingSignal, pendingSignal.priceOpen);
-        pendingSignal._fall = { price: pendingSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage, pnlCost, priceClose, priceOpen, pnlEntries };
+        const { pnlPercentage, pnlCost, pnlEntries, pnlDividends, priceClose, priceOpen } = toProfitLossDto(pendingSignal, pendingSignal.priceOpen);
+        pendingSignal._fall = { price: pendingSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage, pnlCost, priceClose, priceOpen, pnlEntries, pnlDividends };
       }
 
       // Sync open: if external system rejects — cancel scheduled signal instead of opening
@@ -6579,7 +6705,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             // Пик — только реальный плюс (зеркало live-ветки): реализуемый
             // PNL <= 0 пиком не считается, снапшот остаётся нулевым.
             if (pnl.pnlPercentage > 0) {
-              signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
+              signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
               if (self.params.callbacks?.onWrite) {
                 self.params.callbacks.onWrite(
                   signal.symbol,
@@ -6625,7 +6751,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           percentSl = progressPercent;
           if (averagePrice < signal._fall.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
-            signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
+            signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
                 signal.symbol,
@@ -6670,7 +6796,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             // Пик — только реальный плюс (зеркало live-ветки): реализуемый
             // PNL <= 0 пиком не считается, снапшот остаётся нулевым.
             if (pnl.pnlPercentage > 0) {
-              signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
+              signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
               if (self.params.callbacks?.onWrite) {
                 self.params.callbacks.onWrite(
                   signal.symbol,
@@ -6716,7 +6842,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           percentSl = progressPercent;
           if (averagePrice > signal._fall.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
-            signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
+            signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
                 signal.symbol,
@@ -8484,12 +8610,12 @@ export class ClientStrategy implements IStrategy {
         ...activatedSignal,
         pendingAt: currentTime,
         _isScheduled: false,
-        _peak: { price: activatedSignal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, pnlEntries: 0, priceOpen: 0 },
-        _fall: { price: activatedSignal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, pnlEntries: 0, priceOpen: 0 },
+        _peak: { price: activatedSignal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, pnlEntries: 0, pnlDividends: 0, priceOpen: 0 },
+        _fall: { price: activatedSignal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, pnlEntries: 0, pnlDividends: 0, priceOpen: 0 },
       };
       {
-        const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(pendingSignal, pendingSignal.priceOpen);
-        pendingSignal._fall = { price: pendingSignal.priceOpen, timestamp: currentTime, pnlPercentage, pnlCost, priceClose, pnlEntries, priceOpen };
+        const { pnlPercentage, pnlCost, pnlEntries, pnlDividends, priceClose, priceOpen } = toProfitLossDto(pendingSignal, pendingSignal.priceOpen);
+        pendingSignal._fall = { price: pendingSignal.priceOpen, timestamp: currentTime, pnlPercentage, pnlCost, priceClose, pnlEntries, pnlDividends, priceOpen };
       }
 
       const syncOpenAllowed = await CALL_ORDER_SYNC_OPEN_FN(currentTime, currentPrice, pendingSignal, this);
@@ -11412,6 +11538,249 @@ export class ClientStrategy implements IStrategy {
     });
 
     // Persist the queued commit so a crash before the next tick does not lose it
+    await PERSIST_STRATEGY_FN(this);
+
+    return true;
+  }
+
+  /**
+   * Returns the dividend / staking accruals recorded on the current pending signal.
+   *
+   * Returns null if no pending signal exists, an empty array when none were recorded.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to a copy of the accrual list or null
+   */
+  public async getPositionAccruals(symbol: string): Promise<ISignalAccrual[] | null> {
+    this.params.logger.debug("ClientStrategy getPositionAccruals", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return structuredClone(this._pendingSignal._accruals ?? []);
+  }
+
+  /**
+   * Validates preconditions for dividendAdd without mutating state.
+   *
+   * Returns false (never throws) when any condition would cause dividendAdd to throw:
+   * no pending signal, amount not a positive finite number, unknown type, or an
+   * accrual with the same id already recorded.
+   *
+   * @param symbol - Trading pair symbol
+   * @param dto - Accrual to validate
+   * @returns boolean - true if dividendAdd would execute, false otherwise
+   */
+  public async validateDividendAdd(symbol: string, dto: IDividendDto): Promise<boolean> {
+    this.params.logger.debug("ClientStrategy validateDividendAdd", {
+      symbol,
+      dto,
+      hasPendingSignal: this._pendingSignal !== null,
+    });
+    if (!this._pendingSignal) return false;
+    if (!dto || typeof dto !== "object") return false;
+    const accrual = TO_ACCRUAL_ROW_FN(dto, 0);
+    return GET_DIVIDEND_ADD_REJECTION_FN(this._pendingSignal, accrual) === null;
+  }
+
+  /**
+   * Records a dividend / staking accrual on the open position.
+   *
+   * Appends the accrual to _accruals; every PNL calculation from now on folds it
+   * in (cash as-is, asset × PNL price — see toProfitLossDto / getAccrualsCost) and
+   * publishes the total as pnl.pnlDividends. The engine never schedules accruals
+   * itself; deciding WHEN one is due is application logic.
+   *
+   * Validations (throws): no pending signal; invalid DTO (amount not a positive
+   * finite number, unknown type, duplicate id).
+   *
+   * Persists the updated signal (live) and queues a "dividend-add" commit that
+   * tick()/backtest() emits with the proper execution-context timestamp.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price recorded with the commit event
+   * @param backtest - Whether running in backtest mode (controls persistence)
+   * @param timestamp - Unix timestamp (ms) of the tick/candle that triggered the accrual
+   * @param dto - Accrual: amount, type ("cash" default | "asset"), optional id and note
+   * @returns Promise<boolean> - true when the accrual was recorded
+   */
+  public async dividendAdd(
+    symbol: string,
+    currentPrice: number,
+    backtest: boolean,
+    timestamp: number,
+    dto: IDividendDto
+  ): Promise<boolean> {
+    this.params.logger.debug("ClientStrategy dividendAdd", {
+      symbol,
+      currentPrice,
+      dto,
+      hasPendingSignal: this._pendingSignal !== null,
+    });
+
+    if (!this._pendingSignal) {
+      throw new Error(
+        `ClientStrategy dividendAdd: No pending signal exists for symbol=${symbol}`
+      );
+    }
+    if (!dto || typeof dto !== "object") {
+      throw new Error(
+        `ClientStrategy dividendAdd: dto must be an object, got ${String(dto)}`
+      );
+    }
+
+    const accrual = TO_ACCRUAL_ROW_FN(dto, timestamp);
+    const rejection = GET_DIVIDEND_ADD_REJECTION_FN(this._pendingSignal, accrual);
+    if (rejection !== null) {
+      throw new Error(`ClientStrategy dividendAdd: ${rejection}`);
+    }
+
+    DIVIDEND_ADD_FN(this, this._pendingSignal, accrual);
+
+    this.params.logger.debug("ClientStrategy setPendingSignal (inline)", {
+      pendingSignal: this._pendingSignal,
+    });
+
+    if (this.params.callbacks?.onWrite) {
+      this.params.callbacks.onWrite(
+        this.params.symbol,
+        TO_PUBLIC_SIGNAL("pending", this._pendingSignal, currentPrice),
+        currentPrice,
+        new Date(timestamp),
+        backtest
+      );
+    }
+
+    if (!backtest) {
+      await PersistSignalAdapter.writeSignalData(
+        this._pendingSignal,
+        this.params.symbol,
+        this.params.strategyName,
+        this.params.exchangeName,
+      );
+    }
+
+    // Queue commit event for processing in tick()/backtest() with proper timestamp
+    this._commitQueue.push({
+      action: "dividend-add",
+      symbol,
+      backtest,
+      accrualId: accrual.id,
+      accrualType: accrual.type,
+      amount: accrual.amount,
+      currentPrice,
+      totalAccruals: this._pendingSignal._accruals?.length ?? 0,
+    });
+
+    // Persist the queued commit so a crash before the next tick does not lose it
+    await PERSIST_STRATEGY_FN(this);
+
+    return true;
+  }
+
+  /**
+   * Validates preconditions for dividendRemove without mutating state.
+   *
+   * Returns false (never throws) when there is no pending signal or no accrual
+   * with the given id.
+   *
+   * @param symbol - Trading pair symbol
+   * @param accrualId - Id of the accrual to validate
+   * @returns boolean - true if dividendRemove would execute, false otherwise
+   */
+  public async validateDividendRemove(symbol: string, accrualId: string): Promise<boolean> {
+    this.params.logger.debug("ClientStrategy validateDividendRemove", {
+      symbol,
+      accrualId,
+      hasPendingSignal: this._pendingSignal !== null,
+    });
+    if (!this._pendingSignal) return false;
+    if (typeof accrualId !== "string" || !accrualId) return false;
+    return (this._pendingSignal._accruals ?? []).some((row) => row.id === accrualId);
+  }
+
+  /**
+   * Removes a previously recorded accrual by id (slashed staking reward, a
+   * dividend announced but not paid). The PNL drops its value from the next
+   * calculation on.
+   *
+   * Validations (throws): no pending signal; no accrual with that id.
+   *
+   * Persists the updated signal (live) and queues a "dividend-remove" commit that
+   * tick()/backtest() emits with the proper execution-context timestamp.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price recorded with the commit event
+   * @param backtest - Whether running in backtest mode (controls persistence)
+   * @param timestamp - Unix timestamp (ms) of the tick/candle that triggered the removal
+   * @param accrualId - Id of the accrual to remove
+   * @returns Promise<boolean> - true when the accrual was removed
+   */
+  public async dividendRemove(
+    symbol: string,
+    currentPrice: number,
+    backtest: boolean,
+    timestamp: number,
+    accrualId: string
+  ): Promise<boolean> {
+    this.params.logger.debug("ClientStrategy dividendRemove", {
+      symbol,
+      currentPrice,
+      accrualId,
+      hasPendingSignal: this._pendingSignal !== null,
+    });
+
+    if (!this._pendingSignal) {
+      throw new Error(
+        `ClientStrategy dividendRemove: No pending signal exists for symbol=${symbol}`
+      );
+    }
+    if (typeof accrualId !== "string" || !accrualId) {
+      throw new Error(
+        `ClientStrategy dividendRemove: accrualId must be a non-empty string, got ${String(accrualId)}`
+      );
+    }
+
+    const removed = DIVIDEND_REMOVE_FN(this, this._pendingSignal, accrualId);
+    if (!removed) {
+      throw new Error(
+        `ClientStrategy dividendRemove: accrual id "${accrualId}" not found on signal ${this._pendingSignal.id}`
+      );
+    }
+
+    this.params.logger.debug("ClientStrategy setPendingSignal (inline)", {
+      pendingSignal: this._pendingSignal,
+    });
+
+    if (this.params.callbacks?.onWrite) {
+      this.params.callbacks.onWrite(
+        this.params.symbol,
+        TO_PUBLIC_SIGNAL("pending", this._pendingSignal, currentPrice),
+        currentPrice,
+        new Date(timestamp),
+        backtest
+      );
+    }
+
+    if (!backtest) {
+      await PersistSignalAdapter.writeSignalData(
+        this._pendingSignal,
+        this.params.symbol,
+        this.params.strategyName,
+        this.params.exchangeName,
+      );
+    }
+
+    this._commitQueue.push({
+      action: "dividend-remove",
+      symbol,
+      backtest,
+      accrualId: removed.id,
+      accrualType: removed.type,
+      amount: removed.amount,
+      currentPrice,
+      totalAccruals: this._pendingSignal._accruals?.length ?? 0,
+    });
+
     await PERSIST_STRATEGY_FN(this);
 
     return true;

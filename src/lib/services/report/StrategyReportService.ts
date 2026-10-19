@@ -5,11 +5,13 @@ import { ReportWriter } from "../../../classes/Writer";
 import { compose, singleshot } from "functools-kit";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
-import { IStrategyPnL, StrategyName } from "../../../interfaces/Strategy.interface";
+import { IStrategyPnL, StrategyName, AccrualType } from "../../../interfaces/Strategy.interface";
 import { strategyCommitSubject } from "../../../config/emitters";
 import {
   ActivateScheduledCommit,
   AverageBuyCommit,
+  DividendAddCommit,
+  DividendRemoveCommit,
   BreakevenCommit,
   CancelScheduledCommit,
   ClosePendingCommit,
@@ -784,6 +786,106 @@ export class StrategyReportService {
   };
 
   /**
+   * Logs a dividend / staking accrual event (recorded or removed) on an open position.
+   */
+  public dividend = async (
+    action: "dividend-add" | "dividend-remove",
+    symbol: string,
+    currentPrice: number,
+    accrualId: string,
+    accrualType: AccrualType,
+    amount: number,
+    pnlDividends: number,
+    totalAccruals: number,
+    isBacktest: boolean,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+    timestamp: number,
+    signalId: string,
+    pnl: IStrategyPnL,
+    peakProfit: IStrategyPnL,
+    maxDrawdown: IStrategyPnL,
+    totalEntries: number,
+    totalPartials: number,
+    position: "long" | "short",
+    priceOpen: number,
+    priceTakeProfit: number,
+    priceStopLoss: number,
+    originalPriceTakeProfit: number,
+    originalPriceStopLoss: number,
+    scheduledAt: number,
+    pendingAt: number,
+    originalPriceOpen: number,
+    note?: string,
+  ) => {
+    this.loggerService.log("strategyReportService dividend", {
+      action,
+      symbol,
+      accrualId,
+      accrualType,
+      amount,
+      isBacktest,
+    });
+    if (!this.subscribe.hasValue()) {
+      return;
+    }
+    const createdAt = new Date(timestamp).toISOString();
+    await ReportWriter.writeData(
+      "strategy",
+      {
+        action,
+        currentPrice,
+        accrualId,
+        accrualType,
+        amount,
+        pnlDividends,
+        totalAccruals,
+        totalEntries,
+        totalPartials,
+        symbol,
+        timestamp,
+        createdAt,
+        position,
+        priceOpen,
+        priceTakeProfit,
+        priceStopLoss,
+        originalPriceTakeProfit,
+        originalPriceStopLoss,
+        originalPriceOpen,
+        scheduledAt,
+        pendingAt,
+        pnlPercentage: pnl.pnlPercentage,
+        pnlCost: pnl.pnlCost,
+        pnlEntries: pnl.pnlEntries,
+        pnlPriceOpen: pnl.priceOpen,
+        pnlPriceClose: pnl.priceClose,
+        peakProfitPercentage: peakProfit.pnlPercentage,
+        peakProfitCost: peakProfit.pnlCost,
+        peakProfitEntries: peakProfit.pnlEntries,
+        peakProfitPriceOpen: peakProfit.priceOpen,
+        peakProfitPriceClose: peakProfit.priceClose,
+        maxDrawdownPercentage: maxDrawdown.pnlPercentage,
+        maxDrawdownCost: maxDrawdown.pnlCost,
+        maxDrawdownEntries: maxDrawdown.pnlEntries,
+        maxDrawdownPriceOpen: maxDrawdown.priceOpen,
+        maxDrawdownPriceClose: maxDrawdown.priceClose,
+        note,
+      },
+      {
+        signalId,
+        exchangeName: context.exchangeName,
+        frameName: context.frameName,
+        strategyName: context.strategyName,
+        symbol,
+        walkerName: "",
+      },
+    );
+  };
+
+  /**
    * Initializes the service for event logging.
    *
    * Must be called before any events can be logged. Uses singleshot pattern
@@ -1063,6 +1165,44 @@ export class StrategyReportService {
         )
       );
 
+    const unDividend = strategyCommitSubject
+      .filter(({ action }) => action === "dividend-add" || action === "dividend-remove")
+      .connect(async (event: DividendAddCommit | DividendRemoveCommit) =>
+        await this.dividend(
+          event.action,
+          event.symbol,
+          event.currentPrice,
+          event.accrualId,
+          event.accrualType,
+          event.amount,
+          event.pnlDividends,
+          event.totalAccruals,
+          event.backtest,
+          {
+            exchangeName: event.exchangeName,
+            frameName: event.frameName,
+            strategyName: event.strategyName,
+          },
+          event.timestamp,
+          event.signalId,
+          event.pnl,
+          event.peakProfit,
+          event.maxDrawdown,
+          event.totalEntries,
+          event.totalPartials,
+          event.position,
+          event.priceOpen,
+          event.priceTakeProfit,
+          event.priceStopLoss,
+          event.originalPriceTakeProfit,
+          event.originalPriceStopLoss,
+          event.scheduledAt,
+          event.pendingAt,
+          event.originalPriceOpen,
+          event.note,
+        )
+      );
+
     const disposeFn = compose(
       () => unCancelSchedule(),
       () => unClosePending(),
@@ -1073,6 +1213,7 @@ export class StrategyReportService {
       () => unBreakeven(),
       () => unActivateScheduled(),
       () => unAverageBuy(),
+      () => unDividend(),
     );
 
     return () => {

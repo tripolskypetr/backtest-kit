@@ -1,4 +1,4 @@
-import { IStrategyPnL, StrategyName } from "../interfaces/Strategy.interface";
+import { IStrategyPnL, StrategyName, AccrualType } from "../interfaces/Strategy.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
 
@@ -15,7 +15,9 @@ export type StrategyActionType =
   | "trailing-take"
   | "breakeven"
   | "activate-scheduled"
-  | "average-buy";
+  | "average-buy"
+  | "dividend-add"
+  | "dividend-remove";
 
 /**
  * Unified strategy event data for markdown report generation.
@@ -80,6 +82,16 @@ export interface StrategyEvent {
   pnl?: IStrategyPnL;
   /** Cost of this entry in USD (average-buy action only) */
   cost?: number;
+  /** Accrual identifier (dividend-add / dividend-remove actions only) */
+  accrualId?: string;
+  /** Accrual kind: "cash" or "asset" (dividend-add / dividend-remove actions only) */
+  accrualType?: AccrualType;
+  /** Accrual amount: USD for "cash", asset units for "asset" (dividend-add / dividend-remove actions only) */
+  amount?: number;
+  /** USD value of all accruals of the position after the event (dividend-add / dividend-remove actions only) */
+  pnlDividends?: number;
+  /** Total number of accruals on the position after the event (dividend-add / dividend-remove actions only) */
+  totalAccruals?: number;
   /** Optional note from commit payload */
   note?: string;
 }
@@ -130,4 +142,10 @@ export interface StrategyStatisticsModel {
 
   /** Count of average-buy (DCA) events */
   averageBuyCount: number;
+
+  /** Count of dividend-add (accrual recorded) events */
+  dividendAddCount: number;
+
+  /** Count of dividend-remove (accrual removed) events */
+  dividendRemoveCount: number;
 }

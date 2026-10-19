@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { IPublicSignalRow, StrategyName, CommitPayload, ISignalDto, StrategyStatus } from "../interfaces/Strategy.interface";
+import { IPublicSignalRow, StrategyName, CommitPayload, ISignalDto, StrategyStatus, IDividendDto } from "../interfaces/Strategy.interface";
 import { exitEmitter, doneBacktestSubject } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
 import {
@@ -132,6 +132,9 @@ const BACKTEST_METHOD_NAME_TRAILING_PROFIT_COST =
 const BACKTEST_METHOD_NAME_ACTIVATE_SCHEDULED =
   "Backtest.commitActivateScheduled";
 const BACKTEST_METHOD_NAME_AVERAGE_BUY = "Backtest.commitAverageBuy";
+const BACKTEST_METHOD_NAME_DIVIDEND_ADD = "Backtest.commitDividendAdd";
+const BACKTEST_METHOD_NAME_DIVIDEND_REMOVE = "Backtest.commitDividendRemove";
+const BACKTEST_METHOD_NAME_GET_POSITION_ACCRUALS = "Backtest.getPositionAccruals";
 const BACKTEST_METHOD_NAME_SIGNAL_NOTIFY = "Backtest.commitSignalNotify";
 const BACKTEST_METHOD_NAME_GET_DATA = "BacktestUtils.getData";
 const BACKTEST_METHOD_NAME_HAS_NO_PENDING_SIGNAL =
@@ -5260,6 +5263,224 @@ export class BacktestUtils {
       currentPrice,
       context,
       cost,
+    );
+  };
+
+  /**
+   * Records a dividend / staking accrual on the open position (see commitDividendAdd).
+   * Context-free variant: the strategy, exchange and risk/action registrations are
+   * validated explicitly. Returns false when no pending signal exists or the DTO is invalid.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price recorded with the commit event
+   * @param context - Execution context
+   * @param dto - Accrual: amount, type ("cash" default | "asset"), optional id and note
+   * @returns Promise resolving to true when the accrual was recorded
+   */
+  public commitDividendAdd = async (
+    symbol: string,
+    currentPrice: number,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+    dto: IDividendDto,
+  ): Promise<boolean> => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_DIVIDEND_ADD, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_DIVIDEND_ADD,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_DIVIDEND_ADD,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_DIVIDEND_ADD,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_DIVIDEND_ADD,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_DIVIDEND_ADD,
+          ),
+        );
+    }
+
+    if (
+      await not(
+        backtest.strategyCoreService.validateDividendAdd(
+          true,
+          symbol,
+          dto,
+          context,
+        ),
+      )
+    ) {
+      return false;
+    }
+    return await backtest.strategyCoreService.dividendAdd(
+      true,
+      symbol,
+      currentPrice,
+      context,
+      dto,
+    );
+  };
+
+  /**
+   * Removes a recorded dividend / staking accrual by id (see commitDividendRemove).
+   * Context-free variant. Returns false when no pending signal exists or no accrual
+   * with that id is recorded.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price recorded with the commit event
+   * @param context - Execution context
+   * @param accrualId - Id of the accrual to remove
+   * @returns Promise resolving to true when the accrual was removed
+   */
+  public commitDividendRemove = async (
+    symbol: string,
+    currentPrice: number,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+    accrualId: string,
+  ): Promise<boolean> => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_DIVIDEND_REMOVE, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_DIVIDEND_REMOVE,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_DIVIDEND_REMOVE,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_DIVIDEND_REMOVE,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_DIVIDEND_REMOVE,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_DIVIDEND_REMOVE,
+          ),
+        );
+    }
+
+    if (
+      await not(
+        backtest.strategyCoreService.validateDividendRemove(
+          true,
+          symbol,
+          accrualId,
+          context,
+        ),
+      )
+    ) {
+      return false;
+    }
+    return await backtest.strategyCoreService.dividendRemove(
+      true,
+      symbol,
+      currentPrice,
+      context,
+      accrualId,
+    );
+  };
+
+  /**
+   * Returns the dividend / staking accruals recorded on the current pending signal
+   * (see getPositionAccruals). Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context
+   * @returns Accrual list or null
+   */
+  public getPositionAccruals = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_POSITION_ACCRUALS, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_POSITION_ACCRUALS,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_POSITION_ACCRUALS,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_POSITION_ACCRUALS,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_POSITION_ACCRUALS,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_POSITION_ACCRUALS,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getPositionAccruals(
+      true,
+      symbol,
+      context,
     );
   };
 

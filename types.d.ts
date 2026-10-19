@@ -2977,6 +2977,59 @@ interface AverageBuyCommit extends SignalCommitBase {
     pendingAt: number;
 }
 /**
+ * Fields shared by the dividend / staking accrual events.
+ */
+interface DividendCommitBase extends SignalCommitBase {
+    /** Accrual identifier within the position */
+    accrualId: string;
+    /** "cash" (USD) or "asset" (units of the traded asset) */
+    accrualType: AccrualType;
+    /** Amount of the accrual: USD for "cash", asset units for "asset" */
+    amount: number;
+    /** Market price at the moment of the event (values "asset" accruals) */
+    currentPrice: number;
+    /** USD value of ALL accruals of the position after this event (pnl.pnlDividends) */
+    pnlDividends: number;
+    /** Total number of accruals on the position after this event */
+    totalAccruals: number;
+    /** Unrealized PNL at the moment of the event (accruals included) */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Effective (DCA-averaged) entry price */
+    priceOpen: number;
+    /** Effective take profit price (may differ from original after trailing) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (may differ from original after trailing) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Signal creation timestamp in milliseconds */
+    scheduledAt: number;
+    /** Position activation timestamp in milliseconds */
+    pendingAt: number;
+}
+/**
+ * Dividend / staking accrual recorded on an open position (commitDividendAdd).
+ */
+interface DividendAddCommit extends DividendCommitBase {
+    /** Discriminator for dividend-add action */
+    action: "dividend-add";
+}
+/**
+ * Dividend / staking accrual removed from an open position (commitDividendRemove).
+ */
+interface DividendRemoveCommit extends DividendCommitBase {
+    /** Discriminator for dividend-remove action */
+    action: "dividend-remove";
+}
+/**
  * Activate scheduled signal event.
  */
 interface ActivateScheduledCommit extends SignalCommitBase {
@@ -3022,7 +3075,7 @@ interface ActivateScheduledCommit extends SignalCommitBase {
  * Consumers must retrieve signal data from StrategyCoreService using
  * getPendingSignal() or getScheduledSignal() methods.
  */
-type StrategyCommitContract = CancelScheduledCommit | ClosePendingCommit | PartialProfitCommit | PartialLossCommit | TrailingStopCommit | TrailingTakeCommit | BreakevenCommit | AverageBuyCommit | ActivateScheduledCommit;
+type StrategyCommitContract = CancelScheduledCommit | ClosePendingCommit | PartialProfitCommit | PartialLossCommit | TrailingStopCommit | TrailingTakeCommit | BreakevenCommit | AverageBuyCommit | DividendAddCommit | DividendRemoveCommit | ActivateScheduledCommit;
 
 /**
  * Post-verdict order-check CONTINUE event.
@@ -3419,6 +3472,45 @@ type CommitPayload = {
  */
 type SignalInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h";
 /**
+ * Kind of a dividend / staking accrual credited to an open position.
+ * - "cash": a fixed amount of quote currency (USD) — stock dividends, bond coupons.
+ * - "asset": a quantity of the traded asset itself — staking rewards (ETH), stock
+ *   dividends paid in shares. Valued at the price used for the PNL calculation
+ *   (the current / close price), so it keeps moving with the position.
+ */
+type AccrualType = "cash" | "asset";
+/**
+ * One dividend / staking accrual recorded on a position (ISignalRow._accruals).
+ * Added by commitDividendAdd, removed by id with commitDividendRemove. The engine
+ * never schedules accruals itself — when and how much is application logic
+ * (ex-dates from a calendar, staking epochs), typically tracked with State.
+ */
+interface ISignalAccrual {
+    /** Accrual identifier — unique within the position; used to remove the accrual */
+    id: string;
+    /** "cash" (quote currency) or "asset" (units of the traded asset) */
+    type: AccrualType;
+    /** Positive amount: USD for "cash", asset units for "asset" */
+    amount: number;
+    /** Unix timestamp in milliseconds when the accrual was recorded (execution-context time) */
+    timestamp: number;
+    /** Optional human-readable description (e.g. "Q3 dividend", "epoch 1234 staking reward") */
+    note?: string;
+}
+/**
+ * Dividend / staking accrual DTO accepted by commitDividendAdd.
+ */
+interface IDividendDto {
+    /** Positive amount: USD for "cash", asset units for "asset" */
+    amount: number;
+    /** Accrual kind. Default: "cash" */
+    type?: AccrualType;
+    /** Optional accrual id (auto-generated when omitted); must be unique within the position */
+    id?: string;
+    /** Optional human-readable description */
+    note?: string;
+}
+/**
  * Signal data transfer object returned by getSignal.
  * Will be validated and augmented with auto-generated id.
  */
@@ -3565,6 +3657,16 @@ interface ISignalRow extends ISignalDto {
         timestamp: number;
     }>;
     /**
+     * Dividend / staking accruals credited to this position (see ISignalAccrual).
+     * Appended by commitDividendAdd, removed by id with commitDividendRemove.
+     * Folded into the PNL by toProfitLossDto: "cash" amounts as-is, "asset"
+     * amounts valued at the PNL price; the sum is published as
+     * IStrategyPnL.pnlDividends (computed, never stored) and added to pnlCost.
+     * Not scaled by the leverage multiplier. Missing on rows persisted before the
+     * field existed — read as an empty array.
+     */
+    _accruals?: ISignalAccrual[];
+    /**
      * Trailing take-profit price that overrides priceTakeProfit when set.
      * Created and managed by trailingTake() method for dynamic TP adjustment.
      * Allows moving TP further from or closer to current price based on strategy.
@@ -3658,6 +3760,12 @@ interface IPublicSignalRow extends ISignalRow {
      * 0 = no partial closes done. 1+ = partial closes executed.
      */
     totalPartials: number;
+    /**
+     * Dividend / staking accruals credited to this position (copy of _accruals,
+     * empty array when none). Their value is folded into pnl.pnlCost and
+     * published separately as pnl.pnlDividends.
+     */
+    accruals: ISignalAccrual[];
     /**
      * Original entry price set at signal creation (unchanged by averaging).
      * Mirrors signal.priceOpen which is preserved for identity/audit purposes.
@@ -3841,6 +3949,40 @@ interface IAverageBuyCommitRow extends ICommitRowBase {
     totalEntries: number;
 }
 /**
+ * Queued dividend / staking accrual commit (commitDividendAdd).
+ */
+interface IDividendAddCommitRow extends ICommitRowBase {
+    /** Discriminator */
+    action: "dividend-add";
+    /** Accrual identifier within the position */
+    accrualId: string;
+    /** "cash" (USD) or "asset" (units of the traded asset) */
+    accrualType: AccrualType;
+    /** Positive amount in USD or asset units */
+    amount: number;
+    /** Price at which the accrual was recorded */
+    currentPrice: number;
+    /** Total number of accruals in _accruals after this addition */
+    totalAccruals: number;
+}
+/**
+ * Queued dividend / staking accrual removal commit (commitDividendRemove).
+ */
+interface IDividendRemoveCommitRow extends ICommitRowBase {
+    /** Discriminator */
+    action: "dividend-remove";
+    /** Identifier of the removed accrual */
+    accrualId: string;
+    /** Kind of the removed accrual */
+    accrualType: AccrualType;
+    /** Amount of the removed accrual */
+    amount: number;
+    /** Price at which the removal was recorded */
+    currentPrice: number;
+    /** Total number of accruals in _accruals after this removal */
+    totalAccruals: number;
+}
+/**
  * Queued trailing stop commit.
  */
 interface ITrailingStopCommitRow extends ICommitRowBase {
@@ -3877,7 +4019,7 @@ interface IActivateScheduledCommitRow extends ICommitRowBase {
  * Discriminated union of all queued commit events.
  * These are stored in _commitQueue and processed in tick()/backtest().
  */
-type ICommitRow = IPartialProfitCommitRow | IPartialLossCommitRow | IBreakevenCommitRow | IAverageBuyCommitRow | ITrailingStopCommitRow | ITrailingTakeCommitRow | IActivateScheduledCommitRow;
+type ICommitRow = IPartialProfitCommitRow | IPartialLossCommitRow | IBreakevenCommitRow | IAverageBuyCommitRow | IDividendAddCommitRow | IDividendRemoveCommitRow | ITrailingStopCommitRow | ITrailingTakeCommitRow | IActivateScheduledCommitRow;
 /**
  * Optional lifecycle callbacks for signal events.
  * Called when signals are opened, active, idle, closed, scheduled, or cancelled.
@@ -3963,10 +4105,18 @@ interface IStrategyPnL {
     priceOpen: number;
     /** Exit price adjusted with slippage and fees */
     priceClose: number;
-    /** Absolute profit/loss in USD: pnlPercentage / 100 * pnlEntries */
+    /** Absolute profit/loss in USD: pnlPercentage / 100 * pnlEntries (dividends included) */
     pnlCost: number;
     /** Total invested capital in USD: sum of all entry costs */
     pnlEntries: number;
+    /**
+     * Value of the dividend / staking accruals (ISignalRow._accruals) in USD at
+     * the PNL price: sum of cash amounts + sum of asset amounts × priceClose.
+     * Computed on every PNL calculation, never stored. Already included in
+     * pnlCost and pnlPercentage; published separately so the price component can
+     * be reconstructed as pnlCost - pnlDividends. Not scaled by the multiplier.
+     */
+    pnlDividends: number;
 }
 /**
  * Tick result: no active signal, idle state.
@@ -4899,6 +5049,65 @@ interface IStrategy {
      * @returns `true` if `averageBuy` would execute, `false` otherwise
      */
     validateAverageBuy: (symbol: string, currentPrice: number) => Promise<boolean>;
+    /**
+     * Records a dividend / staking accrual on the open position (see ISignalAccrual).
+     *
+     * Appends the accrual to _accruals. From this moment every PNL calculation
+     * folds it in: a "cash" accrual adds its USD amount, an "asset" accrual adds
+     * amount × price at the PNL price. The sum is published as pnl.pnlDividends.
+     * The engine does not decide WHEN a dividend is due — that is application
+     * logic (ex-date calendars, staking epochs), typically tracked with State.
+     *
+     * Validations (throws): no pending signal; amount not a positive finite number;
+     * unknown type; duplicate accrual id within the position.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price (recorded with the commit event)
+     * @param backtest - Whether running in backtest mode
+     * @param timestamp - Unix timestamp (ms) of the tick/candle that triggered the accrual
+     * @param dto - Accrual: amount, type ("cash" default | "asset"), optional id and note
+     * @returns Promise<boolean> - true when the accrual was recorded
+     */
+    dividendAdd: (symbol: string, currentPrice: number, backtest: boolean, timestamp: number, dto: IDividendDto) => Promise<boolean>;
+    /**
+     * Checks whether dividendAdd would succeed without executing it. Never throws.
+     *
+     * @param symbol - Trading pair symbol
+     * @param dto - Accrual to validate
+     * @returns true if dividendAdd would execute, false otherwise
+     */
+    validateDividendAdd: (symbol: string, dto: IDividendDto) => Promise<boolean>;
+    /**
+     * Removes a previously recorded accrual by id (e.g. a staking reward that was
+     * slashed, a dividend that was announced but not paid). The PNL drops its value
+     * from the next calculation on.
+     *
+     * Validations (throws): no pending signal; no accrual with that id.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price (recorded with the commit event)
+     * @param backtest - Whether running in backtest mode
+     * @param timestamp - Unix timestamp (ms) of the tick/candle that triggered the removal
+     * @param accrualId - Id of the accrual to remove
+     * @returns Promise<boolean> - true when the accrual was removed
+     */
+    dividendRemove: (symbol: string, currentPrice: number, backtest: boolean, timestamp: number, accrualId: string) => Promise<boolean>;
+    /**
+     * Checks whether dividendRemove would succeed without executing it. Never throws.
+     *
+     * @param symbol - Trading pair symbol
+     * @param accrualId - Id of the accrual to validate
+     * @returns true if dividendRemove would execute, false otherwise
+     */
+    validateDividendRemove: (symbol: string, accrualId: string) => Promise<boolean>;
+    /**
+     * Returns the dividend / staking accruals recorded on the current pending signal.
+     * Returns null if no pending signal exists, an empty array when none were recorded.
+     *
+     * @param symbol - Trading pair symbol
+     * @returns Promise resolving to the accrual list or null
+     */
+    getPositionAccruals: (symbol: string) => Promise<ISignalAccrual[] | null>;
     /**
      * Checks if there is an active pending signal for the symbol.
      *
@@ -7637,6 +7846,61 @@ declare function commitActivateScheduled(symbol: string, payload?: Partial<Commi
  */
 declare function commitAverageBuy(symbol: string, cost?: number): Promise<boolean>;
 /**
+ * Records a dividend / staking accrual on the open position.
+ *
+ * The engine never schedules dividends itself: WHEN an accrual is due (ex-date
+ * calendar, staking epoch) is application logic — typically tracked with State
+ * inside onActivePing — and this call records the result. From then on every
+ * PNL calculation folds the accrual in: a "cash" accrual (quote currency, the
+ * default) adds its amount, an "asset" accrual (staking rewards paid in the
+ * traded asset) adds amount × price at the PNL price. The total is published
+ * as pnl.pnlDividends and included in pnlCost / pnlPercentage, never scaled by
+ * the leverage multiplier. The position's accrual list is exposed as
+ * IPublicSignalRow.accruals.
+ *
+ * Returns false (without throwing) when no pending signal exists or the DTO is
+ * invalid (amount not a positive finite number, unknown type, duplicate id).
+ * Amounts are always positive — to undo an accrual use commitDividendRemove.
+ *
+ * @param symbol - Trading pair symbol
+ * @param dto - Accrual: amount, type ("cash" default | "asset"), optional id and note
+ * @returns Promise resolving to true when the accrual was recorded
+ * @throws Error if called outside execution/method context
+ *
+ * @example
+ * ```typescript
+ * import { commitDividendAdd, getDate } from "backtest-kit";
+ *
+ * // inside onActivePing, once per ex-date decided by the application
+ * await commitDividendAdd("AAPL", { amount: 0.24 * shares, id: `div-${getDate().toISOString().slice(0, 10)}`, note: "Q3 dividend" });
+ *
+ * // staking reward paid in the asset itself
+ * await commitDividendAdd("ETHUSDT", { amount: 0.0031, type: "asset", id: "epoch-1234" });
+ * ```
+ */
+declare function commitDividendAdd(symbol: string, dto: IDividendDto): Promise<boolean>;
+/**
+ * Removes a previously recorded dividend / staking accrual by id (a slashed
+ * staking reward, a dividend announced but not paid). The PNL drops its value
+ * from the next calculation on.
+ *
+ * Returns false (without throwing) when no pending signal exists or no accrual
+ * with that id is recorded.
+ *
+ * @param symbol - Trading pair symbol
+ * @param accrualId - Id passed to (or generated by) commitDividendAdd
+ * @returns Promise resolving to true when the accrual was removed
+ * @throws Error if called outside execution/method context
+ *
+ * @example
+ * ```typescript
+ * import { commitDividendRemove } from "backtest-kit";
+ *
+ * await commitDividendRemove("ETHUSDT", "epoch-1234");
+ * ```
+ */
+declare function commitDividendRemove(symbol: string, accrualId: string): Promise<boolean>;
+/**
  * Returns the still-held share of the position as a percentage.
  * 100 = nothing has been closed (full position), 0 = fully closed.
  * Correctly accounts for DCA entries between partial closes.
@@ -8006,6 +8270,25 @@ declare function getPositionEntries(symbol: string): Promise<{
     cost: number;
     timestamp: number;
 }[]>;
+/**
+ * Returns the dividend / staking accruals recorded on the current pending signal
+ * (see commitDividendAdd). Each record carries id, type ("cash" | "asset"),
+ * amount, timestamp and an optional note.
+ *
+ * Returns null if no pending signal exists, an empty array when none were recorded.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to the accrual list or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionAccruals } from "backtest-kit";
+ *
+ * const accruals = await getPositionAccruals("AAPL");
+ * // [{ id: "div-2024-05-10", type: "cash", amount: 2.4, timestamp: 1715299200000, note: "Q3 dividend" }]
+ * ```
+ */
+declare function getPositionAccruals(symbol: string): Promise<ISignalAccrual[]>;
 /**
  * Returns the original estimated duration for the current pending signal.
  *
@@ -16143,6 +16426,210 @@ interface AverageBuyCommitNotification {
     createdAt: number;
 }
 /**
+ * Dividend / staking accrual recorded notification (commitDividendAdd).
+ * The accrual value is folded into pnl.pnlCost and published as pnlDividends.
+ */
+interface DividendAddCommitNotification {
+    /** Discriminator for type-safe union */
+    type: "dividend_add.commit";
+    /** Unique notification identifier */
+    id: string;
+    /** Unix timestamp in milliseconds when the accrual was recorded */
+    timestamp: number;
+    /** Whether this notification is from backtest mode (true) or live mode (false) */
+    backtest: boolean;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name that generated this signal */
+    strategyName: StrategyName;
+    /** Exchange name where signal was executed */
+    exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) */
+    signalId: string;
+    /** Accrual identifier within the position */
+    accrualId: string;
+    /** "cash" (USD) or "asset" (units of the traded asset) */
+    accrualType: AccrualType;
+    /** Amount of the accrual: USD for "cash", asset units for "asset" */
+    amount: number;
+    /** Market price at the moment of the event (values "asset" accruals) */
+    currentPrice: number;
+    /** USD value of all accruals of the position after this event */
+    pnlDividends: number;
+    /** Total number of accruals on the position after this event */
+    totalAccruals: number;
+    /** Cost of the initial position entry in USD */
+    cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
+    multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
+    /** Total number of DCA entries (_entry.length) */
+    totalEntries: number;
+    /** Total number of partial closes executed (_partial.length) */
+    totalPartials: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Effective (DCA-averaged) entry price */
+    priceOpen: number;
+    /** Effective take profit price (with trailing if set) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (with trailing if set) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Unrealized PNL at the moment of the event (accruals included) */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
+    /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
+    pnlPercentage: number;
+    /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
+    pnlPriceOpen: number;
+    /** Exit price from PNL calculation (adjusted with slippage and fees) */
+    pnlPriceClose: number;
+    /** Absolute profit/loss in USD (accruals included) */
+    pnlCost: number;
+    /** Total invested capital in USD */
+    pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Close price used for the peak profit calculation */
+    peakProfitPriceClose: number;
+    /** Peak profit as percentage */
+    peakProfitPercentage: number;
+    /** Peak profit in USD */
+    peakProfitCost: number;
+    /** Invested capital used for the peak profit calculation */
+    peakProfitEntries: number;
+    /** Worst price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Close price used for the max drawdown calculation */
+    maxDrawdownPriceClose: number;
+    /** Max drawdown as percentage */
+    maxDrawdownPercentage: number;
+    /** Max drawdown in USD */
+    maxDrawdownCost: number;
+    /** Invested capital used for the max drawdown calculation */
+    maxDrawdownEntries: number;
+    /** Signal creation timestamp in milliseconds */
+    scheduledAt: number;
+    /** Position activation timestamp in milliseconds */
+    pendingAt: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
+}
+/**
+ * Dividend / staking accrual removed notification (commitDividendRemove).
+ * The accrual value is folded into pnl.pnlCost and published as pnlDividends.
+ */
+interface DividendRemoveCommitNotification {
+    /** Discriminator for type-safe union */
+    type: "dividend_remove.commit";
+    /** Unique notification identifier */
+    id: string;
+    /** Unix timestamp in milliseconds when the accrual was removed */
+    timestamp: number;
+    /** Whether this notification is from backtest mode (true) or live mode (false) */
+    backtest: boolean;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name that generated this signal */
+    strategyName: StrategyName;
+    /** Exchange name where signal was executed */
+    exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) */
+    signalId: string;
+    /** Accrual identifier within the position */
+    accrualId: string;
+    /** "cash" (USD) or "asset" (units of the traded asset) */
+    accrualType: AccrualType;
+    /** Amount of the accrual: USD for "cash", asset units for "asset" */
+    amount: number;
+    /** Market price at the moment of the event (values "asset" accruals) */
+    currentPrice: number;
+    /** USD value of all accruals of the position after this event */
+    pnlDividends: number;
+    /** Total number of accruals on the position after this event */
+    totalAccruals: number;
+    /** Cost of the initial position entry in USD */
+    cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
+    multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
+    /** Total number of DCA entries (_entry.length) */
+    totalEntries: number;
+    /** Total number of partial closes executed (_partial.length) */
+    totalPartials: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Effective (DCA-averaged) entry price */
+    priceOpen: number;
+    /** Effective take profit price (with trailing if set) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (with trailing if set) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Unrealized PNL at the moment of the event (accruals included) */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
+    /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
+    pnlPercentage: number;
+    /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
+    pnlPriceOpen: number;
+    /** Exit price from PNL calculation (adjusted with slippage and fees) */
+    pnlPriceClose: number;
+    /** Absolute profit/loss in USD (accruals included) */
+    pnlCost: number;
+    /** Total invested capital in USD */
+    pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Close price used for the peak profit calculation */
+    peakProfitPriceClose: number;
+    /** Peak profit as percentage */
+    peakProfitPercentage: number;
+    /** Peak profit in USD */
+    peakProfitCost: number;
+    /** Invested capital used for the peak profit calculation */
+    peakProfitEntries: number;
+    /** Worst price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Close price used for the max drawdown calculation */
+    maxDrawdownPriceClose: number;
+    /** Max drawdown as percentage */
+    maxDrawdownPercentage: number;
+    /** Max drawdown in USD */
+    maxDrawdownCost: number;
+    /** Invested capital used for the max drawdown calculation */
+    maxDrawdownEntries: number;
+    /** Signal creation timestamp in milliseconds */
+    scheduledAt: number;
+    /** Position activation timestamp in milliseconds */
+    pendingAt: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
+}
+/**
  * Activate scheduled commit notification.
  * Emitted when a scheduled signal is activated by user (without waiting for priceOpen).
  */
@@ -17979,7 +18466,7 @@ interface SignalInfoNotification {
  * }
  * ```
  */
-type NotificationModel = SignalOpenedNotification | SignalClosedNotification | PartialProfitAvailableNotification | PartialLossAvailableNotification | BreakevenAvailableNotification | PartialProfitCommitNotification | PartialLossCommitNotification | BreakevenCommitNotification | AverageBuyCommitNotification | ActivateScheduledCommitNotification | TrailingStopCommitNotification | TrailingTakeCommitNotification | CancelScheduledCommitNotification | ClosePendingCommitNotification | OrderSyncOpenNotification | OrderSyncCloseNotification | OrderSyncCheckNotification | OrderContinueCheckNotification | OrderStopCheckNotification | OrderFillOpenNotification | OrderFillCloseNotification | OrderRejectOpenNotification | OrderRejectCloseNotification | RiskRejectionNotification | SignalScheduledNotification | SignalCancelledNotification | InfoErrorNotification | CriticalErrorNotification | ValidationErrorNotification | StrategyPauseNotification | SignalInfoNotification;
+type NotificationModel = SignalOpenedNotification | SignalClosedNotification | PartialProfitAvailableNotification | PartialLossAvailableNotification | BreakevenAvailableNotification | PartialProfitCommitNotification | PartialLossCommitNotification | BreakevenCommitNotification | AverageBuyCommitNotification | DividendAddCommitNotification | DividendRemoveCommitNotification | ActivateScheduledCommitNotification | TrailingStopCommitNotification | TrailingTakeCommitNotification | CancelScheduledCommitNotification | ClosePendingCommitNotification | OrderSyncOpenNotification | OrderSyncCloseNotification | OrderSyncCheckNotification | OrderContinueCheckNotification | OrderStopCheckNotification | OrderFillOpenNotification | OrderFillCloseNotification | OrderRejectOpenNotification | OrderRejectCloseNotification | RiskRejectionNotification | SignalScheduledNotification | SignalCancelledNotification | InfoErrorNotification | CriticalErrorNotification | ValidationErrorNotification | StrategyPauseNotification | SignalInfoNotification;
 
 /**
  * Unified tick event data for report generation.
@@ -18667,7 +19154,7 @@ interface BreakevenStatisticsModel {
  * Action types for strategy events.
  * Represents all possible strategy management actions.
  */
-type StrategyActionType = "cancel-scheduled" | "close-pending" | "partial-profit" | "partial-loss" | "trailing-stop" | "trailing-take" | "breakeven" | "activate-scheduled" | "average-buy";
+type StrategyActionType = "cancel-scheduled" | "close-pending" | "partial-profit" | "partial-loss" | "trailing-stop" | "trailing-take" | "breakeven" | "activate-scheduled" | "average-buy" | "dividend-add" | "dividend-remove";
 /**
  * Unified strategy event data for markdown report generation.
  * Contains all information about strategy management actions.
@@ -18731,6 +19218,16 @@ interface StrategyEvent {
     pnl?: IStrategyPnL;
     /** Cost of this entry in USD (average-buy action only) */
     cost?: number;
+    /** Accrual identifier (dividend-add / dividend-remove actions only) */
+    accrualId?: string;
+    /** Accrual kind: "cash" or "asset" (dividend-add / dividend-remove actions only) */
+    accrualType?: AccrualType;
+    /** Accrual amount: USD for "cash", asset units for "asset" (dividend-add / dividend-remove actions only) */
+    amount?: number;
+    /** USD value of all accruals of the position after the event (dividend-add / dividend-remove actions only) */
+    pnlDividends?: number;
+    /** Total number of accruals on the position after the event (dividend-add / dividend-remove actions only) */
+    totalAccruals?: number;
     /** Optional note from commit payload */
     note?: string;
 }
@@ -18770,6 +19267,10 @@ interface StrategyStatisticsModel {
     activateScheduledCount: number;
     /** Count of average-buy (DCA) events */
     averageBuyCount: number;
+    /** Count of dividend-add (accrual recorded) events */
+    dividendAddCount: number;
+    /** Count of dividend-remove (accrual removed) events */
+    dividendRemoveCount: number;
 }
 
 /**
@@ -25057,6 +25558,51 @@ declare class BacktestUtils {
         frameName: FrameName;
     }, cost?: number) => Promise<boolean>;
     /**
+     * Records a dividend / staking accrual on the open position (see commitDividendAdd).
+     * Context-free variant: the strategy, exchange and risk/action registrations are
+     * validated explicitly. Returns false when no pending signal exists or the DTO is invalid.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price recorded with the commit event
+     * @param context - Execution context
+     * @param dto - Accrual: amount, type ("cash" default | "asset"), optional id and note
+     * @returns Promise resolving to true when the accrual was recorded
+     */
+    commitDividendAdd: (symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, dto: IDividendDto) => Promise<boolean>;
+    /**
+     * Removes a recorded dividend / staking accrual by id (see commitDividendRemove).
+     * Context-free variant. Returns false when no pending signal exists or no accrual
+     * with that id is recorded.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price recorded with the commit event
+     * @param context - Execution context
+     * @param accrualId - Id of the accrual to remove
+     * @returns Promise resolving to true when the accrual was removed
+     */
+    commitDividendRemove: (symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, accrualId: string) => Promise<boolean>;
+    /**
+     * Returns the dividend / staking accruals recorded on the current pending signal
+     * (see getPositionAccruals). Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context
+     * @returns Accrual list or null
+     */
+    getPositionAccruals: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<ISignalAccrual[]>;
+    /**
      * Emits a `signal.info` notification for the currently active pending signal.
      *
      * @param symbol - Trading pair symbol
@@ -26624,6 +27170,48 @@ declare class LiveUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }, cost?: number) => Promise<boolean>;
+    /**
+     * Records a dividend / staking accrual on the open position (see commitDividendAdd).
+     * Context-free variant: the strategy, exchange and risk/action registrations are
+     * validated explicitly. Returns false when no pending signal exists or the DTO is invalid.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price recorded with the commit event
+     * @param context - Execution context
+     * @param dto - Accrual: amount, type ("cash" default | "asset"), optional id and note
+     * @returns Promise resolving to true when the accrual was recorded
+     */
+    commitDividendAdd: (symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }, dto: IDividendDto) => Promise<boolean>;
+    /**
+     * Removes a recorded dividend / staking accrual by id (see commitDividendRemove).
+     * Context-free variant. Returns false when no pending signal exists or no accrual
+     * with that id is recorded.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price recorded with the commit event
+     * @param context - Execution context
+     * @param accrualId - Id of the accrual to remove
+     * @returns Promise resolving to true when the accrual was removed
+     */
+    commitDividendRemove: (symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }, accrualId: string) => Promise<boolean>;
+    /**
+     * Returns the dividend / staking accruals recorded on the current pending signal
+     * (see getPositionAccruals). Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context
+     * @returns Accrual list or null
+     */
+    getPositionAccruals: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<ISignalAccrual[]>;
     /**
      * Emits a `signal.info` notification for the currently active pending signal.
      *
@@ -31087,7 +31675,7 @@ interface INotificationTarget {
      * Strategy commit confirmations.
      * Covers all committed actions: `partial_profit.commit`, `partial_loss.commit`,
      * `breakeven.commit`, `trailing_stop.commit`, `trailing_take.commit`,
-     * `activate_scheduled.commit`, `average_buy.commit`, `cancel_scheduled.commit`,
+     * `activate_scheduled.commit`, `average_buy.commit`, `dividend_add.commit`, `dividend_remove.commit`, `cancel_scheduled.commit`,
      * `close_pending.commit`.
      * Source: `strategyCommitSubject` (StrategyCommitContract).
      */
@@ -35165,6 +35753,14 @@ declare class StrategyMarkdownService {
         exchangeName: ExchangeName;
         frameName: FrameName;
     }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, cost: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, originalPriceOpen: number) => Promise<void>;
+    /**
+     * Logs a dividend / staking accrual event (recorded or removed) on an open position.
+     */
+    dividend: (action: "dividend-add" | "dividend-remove", symbol: string, currentPrice: number, accrualId: string, accrualType: AccrualType, amount: number, pnlDividends: number, totalAccruals: number, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalEntries: number, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, originalPriceOpen: number, note?: string) => Promise<void>;
     /**
      * Retrieves aggregated statistics from accumulated strategy events.
      *
@@ -41921,6 +42517,51 @@ declare class StrategyConnectionService implements TStrategy$1 {
         exchangeName: ExchangeName;
         frameName: FrameName;
     }, cost: number) => Promise<boolean>;
+    /**
+     * Checks whether dividendAdd would succeed without executing it.
+     * Delegates to ClientStrategy.validateDividendAdd() — no throws, pure boolean result.
+     */
+    validateDividendAdd: (backtest: boolean, symbol: string, dto: IDividendDto, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Records a dividend / staking accrual on the active pending signal.
+     * Delegates to ClientStrategy.dividendAdd() with the current execution-context timestamp.
+     */
+    dividendAdd: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, dto: IDividendDto) => Promise<boolean>;
+    /**
+     * Checks whether dividendRemove would succeed without executing it.
+     * Delegates to ClientStrategy.validateDividendRemove() — no throws, pure boolean result.
+     */
+    validateDividendRemove: (backtest: boolean, symbol: string, accrualId: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Removes a recorded dividend / staking accrual by id.
+     * Delegates to ClientStrategy.dividendRemove() with the current execution-context timestamp.
+     */
+    dividendRemove: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, accrualId: string) => Promise<boolean>;
+    /**
+     * Returns the dividend / staking accruals recorded on the current pending signal.
+     * Returns null if no pending signal exists.
+     */
+    getPositionAccruals: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<ISignalAccrual[]>;
 }
 
 /**
@@ -43753,6 +44394,79 @@ declare class StrategyCoreService implements TStrategy {
         exchangeName: ExchangeName;
         frameName: FrameName;
     }, cost: number) => Promise<boolean>;
+    /**
+     * Checks whether dividendAdd would succeed without executing it.
+     * Validates strategy existence and delegates to the connection service.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param dto - Accrual to validate
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if dividendAdd would execute, false otherwise
+     */
+    validateDividendAdd: (backtest: boolean, symbol: string, dto: IDividendDto, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Records a dividend / staking accrual on the active pending signal.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price recorded with the commit event
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @param dto - Accrual: amount, type ("cash" default | "asset"), optional id and note
+     * @returns Promise<boolean> - true when the accrual was recorded
+     */
+    dividendAdd: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, dto: IDividendDto) => Promise<boolean>;
+    /**
+     * Checks whether dividendRemove would succeed without executing it.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param accrualId - Id of the accrual to validate
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if dividendRemove would execute, false otherwise
+     */
+    validateDividendRemove: (backtest: boolean, symbol: string, accrualId: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Removes a recorded dividend / staking accrual from the active pending signal by id.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price recorded with the commit event
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @param accrualId - Id of the accrual to remove
+     * @returns Promise<boolean> - true when the accrual was removed
+     */
+    dividendRemove: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, accrualId: string) => Promise<boolean>;
+    /**
+     * Returns the dividend / staking accruals recorded on the current pending signal.
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to the accrual list or null
+     */
+    getPositionAccruals: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<ISignalAccrual[]>;
     /**
      * Checks if there is an active pending signal for the symbol.
      * Validates strategy existence and delegates to connection service
@@ -46728,6 +47442,14 @@ declare class StrategyReportService {
         frameName: FrameName;
     }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, cost: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, originalPriceOpen: number) => Promise<void>;
     /**
+     * Logs a dividend / staking accrual event (recorded or removed) on an open position.
+     */
+    dividend: (action: "dividend-add" | "dividend-remove", symbol: string, currentPrice: number, accrualId: string, accrualType: AccrualType, amount: number, pnlDividends: number, totalAccruals: number, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalEntries: number, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, originalPriceOpen: number, note?: string) => Promise<void>;
+    /**
      * Initializes the service for event logging.
      *
      * Must be called before any events can be logged. Uses singleshot pattern
@@ -47726,10 +48448,11 @@ declare const backtest: {
     };
 };
 
-interface Signal$3 extends ISignalDto {
+interface Signal$5 extends ISignalDto {
     priceOpen: number;
     _entry?: ISignalRow['_entry'];
     _partial?: ISignalRow['_partial'];
+    _accruals?: ISignalRow['_accruals'];
 }
 /**
  * Calculates profit/loss for a closed signal with slippage and fees.
@@ -47745,11 +48468,15 @@ interface Signal$3 extends ISignalDto {
  *   - Open fee:  CC_PERCENT_FEE (charged once)
  *   - Close fee: CC_PERCENT_FEE × weight × (closeWithSlip / openWithSlip) per partial/remaining
  *
+ * Dividend / staking accruals (_accruals) are folded in last, see WITH_ACCRUALS_FN:
+ * their USD value at priceClose becomes pnlDividends, is added to pnlCost without
+ * the multiplier, and pnlPercentage is re-derived from the total.
+ *
  * @param signal - Closed signal with position details and optional partial history
  * @param priceClose - Actual close price at final exit
  * @returns PNL data with percentage, prices, and USD amounts
  */
-declare const toProfitLossDto: (signal: Signal$3, priceClose: number) => IStrategyPnL;
+declare const toProfitLossDto: (signal: Signal$5, priceClose: number) => IStrategyPnL;
 
 /**
  * Converts markdown content to plain text with minimal formatting
@@ -47758,7 +48485,7 @@ declare const toProfitLossDto: (signal: Signal$3, priceClose: number) => IStrate
  */
 declare const toPlainString: (content: string) => string;
 
-interface Signal$2 extends ISignalDto {
+interface Signal$4 extends ISignalDto {
     priceOpen: number;
     _entry?: ISignalRow['_entry'];
     _partial?: ISignalRow['_partial'];
@@ -47781,9 +48508,9 @@ interface Signal$2 extends ISignalDto {
  * @param signal - Signal row with _entry and optional _partial
  * @returns Effective entry price for PNL calculations
  */
-declare const getEffectivePriceOpen: (signal: Signal$2) => number;
+declare const getEffectivePriceOpen: (signal: Signal$4) => number;
 
-interface Signal$1 extends ISignalDto {
+interface Signal$3 extends ISignalDto {
     priceOpen: number;
     _entry?: ISignalRow['_entry'];
     _partial?: ISignalRow['_partial'];
@@ -47804,12 +48531,31 @@ interface Signal$1 extends ISignalDto {
  * @param signal - Signal row with _partial and _entry arrays
  * @returns Object with totalClosedPercent (0–100) and remainingCostBasis (USD still open)
  */
-declare const getTotalClosed: (signal: Signal$1) => {
+declare const getTotalClosed: (signal: Signal$3) => {
     totalClosedPercent: number;
     remainingCostBasis: number;
 };
 
-interface Signal extends ISignalDto {
+interface Signal$2 {
+    _accruals?: ISignalAccrual[];
+}
+/**
+ * USD value of the dividend / staking accruals of a position at a given price.
+ *
+ * - "cash" accruals count as their amount (quote currency, fixed once paid);
+ * - "asset" accruals (staking rewards paid in the traded asset) count as
+ *   amount × price — they keep moving with the position until it closes.
+ *
+ * Linear in price, which keeps toProfitLossDto linear in priceClose and lets
+ * getBreakevenPrice / getLiquidationPrice keep inverting it exactly.
+ *
+ * @param signal - Signal with optional _accruals
+ * @param price - Price used to value asset accruals (the PNL price)
+ * @returns Accrual value in USD (0 when there are none)
+ */
+declare const getAccrualsCost: (signal: Signal$2, price: number) => number;
+
+interface Signal$1 extends ISignalDto {
     priceOpen: number;
     _entry?: ISignalRow['_entry'];
     _partial?: ISignalRow['_partial'];
@@ -47839,7 +48585,43 @@ interface Signal extends ISignalDto {
  * @param signal - Signal with position/priceOpen/multiplier and optional _entry/_partial
  * @returns The exact liquidation price, or null when liquidation is unreachable
  */
-declare const getLiquidationPrice: (signal: Signal) => number | null;
+declare const getLiquidationPrice: (signal: Signal$1) => number | null;
+
+interface Signal extends ISignalDto {
+    priceOpen: number;
+    _entry?: ISignalRow['_entry'];
+    _partial?: ISignalRow['_partial'];
+}
+/**
+ * Computes the exact COST-AWARE breakeven price — the close price at which the
+ * realizable PNL (toProfitLossDto, i.e. slippage + fees + multiplier + DCA
+ * entries + partial-close replay included) equals exactly 0%.
+ *
+ * The raw effective entry price is NOT breakeven: closing there realizes the
+ * round-trip costs as a loss of (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2
+ * (≈ -0.4% at defaults, scaled by the leverage multiplier). A stop-loss meant
+ * to protect capital must sit at the price where the TOTAL trade exits at
+ * zero — for LONG slightly above the effective entry, for SHORT slightly
+ * below it.
+ *
+ * Method (mirror of getLiquidationPrice): pnlPercentage is LINEAR in
+ * priceClose for a fixed signal state — already-closed partials contribute a
+ * constant, the remaining position a linear term, and the fee/slippage
+ * adjustments are linear too. Two evaluations of toProfitLossDto recover the
+ * line (slope k, intercept b), and the breakeven price is the solution of
+ * k * P + b = 0. This inverts the REAL production PNL calculator, so the
+ * formula can never drift from it (closing at the returned price yields
+ * exactly 0% by construction).
+ *
+ * Returns null when the PNL does not depend on the close price (k ≈ 0): the
+ * remaining position weight is zero (fully closed by partials) — nothing left
+ * to protect. A non-positive solution (unreachable with banked partial
+ * profits exceeding the remaining exposure) also returns null.
+ *
+ * @param signal - Signal with position/priceOpen/multiplier and optional _entry/_partial
+ * @returns The exact zero-PNL close price, or null when breakeven is undefined
+ */
+declare const getBreakevenPrice: (signal: Signal) => number | null;
 
 /**
  * Derives the number of decimal places to show for a price based on its
@@ -48495,4 +49277,4 @@ declare class GeneralUnexpectedError extends Error {
     static fromError(error: object): GeneralUnexpectedError;
 }
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, Dictionary, DictionaryBacktest, DictionaryBacktestAdapter, type DictionaryData, DictionaryLive, DictionaryLiveAdapter, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, GeneralExpectedError, GeneralUnexpectedError, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAgentLogger, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type ICandleData, type ICommitRow, type IDictionaryInstance, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILauncherSchema, type ILog, type ILogEntry, type ILogger, type IMCPAverageBuyCommand, type IMCPContext, type IMCPImageMessage, type IMCPMessage, type IMCPPositionCloseCommand, type IMCPPositionOpenCommand, type IMCPSchema, type IMCPSignalNotifyCommand, type IMCPTextMessage, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistDictionaryInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ISweepBest, type ISweepGridAxes, type ISweepGridPoint, type ISweepIdea, type ISweepMetricReport, type ISweepPointReport, type ISweepResult, type ISweepSchema, type ISweepTrack, type ISweepTrade, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IWorkerSchema, type IdlePingContract, type InfoErrorNotification, type InitialDispatchContract, Interval, type IntervalData, Launcher, Level, Live, type LiveStatisticsModel, Log, type LogData, Lookup, MCP, type MCPMessageId, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, type OrderContinueContract, OrderDeletedError, type OrderFillCloseContract, type OrderFillContract, type OrderFillOpenContract, type OrderOpenContract, type OrderRejectCloseContract, type OrderRejectContract, type OrderRejectOpenContract, OrderRejectedError, type OrderStopContract, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, OrderTransientError, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, type PauseContract, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistDictionaryAdapter, PersistDictionaryInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyPauseNotification, type StrategyStatisticsModel, type StrategyStatus, Sweep, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDictionaryInstanceCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistDictionaryInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, Worker, addActionSchema, addExchangeSchema, addFrameSchema, addLauncherSchema, addMCPSchema, addRiskSchema, addSizingSchema, addStrategySchema, addSweepSchema, addWalkerSchema, addWorkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpMCPStatus, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandleAnomalyFlags, getCandles, getCandlesFilled, getCandlesSampled, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getLauncherSchema, getLiquidationPrice, getMCPSchema, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSizingSchema, getStrategyPaused, getStrategySchema, getStrategyStatus, getSweepSchema, getSymbol, getTimestamp, getTotalClosed, getTotalPercentHeld, getWalkerSchema, getWorkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStart, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listLauncherSchema, listMCPSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listSweepSchema, listWalkerSchema, listWorkerSchema, listenActivePing, listenActivePingFilter, listenActivePingOnce, listenActivePingUnique, listenAfterEnd, listenAfterEndFilter, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartFilter, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableFilter, listenBreakevenAvailableOnce, listenBreakevenAvailableUnique, listenCheck, listenDoneBacktest, listenDoneBacktestFilter, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveFilter, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerFilter, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitFilter, listenHighestProfitOnce, listenHighestProfitUnique, listenIdlePing, listenIdlePingFilter, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownFilter, listenMaxDrawdownOnce, listenMaxDrawdownUnique, listenOrderContinue, listenOrderFill, listenOrderReject, listenOrderSchedule, listenOrderScheduleUnique, listenOrderStop, listenPartialLossAvailable, listenPartialLossAvailableFilter, listenPartialLossAvailableOnce, listenPartialLossAvailableUnique, listenPartialProfitAvailable, listenPartialProfitAvailableFilter, listenPartialProfitAvailableOnce, listenPartialProfitAvailableUnique, listenPause, listenPauseFilter, listenPauseOnce, listenPerformance, listenRisk, listenRiskFilter, listenRiskOnce, listenSchedulePing, listenSchedulePingFilter, listenSchedulePingOnce, listenSchedulePingUnique, listenSignal, listenSignalActive, listenSignalActiveUnique, listenSignalBacktest, listenSignalBacktestActive, listenSignalBacktestActiveUnique, listenSignalBacktestCancelled, listenSignalBacktestCancelledUnique, listenSignalBacktestClosed, listenSignalBacktestClosedUnique, listenSignalBacktestFilter, listenSignalBacktestIdle, listenSignalBacktestOnce, listenSignalBacktestOpened, listenSignalBacktestOpenedUnique, listenSignalBacktestScheduled, listenSignalBacktestScheduledUnique, listenSignalBacktestUnique, listenSignalBacktestWaiting, listenSignalBacktestWaitingUnique, listenSignalCancelled, listenSignalCancelledUnique, listenSignalClosed, listenSignalClosedUnique, listenSignalEvent, listenSignalEventFilter, listenSignalEventOnce, listenSignalEventUnique, listenSignalFilter, listenSignalIdle, listenSignalLive, listenSignalLiveActive, listenSignalLiveActiveUnique, listenSignalLiveCancelled, listenSignalLiveCancelledUnique, listenSignalLiveClosed, listenSignalLiveClosedUnique, listenSignalLiveFilter, listenSignalLiveIdle, listenSignalLiveOnce, listenSignalLiveOpened, listenSignalLiveOpenedUnique, listenSignalLiveScheduled, listenSignalLiveScheduledUnique, listenSignalLiveUnique, listenSignalLiveWaiting, listenSignalLiveWaitingUnique, listenSignalNotify, listenSignalNotifyFilter, listenSignalNotifyOnce, listenSignalNotifyUnique, listenSignalOnce, listenSignalOpened, listenSignalOpenedUnique, listenSignalScheduled, listenSignalScheduledUnique, listenSignalUnique, listenSignalWaiting, listenSignalWaitingUnique, listenStrategyCommit, listenStrategyCommitFilter, listenStrategyCommitOnce, listenStrategyCommitUnique, listenSync, listenValidation, listenWalker, listenWalkerComplete, listenWalkerFilter, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideLauncherSchema, overrideMCPSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideSweepSchema, overrideWalkerSchema, overrideWorkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setStrategyPaused, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };
+export { type AccrualType, ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, Dictionary, DictionaryBacktest, DictionaryBacktestAdapter, type DictionaryData, DictionaryLive, DictionaryLiveAdapter, type DividendAddCommit, type DividendAddCommitNotification, type DividendRemoveCommit, type DividendRemoveCommitNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, GeneralExpectedError, GeneralUnexpectedError, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAgentLogger, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type ICandleData, type ICommitRow, type IDictionaryInstance, type IDividendAddCommitRow, type IDividendDto, type IDividendRemoveCommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILauncherSchema, type ILog, type ILogEntry, type ILogger, type IMCPAverageBuyCommand, type IMCPContext, type IMCPImageMessage, type IMCPMessage, type IMCPPositionCloseCommand, type IMCPPositionOpenCommand, type IMCPSchema, type IMCPSignalNotifyCommand, type IMCPTextMessage, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistDictionaryInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalAccrual, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ISweepBest, type ISweepGridAxes, type ISweepGridPoint, type ISweepIdea, type ISweepMetricReport, type ISweepPointReport, type ISweepResult, type ISweepSchema, type ISweepTrack, type ISweepTrade, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IWorkerSchema, type IdlePingContract, type InfoErrorNotification, type InitialDispatchContract, Interval, type IntervalData, Launcher, Level, Live, type LiveStatisticsModel, Log, type LogData, Lookup, MCP, type MCPMessageId, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, type OrderContinueContract, OrderDeletedError, type OrderFillCloseContract, type OrderFillContract, type OrderFillOpenContract, type OrderOpenContract, type OrderRejectCloseContract, type OrderRejectContract, type OrderRejectOpenContract, OrderRejectedError, type OrderStopContract, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, OrderTransientError, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, type PauseContract, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistDictionaryAdapter, PersistDictionaryInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyPauseNotification, type StrategyStatisticsModel, type StrategyStatus, Sweep, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDictionaryInstanceCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistDictionaryInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, Worker, addActionSchema, addExchangeSchema, addFrameSchema, addLauncherSchema, addMCPSchema, addRiskSchema, addSizingSchema, addStrategySchema, addSweepSchema, addWalkerSchema, addWorkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitDividendAdd, commitDividendRemove, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpMCPStatus, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getAccrualsCost, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getBreakevenPrice, getCandleAnomalyFlags, getCandles, getCandlesFilled, getCandlesSampled, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getLauncherSchema, getLiquidationPrice, getMCPSchema, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionAccruals, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSizingSchema, getStrategyPaused, getStrategySchema, getStrategyStatus, getSweepSchema, getSymbol, getTimestamp, getTotalClosed, getTotalPercentHeld, getWalkerSchema, getWorkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStart, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listLauncherSchema, listMCPSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listSweepSchema, listWalkerSchema, listWorkerSchema, listenActivePing, listenActivePingFilter, listenActivePingOnce, listenActivePingUnique, listenAfterEnd, listenAfterEndFilter, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartFilter, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableFilter, listenBreakevenAvailableOnce, listenBreakevenAvailableUnique, listenCheck, listenDoneBacktest, listenDoneBacktestFilter, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveFilter, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerFilter, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitFilter, listenHighestProfitOnce, listenHighestProfitUnique, listenIdlePing, listenIdlePingFilter, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownFilter, listenMaxDrawdownOnce, listenMaxDrawdownUnique, listenOrderContinue, listenOrderFill, listenOrderReject, listenOrderSchedule, listenOrderScheduleUnique, listenOrderStop, listenPartialLossAvailable, listenPartialLossAvailableFilter, listenPartialLossAvailableOnce, listenPartialLossAvailableUnique, listenPartialProfitAvailable, listenPartialProfitAvailableFilter, listenPartialProfitAvailableOnce, listenPartialProfitAvailableUnique, listenPause, listenPauseFilter, listenPauseOnce, listenPerformance, listenRisk, listenRiskFilter, listenRiskOnce, listenSchedulePing, listenSchedulePingFilter, listenSchedulePingOnce, listenSchedulePingUnique, listenSignal, listenSignalActive, listenSignalActiveUnique, listenSignalBacktest, listenSignalBacktestActive, listenSignalBacktestActiveUnique, listenSignalBacktestCancelled, listenSignalBacktestCancelledUnique, listenSignalBacktestClosed, listenSignalBacktestClosedUnique, listenSignalBacktestFilter, listenSignalBacktestIdle, listenSignalBacktestOnce, listenSignalBacktestOpened, listenSignalBacktestOpenedUnique, listenSignalBacktestScheduled, listenSignalBacktestScheduledUnique, listenSignalBacktestUnique, listenSignalBacktestWaiting, listenSignalBacktestWaitingUnique, listenSignalCancelled, listenSignalCancelledUnique, listenSignalClosed, listenSignalClosedUnique, listenSignalEvent, listenSignalEventFilter, listenSignalEventOnce, listenSignalEventUnique, listenSignalFilter, listenSignalIdle, listenSignalLive, listenSignalLiveActive, listenSignalLiveActiveUnique, listenSignalLiveCancelled, listenSignalLiveCancelledUnique, listenSignalLiveClosed, listenSignalLiveClosedUnique, listenSignalLiveFilter, listenSignalLiveIdle, listenSignalLiveOnce, listenSignalLiveOpened, listenSignalLiveOpenedUnique, listenSignalLiveScheduled, listenSignalLiveScheduledUnique, listenSignalLiveUnique, listenSignalLiveWaiting, listenSignalLiveWaitingUnique, listenSignalNotify, listenSignalNotifyFilter, listenSignalNotifyOnce, listenSignalNotifyUnique, listenSignalOnce, listenSignalOpened, listenSignalOpenedUnique, listenSignalScheduled, listenSignalScheduledUnique, listenSignalUnique, listenSignalWaiting, listenSignalWaitingUnique, listenStrategyCommit, listenStrategyCommitFilter, listenStrategyCommitOnce, listenStrategyCommitUnique, listenSync, listenValidation, listenWalker, listenWalkerComplete, listenWalkerFilter, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideLauncherSchema, overrideMCPSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideSweepSchema, overrideWalkerSchema, overrideWorkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setStrategyPaused, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };

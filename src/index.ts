@@ -38,6 +38,8 @@ export {
   commitBreakeven,
   commitActivateScheduled,
   commitAverageBuy,
+  commitDividendAdd,
+  commitDividendRemove,
   commitSignalNotify,
   getPendingSignal,
   getScheduledSignal,
@@ -55,6 +57,7 @@ export {
   getPositionLevels,
   getPositionPartials,
   getPositionEntries,
+  getPositionAccruals,
   getPositionEstimateMinutes,
   getPositionCountdownMinutes,
   getPositionHighestProfitPrice,
@@ -405,6 +408,11 @@ export {
 
 export {
   ICommitRow,
+  IDividendAddCommitRow,
+  IDividendRemoveCommitRow,
+  ISignalAccrual,
+  AccrualType,
+  IDividendDto,
   IPartialProfitCommitRow,
   IPartialLossCommitRow,
   IBreakevenCommitRow,
@@ -476,6 +484,8 @@ export {
   SignalScheduledNotification,
   ValidationErrorNotification,
   AverageBuyCommitNotification,
+  DividendAddCommitNotification,
+  DividendRemoveCommitNotification,
   OrderSyncCloseNotification,
   OrderSyncOpenNotification,
   OrderSyncCheckNotification,
@@ -540,6 +550,8 @@ export {
   BreakevenCommit,
   ActivateScheduledCommit,
   AverageBuyCommit,
+  DividendAddCommit,
+  DividendRemoveCommit,
 } from "./contract/StrategyCommit.contract";
 
 export {
@@ -887,7 +899,9 @@ export { toProfitLossDto } from "./helpers/toProfitLossDto";
 export { toPlainString } from "./helpers/toPlainString";
 export { getEffectivePriceOpen } from "./helpers/getEffectivePriceOpen";
 export { getTotalClosed } from "./helpers/getTotalClosed";
+export { getAccrualsCost } from "./helpers/getAccrualsCost";
 export { getLiquidationPrice } from "./helpers/getLiquidationPrice";
+export { getBreakevenPrice } from "./helpers/getBreakevenPrice";
 export { getPriceScale } from "./helpers/getPriceScale";
 export { getCandlesFilled } from "./helpers/getCandlesFilled";
 export { getCandlesSampled } from "./helpers/getCandlesSampled";

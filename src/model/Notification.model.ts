@@ -1,4 +1,4 @@
-import { IStrategyPnL, StrategyName } from "../interfaces/Strategy.interface";
+import { IStrategyPnL, StrategyName, AccrualType } from "../interfaces/Strategy.interface";
 import { PartialLevel } from "../interfaces/Partial.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
@@ -852,6 +852,212 @@ export interface AverageBuyCommitNotification {
   scheduledAt: number;
   /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
   pendingAt: number;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
+}
+
+/**
+ * Dividend / staking accrual recorded notification (commitDividendAdd).
+ * The accrual value is folded into pnl.pnlCost and published as pnlDividends.
+ */
+export interface DividendAddCommitNotification {
+  /** Discriminator for type-safe union */
+  type: "dividend_add.commit";
+  /** Unique notification identifier */
+  id: string;
+  /** Unix timestamp in milliseconds when the accrual was recorded */
+  timestamp: number;
+  /** Whether this notification is from backtest mode (true) or live mode (false) */
+  backtest: boolean;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
+  /** Strategy name that generated this signal */
+  strategyName: StrategyName;
+  /** Exchange name where signal was executed */
+  exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
+  /** Accrual identifier within the position */
+  accrualId: string;
+  /** "cash" (USD) or "asset" (units of the traded asset) */
+  accrualType: AccrualType;
+  /** Amount of the accrual: USD for "cash", asset units for "asset" */
+  amount: number;
+  /** Market price at the moment of the event (values "asset" accruals) */
+  currentPrice: number;
+  /** USD value of all accruals of the position after this event */
+  pnlDividends: number;
+  /** Total number of accruals on the position after this event */
+  totalAccruals: number;
+  /** Cost of the initial position entry in USD */
+  cost: number;
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
+  multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
+  /** Total number of DCA entries (_entry.length) */
+  totalEntries: number;
+  /** Total number of partial closes executed (_partial.length) */
+  totalPartials: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Effective (DCA-averaged) entry price */
+  priceOpen: number;
+  /** Effective take profit price (with trailing if set) */
+  priceTakeProfit: number;
+  /** Effective stop loss price (with trailing if set) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Unrealized PNL at the moment of the event (accruals included) */
+  pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
+  /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
+  pnlPercentage: number;
+  /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
+  pnlPriceOpen: number;
+  /** Exit price from PNL calculation (adjusted with slippage and fees) */
+  pnlPriceClose: number;
+  /** Absolute profit/loss in USD (accruals included) */
+  pnlCost: number;
+  /** Total invested capital in USD */
+  pnlEntries: number;
+  /** Peak price reached in profit direction during the life of this position */
+  peakProfitPriceOpen: number;
+  /** Close price used for the peak profit calculation */
+  peakProfitPriceClose: number;
+  /** Peak profit as percentage */
+  peakProfitPercentage: number;
+  /** Peak profit in USD */
+  peakProfitCost: number;
+  /** Invested capital used for the peak profit calculation */
+  peakProfitEntries: number;
+  /** Worst price reached in loss direction during the life of this position */
+  maxDrawdownPriceOpen: number;
+  /** Close price used for the max drawdown calculation */
+  maxDrawdownPriceClose: number;
+  /** Max drawdown as percentage */
+  maxDrawdownPercentage: number;
+  /** Max drawdown in USD */
+  maxDrawdownCost: number;
+  /** Invested capital used for the max drawdown calculation */
+  maxDrawdownEntries: number;
+  /** Signal creation timestamp in milliseconds */
+  scheduledAt: number;
+  /** Position activation timestamp in milliseconds */
+  pendingAt: number;
+  /** Optional human-readable description of signal reason */
+  note?: string;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
+}
+
+/**
+ * Dividend / staking accrual removed notification (commitDividendRemove).
+ * The accrual value is folded into pnl.pnlCost and published as pnlDividends.
+ */
+export interface DividendRemoveCommitNotification {
+  /** Discriminator for type-safe union */
+  type: "dividend_remove.commit";
+  /** Unique notification identifier */
+  id: string;
+  /** Unix timestamp in milliseconds when the accrual was removed */
+  timestamp: number;
+  /** Whether this notification is from backtest mode (true) or live mode (false) */
+  backtest: boolean;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
+  /** Strategy name that generated this signal */
+  strategyName: StrategyName;
+  /** Exchange name where signal was executed */
+  exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
+  /** Accrual identifier within the position */
+  accrualId: string;
+  /** "cash" (USD) or "asset" (units of the traded asset) */
+  accrualType: AccrualType;
+  /** Amount of the accrual: USD for "cash", asset units for "asset" */
+  amount: number;
+  /** Market price at the moment of the event (values "asset" accruals) */
+  currentPrice: number;
+  /** USD value of all accruals of the position after this event */
+  pnlDividends: number;
+  /** Total number of accruals on the position after this event */
+  totalAccruals: number;
+  /** Cost of the initial position entry in USD */
+  cost: number;
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
+  multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
+  /** Total number of DCA entries (_entry.length) */
+  totalEntries: number;
+  /** Total number of partial closes executed (_partial.length) */
+  totalPartials: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Effective (DCA-averaged) entry price */
+  priceOpen: number;
+  /** Effective take profit price (with trailing if set) */
+  priceTakeProfit: number;
+  /** Effective stop loss price (with trailing if set) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Unrealized PNL at the moment of the event (accruals included) */
+  pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
+  /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
+  pnlPercentage: number;
+  /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
+  pnlPriceOpen: number;
+  /** Exit price from PNL calculation (adjusted with slippage and fees) */
+  pnlPriceClose: number;
+  /** Absolute profit/loss in USD (accruals included) */
+  pnlCost: number;
+  /** Total invested capital in USD */
+  pnlEntries: number;
+  /** Peak price reached in profit direction during the life of this position */
+  peakProfitPriceOpen: number;
+  /** Close price used for the peak profit calculation */
+  peakProfitPriceClose: number;
+  /** Peak profit as percentage */
+  peakProfitPercentage: number;
+  /** Peak profit in USD */
+  peakProfitCost: number;
+  /** Invested capital used for the peak profit calculation */
+  peakProfitEntries: number;
+  /** Worst price reached in loss direction during the life of this position */
+  maxDrawdownPriceOpen: number;
+  /** Close price used for the max drawdown calculation */
+  maxDrawdownPriceClose: number;
+  /** Max drawdown as percentage */
+  maxDrawdownPercentage: number;
+  /** Max drawdown in USD */
+  maxDrawdownCost: number;
+  /** Invested capital used for the max drawdown calculation */
+  maxDrawdownEntries: number;
+  /** Signal creation timestamp in milliseconds */
+  scheduledAt: number;
+  /** Position activation timestamp in milliseconds */
+  pendingAt: number;
+  /** Optional human-readable description of signal reason */
+  note?: string;
   /** Unix timestamp in milliseconds when the notification was created */
   createdAt: number;
 }
@@ -2725,6 +2931,8 @@ export type NotificationModel =
   | PartialLossCommitNotification
   | BreakevenCommitNotification
   | AverageBuyCommitNotification
+  | DividendAddCommitNotification
+  | DividendRemoveCommitNotification
   | ActivateScheduledCommitNotification
   | TrailingStopCommitNotification
   | TrailingTakeCommitNotification

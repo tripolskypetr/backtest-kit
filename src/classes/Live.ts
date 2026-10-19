@@ -6,6 +6,7 @@ import {
   CommitPayload,
   ISignalDto,
   StrategyStatus,
+  IDividendDto,
 } from "../interfaces/Strategy.interface";
 import backtest from "../lib";
 import { exitEmitter, doneLiveSubject } from "../config/emitters";
@@ -106,6 +107,9 @@ const LIVE_METHOD_NAME_TRAILING_PROFIT_COST =
   "LiveUtils.commitTrailingTakeCost";
 const LIVE_METHOD_NAME_ACTIVATE_SCHEDULED = "Live.commitActivateScheduled";
 const LIVE_METHOD_NAME_AVERAGE_BUY = "Live.commitAverageBuy";
+const LIVE_METHOD_NAME_DIVIDEND_ADD = "Live.commitDividendAdd";
+const LIVE_METHOD_NAME_DIVIDEND_REMOVE = "Live.commitDividendRemove";
+const LIVE_METHOD_NAME_GET_POSITION_ACCRUALS = "Live.getPositionAccruals";
 const LIVE_METHOD_NAME_SIGNAL_NOTIFY = "Live.commitSignalNotify";
 const LIVE_METHOD_NAME_HAS_NO_PENDING_SIGNAL =
   "LiveUtils.hasNoPendingSignal";
@@ -5465,6 +5469,241 @@ export class LiveUtils {
         frameName: "",
       },
       cost,
+    );
+  };
+
+  /**
+   * Records a dividend / staking accrual on the open position (see commitDividendAdd).
+   * Context-free variant: the strategy, exchange and risk/action registrations are
+   * validated explicitly. Returns false when no pending signal exists or the DTO is invalid.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price recorded with the commit event
+   * @param context - Execution context
+   * @param dto - Accrual: amount, type ("cash" default | "asset"), optional id and note
+   * @returns Promise resolving to true when the accrual was recorded
+   */
+  public commitDividendAdd = async (
+    symbol: string,
+    currentPrice: number,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+    },
+    dto: IDividendDto,
+  ): Promise<boolean> => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_DIVIDEND_ADD, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      LIVE_METHOD_NAME_DIVIDEND_ADD,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      LIVE_METHOD_NAME_DIVIDEND_ADD,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          LIVE_METHOD_NAME_DIVIDEND_ADD,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            LIVE_METHOD_NAME_DIVIDEND_ADD,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            LIVE_METHOD_NAME_DIVIDEND_ADD,
+          ),
+        );
+    }
+
+    if (
+      await not(
+        backtest.strategyCoreService.validateDividendAdd(
+          false,
+          symbol,
+          dto,
+          {
+        strategyName: context.strategyName,
+        exchangeName: context.exchangeName,
+        frameName: "",
+      },
+        ),
+      )
+    ) {
+      return false;
+    }
+    return await backtest.strategyCoreService.dividendAdd(
+      false,
+      symbol,
+      currentPrice,
+      {
+        strategyName: context.strategyName,
+        exchangeName: context.exchangeName,
+        frameName: "",
+      },
+      dto,
+    );
+  };
+
+  /**
+   * Removes a recorded dividend / staking accrual by id (see commitDividendRemove).
+   * Context-free variant. Returns false when no pending signal exists or no accrual
+   * with that id is recorded.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price recorded with the commit event
+   * @param context - Execution context
+   * @param accrualId - Id of the accrual to remove
+   * @returns Promise resolving to true when the accrual was removed
+   */
+  public commitDividendRemove = async (
+    symbol: string,
+    currentPrice: number,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+    },
+    accrualId: string,
+  ): Promise<boolean> => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_DIVIDEND_REMOVE, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      LIVE_METHOD_NAME_DIVIDEND_REMOVE,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      LIVE_METHOD_NAME_DIVIDEND_REMOVE,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          LIVE_METHOD_NAME_DIVIDEND_REMOVE,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            LIVE_METHOD_NAME_DIVIDEND_REMOVE,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            LIVE_METHOD_NAME_DIVIDEND_REMOVE,
+          ),
+        );
+    }
+
+    if (
+      await not(
+        backtest.strategyCoreService.validateDividendRemove(
+          false,
+          symbol,
+          accrualId,
+          {
+        strategyName: context.strategyName,
+        exchangeName: context.exchangeName,
+        frameName: "",
+      },
+        ),
+      )
+    ) {
+      return false;
+    }
+    return await backtest.strategyCoreService.dividendRemove(
+      false,
+      symbol,
+      currentPrice,
+      {
+        strategyName: context.strategyName,
+        exchangeName: context.exchangeName,
+        frameName: "",
+      },
+      accrualId,
+    );
+  };
+
+  /**
+   * Returns the dividend / staking accruals recorded on the current pending signal
+   * (see getPositionAccruals). Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context
+   * @returns Accrual list or null
+   */
+  public getPositionAccruals = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+    },
+  ) => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_GET_POSITION_ACCRUALS, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      LIVE_METHOD_NAME_GET_POSITION_ACCRUALS,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      LIVE_METHOD_NAME_GET_POSITION_ACCRUALS,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          LIVE_METHOD_NAME_GET_POSITION_ACCRUALS,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            LIVE_METHOD_NAME_GET_POSITION_ACCRUALS,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            LIVE_METHOD_NAME_GET_POSITION_ACCRUALS,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getPositionAccruals(
+      false,
+      symbol,
+      {
+        strategyName: context.strategyName,
+        exchangeName: context.exchangeName,
+        frameName: "",
+      },
     );
   };
 
