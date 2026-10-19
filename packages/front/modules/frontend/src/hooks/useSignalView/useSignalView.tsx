@@ -58,6 +58,7 @@ const fetchData = ttl(
                 "15m",
             ),
             candle_1h: await ioc.exchangeViewService.getSignalCandles(id, "1h"),
+            candle_1d: await ioc.exchangeViewService.getSignalCandles(id, "1d"),
         };
     },
     {
@@ -67,7 +68,7 @@ const fetchData = ttl(
 );
 
 const handleDownloadJson = async (pathname: string, id: string) => {
-    const { candle_15m, candle_1h, candle_1m, signal, notification } =
+    const { candle_15m, candle_1h, candle_1d, candle_1m, signal, notification } =
         await fetchData(id);
 
     if (pathname.includes("/signal")) {
@@ -123,6 +124,14 @@ const handleDownloadJson = async (pathname: string, id: string) => {
         ioc.layoutService.downloadFile(url, `candles_1h_${signal.id}.json`);
         return;
     }
+    if (pathname.includes("/candle_1d")) {
+        const blob = new Blob([JSON.stringify(candle_1d, null, 2)], {
+            type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        ioc.layoutService.downloadFile(url, `candles_1d_${signal.id}.json`);
+        return;
+    }
 };
 
 const handleCopy = async (
@@ -130,7 +139,7 @@ const handleCopy = async (
     id: string,
     onCopy: (content: string) => void,
 ) => {
-    const { candle_15m, candle_1h, candle_1m, signal, status, notification } =
+    const { candle_15m, candle_1h, candle_1d, candle_1m, signal, status, notification } =
         await fetchData(id);
 
     if (pathname.includes("/status")) {
@@ -160,6 +169,10 @@ const handleCopy = async (
 
     if (pathname.includes("/candle_1h")) {
         onCopy(JSON.stringify(candle_1h, null, 2));
+        return;
+    }
+    if (pathname.includes("/candle_1d")) {
+        onCopy(JSON.stringify(candle_1d, null, 2));
         return;
     }
 };
@@ -213,6 +226,10 @@ export const useSignalView = () => {
         if (id === "candle_1h") {
             history.replace(`/candle_1h`);
             setPathname(`/candle_1h`);
+        }
+        if (id === "candle_1d") {
+            history.replace(`/candle_1d`);
+            setPathname(`/candle_1d`);
         }
     };
 
@@ -309,11 +326,12 @@ export const useSignalView = () => {
             signal,
             ...other,
         }),
-        mapPayload: ([{ candle_1m = [], candle_15m = [], candle_1h = [] }]) => {
+        mapPayload: ([{ candle_1m = [], candle_15m = [], candle_1h = [], candle_1d = [] }]) => {
             return {
                 candle_1m,
                 candle_15m,
                 candle_1h,
+                candle_1d,
             };
         },
         onLoadStart: () => ioc.layoutService.setAppbarLoader(true),

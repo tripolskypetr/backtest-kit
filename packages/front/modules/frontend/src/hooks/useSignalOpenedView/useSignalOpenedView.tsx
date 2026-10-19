@@ -58,6 +58,12 @@ const fetchData = ttl(async (id: string) => {
       interval: "1h",
       symbol: signalOpenedData.symbol,
     }),
+    candle_1d: await ioc.exchangeViewService.getPointCandles({
+      currentTime: signalOpenedData.timestamp,
+      exchangeName: signalOpenedData.exchangeName,
+      interval: "1d",
+      symbol: signalOpenedData.symbol,
+    }),
   };
 }, {
   timeout: CACHE_TTL,
@@ -65,7 +71,7 @@ const fetchData = ttl(async (id: string) => {
 });
 
 const handleDownloadJson = async (pathname: string, id: string) => {
-  const { candle_15m, candle_1h, candle_1m, signal_opened } = await fetchData(id);
+  const { candle_15m, candle_1h, candle_1d, candle_1m, signal_opened } = await fetchData(id);
 
   if (pathname.includes("/signal_opened")) {
     const blob = new Blob([JSON.stringify(signal_opened, null, 2)], { type: "application/json" });
@@ -94,10 +100,16 @@ const handleDownloadJson = async (pathname: string, id: string) => {
     ioc.layoutService.downloadFile(url, `candles_1h_${signal_opened.signalId || "unknown"}.json`);
     return;
   }
+  if (pathname.includes("/candle_1d")) {
+    const blob = new Blob([JSON.stringify(candle_1d, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    ioc.layoutService.downloadFile(url, `candles_1d_${signal_opened.signalId || "unknown"}.json`);
+    return;
+  }
 };
 
 const handleCopy = async (pathname: string, id: string, onCopy: (content: string) => void) => {
-  const { candle_15m, candle_1h, candle_1m, signal_opened } = await fetchData(id);
+  const { candle_15m, candle_1h, candle_1d, candle_1m, signal_opened } = await fetchData(id);
 
   if (pathname.includes("/signal_opened")) {
     onCopy(JSON.stringify(signal_opened, null, 2));
@@ -116,6 +128,10 @@ const handleCopy = async (pathname: string, id: string, onCopy: (content: string
 
   if (pathname.includes("/candle_1h")) {
     onCopy(JSON.stringify(candle_1h, null, 2));
+    return;
+  }
+  if (pathname.includes("/candle_1d")) {
+    onCopy(JSON.stringify(candle_1d, null, 2));
     return;
   }
 };
@@ -161,6 +177,10 @@ export const useSignalOpenedView = () => {
     if (id === "candle_1h") {
       history.replace(`/candle_1h`);
       setPathname(`/candle_1h`);
+    }
+    if (id === "candle_1d") {
+      history.replace(`/candle_1d`);
+      setPathname(`/candle_1d`);
     }
   };
 
@@ -253,11 +273,12 @@ export const useSignalOpenedView = () => {
       signal_opened,
       ...other,
     }),
-    mapPayload: ([{ candle_1m = [], candle_15m = [], candle_1h = [] }]) => {
+    mapPayload: ([{ candle_1m = [], candle_15m = [], candle_1h = [], candle_1d = [] }]) => {
       return {
         candle_1m,
         candle_15m,
         candle_1h,
+        candle_1d,
       };
     },
     onLoadStart: () => ioc.layoutService.setAppbarLoader(true),

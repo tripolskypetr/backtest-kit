@@ -19,7 +19,7 @@ import { t } from "../../../../i18n";
 declare function parseFloat(value: unknown): number;
 
 interface IChartProps {
-  source: "1m" | "15m" | "1h";
+  source: "1m" | "15m" | "1h" | "1d";
   height: number;
   width: number;
   items: ICandleData[];
@@ -168,7 +168,9 @@ export const StockChart = ({
         // Проверяем timestamp (Unix timestamp в миллисекундах)
         if (timestamp && dayjs(timestamp).isValid()) {
           date = dayjs(timestamp);
-          formattedOriginalTime = date.format("YYYY-MM-DD HH:mm:ss");
+          // Daily bars are UTC days: keep their original time in UTC so the
+          // axis/tooltip show the bar's UTC date; intraday stays local
+          formattedOriginalTime = (source === "1d" ? dayjs.utc(timestamp) : date).format("YYYY-MM-DD HH:mm:ss");
         } else {
           // Если timestamp невалидно, используем fromMomentStamp
           if (source === "1m") {
@@ -183,6 +185,9 @@ export const StockChart = ({
             momentStamp = MOMENT_STAMP_OFFSET + Math.floor(idx / 60); // 1 час = 60 минут
             date = fromMomentStamp(momentStamp, "hour");
             date = date.startOf("hour");
+          } else if (source === "1d") {
+            momentStamp = MOMENT_STAMP_OFFSET + Math.floor(idx / 1440);
+            date = dayjs.utc(fromMomentStamp(momentStamp, "day").valueOf()).startOf("day");
           }
           formattedOriginalTime = date.format("YYYY-MM-DD HH:mm:ss");
           console.warn(
@@ -202,6 +207,10 @@ export const StockChart = ({
         } else if (source === "1h") {
           const alignedDate = date.startOf("hour");
           momentStamp = getMomentStamp(alignedDate, "hour");
+          time = momentStamp as Time;
+        } else if (source === "1d") {
+          const alignedDate = dayjs.utc(date.valueOf()).startOf("day");
+          momentStamp = getMomentStamp(alignedDate, "day");
           time = momentStamp as Time;
         }
 
@@ -253,7 +262,9 @@ export const StockChart = ({
           if (!candle || !candle.originalTime) {
             return t("Invalid date");
           }
-          const date = dayjs(candle.originalTime);
+          const date = source === "1d"
+            ? dayjs.utc(candle.originalTime)
+            : dayjs(candle.originalTime);
           if (!date.isValid()) {
             return t("Invalid date");
           }
@@ -261,6 +272,8 @@ export const StockChart = ({
             return date.format("HH:mm:ss");
           } else if (source === "15m") {
             return date.format("HH:mm");
+          } else if (source === "1d") {
+            return date.format("DD/MM");
           } else {
             return date.format("DD/MM HH:mm");
           }
@@ -345,6 +358,9 @@ export const StockChart = ({
         const minute = Math.floor(entryDate.minute() / 15) * 15;
         const alignedDate = entryDate.startOf("hour").add(minute, "minute");
         entryTime = getMomentStamp(alignedDate, "minute") as Time;
+      } else if (source === "1d") {
+        const alignedDate = dayjs.utc(entryDate.valueOf()).startOf("day");
+        entryTime = getMomentStamp(alignedDate, "day") as Time;
       } else {
         const alignedDate = entryDate.startOf("hour");
         entryTime = getMomentStamp(alignedDate, "hour") as Time;
@@ -371,6 +387,9 @@ export const StockChart = ({
           const minute = Math.floor(exitDate.minute() / 15) * 15;
           const alignedDate = exitDate.startOf("hour").add(minute, "minute");
           exitTime = getMomentStamp(alignedDate, "minute") as Time;
+        } else if (source === "1d") {
+          const alignedDate = dayjs.utc(exitDate.valueOf()).startOf("day");
+          exitTime = getMomentStamp(alignedDate, "day") as Time;
         } else {
           const alignedDate = exitDate.startOf("hour");
           exitTime = getMomentStamp(alignedDate, "hour") as Time;
@@ -396,8 +415,12 @@ export const StockChart = ({
         const data = candles.find((d) => d.momentStamp === Number(param.time));
         if (data) {
           const dateFormat =
-            source === "1m" ? "DD/MM/YYYY HH:mm:ss" : "DD/MM/YYYY HH:mm";
-          const dateTime = dayjs(data.originalTime).format(dateFormat);
+            source === "1m"
+              ? "DD/MM/YYYY HH:mm:ss"
+              : source === "1d"
+                ? "DD/MM/YYYY"
+                : "DD/MM/YYYY HH:mm";
+          const dateTime = (source === "1d" ? dayjs.utc(data.originalTime) : dayjs(data.originalTime)).format(dateFormat);
           const price = formatAmount(data.value, getPriceScale(data.value));
           setTooltipDate(`${dateTime}: ${price}`);
         } else {

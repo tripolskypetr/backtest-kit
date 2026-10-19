@@ -1,0 +1,61 @@
+import { Box, Typography } from "@mui/material";
+import { AutoSizer, Center, IOutletModalProps } from "react-declarative";
+import StockChart from "../components/StockChart";
+import { useMemo } from "react";
+import { SignalCancelledNotification } from "backtest-kit";
+
+export const Candle1dView = ({ data, formState }: IOutletModalProps) => {
+    const {
+        position,
+        pendingAt,
+        closedAt,
+        priceOpen,
+        priceStopLoss,
+        priceTakeProfit,
+    } = useMemo(() => {
+        const notification = formState.data.main as SignalCancelledNotification;
+        const pendingAtDate = new Date(notification.scheduledAt).toISOString();
+        return {
+            position: notification.position,
+            pendingAt: pendingAtDate,
+            closedAt: new Date(notification.createdAt).toISOString(),
+            priceOpen: notification.priceOpen,
+            priceStopLoss: notification.priceStopLoss,
+            priceTakeProfit: notification.priceTakeProfit,
+        };
+    }, [formState.data.main]);
+
+    if (!data?.length) {
+        return (
+            <Center sx={{ height: "100%", width: "100%", pt: 1 }}>
+                <Typography variant="h6" sx={{opacity: 0.5, fontWeight: "bold"}}>
+                    An error acquired
+                </Typography>
+            </Center>
+        );
+    }
+
+    return (
+        <Box sx={{ height: "100%", width: "100%", pt: 1 }}>
+            <AutoSizer payload={data}>
+                {({ height, width }) => (
+                    <StockChart
+                        items={data}
+                        pendingAt={pendingAt}
+                        closedAt={closedAt}
+                        position={position}
+                        priceOpen={priceOpen}
+                        priceStopLoss={priceStopLoss}
+                        priceTakeProfit={priceTakeProfit}
+                        status="cancelled"
+                        height={height}
+                        width={width}
+                        source="1d"
+                    />
+                )}
+            </AutoSizer>
+        </Box>
+    );
+};
+
+export default Candle1dView;

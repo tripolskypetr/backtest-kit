@@ -59,6 +59,12 @@ const fetchData = ttl(async (id: string) => {
       interval: "1h",
       symbol: riskData.symbol,
     }),
+    candle_1d: await ioc.exchangeViewService.getPointCandles({
+      currentTime: riskData.timestamp,
+      exchangeName: riskData.exchangeName,
+      interval: "1d",
+      symbol: riskData.symbol,
+    }),
   };
 }, {
   timeout: CACHE_TTL,
@@ -67,7 +73,7 @@ const fetchData = ttl(async (id: string) => {
 
 const handleDownloadJson = async (pathname: string, id: string) => {
 
-  const { candle_15m, candle_1h, candle_1m, risk } = await fetchData(id);
+  const { candle_15m, candle_1h, candle_1d, candle_1m, risk } = await fetchData(id);
 
   if (pathname.includes("/risk")) {
     const blob = new Blob([JSON.stringify(risk, null, 2)], { type: "application/json" });
@@ -96,10 +102,16 @@ const handleDownloadJson = async (pathname: string, id: string) => {
     ioc.layoutService.downloadFile(url, `candles_1h_${risk.signalId || "unknown"}.json`);
     return;
   }
+  if (pathname.includes("/candle_1d")) {
+    const blob = new Blob([JSON.stringify(candle_1d, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    ioc.layoutService.downloadFile(url, `candles_1d_${risk.signalId || "unknown"}.json`);
+    return;
+  }
 };
 
 const handleCopy = async (pathname: string, id: string, onCopy: (content: string) => void) => {
-  const { candle_15m, candle_1h, candle_1m, risk } = await fetchData(id);
+  const { candle_15m, candle_1h, candle_1d, candle_1m, risk } = await fetchData(id);
 
   if (pathname.includes("/risk")) {
     onCopy(JSON.stringify(risk, null, 2));
@@ -118,6 +130,10 @@ const handleCopy = async (pathname: string, id: string, onCopy: (content: string
 
   if (pathname.includes("/candle_1h")) {
     onCopy(JSON.stringify(candle_1h, null, 2));
+    return;
+  }
+  if (pathname.includes("/candle_1d")) {
+    onCopy(JSON.stringify(candle_1d, null, 2));
     return;
   }
 };
@@ -164,6 +180,10 @@ export const useRiskView = () => {
     if (id === "candle_1h") {
       history.replace(`/candle_1h`);
       setPathname(`/candle_1h`);
+    }
+    if (id === "candle_1d") {
+      history.replace(`/candle_1d`);
+      setPathname(`/candle_1d`);
     }
   };
 
@@ -256,11 +276,12 @@ export const useRiskView = () => {
       risk,
       ...other,
     }),
-    mapPayload: ([{ candle_1m = [], candle_15m = [], candle_1h = [] }]) => {
+    mapPayload: ([{ candle_1m = [], candle_15m = [], candle_1h = [], candle_1d = [] }]) => {
       return {
         candle_1m,
         candle_15m,
         candle_1h,
+        candle_1d,
       };
     },
     onLoadStart: () => ioc.layoutService.setAppbarLoader(true),

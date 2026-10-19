@@ -29,6 +29,11 @@ export const tabs: ITabsStep[] = [
     label: t("Timeframe 1h"),
     isVisible: ({ candle_1h }) => !!candle_1h,
   },
+  {
+    id: "candle_1d",
+    label: t("Timeframe 1d"),
+    isVisible: ({ candle_1d }) => !!candle_1d,
+  },
 ];
 
 export default tabs;

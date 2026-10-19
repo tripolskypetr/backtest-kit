@@ -1,0 +1,65 @@
+import { Box, Typography } from "@mui/material";
+import { AutoSizer, Center, IOutletModalProps } from "react-declarative";
+import StockChart from "../../usePartialProfitCommitView/components/StockChart";
+import { useMemo } from "react";
+import { AverageBuyCommitNotification } from "backtest-kit";
+
+export const Candle1dView = ({ data, formState }: IOutletModalProps) => {
+    const {
+        position,
+        pendingAt,
+        createdAt,
+        priceOpen,
+        priceStopLoss,
+        priceTakeProfit,
+        originalPriceStopLoss,
+        originalPriceTakeProfit,
+    } = useMemo(() => {
+        const notification = formState.data.main as AverageBuyCommitNotification;
+        return {
+            position: notification.position,
+            pendingAt: new Date(notification.pendingAt || notification.scheduledAt).toISOString(),
+            createdAt: new Date(notification.createdAt).toISOString(),
+            priceOpen: notification.effectivePriceOpen,
+            priceStopLoss: notification.priceStopLoss,
+            priceTakeProfit: notification.priceTakeProfit,
+            originalPriceStopLoss: notification.originalPriceStopLoss,
+            originalPriceTakeProfit: notification.originalPriceTakeProfit,
+        };
+    }, [formState.data.main]);
+
+    if (!data?.length) {
+        return (
+            <Center sx={{ height: "100%", width: "100%", pt: 1 }}>
+                <Typography variant="h6" sx={{opacity: 0.5, fontWeight: "bold"}}>
+                    An error acquired
+                </Typography>
+            </Center>
+        );
+    }
+
+    return (
+        <Box sx={{ height: "100%", width: "100%", pt: 1 }}>
+            <AutoSizer payload={data}>
+                {({ height, width }) => (
+                    <StockChart
+                        items={data}
+                        pendingAt={pendingAt}
+                        eventAt={createdAt}
+                        position={position}
+                        priceOpen={priceOpen}
+                        priceStopLoss={priceStopLoss}
+                        priceTakeProfit={priceTakeProfit}
+                        originalPriceStopLoss={originalPriceStopLoss}
+                        originalPriceTakeProfit={originalPriceTakeProfit}
+                        height={height}
+                        width={width}
+                        source="1d"
+                    />
+                )}
+            </AutoSizer>
+        </Box>
+    );
+};
+
+export default Candle1dView;

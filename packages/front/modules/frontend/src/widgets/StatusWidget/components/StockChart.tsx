@@ -16,11 +16,7 @@ import {
 import { createChart } from "lightweight-charts";
 import { makeStyles } from "../../../styles";
 import { colors } from "@mui/material";
-import { formatAmount, getMomentStamp } from "react-declarative";
-// The app's dayjs instance (src/config/setup.ts extends it with the utc
-// plugin). react-declarative re-exports its OWN nested dayjs, which carries
-// no plugins the app registered — never use it for utc()/tz work.
-import dayjs from "dayjs";
+import { dayjs, formatAmount, getMomentStamp } from "react-declarative";
 import getPriceScale from "../../../utils/getPriceScale";
 import { t } from "../../../i18n";
 import { Timeframe } from "../model/Timeframe.model";
