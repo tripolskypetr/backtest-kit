@@ -19,18 +19,27 @@ const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "1d": 1440,
 };
 
+/**
+ * Candles fetched on each side of the signal window so the chart has room to
+ * scroll. Minute intervals keep 960 ticks (16 hours of 1m up to 20 days of
+ * 30m). Hour intervals are scaled to the same 40 calendar days 960 × 1h gives,
+ * so a coarser interval does not demand more history: the daily count would
+ * otherwise reach 2.6 years before the signal — more than many symbols have,
+ * and Exchange.getRawCandles rejects a short batch (count mismatch). The
+ * daily padding is one quarter.
+ */
 const STEP_TICKS: Record<CandleInterval, number> = {
   "1m": 960,
   "3m": 960,
   "5m": 960,
   "15m": 960,
   "30m": 960,
-  "1h": 960,
-  "2h": 960,
-  "4h": 960,
-  "6h": 960,
-  "8h": 960,
-  "1d": 960,
+  "1h": 960, // 40 days
+  "2h": 480, // 40 days
+  "4h": 240, // 40 days
+  "6h": 160, // 40 days
+  "8h": 120, // 40 days
+  "1d": 90, // 90 days
 };
 
 export class ExchangeService {

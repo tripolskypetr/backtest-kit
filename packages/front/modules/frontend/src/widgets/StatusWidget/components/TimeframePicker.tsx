@@ -59,7 +59,7 @@ const fields: TypedField[] = [
                 sx: {
                     minWidth: "125px",
                 },
-                itemList: ["1m", "15m", "1h"],
+                itemList: ["1m", "15m", "1h", "1d"],
                 tr: (v) => LABEL_MAP[v] || v,
                 name: "timeframe",
                 title: "",
@@ -99,6 +99,7 @@ const LABEL_MAP = {
     "1m": t("Timeframe 1m"),
     "15m": t("Timeframe 15m"),
     "1h": t("Timeframe 1h"),
+    "1d": t("Timeframe 1d"),
 };
 
 export const TimeframePicker = ({

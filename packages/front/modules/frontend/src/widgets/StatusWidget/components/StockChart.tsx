@@ -24,9 +24,9 @@ import { Timeframe } from "../model/Timeframe.model";
 declare function parseFloat(value: unknown): number;
 
 /**
- * lightweight-charts hack: candle times are fed as momentStamp (minutes or
- * hours since the dayjs epoch) aligned to the timeframe, so 15m/1h series
- * keep even spacing. Labels are restored from the original timestamp
+ * lightweight-charts hack: candle times are fed as momentStamp (minutes,
+ * hours or days since the dayjs epoch) aligned to the timeframe, so 15m/1h/1d
+ * series keep even spacing. Labels are restored from the original timestamp
  */
 const getAlignedMomentStamp = (
     date: dayjs.Dayjs,
@@ -41,6 +41,9 @@ const getAlignedMomentStamp = (
     }
     if (timeframe === "1h") {
         return getMomentStamp(date.startOf("hour"), "hour");
+    }
+    if (timeframe === "1d") {
+        return getMomentStamp(date.startOf("day"), "day");
     }
     return getMomentStamp(date, "minute");
 };
@@ -230,6 +233,9 @@ export const StockChart = ({
                     if (timeframe === "15m") {
                         return date.format("HH:mm");
                     }
+                    if (timeframe === "1d") {
+                        return date.format("DD/MM");
+                    }
                     return date.format("DD/MM HH:mm");
                 },
             },
@@ -391,7 +397,9 @@ export const StockChart = ({
                     const dateFormat =
                         timeframe === "1m"
                             ? "DD/MM/YYYY HH:mm:ss"
-                            : "DD/MM/YYYY HH:mm";
+                            : timeframe === "1d"
+                                ? "DD/MM/YYYY"
+                                : "DD/MM/YYYY HH:mm";
                     const dateTime = dayjs(data.originalTime).format(
                         dateFormat,
                     );
