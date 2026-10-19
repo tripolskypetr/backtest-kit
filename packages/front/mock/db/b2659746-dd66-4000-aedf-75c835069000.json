@@ -17,6 +17,9 @@
   "originalPriceTakeProfit": 46444.492399999996,
   "partialExecuted": 0,
   "status": "closed",
+  "currentPrice": 47045.37,
+  "closeReason": "take_profit",
+  "closeTimestamp": 1707734820000,
   "priority": 1769444606022,
   "updatedAt": 1707734820000,
   "pnl": {
