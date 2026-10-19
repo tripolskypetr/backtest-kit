@@ -5,11 +5,13 @@ import {
     Grid,
     IGridColumn,
     IOutletModalProps,
+    copyToClipboard,
     dayjs,
     formatAmount,
 } from "react-declarative";
 import getPriceScale from "../../../utils/getPriceScale";
 import { t } from "../../../i18n";
+import ioc from "../../../lib";
 
 /** Grid rows need a key; accruals carry none, so the timestamp serves as id */
 type AccrualRow = ISignalAccrual & { id: string; idx: number };
@@ -63,6 +65,21 @@ export const StakingView = ({ data }: IOutletModalProps) => {
             idx,
             id: String(row.timestamp),
         }));
+
+    const handleRowClick = async (row: AccrualRow) => {
+        if (
+            await copyToClipboard(
+                JSON.stringify(
+                    { ...row, id: undefined, idx: undefined },
+                    null,
+                    2,
+                ),
+            )
+        ) {
+            ioc.alertService.notify(t("Copied!"));
+        }
+    };
+
     return (
         <Box sx={{ height: "100%", width: "100%", pt: 1 }}>
             <AutoSizer payload={accruals}>
@@ -71,6 +88,7 @@ export const StakingView = ({ data }: IOutletModalProps) => {
                         sx={{ height: size.height, width: size.width }}
                         data={accruals}
                         columns={columns}
+                        onRowClick={handleRowClick}
                         rowKey="id"
                         noDataLabel={t("No accruals")}
                     />
