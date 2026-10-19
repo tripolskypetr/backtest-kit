@@ -759,4 +759,12 @@ export const LOCALE: Record<string, string> = {
   "Accrual": "Tahakkuk",
   "Dividends": "Temettüler",
   "asset": "varlık",
+  "Dividend Details": "Temettü Ayrıntıları",
+  "Dividend Commit": "Temettü",
+  "Accrual Details": "Tahakkuk Ayrıntıları",
+  "Accrual ID": "Tahakkuk ID",
+  "Accrual Type": "Tahakkuk Türü",
+  "Dividends Total": "Toplam Temettü",
+  "Total Accruals": "Toplam Tahakkuk",
+  "cash": "nakit",
 };

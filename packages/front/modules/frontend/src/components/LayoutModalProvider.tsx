@@ -41,6 +41,9 @@ import useActivateScheduledView from "../hooks/useActivateScheduledView";
 // Average buy hook
 import useAverageBuyCommitView from "../hooks/useAverageBuyCommitView";
 
+// Dividend / staking accrual hook (add + remove share one modal)
+import useDividendCommitView from "../hooks/useDividendCommitView";
+
 // Order sync hooks (3 types)
 import useOrderSyncOpenView from "../hooks/useOrderSyncOpenView";
 import useOrderSyncCloseView from "../hooks/useOrderSyncCloseView";
@@ -144,6 +147,9 @@ export const LayoutModalProvider = ({
     // Average buy hook
     const pickAverageBuyCommit = useAverageBuyCommitView();
 
+    // Dividend / staking accrual hook
+    const pickDividendCommit = useDividendCommitView();
+
     // Order sync hooks (3 types)
     const pickOrderSyncOpen = useOrderSyncOpenView();
     const pickOrderSyncClose = useOrderSyncCloseView();
@@ -230,6 +236,10 @@ export const LayoutModalProvider = ({
 
     // Average buy subscription
     useOnce(() => ioc.layoutService.pickAverageBuyCommitSubject.subscribe(pickAverageBuyCommit));
+
+    // Dividend / staking accrual subscriptions (2 types, one modal)
+    useOnce(() => ioc.layoutService.pickDividendAddCommitSubject.subscribe(pickDividendCommit));
+    useOnce(() => ioc.layoutService.pickDividendRemoveCommitSubject.subscribe(pickDividendCommit));
 
     // Order sync subscriptions (3 types)
     useOnce(() => ioc.layoutService.pickOrderSyncOpenSubject.subscribe(pickOrderSyncOpen));

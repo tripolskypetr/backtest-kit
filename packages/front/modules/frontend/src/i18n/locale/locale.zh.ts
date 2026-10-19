@@ -759,4 +759,12 @@ export const LOCALE: Record<string, string> = {
   "Accrual": "计提",
   "Dividends": "股息合计",
   "asset": "资产",
+  "Dividend Details": "股息详情",
+  "Dividend Commit": "股息",
+  "Accrual Details": "计提详情",
+  "Accrual ID": "计提 ID",
+  "Accrual Type": "计提类型",
+  "Dividends Total": "股息合计",
+  "Total Accruals": "计提总数",
+  "cash": "现金",
 };

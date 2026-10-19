@@ -759,4 +759,12 @@ export const LOCALE: Record<string, string> = {
   "Accrual": "Provisão",
   "Dividends": "Dividendos",
   "asset": "ativo",
+  "Dividend Details": "Detalhes do dividendo",
+  "Dividend Commit": "Dividendo",
+  "Accrual Details": "Detalhes da provisão",
+  "Accrual ID": "ID da provisão",
+  "Accrual Type": "Tipo de provisão",
+  "Dividends Total": "Dividendos totais",
+  "Total Accruals": "Total de provisões",
+  "cash": "dinheiro",
 };

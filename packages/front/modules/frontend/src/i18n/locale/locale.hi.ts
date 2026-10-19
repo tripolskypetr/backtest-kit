@@ -759,4 +759,12 @@ export const LOCALE: Record<string, string> = {
   "Accrual": "अर्जन",
   "Dividends": "लाभांश कुल",
   "asset": "संपत्ति",
+  "Dividend Details": "लाभांश विवरण",
+  "Dividend Commit": "लाभांश",
+  "Accrual Details": "अर्जन विवरण",
+  "Accrual ID": "अर्जन ID",
+  "Accrual Type": "अर्जन प्रकार",
+  "Dividends Total": "कुल लाभांश",
+  "Total Accruals": "कुल अर्जन",
+  "cash": "नकद",
 };
