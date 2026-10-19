@@ -284,3 +284,41 @@ test("getCandlesFilled: maxGapStreak config overrides the default (0 and Infinit
   if (candles.length !== 60) return fail("Infinity must restore the unbounded fill");
   pass("per-call maxGapStreak 0 throws immediately, Infinity fills 59 missing days");
 });
+
+test("getCandlesFilled: a genuine crash (10-100x daily steps, 800000x overall) is NOT an anomaly", async ({ pass, fail }) => {
+  setConfig(getDefaultConfig());
+  // LUNA-like: 80 -> 60 -> 30 -> 17 -> 1 -> 0.01 -> 0.0001 -> 0.0001 -> 0.0001
+  const closes = [80, 60, 30, 17, 1, 0.01, 0.0001, 0.0001, 0.0001];
+  const days = {};
+  closes.forEach((c, i) => { days[i] = [c * 1.2, c * 1.3, c * 0.9, c, 1000]; });
+  const fetchOHLCV = makeDailySource(days);
+  const wide = await getCandlesFilled(fetchOHLCV, { symbol: "LUNA", interval: "1d", since: new Date(DAY0), limit: 9 });
+  if (wide.some((c, i) => c.close !== closes[i] || c.volume !== 1000)) return fail(`crash bars must be returned as-is, got ${JSON.stringify(wide.map((c) => c.close))}`);
+  for (let d = 0; d < 9; d++) {
+    const [bar] = await getCandlesFilled(fetchOHLCV, { symbol: "LUNA", interval: "1d", since: new Date(DAY0 + d * DAY_MS), limit: 1 });
+    if (bar.close !== closes[d] || bar.volume !== 1000) return fail(`day ${d}: crash bar replaced, got ${JSON.stringify(bar)}`);
+  }
+  pass("800000x crash over 9 days passes untouched in wide and 1-bar windows");
+});
+
+test("getCandlesFilled: a bad tick is caught against its neighbours, even in a 1-row window", async ({ pass, fail }) => {
+  setConfig(getDefaultConfig());
+  const fetchOHLCV = makeDailySource({ 0: SANE, 1: BROKEN_LOW, 2: SANE });
+  const [bar] = await getCandlesFilled(fetchOHLCV, { symbol: "X", interval: "1d", since: new Date(DAY0 + DAY_MS), limit: 1 });
+  if (bar.close !== 105 || bar.volume !== 0 || bar.low !== 105) return fail(`broken low must be repaired flat from day 0, got ${JSON.stringify(bar)}`);
+  const spike = makeDailySource({ 0: SANE, 1: [100, 500_000, 90, 105, 1000], 2: SANE });
+  const candles = await getCandlesFilled(spike, { symbol: "X", interval: "1d", since: new Date(DAY0), limit: 3 });
+  if (candles[1].high !== 105 || candles[1].volume !== 0) return fail("a 5000x high spike must be repaired");
+  pass("bad low in a 1-row window and bad high spike are both repaired");
+});
+
+test("getCandlesFilled: two adjacent bars broken in every price are still caught by the 5-bar local window", async ({ pass, fail }) => {
+  setConfig(getDefaultConfig());
+  const allBroken = [0.0004, 0.0005, 0.0003, 0.0004, 1000];
+  const fetchOHLCV = makeDailySource({ 0: SANE, 1: SANE, 2: allBroken, 3: allBroken, 4: SANE, 5: SANE });
+  const candles = await getCandlesFilled(fetchOHLCV, { symbol: "X", interval: "1d", since: new Date(DAY0), limit: 6 });
+  if (candles[2].close !== 105 || candles[3].close !== 105 || candles[2].volume !== 0 || candles[3].volume !== 0) {
+    return fail(`both all-broken bars must be repaired, got ${JSON.stringify(candles.slice(2, 4))}`);
+  }
+  pass("2 of 5 broken in the local window: median stays sane, both repaired");
+});

@@ -8821,9 +8821,11 @@ declare const GLOBAL_CONFIG: {
      * Example: BTC at $50,000 median → threshold $50 (catches $0.01-1 anomalies)
      *
      * Read in two places: by the engine (validateCandles, on every candle batch
-     * the exchange adapter returns) AND by the helpers getCandlesFilled /
-     * getCandlesSampled, which apply the same rule to the raw source rows to
-     * decide which candles to repair (see CC_GET_CANDLES_MAX_ANOMALY_STREAK).
+     * the exchange adapter returns, against the WINDOW median) AND by the helpers
+     * getCandlesFilled / getCandlesSampled, which apply the same factor to the
+     * raw source rows against a LOCAL reference (median close of the 2 bars on
+     * each side) to decide which candles to repair (see
+     * CC_GET_CANDLES_MAX_ANOMALY_STREAK).
      */
     CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
     /**
@@ -8839,9 +8841,9 @@ declare const GLOBAL_CONFIG: {
      *
      * Example: 3 candles = 12 points (use average), 5 candles = 20 points (use median)
      *
-     * Read in two places: by the engine (validateCandles) AND by the helpers
-     * getCandlesFilled / getCandlesSampled, which compute the reference price of
-     * the raw source window with the same rule.
+     * Engine-only (validateCandles). The helpers getCandlesFilled /
+     * getCandlesSampled do not read it: their reference is local (neighbouring
+     * bars), not the window median.
      */
     CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
     /**
@@ -8854,13 +8856,16 @@ declare const GLOBAL_CONFIG: {
      * Maximum number of CONSECUTIVE anomalous source candles that getCandlesFilled
      * replaces with a flat fill (last known close, volume 0) before throwing.
      *
-     * An anomalous candle is what validateCandles rejects: non-finite values,
-     * zero/negative prices or negative volume, high < low, or a price below
-     * reference / CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR (reference =
-     * median of the window, or average below CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN
-     * candles). A single bad tick (Yahoo: low 0.00043 at price 1.07) is repaired
-     * like a gap; a longer streak means the feed itself is broken — throw rather
-     * than fabricate a flat market.
+     * An anomalous candle fails the structural rules of validateCandles
+     * (non-finite values, zero/negative prices, negative volume, high < low) or
+     * has a price more than CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR times
+     * away from its NEIGHBOURS (median close of the sane rows within 2 bars on
+     * each side, itself included). Unlike the engine's validateCandles, the
+     * reference is local, not the window median: a bad tick (Yahoo: low 0.00043
+     * at price 1.07) is thousands of times off its neighbours and is repaired
+     * like a gap, while a genuine crash moving in 10-100x daily steps (LUNA,
+     * May 2022) passes bar by bar. A longer streak means the feed itself is
+     * broken — throw rather than fabricate a flat market.
      *
      * Default for the `maxAnomalyStreak` config of getCandlesFilled /
      * getCandlesSampled; overridable per call. Set to 0 to throw on the first
@@ -47893,9 +47898,10 @@ interface IGetCandlesFilledConfig {
  * window - the symbol was not traded yet), throws an exception: the result
  * is always exactly limit candles.
  *
- * Anomalous source candles (see IS_ANOMALOUS_FN — the validateCandles rules
- * with the GLOBAL_CONFIG thresholds) are treated as gaps and repaired the
- * same way, but only up to `maxAnomalyStreak` in a row (config argument,
+ * Anomalous source candles (see GET_ANOMALY_FLAGS_FN — the structural rules of
+ * validateCandles plus a price check against the row's NEIGHBOURS using
+ * CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR) are treated as gaps and
+ * repaired the same way, but only up to `maxAnomalyStreak` in a row (config argument,
  * default GLOBAL_CONFIG.CC_GET_CANDLES_MAX_ANOMALY_STREAK): a longer streak
  * throws, because a feed that is broken for that long must not be replaced by
  * a fabricated flat market. A sane candle resets the streak; a plain gap
