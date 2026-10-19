@@ -38,6 +38,10 @@ export class LayoutService {
     // Average buy subject
     public readonly pickAverageBuyCommitSubject = new Subject<string>();
 
+    // Dividend / staking accrual subjects (2 types)
+    public readonly pickDividendAddCommitSubject = new Subject<string>();
+    public readonly pickDividendRemoveCommitSubject = new Subject<string>();
+
     // Order sync subjects (3 types)
     public readonly pickOrderSyncOpenSubject = new Subject<string>();
     public readonly pickOrderSyncCloseSubject = new Subject<string>();
@@ -227,6 +231,15 @@ export class LayoutService {
     // Average buy method
     pickAverageBuyCommit = async (notificationId: string) => {
         await this.pickAverageBuyCommitSubject.next(notificationId);
+    };
+
+    // Dividend / staking accrual methods (2 types)
+    pickDividendAddCommit = async (notificationId: string) => {
+        await this.pickDividendAddCommitSubject.next(notificationId);
+    };
+
+    pickDividendRemoveCommit = async (notificationId: string) => {
+        await this.pickDividendRemoveCommitSubject.next(notificationId);
     };
 
     // Order sync methods (3 types)

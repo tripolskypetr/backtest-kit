@@ -26,6 +26,8 @@ import {
   PlayArrow,
   Pause,
   Sync,
+  Paid,
+  MoneyOff,
   Warning as WarningIcon,
 } from "@mui/icons-material";
 
@@ -64,6 +66,10 @@ const getNotificationColor = (item: NotificationModel): string => {
       return "#4CAF50";
     case "average_buy.commit":
       return "#FF9800";
+    case "dividend_add.commit":
+      return "#009688";
+    case "dividend_remove.commit":
+      return "#795548";
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return "#673AB7";
@@ -128,6 +134,10 @@ const getNotificationIcon = (item: NotificationModel) => {
       return <PlayArrow sx={sx} />;
     case "average_buy.commit":
       return <TrendingDown sx={sx} />;
+    case "dividend_add.commit":
+      return <Paid sx={sx} />;
+    case "dividend_remove.commit":
+      return <MoneyOff sx={sx} />;
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return <Timeline sx={sx} />;
@@ -194,6 +204,10 @@ const getNotificationTitle = (item: NotificationModel): string => {
       return `${t("Activated")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "average_buy.commit":
       return `${t("Average Buy")} ${item.symbol}`;
+    case "dividend_add.commit":
+      return `${t("Dividend")} ${item.accrualType === "asset" ? item.amount : `${item.amount.toFixed(getPriceScale(item.amount))}${t("$")}`} ${item.symbol}`;
+    case "dividend_remove.commit":
+      return `${t("Dividend removed")} ${item.symbol}`;
     case "trailing_stop.commit":
       return `${t("Trailing stop")} ${item.symbol}`;
     case "trailing_take.commit":
@@ -263,6 +277,10 @@ const getNotificationTypeLabel = (item: NotificationModel): string => {
       return t("Activated Scheduled");
     case "average_buy.commit":
       return t("Average Buy");
+    case "dividend_add.commit":
+      return t("Dividend Add");
+    case "dividend_remove.commit":
+      return t("Dividend Remove");
     case "trailing_stop.commit":
       return t("Trailing Stop");
     case "trailing_take.commit":
@@ -352,6 +370,12 @@ const handleNotificationClick = (item: NotificationModel) => {
       break;
     case "average_buy.commit":
       ioc.layoutService.pickAverageBuyCommit(item.id);
+      break;
+    case "dividend_add.commit":
+      ioc.layoutService.pickDividendAddCommit(item.id);
+      break;
+    case "dividend_remove.commit":
+      ioc.layoutService.pickDividendRemoveCommit(item.id);
       break;
     case "order_sync.open":
       ioc.layoutService.pickOrderSyncOpen(item.id);
@@ -563,6 +587,18 @@ const hasTotalEntries = (
   item: NotificationModel
 ): item is NotificationModel & { totalEntries: number } => {
   return "totalEntries" in item && item.totalEntries > 1;
+};
+
+const hasAccrual = (
+  item: NotificationModel
+): item is NotificationModel & { accrualType: "cash" | "asset"; amount: number } => {
+  return "accrualType" in item && "amount" in item;
+};
+
+const hasPnlDividends = (
+  item: NotificationModel
+): item is NotificationModel & { pnlDividends: number } => {
+  return "pnlDividends" in item && item.pnlDividends > 0;
 };
 
 const hasOriginalPriceOpen = (
@@ -862,6 +898,24 @@ export const NotificationCard = forwardRef(
                       sx={{ mt: 1, mr: 1 }}
                       label={`${t("Orig entry")}: ${!!item.originalPriceOpen ? formatAmount(item.originalPriceOpen, getPriceScale(item.originalPriceOpen)) : t("N/A")}`}
                       variant="outlined"
+                    />
+                  )}
+                  {hasAccrual(item) && (
+                    <Chip
+                      size="small"
+                      sx={{ mt: 1, mr: 1 }}
+                      label={`${t("Accrual")}: ${item.accrualType === "asset" ? `${item.amount} ${t("asset")}` : `${item.amount.toFixed(getPriceScale(item.amount))}${t("$")}`}`}
+                      variant="outlined"
+                      color="success"
+                    />
+                  )}
+                  {hasPnlDividends(item) && (
+                    <Chip
+                      size="small"
+                      sx={{ mt: 1, mr: 1 }}
+                      label={`${t("Dividends")}: ${item.pnlDividends.toFixed(getPriceScale(item.pnlDividends))}${t("$")}`}
+                      variant="outlined"
+                      color="success"
                     />
                   )}
                 </Stack>

@@ -748,4 +748,11 @@ export const LOCALE: Record<string, string> = {
   "PNL multiplier (leverage) applied to the profit and loss percentage.": "लाभ-हानि प्रतिशत पर लागू PNL गुणक (लीवरेज)।",
   "Used as the default value when the multiplier is not provided by the strategy signal.": "जब रणनीति सिग्नल गुणक प्रदान नहीं करता है तो डिफ़ॉल्ट मान के रूप में उपयोग किया जाता है।",
   "Default: 1 (no scaling).": "डिफ़ॉल्ट: 1 (कोई स्केलिंग नहीं)।",
+  "Dividend": "लाभांश",
+  "Dividend removed": "लाभांश हटाया गया",
+  "Dividend Add": "लाभांश जोड़ें",
+  "Dividend Remove": "लाभांश हटाएँ",
+  "Accrual": "अर्जन",
+  "Dividends": "लाभांश कुल",
+  "asset": "संपत्ति",
 };

@@ -748,4 +748,11 @@ export const LOCALE: Record<string, string> = {
   "PNL multiplier (leverage) applied to the profit and loss percentage.": "Множитель PNL (плечо), применяемый к проценту прибыли и убытка.",
   "Used as the default value when the multiplier is not provided by the strategy signal.": "Используется как значение по умолчанию, когда множитель не задан сигналом стратегии.",
   "Default: 1 (no scaling).": "По умолчанию: 1 (без масштабирования).",
+  "Dividend": "Дивиденд",
+  "Dividend removed": "Дивиденд снят",
+  "Dividend Add": "Начисление дивиденда",
+  "Dividend Remove": "Снятие дивиденда",
+  "Accrual": "Начисление",
+  "Dividends": "Дивиденды",
+  "asset": "актив",
 };

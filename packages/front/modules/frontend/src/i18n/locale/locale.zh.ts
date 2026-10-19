@@ -748,4 +748,11 @@ export const LOCALE: Record<string, string> = {
   "PNL multiplier (leverage) applied to the profit and loss percentage.": "应用于盈亏百分比的 PNL 倍数（杠杆）。",
   "Used as the default value when the multiplier is not provided by the strategy signal.": "当策略信号未提供倍数时用作默认值。",
   "Default: 1 (no scaling).": "默认值：1（不缩放）。",
+  "Dividend": "股息",
+  "Dividend removed": "股息已撤销",
+  "Dividend Add": "新增股息",
+  "Dividend Remove": "撤销股息",
+  "Accrual": "计提",
+  "Dividends": "股息合计",
+  "asset": "资产",
 };

@@ -748,4 +748,11 @@ export const LOCALE: Record<string, string> = {
   "PNL multiplier (leverage) applied to the profit and loss percentage.": "Kâr ve zarar yüzdesine uygulanan PNL çarpanı (kaldıraç).",
   "Used as the default value when the multiplier is not provided by the strategy signal.": "Strateji sinyali çarpan sağlamadığında varsayılan değer olarak kullanılır.",
   "Default: 1 (no scaling).": "Varsayılan: 1 (ölçekleme yok).",
+  "Dividend": "Temettü",
+  "Dividend removed": "Temettü kaldırıldı",
+  "Dividend Add": "Temettü ekle",
+  "Dividend Remove": "Temettü kaldır",
+  "Accrual": "Tahakkuk",
+  "Dividends": "Temettüler",
+  "asset": "varlık",
 };

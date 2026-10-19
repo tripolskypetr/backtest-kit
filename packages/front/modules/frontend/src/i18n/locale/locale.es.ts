@@ -748,4 +748,11 @@ export const LOCALE: Record<string, string> = {
   "PNL multiplier (leverage) applied to the profit and loss percentage.": "Multiplicador de PNL (apalancamiento) aplicado al porcentaje de ganancias y pérdidas.",
   "Used as the default value when the multiplier is not provided by the strategy signal.": "Se usa como valor predeterminado cuando la señal de la estrategia no proporciona el multiplicador.",
   "Default: 1 (no scaling).": "Predeterminado: 1 (sin escalado).",
+  "Dividend": "Dividendo",
+  "Dividend removed": "Dividendo eliminado",
+  "Dividend Add": "Dividendo añadido",
+  "Dividend Remove": "Dividendo eliminado",
+  "Accrual": "Devengo",
+  "Dividends": "Dividendos",
+  "asset": "activo",
 };
