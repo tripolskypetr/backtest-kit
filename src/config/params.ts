@@ -110,44 +110,30 @@ export const GLOBAL_CONFIG = {
 
   /**
    * Maximum allowed deviation factor for price anomaly detection.
-   * Price should not be more than this factor lower than reference price.
+   * No price of a candle may be more than this factor away from its reference.
    *
    * Reasoning:
    * - Incomplete candles from Binance API typically have prices near 0 (e.g., $0.01-1)
    * - Normal BTC price ranges: $20,000-100,000
-   * - Factor 1000 catches prices below $20-100 when median is $20,000-100,000
-   * - Factor 100 would be too permissive (allows $200 when median is $20,000)
+   * - Factor 1000 catches prices below $20-100 when the neighbours are at $20,000-100,000
+   * - Factor 100 would be too permissive (allows $200 when the neighbours are at $20,000)
    * - Factor 10000 might be too strict for low-cap altcoins
    *
-   * Example: BTC at $50,000 median → threshold $50 (catches $0.01-1 anomalies)
+   * Example: BTC at $50,000 reference → allowed [$50, $50,000,000]
+   *
+   * The reference is LOCAL: the median close of the sane candles within 2
+   * bars on each side of the candle, itself included (getCandleAnomalyFlags).
+   * A bad tick is thousands of times off its neighbours and is caught; a
+   * genuine crash moving in 10-100x steps passes bar by bar. Checked in both
+   * directions (too low and too high).
    *
    * Read in two places: by the engine (validateCandles, on every candle batch
-   * the exchange adapter returns, against the WINDOW median) AND by the helpers
-   * getCandlesFilled / getCandlesSampled, which apply the same factor to the
-   * raw source rows against a LOCAL reference (median close of the 2 bars on
-   * each side) to decide which candles to repair (see
+   * the exchange adapter returns — a hit throws) AND by the helpers
+   * getCandlesFilled / getCandlesSampled, which apply the same rule to the raw
+   * source rows to decide which candles to repair (see
    * CC_GET_CANDLES_MAX_ANOMALY_STREAK).
    */
   CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: 1_000,
-
-  /**
-   * Minimum number of candles required for reliable median calculation.
-   * Below this threshold, use simple average instead of median.
-   *
-   * Reasoning:
-   * - Each candle provides 4 price points (OHLC)
-   * - 5 candles = 20 price points, sufficient for robust median calculation
-   * - Below 5 candles, single anomaly can heavily skew median
-   * - Statistical rule of thumb: minimum 7-10 data points for median stability
-   * - Average is more stable than median for small datasets (n < 20)
-   *
-   * Example: 3 candles = 12 points (use average), 5 candles = 20 points (use median)
-   *
-   * Engine-only (validateCandles). The helpers getCandlesFilled /
-   * getCandlesSampled do not read it: their reference is local (neighbouring
-   * bars), not the window median.
-   */
-  CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: 5,
 
   /**
    * HELPER-ONLY PARAMETER. The engine itself never reads it: it is consumed

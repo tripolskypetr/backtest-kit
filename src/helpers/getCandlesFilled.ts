@@ -1,4 +1,6 @@
 import { GLOBAL_CONFIG } from "../config/params";
+import { ICandleData } from "../interfaces/Exchange.interface";
+import { getCandleAnomalyFlags } from "../validation/validateCandles";
 
 export interface ICandle {
   timestamp: number;
@@ -67,65 +69,25 @@ export const getIntervalMs = (interval: string) => {
   return Number(match[1]) * INTERVAL_UNITS[match[2]];
 };
 
-/** Bars on each side of a row that form its local reference window */
-const NEIGHBOR_RADIUS = 2;
-
 /**
- * Structural part of the validateCandles rules, applied to one raw row:
- * finite values, positive prices, non-negative volume, high >= low.
+ * Anomaly flags for an ASCENDING run of raw rows — the engine's own rule
+ * (getCandleAnomalyFlags: structural checks of validateCandles plus a price
+ * check against the row's NEIGHBOURS using
+ * CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR), applied to the raw source
+ * rows before the grid is built. A bad tick is caught against the bars around
+ * it, a genuine crash moving in 10-100x steps passes bar by bar.
  */
-const IS_STRUCTURALLY_SANE_FN = (candle: TRawOHLCV): boolean => {
-  const [, open, high, low, close, volume] = candle;
-  if (![open, high, low, close, volume].every((v) => Number.isFinite(v))) {
-    return false;
-  }
-  if (open! <= 0 || high! <= 0 || low! <= 0 || close! <= 0 || volume! < 0) {
-    return false;
-  }
-  return high! >= low!;
-};
-
-/**
- * Anomaly flags for an ASCENDING run of raw rows, one per row.
- *
- * A row is anomalous when it fails the structural rules, or when any of its
- * prices is further than CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR away
- * (below OR above) from its LOCAL reference: the median close of the
- * structurally sane rows within NEIGHBOR_RADIUS positions on each side,
- * the row itself included.
- *
- * Why neighbours and not the window median (validateCandles): a bad tick
- * (Yahoo: low 0.00043 at price 1.07) is thousands of times off its
- * neighbours and still fails; a genuine crash (LUNA, May 2022) moves in
- * 10-100x daily steps, every bar stays within the factor of the bars around
- * it and passes — the window median would brand the whole post-crash tail
- * anomalous. The row's own close is part of the reference, so a bad low or
- * high is caught even in a single-row window. Only a run of >= 3 adjacent
- * rows broken in ALL four prices can hide inside a 5-row window.
- */
-const GET_ANOMALY_FLAGS_FN = (rows: TRawOHLCV[]): boolean[] => {
-  const factor = GLOBAL_CONFIG.CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR;
-  const sane = rows.map(IS_STRUCTURALLY_SANE_FN);
-  return rows.map((row, i) => {
-    if (!sane[i]) {
-      return true;
-    }
-    const closes: number[] = [];
-    const from = Math.max(0, i - NEIGHBOR_RADIUS);
-    const to = Math.min(rows.length - 1, i + NEIGHBOR_RADIUS);
-    for (let j = from; j <= to; j++) {
-      if (sane[j]) {
-        closes.push(rows[j][4]!);
-      }
-    }
-    closes.sort((x, y) => x - y);
-    const reference = closes[Math.floor(closes.length / 2)];
-    const minValid = reference / factor;
-    const maxValid = reference * factor;
-    const [, open, high, low, close] = row;
-    return [open!, high!, low!, close!].some((p) => p < minValid || p > maxValid);
-  });
-};
+const GET_ANOMALY_FLAGS_FN = (rows: TRawOHLCV[]): boolean[] =>
+  getCandleAnomalyFlags(
+    rows.map(([timestamp, open, high, low, close, volume]) => ({
+      timestamp,
+      open,
+      high,
+      low,
+      close,
+      volume,
+    }) as ICandleData),
+  );
 
 /**
  * A row without a volume is a SOURCE CONTRACT violation, not a bad tick: the

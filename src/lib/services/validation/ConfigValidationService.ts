@@ -180,12 +180,6 @@ export class ConfigValidationService {
       );
     }
 
-    if (!Number.isInteger(GLOBAL_CONFIG.CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN) || GLOBAL_CONFIG.CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN <= 0) {
-      errors.push(
-        `CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN must be a positive integer, got ${GLOBAL_CONFIG.CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN}`
-      );
-    }
-
     if (!Number.isInteger(GLOBAL_CONFIG.CC_GET_CANDLES_MAX_ANOMALY_STREAK) || GLOBAL_CONFIG.CC_GET_CANDLES_MAX_ANOMALY_STREAK < 0) {
       errors.push(
         `CC_GET_CANDLES_MAX_ANOMALY_STREAK must be a non-negative integer, got ${GLOBAL_CONFIG.CC_GET_CANDLES_MAX_ANOMALY_STREAK}`

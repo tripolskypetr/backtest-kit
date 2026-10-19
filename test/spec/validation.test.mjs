@@ -855,3 +855,102 @@ test("validateCandles rejects a candle with high < low", async ({ pass, fail }) 
 
   pass("high < low rejected, coherent and rounding-edge candles pass");
 });
+
+/**
+ * validateCandles: локальная опорная цена (медиана close по ±2 соседям) вместо
+ * медианы всего массива — битый тик ловится, настоящий обвал ступенями проходит.
+ */
+const makeCandle = (i, close, extra = {}) => ({
+  timestamp: Date.UTC(2024, 0, 1) + i * 60000,
+  open: close,
+  high: close,
+  low: close,
+  close,
+  volume: 100,
+  ...extra,
+});
+
+test("validateCandles: a genuine crash (10-100x steps, 800000x overall) passes", async ({ pass, fail }) => {
+  const { validateCandles, getCandleAnomalyFlags } = await import("../../build/index.mjs");
+  const closes = [80, 60, 30, 17, 1, 0.01, 0.0001, 0.0001, 0.0001];
+  const candles = closes.map((c, i) => makeCandle(i, c, { open: c * 1.2, high: c * 1.3, low: c * 0.9 }));
+  try {
+    validateCandles(candles);
+  } catch (error) {
+    return fail(`crash must not be an anomaly: ${error.message}`);
+  }
+  if (getCandleAnomalyFlags(candles).some(Boolean)) return fail("no flag expected on a crash");
+  pass("800000x crash over 9 candles is accepted");
+});
+
+test("validateCandles: a bad tick is caught against its neighbours", async ({ pass, fail }) => {
+  const { validateCandles } = await import("../../build/index.mjs");
+  // Binance incomplete candle: all four prices at 0.1 among 42000
+  const incomplete = [42000, 42000, 42000, 42000, 42000].map((c, i) => makeCandle(i, c));
+  incomplete[2] = makeCandle(2, 0.1, { open: 0.1, high: 0.12, low: 0.08, volume: 0 });
+  try {
+    validateCandles(incomplete);
+    return fail("the incomplete candle must be rejected");
+  } catch (error) {
+    if (!error.message.includes("candle[2]") || !error.message.includes("out of range of its neighbours")) return fail(`wrong error: ${error.message}`);
+  }
+  // Yahoo bad low: 0.00043 at price 1.07, other prices sane
+  const badLow = [1.07, 1.07, 1.07].map((c, i) => makeCandle(i, c));
+  badLow[1] = makeCandle(1, 1.07, { low: 0.00043 });
+  try {
+    validateCandles(badLow);
+    return fail("the bad low must be rejected");
+  } catch (error) {
+    if (!error.message.includes("candle[1]")) return fail(`wrong error: ${error.message}`);
+  }
+  pass("incomplete candle and bad low are rejected");
+});
+
+test("validateCandles: a bad tick is caught even in a single-candle array (own close is the reference)", async ({ pass, fail }) => {
+  const { validateCandles } = await import("../../build/index.mjs");
+  try {
+    validateCandles([makeCandle(0, 105, { low: 0.0004 })]);
+    return fail("single candle with a bad low must be rejected");
+  } catch (error) {
+    if (!error.message.includes("candle[0]")) return fail(`wrong error: ${error.message}`);
+  }
+  pass("single-candle bad low rejected");
+});
+
+test("validateCandles: a high spike is caught (check is two-sided)", async ({ pass, fail }) => {
+  const { validateCandles } = await import("../../build/index.mjs");
+  const candles = [100, 100, 100].map((c, i) => makeCandle(i, c));
+  candles[1] = makeCandle(1, 105, { high: 500_000 });
+  try {
+    validateCandles(candles);
+    return fail("a 5000x high spike must be rejected");
+  } catch (error) {
+    if (!error.message.includes("candle[1]")) return fail(`wrong error: ${error.message}`);
+  }
+  pass("high spike rejected");
+});
+
+test("validateCandles: two adjacent candles broken in every price are caught by the 5-candle window", async ({ pass, fail }) => {
+  const { validateCandles, getCandleAnomalyFlags } = await import("../../build/index.mjs");
+  const candles = [105, 105, 0.0004, 0.0004, 105, 105].map((c, i) => makeCandle(i, c));
+  const flags = getCandleAnomalyFlags(candles);
+  if (JSON.stringify(flags) !== JSON.stringify([false, false, true, true, false, false])) return fail(`flags ${JSON.stringify(flags)}`);
+  try {
+    validateCandles(candles);
+    return fail("must throw on the first broken candle");
+  } catch (error) {
+    if (!error.message.includes("candle[2]")) return fail(`wrong error: ${error.message}`);
+  }
+  pass("2 of 5 broken: median stays sane, both flagged");
+});
+
+test("validateCandles: a 99% single-candle drop within the factor passes", async ({ pass, fail }) => {
+  const { validateCandles } = await import("../../build/index.mjs");
+  const candles = [100, 100, 1, 1, 1].map((c, i) => makeCandle(i, c));
+  try {
+    validateCandles(candles);
+  } catch (error) {
+    return fail(`a 100x step must pass under factor 1000: ${error.message}`);
+  }
+  pass("100x step accepted");
+});

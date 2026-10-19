@@ -356,36 +356,6 @@ test("ConfigValidationService: negative PRICE_ANOMALY_THRESHOLD fails", async ({
   }
 });
 
-test("ConfigValidationService: zero MIN_CANDLES_FOR_MEDIAN fails", async ({ pass, fail }) => {
-  setConfig(getDefaultConfig());
-
-  try {
-    setConfig({ CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: 0 });
-    fail("Should have thrown error for zero MIN_CANDLES_FOR_MEDIAN");
-  } catch (error) {
-    if (error.message.includes("CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN must be a positive integer")) {
-      pass("Correctly rejected zero MIN_CANDLES_FOR_MEDIAN");
-    } else {
-      fail(`Wrong error message: ${error.message}`);
-    }
-  }
-});
-
-test("ConfigValidationService: negative MIN_CANDLES_FOR_MEDIAN fails", async ({ pass, fail }) => {
-  setConfig(getDefaultConfig());
-
-  try {
-    setConfig({ CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: -5 });
-    fail("Should have thrown error for negative MIN_CANDLES_FOR_MEDIAN");
-  } catch (error) {
-    if (error.message.includes("CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN must be a positive integer")) {
-      pass("Correctly rejected negative MIN_CANDLES_FOR_MEDIAN");
-    } else {
-      fail(`Wrong error message: ${error.message}`);
-    }
-  }
-});
-
 test("ConfigValidationService: non-integer SCHEDULE_AWAIT fails", async ({ pass, fail }) => {
   setConfig(getDefaultConfig());
 
