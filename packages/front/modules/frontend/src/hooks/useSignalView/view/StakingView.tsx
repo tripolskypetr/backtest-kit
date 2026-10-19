@@ -12,9 +12,16 @@ import getPriceScale from "../../../utils/getPriceScale";
 import { t } from "../../../i18n";
 
 /** Grid rows need a key; accruals carry none, so the timestamp serves as id */
-type AccrualRow = ISignalAccrual & { id: string };
+type AccrualRow = ISignalAccrual & { id: string; idx: number };
 
 const columns: IGridColumn<AccrualRow>[] = [
+    {
+        field: "idx",
+        label: "#",
+        minWidth: 85,
+        width: () => 85,
+        format: ({ idx }) => `${idx + 1}`,
+    },
     {
         field: "type",
         label: t("Accrual Type"),
@@ -26,7 +33,7 @@ const columns: IGridColumn<AccrualRow>[] = [
         field: "note",
         label: t("Note"),
         minWidth: 200,
-        width: (fullWidth) => Math.max(fullWidth - 160 - 140 - 160, 200),
+        width: (fullWidth) => Math.max(fullWidth - 160 - 140 - 160 - 85, 200),
         format: ({ note }) => note || "",
     },
     {
@@ -49,10 +56,13 @@ const columns: IGridColumn<AccrualRow>[] = [
 ];
 
 export const StakingView = ({ data }: IOutletModalProps) => {
-    const accruals: AccrualRow[] = (data as ISignalAccrual[]).map((row) => ({
-        ...row,
-        id: String(row.timestamp),
-    }));
+    const accruals: AccrualRow[] = (data as ISignalAccrual[])
+        .sort(({ timestamp: a }, { timestamp: b }) => a - b)
+        .map((row, idx) => ({
+            ...row,
+            idx,
+            id: String(row.timestamp),
+        }));
     return (
         <Box sx={{ height: "100%", width: "100%", pt: 1 }}>
             <AutoSizer payload={accruals}>
