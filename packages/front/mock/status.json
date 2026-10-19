@@ -41,7 +41,29 @@
       }
     ],
     "_partial": [],
-    "_accruals": [],
+    "_accruals": [
+      {
+        "id": "acc00003-0000-4000-8000-000000000003",
+        "type": "asset",
+        "amount": 0.00011,
+        "timestamp": 1710980340000,
+        "note": "Staking reward #1"
+      },
+      {
+        "id": "acc00004-0000-4000-8000-000000000004",
+        "type": "asset",
+        "amount": 0.00011,
+        "timestamp": 1713572340000,
+        "note": "Staking reward #2"
+      },
+      {
+        "id": "acc00005-0000-4000-8000-000000000005",
+        "type": "asset",
+        "amount": 0.00012,
+        "timestamp": 1716077940000,
+        "note": "Staking reward #3"
+      }
+    ],
     "_peak": {
       "price": 51800,
       "timestamp": 1708388340000,
