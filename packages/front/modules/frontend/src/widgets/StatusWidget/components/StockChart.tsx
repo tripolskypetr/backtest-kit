@@ -16,7 +16,11 @@ import {
 import { createChart } from "lightweight-charts";
 import { makeStyles } from "../../../styles";
 import { colors } from "@mui/material";
-import { dayjs, formatAmount, getMomentStamp } from "react-declarative";
+import { formatAmount, getMomentStamp } from "react-declarative";
+// The app's dayjs instance (src/config/setup.ts extends it with the utc
+// plugin). react-declarative re-exports its OWN nested dayjs, which carries
+// no plugins the app registered — never use it for utc()/tz work.
+import dayjs from "dayjs";
 import getPriceScale from "../../../utils/getPriceScale";
 import { t } from "../../../i18n";
 import { Timeframe } from "../model/Timeframe.model";
@@ -26,7 +30,13 @@ declare function parseFloat(value: unknown): number;
 /**
  * lightweight-charts hack: candle times are fed as momentStamp (minutes,
  * hours or days since the dayjs epoch) aligned to the timeframe, so 15m/1h/1d
- * series keep even spacing. Labels are restored from the original timestamp
+ * series keep even spacing. Labels are restored from the original timestamp.
+ *
+ * Time zones: intraday bars (1m/15m/1h) are aligned and labelled in the
+ * browser's LOCAL time — an hour boundary is the same instant in every whole
+ * hour zone, so the local label is exact. Daily bars are UTC days (the engine
+ * marks them 00:00 UTC): they are aligned and labelled in UTC, otherwise a
+ * local startOf("day") west of Greenwich would file the 2 Jan bar under 1 Jan.
  */
 const getAlignedMomentStamp = (
     date: dayjs.Dayjs,
@@ -43,7 +53,7 @@ const getAlignedMomentStamp = (
         return getMomentStamp(date.startOf("hour"), "hour");
     }
     if (timeframe === "1d") {
-        return getMomentStamp(date.startOf("day"), "day");
+        return getMomentStamp(dayjs.utc(date.valueOf()).startOf("day"), "day");
     }
     return getMomentStamp(date, "minute");
 };
@@ -223,7 +233,11 @@ export const StockChart = ({
                     if (!candle || !candle.originalTime) {
                         return t("Invalid date");
                     }
-                    const date = dayjs(candle.originalTime);
+                    // Daily bars are UTC days — label them by their UTC date;
+                    // intraday bars show the browser's local time
+                    const date = timeframe === "1d"
+                        ? dayjs.utc(candle.originalTime)
+                        : dayjs(candle.originalTime);
                     if (!date.isValid()) {
                         return t("Invalid date");
                     }
@@ -400,9 +414,11 @@ export const StockChart = ({
                             : timeframe === "1d"
                                 ? "DD/MM/YYYY"
                                 : "DD/MM/YYYY HH:mm";
-                    const dateTime = dayjs(data.originalTime).format(
-                        dateFormat,
-                    );
+                    const dateTime = (
+                        timeframe === "1d"
+                            ? dayjs.utc(data.originalTime)
+                            : dayjs(data.originalTime)
+                    ).format(dateFormat);
                     const price = formatAmount(
                         data.value,
                         getPriceScale(data.value),
