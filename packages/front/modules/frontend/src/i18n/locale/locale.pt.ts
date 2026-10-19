@@ -767,4 +767,6 @@ export const LOCALE: Record<string, string> = {
   "Dividends Total": "Dividendos totais",
   "Total Accruals": "Total de provisões",
   "cash": "dinheiro",
+  "Staking": "Staking",
+  "No accruals": "Sem acumulações",
 };

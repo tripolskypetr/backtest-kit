@@ -5,6 +5,7 @@ import Candle15mView from "./view/Candle15mView";
 import Candle1hView from "./view/Candle1hView";
 import Candle1dView from "./view/Candle1dView";
 import NotificationView from "./view/NotificationView";
+import StakingView from "./view/StakingView";
 import StatusView from "./view/StatusView";
 
 const hasMatch = (templates: string[], pathname: string) => {
@@ -26,6 +27,11 @@ export const routes: IOutletModal[] = [
     id: "notification",
     element: NotificationView,
     isActive: (pathname) => hasMatch(["/notification"], pathname),
+  },
+  {
+    id: "staking",
+    element: StakingView,
+    isActive: (pathname) => hasMatch(["/staking"], pathname),
   },
   {
     id: "candle_1m",

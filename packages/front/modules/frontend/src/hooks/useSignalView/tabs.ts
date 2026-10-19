@@ -11,6 +11,10 @@ export const tabs: ITabsStep[] = [
     label: t("Signal State"),
   },
   {
+    id: "staking",
+    label: t("Staking"),
+  },
+  {
     id: "notification",
     label: t("Notifications"),
   },

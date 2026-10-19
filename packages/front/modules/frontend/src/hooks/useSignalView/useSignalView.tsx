@@ -54,6 +54,7 @@ const fetchData = ttl(
             notification: await ioc.notificationViewService.findByFilter({
                 signalId: id,
             }),
+            staking: positionAccruals,
             candle_1m: await ioc.exchangeViewService.getSignalCandles(id, "1m"),
             candle_15m: await ioc.exchangeViewService.getSignalCandles(
                 id,
@@ -70,7 +71,7 @@ const fetchData = ttl(
 );
 
 const handleDownloadJson = async (pathname: string, id: string) => {
-    const { candle_15m, candle_1h, candle_1d, candle_1m, signal, notification } =
+    const { candle_15m, candle_1h, candle_1d, candle_1m, signal, notification, staking } =
         await fetchData(id);
 
     if (pathname.includes("/signal")) {
@@ -97,6 +98,15 @@ const handleDownloadJson = async (pathname: string, id: string) => {
         });
         const url = URL.createObjectURL(blob);
         ioc.layoutService.downloadFile(url, `notification_${signal.id}.json`);
+        return;
+    }
+
+    if (pathname.includes("/staking")) {
+        const blob = new Blob([JSON.stringify(staking, null, 2)], {
+            type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        ioc.layoutService.downloadFile(url, `staking_${signal.id}.json`);
         return;
     }
 
@@ -141,7 +151,7 @@ const handleCopy = async (
     id: string,
     onCopy: (content: string) => void,
 ) => {
-    const { candle_15m, candle_1h, candle_1d, candle_1m, signal, status, notification } =
+    const { candle_15m, candle_1h, candle_1d, candle_1m, signal, status, notification, staking } =
         await fetchData(id);
 
     if (pathname.includes("/status")) {
@@ -156,6 +166,11 @@ const handleCopy = async (
 
     if (pathname.includes("/notification")) {
         onCopy(JSON.stringify(notification, null, 2));
+        return;
+    }
+
+    if (pathname.includes("/staking")) {
+        onCopy(JSON.stringify(staking, null, 2));
         return;
     }
 
@@ -216,6 +231,10 @@ export const useSignalView = () => {
         if (id === "notification") {
             history.replace(`/notification`);
             setPathname(`/notification`);
+        }
+        if (id === "staking") {
+            history.replace(`/staking`);
+            setPathname(`/staking`);
         }
         if (id === "candle_1m") {
             history.replace(`/candle_1m`);

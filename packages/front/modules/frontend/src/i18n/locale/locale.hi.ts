@@ -767,4 +767,6 @@ export const LOCALE: Record<string, string> = {
   "Dividends Total": "कुल लाभांश",
   "Total Accruals": "कुल अर्जन",
   "cash": "नकद",
+  "Staking": "स्टेकिंग",
+  "No accruals": "कोई उपार्जन नहीं",
 };
