@@ -107,7 +107,7 @@ class VertLine {
 }
 
 interface IChartProps {
-  source: "1m" | "15m" | "1h";
+  source: "1m" | "15m" | "1h" | "1d";
   height: number;
   width: number;
   items: ICandleData[];
@@ -218,10 +218,14 @@ export const SimpleStockChart = ({
             date = fromMomentStamp(momentStamp, "minute");
             const minute = Math.floor(date.minute() / 15) * 15;
             date = date.startOf("hour").add(minute, "minute");
-          } else {
+          } else if (source === "1h") {
             momentStamp = MOMENT_STAMP_OFFSET + Math.floor(idx / 60);
             date = fromMomentStamp(momentStamp, "hour");
             date = date.startOf("hour");
+          } else {
+            momentStamp = MOMENT_STAMP_OFFSET + Math.floor(idx / 1440);
+            date = fromMomentStamp(momentStamp, "day");
+            date = date.startOf("day");
           }
           formattedOriginalTime = date.format("YYYY-MM-DD HH:mm:ss");
           console.warn(
@@ -237,9 +241,13 @@ export const SimpleStockChart = ({
           const alignedDate = date.startOf("hour").add(minute, "minute");
           momentStamp = getMomentStamp(alignedDate, "minute");
           time = momentStamp as Time;
-        } else {
+        } else if (source === "1h") {
           const alignedDate = date.startOf("hour");
           momentStamp = getMomentStamp(alignedDate, "hour");
+          time = momentStamp as Time;
+        } else {
+          const alignedDate = date.startOf("day");
+          momentStamp = getMomentStamp(alignedDate, "day");
           time = momentStamp as Time;
         }
 
@@ -285,6 +293,7 @@ export const SimpleStockChart = ({
           if (!date.isValid()) return t("Invalid date");
           if (source === "1m") return date.format("HH:mm:ss");
           if (source === "15m") return date.format("HH:mm");
+          if (source === "1d") return date.format("DD/MM");
           return date.format("DD/MM HH:mm");
         },
       },
@@ -301,7 +310,11 @@ export const SimpleStockChart = ({
         const data = candles.find((d) => d.momentStamp === Number(param.time));
         if (data) {
           const dateFormat =
-            source === "1m" ? "DD/MM/YYYY HH:mm:ss" : "DD/MM/YYYY HH:mm";
+            source === "1m"
+              ? "DD/MM/YYYY HH:mm:ss"
+              : source === "1d"
+                ? "DD/MM/YYYY"
+                : "DD/MM/YYYY HH:mm";
           const dateTime = dayjs(data.originalTime).format(dateFormat);
           const price = formatAmount(data.value, getPriceScale(data.value));
           setTooltipDate(`${dateTime}: ${price}`);
@@ -323,9 +336,12 @@ export const SimpleStockChart = ({
         const minute = Math.floor(eventDate.minute() / 15) * 15;
         const alignedDate = eventDate.startOf("hour").add(minute, "minute");
         eventTime = getMomentStamp(alignedDate, "minute") as Time;
-      } else {
+      } else if (source === "1h") {
         const alignedDate = eventDate.startOf("hour");
         eventTime = getMomentStamp(alignedDate, "hour") as Time;
+      } else {
+        const alignedDate = eventDate.startOf("day");
+        eventTime = getMomentStamp(alignedDate, "day") as Time;
       }
 
       vertLine = new VertLine(chart, lineSeries, eventTime, {

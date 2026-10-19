@@ -16,10 +16,7 @@ import tabs from "./tabs";
 import { Box, Stack } from "@mui/material";
 import ioc from "../../lib";
 import CopyIcon from "../usePartialProfitCommitView/components/CopyIcon";
-import { DividendAddCommitNotification, DividendRemoveCommitNotification } from "backtest-kit";
-
-/** One modal serves both accrual events: recorded and removed */
-type DividendCommitNotification = DividendAddCommitNotification | DividendRemoveCommitNotification;
+import { DividendCommitNotification } from "backtest-kit";
 import dividend_commit_fields from "../../assets/dividend_commit_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
@@ -38,8 +35,8 @@ const fetchData = ttl(async (id: string) => {
     throw new Error("Dividend commit data not found");
   }
 
-  if (dividendCommitData.type !== "dividend_add.commit" && dividendCommitData.type !== "dividend_remove.commit") {
-    throw new Error(`Invalid notification data type: expected 'dividend_add.commit' | 'dividend_remove.commit', got ${dividendCommitData.type}`);
+  if (dividendCommitData.type !== "dividend.commit") {
+    throw new Error(`Invalid notification data type: expected 'dividend.commit', got ${dividendCommitData.type}`);
   }
 
   return {

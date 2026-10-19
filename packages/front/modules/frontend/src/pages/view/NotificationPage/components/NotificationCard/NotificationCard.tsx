@@ -27,7 +27,6 @@ import {
   Pause,
   Sync,
   Paid,
-  MoneyOff,
   Warning as WarningIcon,
 } from "@mui/icons-material";
 
@@ -66,10 +65,8 @@ const getNotificationColor = (item: NotificationModel): string => {
       return "#4CAF50";
     case "average_buy.commit":
       return "#FF9800";
-    case "dividend_add.commit":
+    case "dividend.commit":
       return "#009688";
-    case "dividend_remove.commit":
-      return "#795548";
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return "#673AB7";
@@ -134,10 +131,8 @@ const getNotificationIcon = (item: NotificationModel) => {
       return <PlayArrow sx={sx} />;
     case "average_buy.commit":
       return <TrendingDown sx={sx} />;
-    case "dividend_add.commit":
+    case "dividend.commit":
       return <Paid sx={sx} />;
-    case "dividend_remove.commit":
-      return <MoneyOff sx={sx} />;
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return <Timeline sx={sx} />;
@@ -204,10 +199,8 @@ const getNotificationTitle = (item: NotificationModel): string => {
       return `${t("Activated")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "average_buy.commit":
       return `${t("Average Buy")} ${item.symbol}`;
-    case "dividend_add.commit":
+    case "dividend.commit":
       return `${t("Dividend")} ${item.accrualType === "asset" ? item.amount : `${item.amount.toFixed(getPriceScale(item.amount))}${t("$")}`} ${item.symbol}`;
-    case "dividend_remove.commit":
-      return `${t("Dividend removed")} ${item.symbol}`;
     case "trailing_stop.commit":
       return `${t("Trailing stop")} ${item.symbol}`;
     case "trailing_take.commit":
@@ -277,10 +270,8 @@ const getNotificationTypeLabel = (item: NotificationModel): string => {
       return t("Activated Scheduled");
     case "average_buy.commit":
       return t("Average Buy");
-    case "dividend_add.commit":
-      return t("Dividend Add");
-    case "dividend_remove.commit":
-      return t("Dividend Remove");
+    case "dividend.commit":
+      return t("Dividend");
     case "trailing_stop.commit":
       return t("Trailing Stop");
     case "trailing_take.commit":
@@ -371,11 +362,8 @@ const handleNotificationClick = (item: NotificationModel) => {
     case "average_buy.commit":
       ioc.layoutService.pickAverageBuyCommit(item.id);
       break;
-    case "dividend_add.commit":
-      ioc.layoutService.pickDividendAddCommit(item.id);
-      break;
-    case "dividend_remove.commit":
-      ioc.layoutService.pickDividendRemoveCommit(item.id);
+    case "dividend.commit":
+      ioc.layoutService.pickDividendCommit(item.id);
       break;
     case "order_sync.open":
       ioc.layoutService.pickOrderSyncOpen(item.id);
@@ -598,7 +586,7 @@ const hasAccrual = (
 const hasPnlDividends = (
   item: NotificationModel
 ): item is NotificationModel & { pnlDividends: number } => {
-  return "pnlDividends" in item && item.pnlDividends > 0;
+  return "pnlDividends" in item && item.pnlDividends !== 0;
 };
 
 const hasOriginalPriceOpen = (

@@ -10,8 +10,7 @@ import { strategyCommitSubject } from "../../../config/emitters";
 import {
   ActivateScheduledCommit,
   AverageBuyCommit,
-  DividendAddCommit,
-  DividendRemoveCommit,
+  DividendCommit,
   BreakevenCommit,
   CancelScheduledCommit,
   ClosePendingCommit,
@@ -786,13 +785,12 @@ export class StrategyReportService {
   };
 
   /**
-   * Logs a dividend / staking accrual event (recorded or removed) on an open position.
+   * Logs a dividend / staking accrual event (signed amount) on an open position.
    */
   public dividend = async (
-    action: "dividend-add" | "dividend-remove",
+    action: "dividend",
     symbol: string,
     currentPrice: number,
-    accrualId: string,
     accrualType: AccrualType,
     amount: number,
     pnlDividends: number,
@@ -824,7 +822,6 @@ export class StrategyReportService {
     this.loggerService.log("strategyReportService dividend", {
       action,
       symbol,
-      accrualId,
       accrualType,
       amount,
       isBacktest,
@@ -838,7 +835,6 @@ export class StrategyReportService {
       {
         action,
         currentPrice,
-        accrualId,
         accrualType,
         amount,
         pnlDividends,
@@ -1166,13 +1162,12 @@ export class StrategyReportService {
       );
 
     const unDividend = strategyCommitSubject
-      .filter(({ action }) => action === "dividend-add" || action === "dividend-remove")
-      .connect(async (event: DividendAddCommit | DividendRemoveCommit) =>
+      .filter(({ action }) => action === "dividend")
+      .connect(async (event: DividendCommit) =>
         await this.dividend(
           event.action,
           event.symbol,
           event.currentPrice,
-          event.accrualId,
           event.accrualType,
           event.amount,
           event.pnlDividends,

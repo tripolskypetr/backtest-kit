@@ -43,21 +43,18 @@
     "_partial": [],
     "_accruals": [
       {
-        "id": "acc00003-0000-4000-8000-000000000003",
         "type": "asset",
         "amount": 0.00011,
         "timestamp": 1710980340000,
         "note": "Staking reward #1"
       },
       {
-        "id": "acc00004-0000-4000-8000-000000000004",
         "type": "asset",
         "amount": 0.00011,
         "timestamp": 1713572340000,
         "note": "Staking reward #2"
       },
       {
-        "id": "acc00005-0000-4000-8000-000000000005",
         "type": "asset",
         "amount": 0.00012,
         "timestamp": 1716077940000,
@@ -143,7 +140,6 @@
     ],
     "_accruals": [
       {
-        "id": "acc00001-0000-4000-8000-000000000001",
         "type": "cash",
         "amount": 1.25,
         "timestamp": 1707487380000,

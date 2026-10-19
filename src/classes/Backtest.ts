@@ -132,8 +132,7 @@ const BACKTEST_METHOD_NAME_TRAILING_PROFIT_COST =
 const BACKTEST_METHOD_NAME_ACTIVATE_SCHEDULED =
   "Backtest.commitActivateScheduled";
 const BACKTEST_METHOD_NAME_AVERAGE_BUY = "Backtest.commitAverageBuy";
-const BACKTEST_METHOD_NAME_DIVIDEND_ADD = "Backtest.commitDividendAdd";
-const BACKTEST_METHOD_NAME_DIVIDEND_REMOVE = "Backtest.commitDividendRemove";
+const BACKTEST_METHOD_NAME_DIVIDEND = "Backtest.commitDividend";
 const BACKTEST_METHOD_NAME_GET_POSITION_ACCRUALS = "Backtest.getPositionAccruals";
 const BACKTEST_METHOD_NAME_SIGNAL_NOTIFY = "Backtest.commitSignalNotify";
 const BACKTEST_METHOD_NAME_GET_DATA = "BacktestUtils.getData";
@@ -5267,17 +5266,18 @@ export class BacktestUtils {
   };
 
   /**
-   * Records a dividend / staking accrual on the open position (see commitDividendAdd).
-   * Context-free variant: the strategy, exchange and risk/action registrations are
-   * validated explicitly. Returns false when no pending signal exists or the DTO is invalid.
+   * Records a dividend / staking accrual on the open position (see commitDividend).
+   * A negative amount records a charge. Context-free variant: the strategy,
+   * exchange and risk/action registrations are validated explicitly. Returns
+   * false when no pending signal exists or the DTO is invalid.
    *
    * @param symbol - Trading pair symbol
    * @param currentPrice - Current market price recorded with the commit event
    * @param context - Execution context
-   * @param dto - Accrual: amount, type ("cash" default | "asset"), optional id and note
+   * @param dto - Accrual: signed amount, type ("cash" default | "asset"), optional note
    * @returns Promise resolving to true when the accrual was recorded
    */
-  public commitDividendAdd = async (
+  public commitDividend = async (
     symbol: string,
     currentPrice: number,
     context: {
@@ -5287,17 +5287,17 @@ export class BacktestUtils {
     },
     dto: IDividendDto,
   ): Promise<boolean> => {
-    backtest.loggerService.info(BACKTEST_METHOD_NAME_DIVIDEND_ADD, {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_DIVIDEND, {
       symbol,
       context,
     });
     backtest.strategyValidationService.validate(
       context.strategyName,
-      BACKTEST_METHOD_NAME_DIVIDEND_ADD,
+      BACKTEST_METHOD_NAME_DIVIDEND,
     );
     backtest.exchangeValidationService.validate(
       context.exchangeName,
-      BACKTEST_METHOD_NAME_DIVIDEND_ADD,
+      BACKTEST_METHOD_NAME_DIVIDEND,
     );
 
     {
@@ -5306,27 +5306,27 @@ export class BacktestUtils {
       riskName &&
         backtest.riskValidationService.validate(
           riskName,
-          BACKTEST_METHOD_NAME_DIVIDEND_ADD,
+          BACKTEST_METHOD_NAME_DIVIDEND,
         );
       riskList &&
         riskList.forEach((riskName) =>
           backtest.riskValidationService.validate(
             riskName,
-            BACKTEST_METHOD_NAME_DIVIDEND_ADD,
+            BACKTEST_METHOD_NAME_DIVIDEND,
           ),
         );
       actions &&
         actions.forEach((actionName) =>
           backtest.actionValidationService.validate(
             actionName,
-            BACKTEST_METHOD_NAME_DIVIDEND_ADD,
+            BACKTEST_METHOD_NAME_DIVIDEND,
           ),
         );
     }
 
     if (
       await not(
-        backtest.strategyCoreService.validateDividendAdd(
+        backtest.strategyCoreService.validateDividend(
           true,
           symbol,
           dto,
@@ -5336,91 +5336,12 @@ export class BacktestUtils {
     ) {
       return false;
     }
-    return await backtest.strategyCoreService.dividendAdd(
+    return await backtest.strategyCoreService.dividend(
       true,
       symbol,
       currentPrice,
       context,
       dto,
-    );
-  };
-
-  /**
-   * Removes a recorded dividend / staking accrual by id (see commitDividendRemove).
-   * Context-free variant. Returns false when no pending signal exists or no accrual
-   * with that id is recorded.
-   *
-   * @param symbol - Trading pair symbol
-   * @param currentPrice - Current market price recorded with the commit event
-   * @param context - Execution context
-   * @param accrualId - Id of the accrual to remove
-   * @returns Promise resolving to true when the accrual was removed
-   */
-  public commitDividendRemove = async (
-    symbol: string,
-    currentPrice: number,
-    context: {
-      strategyName: StrategyName;
-      exchangeName: ExchangeName;
-      frameName: FrameName;
-    },
-    accrualId: string,
-  ): Promise<boolean> => {
-    backtest.loggerService.info(BACKTEST_METHOD_NAME_DIVIDEND_REMOVE, {
-      symbol,
-      context,
-    });
-    backtest.strategyValidationService.validate(
-      context.strategyName,
-      BACKTEST_METHOD_NAME_DIVIDEND_REMOVE,
-    );
-    backtest.exchangeValidationService.validate(
-      context.exchangeName,
-      BACKTEST_METHOD_NAME_DIVIDEND_REMOVE,
-    );
-
-    {
-      const { riskName, riskList, actions } =
-        backtest.strategySchemaService.get(context.strategyName);
-      riskName &&
-        backtest.riskValidationService.validate(
-          riskName,
-          BACKTEST_METHOD_NAME_DIVIDEND_REMOVE,
-        );
-      riskList &&
-        riskList.forEach((riskName) =>
-          backtest.riskValidationService.validate(
-            riskName,
-            BACKTEST_METHOD_NAME_DIVIDEND_REMOVE,
-          ),
-        );
-      actions &&
-        actions.forEach((actionName) =>
-          backtest.actionValidationService.validate(
-            actionName,
-            BACKTEST_METHOD_NAME_DIVIDEND_REMOVE,
-          ),
-        );
-    }
-
-    if (
-      await not(
-        backtest.strategyCoreService.validateDividendRemove(
-          true,
-          symbol,
-          accrualId,
-          context,
-        ),
-      )
-    ) {
-      return false;
-    }
-    return await backtest.strategyCoreService.dividendRemove(
-      true,
-      symbol,
-      currentPrice,
-      context,
-      accrualId,
     );
   };
 

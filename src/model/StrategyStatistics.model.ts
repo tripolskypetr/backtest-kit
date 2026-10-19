@@ -16,8 +16,7 @@ export type StrategyActionType =
   | "breakeven"
   | "activate-scheduled"
   | "average-buy"
-  | "dividend-add"
-  | "dividend-remove";
+  | "dividend";
 
 /**
  * Unified strategy event data for markdown report generation.
@@ -82,15 +81,13 @@ export interface StrategyEvent {
   pnl?: IStrategyPnL;
   /** Cost of this entry in USD (average-buy action only) */
   cost?: number;
-  /** Accrual identifier (dividend-add / dividend-remove actions only) */
-  accrualId?: string;
-  /** Accrual kind: "cash" or "asset" (dividend-add / dividend-remove actions only) */
+  /** Accrual kind: "cash" or "asset" (dividend action only) */
   accrualType?: AccrualType;
-  /** Accrual amount: USD for "cash", asset units for "asset" (dividend-add / dividend-remove actions only) */
+  /** Accrual amount: USD for "cash", asset units for "asset" (dividend action only) */
   amount?: number;
-  /** USD value of all accruals of the position after the event (dividend-add / dividend-remove actions only) */
+  /** USD value of all accruals of the position after the event (dividend action only) */
   pnlDividends?: number;
-  /** Total number of accruals on the position after the event (dividend-add / dividend-remove actions only) */
+  /** Total number of accruals on the position after the event (dividend action only) */
   totalAccruals?: number;
   /** Optional note from commit payload */
   note?: string;
@@ -143,9 +140,6 @@ export interface StrategyStatisticsModel {
   /** Count of average-buy (DCA) events */
   averageBuyCount: number;
 
-  /** Count of dividend-add (accrual recorded) events */
-  dividendAddCount: number;
-
-  /** Count of dividend-remove (accrual removed) events */
-  dividendRemoveCount: number;
+  /** Count of dividend (accrual recorded, credit or charge) events */
+  dividendCount: number;
 }

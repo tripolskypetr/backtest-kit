@@ -4,8 +4,7 @@ import {
   addFrameSchema,
   addStrategySchema,
   Backtest,
-  commitDividendAdd,
-  commitDividendRemove,
+  commitDividend,
   getPositionAccruals,
   listenStrategyCommit,
   toProfitLossDto,
@@ -35,19 +34,17 @@ const addFlatExchange = (exchangeName) => {
   });
 };
 
-test("DIVIDEND: cash and asset accruals reach the closed PNL, removal drops its value", async ({ pass, fail }) => {
+test("DIVIDEND: signed cash and asset accruals net into the closed PNL", async ({ pass, fail }) => {
   const start = new Date("2024-01-01T00:00:00Z").getTime();
   addFlatExchange("binance-dividend-e2e");
 
   const commits = [];
   const unCommit = listenStrategyCommit((event) => {
-    if (event.action === "dividend-add" || event.action === "dividend-remove") commits.push(event);
+    if (event.action === "dividend") commits.push(event);
   });
 
   let issued = false;
   let pings = 0;
-  let addedDuplicate = null;
-  let removedUnknown = null;
   let accrualsSeen = null;
   addStrategySchema({
     strategyName: "test-strategy-dividend-e2e",
@@ -61,14 +58,12 @@ test("DIVIDEND: cash and asset accruals reach the closed PNL, removal drops its 
       onActivePing: async (symbol) => {
         pings += 1;
         if (pings === 2) {
-          await commitDividendAdd(symbol, { amount: 5, id: "div-q3", note: "Q3 dividend" }); // cash
-          await commitDividendAdd(symbol, { amount: 0.001, type: "asset", id: "stake-1" }); // 0.001 × 50000 = 50
-          await commitDividendAdd(symbol, { amount: 100, id: "to-be-removed" });
-          addedDuplicate = await commitDividendAdd(symbol, { amount: 1, id: "div-q3" }); // duplicate id -> false
+          await commitDividend(symbol, { amount: 5, note: "Q3 dividend" }); // cash
+          await commitDividend(symbol, { amount: 0.001, type: "asset", note: "staking reward" }); // 0.001 × 50000 = 50
+          await commitDividend(symbol, { amount: 100, note: "advance" });
         }
         if (pings === 5) {
-          await commitDividendRemove(symbol, "to-be-removed");
-          removedUnknown = await commitDividendRemove(symbol, "nope"); // unknown id -> false
+          await commitDividend(symbol, { amount: -100, note: "advance cash-out" }); // charge: nets the advance out
           accrualsSeen = await getPositionAccruals(symbol);
         }
       },
@@ -96,16 +91,15 @@ test("DIVIDEND: cash and asset accruals reach the closed PNL, removal drops its 
   const [result] = closed;
   const { pnl, signal } = result;
 
-  if (addedDuplicate !== false) return fail(`duplicate accrual id must return false, got ${addedDuplicate}`);
-  if (removedUnknown !== false) return fail(`removing an unknown id must return false, got ${removedUnknown}`);
+  if (!Array.isArray(accrualsSeen) || accrualsSeen.length !== 4) return fail(`getPositionAccruals must list 4 accruals, got ${JSON.stringify(accrualsSeen)}`);
+  if (!Array.isArray(signal.accruals) || signal.accruals.length !== 4) return fail(`closed signal must expose 4 accruals, got ${JSON.stringify(signal.accruals)}`);
+  if (signal.accruals.some((a) => "id" in a)) return fail("accruals must not carry an id");
+  const notes = signal.accruals.map((a) => a.note).sort();
+  if (notes.join(",") !== "Q3 dividend,advance,advance cash-out,staking reward") return fail(`unexpected accrual notes: ${notes}`);
+  const charge = signal.accruals.find((a) => a.note === "advance cash-out");
+  if (charge.type !== "cash" || charge.amount !== -100) return fail(`the charge must be stored as cash -100, got ${JSON.stringify(charge)}`);
 
-  if (!Array.isArray(accrualsSeen) || accrualsSeen.length !== 2) return fail(`getPositionAccruals after removal must list 2 accruals, got ${JSON.stringify(accrualsSeen)}`);
-  if (!Array.isArray(signal.accruals) || signal.accruals.length !== 2) return fail(`closed signal must expose 2 accruals, got ${JSON.stringify(signal.accruals)}`);
-  const ids = signal.accruals.map((a) => a.id).sort();
-  if (ids.join(",") !== "div-q3,stake-1") return fail(`unexpected accrual ids: ${ids}`);
-  if (signal.accruals.find((a) => a.id === "div-q3").note !== "Q3 dividend") return fail("note must be stored on the accrual");
-
-  // cash 5 + asset 0.001 × 50000 (flat market) = 55; the removed $100 must be gone
+  // cash 5 + asset 0.001 × 50000 (flat market) + 100 − 100 = 55
   if (Math.abs(pnl.pnlDividends - 55) > 1e-9) return fail(`pnlDividends must be 55, got ${pnl.pnlDividends}`);
   const recomputed = toProfitLossDto(signal, result.currentPrice);
   if (Math.abs(recomputed.pnlCost - pnl.pnlCost) > 1e-9) return fail("toProfitLossDto on the public row must reproduce the closed pnl");
@@ -113,26 +107,25 @@ test("DIVIDEND: cash and asset accruals reach the closed PNL, removal drops its 
   const pricePnl = pnl.pnlCost - pnl.pnlDividends;
   if (!(pricePnl < 0 && pnl.pnlCost > 0)) return fail(`flat market: price pnl must be negative (fees) and total positive thanks to accruals, got price=${pricePnl} total=${pnl.pnlCost}`);
 
-  const actions = commits.map((c) => c.action);
-  if (actions.filter((a) => a === "dividend-add").length !== 3 || actions.filter((a) => a === "dividend-remove").length !== 1) {
-    return fail(`expected 3 dividend-add and 1 dividend-remove commits, got ${JSON.stringify(actions)}`);
+  if (commits.length !== 4 || commits.some((c) => c.action !== "dividend")) {
+    return fail(`expected 4 dividend commits, got ${JSON.stringify(commits.map((c) => c.action))}`);
   }
-  const removeCommit = commits.find((c) => c.action === "dividend-remove");
-  if (removeCommit.accrualId !== "to-be-removed" || removeCommit.amount !== 100 || removeCommit.totalAccruals !== 2) {
-    return fail(`dividend-remove commit payload wrong: ${JSON.stringify({ id: removeCommit.accrualId, amount: removeCommit.amount, total: removeCommit.totalAccruals })}`);
+  const chargeCommit = commits[3];
+  if (chargeCommit.accrualType !== "cash" || chargeCommit.amount !== -100 || chargeCommit.totalAccruals !== 4) {
+    return fail(`charge commit payload wrong: ${JSON.stringify({ type: chargeCommit.accrualType, amount: chargeCommit.amount, total: chargeCommit.totalAccruals })}`);
   }
-  if (Math.abs(removeCommit.pnlDividends - 55) > 1e-9) return fail(`dividend-remove commit must carry pnlDividends 55, got ${removeCommit.pnlDividends}`);
-  if (removeCommit.signalId !== signal.id) return fail("commit must reference the position");
+  if ("accrualId" in chargeCommit) return fail("commit must not carry an accrual id");
+  if (Math.abs(chargeCommit.pnlDividends - 55) > 1e-9) return fail(`charge commit must carry pnlDividends 55, got ${chargeCommit.pnlDividends}`);
+  if (chargeCommit.signalId !== signal.id) return fail("commit must reference the position");
 
-  pass(`closed with pnlDividends=55 (cash 5 + asset 50), $100 accrual removed, 3 add + 1 remove commits, pnlCost=${pnl.pnlCost.toFixed(4)}`);
+  pass(`closed with pnlDividends=55 (cash 5 + asset 50 + 100 − 100), 4 dividend commits, pnlCost=${pnl.pnlCost.toFixed(4)}`);
 });
 
-test("DIVIDEND: commitDividendAdd is rejected without a pending signal and for invalid amounts", async ({ pass, fail }) => {
+test("DIVIDEND: commitDividend rejects zero / NaN / unknown type and no-position calls, accepts a negative amount (SHORT pays)", async ({ pass, fail }) => {
   const start = new Date("2024-02-01T00:00:00Z").getTime();
   addFlatExchange("binance-dividend-e2e-invalid");
 
   let issued = false;
-  let pings = 0;
   const results = {};
   addStrategySchema({
     strategyName: "test-strategy-dividend-e2e-invalid",
@@ -140,20 +133,20 @@ test("DIVIDEND: commitDividendAdd is rejected without a pending signal and for i
     getSignal: async () => {
       if (issued) return null;
       issued = true;
-      return { position: "short", priceTakeProfit: BASE / 2, priceStopLoss: BASE * 2, minuteEstimatedTime: 10 };
+      return { position: "short", priceTakeProfit: BASE / 2, priceStopLoss: BASE * 2, minuteEstimatedTime: 20 };
     },
     callbacks: {
       onActivePing: async (symbol) => {
-        pings += 1;
-        if (pings !== 1) return;
-        results.zero = await commitDividendAdd(symbol, { amount: 0 });
-        results.negative = await commitDividendAdd(symbol, { amount: -1 });
-        results.nan = await commitDividendAdd(symbol, { amount: NaN });
-        results.badType = await commitDividendAdd(symbol, { amount: 1, type: "bonus" });
-        results.ok = await commitDividendAdd(symbol, { amount: 1 });
+        if (results.zero !== undefined) return;
+        results.zero = await commitDividend(symbol, { amount: 0 });
+        results.negative = await commitDividend(symbol, { amount: -2, note: "dividend owed on the short" });
+        results.nan = await commitDividend(symbol, { amount: NaN });
+        results.infinite = await commitDividend(symbol, { amount: Infinity });
+        results.badType = await commitDividend(symbol, { amount: 1, type: "bonus" });
+        results.ok = await commitDividend(symbol, { amount: 1 });
       },
       onIdle: async (symbol) => {
-        if (results.idle === undefined) results.idle = await commitDividendAdd(symbol, { amount: 1 });
+        if (results.idle === undefined) results.idle = await commitDividend(symbol, { amount: 1 });
       },
     },
   });
@@ -174,10 +167,12 @@ test("DIVIDEND: commitDividendAdd is rejected without a pending signal and for i
     if (result.action === "closed") closed.push(result);
   }
 
-  if (results.zero !== false || results.negative !== false || results.nan !== false) return fail(`non-positive / NaN amounts must be rejected: ${JSON.stringify(results)}`);
+  if (results.zero !== false || results.nan !== false || results.infinite !== false) return fail(`zero / NaN / Infinity amounts must be rejected: ${JSON.stringify(results)}`);
   if (results.badType !== false) return fail("unknown type must be rejected");
+  if (results.negative !== true) return fail(`a negative amount must be accepted, got ${results.negative}`);
   if (results.ok !== true) return fail("a valid accrual must be accepted");
-  if (results.idle !== false) return fail(`without a pending signal commitDividendAdd must return false, got ${results.idle}`);
-  if (closed.length !== 1 || Math.abs(closed[0].pnl.pnlDividends - 1) > 1e-9) return fail(`only the valid $1 accrual must survive, got ${closed.length ? closed[0].pnl.pnlDividends : "no close"}`);
-  pass("invalid amounts/type and no-position calls rejected; SHORT position records the valid accrual");
+  if (results.idle !== false) return fail(`without a pending signal commitDividend must return false, got ${results.idle}`);
+  // −2 (owed) + 1 = −1 on the SHORT position
+  if (closed.length !== 1 || Math.abs(closed[0].pnl.pnlDividends - -1) > 1e-9) return fail(`pnlDividends must net to -1, got ${closed.length ? closed[0].pnl.pnlDividends : "no close"}`);
+  pass("zero / NaN / Infinity / unknown type / no-position rejected; SHORT position nets -2 + 1 = -1 pnlDividends");
 });

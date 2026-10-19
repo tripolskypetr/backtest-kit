@@ -16,8 +16,7 @@ import { strategyCommitSubject } from "../../../config/emitters";
 import {
   ActivateScheduledCommit,
   AverageBuyCommit,
-  DividendAddCommit,
-  DividendRemoveCommit,
+  DividendCommit,
   BreakevenCommit,
   CancelScheduledCommit,
   ClosePendingCommit,
@@ -156,8 +155,7 @@ class ReportStorage {
         breakevenCount: 0,
         activateScheduledCount: 0,
         averageBuyCount: 0,
-        dividendAddCount: 0,
-        dividendRemoveCount: 0,
+        dividendCount: 0,
       };
     }
 
@@ -173,8 +171,7 @@ class ReportStorage {
       breakevenCount: this._eventList.filter(e => e.action === "breakeven").length,
       activateScheduledCount: this._eventList.filter(e => e.action === "activate-scheduled").length,
       averageBuyCount: this._eventList.filter(e => e.action === "average-buy").length,
-      dividendAddCount: this._eventList.filter(e => e.action === "dividend-add").length,
-      dividendRemoveCount: this._eventList.filter(e => e.action === "dividend-remove").length,
+      dividendCount: this._eventList.filter(e => e.action === "dividend").length,
     };
   }
 
@@ -238,8 +235,7 @@ class ReportStorage {
       `- Breakeven: ${stats.breakevenCount}`,
       `- Activate scheduled: ${stats.activateScheduledCount}`,
       `- Average buy: ${stats.averageBuyCount}`,
-      `- Dividend add: ${stats.dividendAddCount}`,
-      `- Dividend remove: ${stats.dividendRemoveCount}`,
+      `- Dividend: ${stats.dividendCount}`,
     ].join("\n");
   }
 
@@ -972,13 +968,12 @@ export class StrategyMarkdownService {
   };
 
   /**
-   * Logs a dividend / staking accrual event (recorded or removed) on an open position.
+   * Logs a dividend / staking accrual event (signed amount) on an open position.
    */
   public dividend = async (
-    action: "dividend-add" | "dividend-remove",
+    action: "dividend",
     symbol: string,
     currentPrice: number,
-    accrualId: string,
     accrualType: AccrualType,
     amount: number,
     pnlDividends: number,
@@ -1004,7 +999,6 @@ export class StrategyMarkdownService {
     this.loggerService.log("strategyMarkdownService dividend", {
       action,
       symbol,
-      accrualId,
       accrualType,
       amount,
       isBacktest,
@@ -1024,7 +1018,6 @@ export class StrategyMarkdownService {
       action,
       pnl,
       currentPrice,
-      accrualId,
       accrualType,
       amount,
       pnlDividends,
@@ -1451,13 +1444,12 @@ export class StrategyMarkdownService {
       );
 
     const unDividend = strategyCommitSubject
-      .filter(({ action }) => action === "dividend-add" || action === "dividend-remove")
-      .connect(async (event: DividendAddCommit | DividendRemoveCommit) =>
+      .filter(({ action }) => action === "dividend")
+      .connect(async (event: DividendCommit) =>
         await this.dividend(
           event.action,
           event.symbol,
           event.currentPrice,
-          event.accrualId,
           event.accrualType,
           event.amount,
           event.pnlDividends,

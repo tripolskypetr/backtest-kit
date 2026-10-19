@@ -9,7 +9,7 @@ import { GLOBAL_CONFIG } from "../config/params";
  * Defines the table structure for displaying strategy management events in trading reports.
  * Each column specifies how to format and display strategy actions like partial profit/loss,
  * trailing stop/take, breakeven, cancel scheduled, close pending, average-buy and
- * dividend / staking accruals (accrual id, amount and the position's total dividends).
+ * dividend / staking accruals (signed amount and the position's total dividends).
  *
  * Used by {@link StrategyMarkdownService} to generate markdown tables showing:
  * - Signal identification (symbol, strategy name, signal ID)
@@ -119,12 +119,6 @@ export const strategy_columns: ColumnModel<StrategyEvent>[] = [
     key: "cost",
     label: "Cost (USD)",
     format: (data) => (data.cost !== undefined ? `${data.cost.toFixed(getPriceScale(data.cost))} USD` : "N/A"),
-    isVisible: () => true,
-  },
-  {
-    key: "accrualId",
-    label: "Accrual ID",
-    format: (data) => data.accrualId || "N/A",
     isVisible: () => true,
   },
   {

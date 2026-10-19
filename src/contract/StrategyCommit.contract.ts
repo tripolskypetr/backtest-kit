@@ -285,11 +285,9 @@ export interface AverageBuyCommit extends SignalCommitBase {
  * Fields shared by the dividend / staking accrual events.
  */
 interface DividendCommitBase extends SignalCommitBase {
-  /** Accrual identifier within the position */
-  accrualId: string;
   /** "cash" (USD) or "asset" (units of the traded asset) */
   accrualType: AccrualType;
-  /** Amount of the accrual: USD for "cash", asset units for "asset" */
+  /** Signed amount of the accrual (positive = credit, negative = charge): USD for "cash", asset units for "asset" */
   amount: number;
   /** Market price at the moment of the event (values "asset" accruals) */
   currentPrice: number;
@@ -322,19 +320,11 @@ interface DividendCommitBase extends SignalCommitBase {
 }
 
 /**
- * Dividend / staking accrual recorded on an open position (commitDividendAdd).
+ * Dividend / staking accrual recorded on an open position (commitDividend).
  */
-export interface DividendAddCommit extends DividendCommitBase {
-  /** Discriminator for dividend-add action */
-  action: "dividend-add";
-}
-
-/**
- * Dividend / staking accrual removed from an open position (commitDividendRemove).
- */
-export interface DividendRemoveCommit extends DividendCommitBase {
-  /** Discriminator for dividend-remove action */
-  action: "dividend-remove";
+export interface DividendCommit extends DividendCommitBase {
+  /** Discriminator for dividend action */
+  action: "dividend";
 }
 
 /**
@@ -393,8 +383,7 @@ export type StrategyCommitContract =
   | TrailingTakeCommit
   | BreakevenCommit
   | AverageBuyCommit
-  | DividendAddCommit
-  | DividendRemoveCommit
+  | DividendCommit
   | ActivateScheduledCommit;
 
 export default StrategyCommitContract;

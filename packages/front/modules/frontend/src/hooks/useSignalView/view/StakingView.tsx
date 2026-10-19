@@ -3,7 +3,7 @@ import { ISignalAccrual } from "backtest-kit";
 import {
     AutoSizer,
     Grid,
-    IColumn,
+    IGridColumn,
     IOutletModalProps,
     dayjs,
     formatAmount,
@@ -11,7 +11,10 @@ import {
 import getPriceScale from "../../../utils/getPriceScale";
 import { t } from "../../../i18n";
 
-const columns: IColumn<ISignalAccrual>[] = [
+/** Grid rows need a key; accruals carry none, so the timestamp serves as id */
+type AccrualRow = ISignalAccrual & { id: string };
+
+const columns: IGridColumn<AccrualRow>[] = [
     {
         field: "type",
         label: t("Accrual Type"),
@@ -46,12 +49,15 @@ const columns: IColumn<ISignalAccrual>[] = [
 ];
 
 export const StakingView = ({ data }: IOutletModalProps) => {
-    const accruals: ISignalAccrual[] = data;
+    const accruals: AccrualRow[] = (data as ISignalAccrual[]).map((row) => ({
+        ...row,
+        id: String(row.timestamp),
+    }));
     return (
         <Box sx={{ height: "100%", width: "100%", pt: 1 }}>
             <AutoSizer payload={accruals}>
                 {(size) => (
-                    <Grid<ISignalAccrual>
+                    <Grid<AccrualRow>
                         sx={{ height: size.height, width: size.width }}
                         data={accruals}
                         columns={columns}

@@ -2,9 +2,7 @@ import { Box, Typography } from "@mui/material";
 import { AutoSizer, Center, IOutletModalProps } from "react-declarative";
 import StockChart from "../../usePartialProfitCommitView/components/StockChart";
 import { useMemo } from "react";
-import { DividendAddCommitNotification, DividendRemoveCommitNotification } from "backtest-kit";
-
-type DividendCommitNotification = DividendAddCommitNotification | DividendRemoveCommitNotification;
+import { DividendCommitNotification } from "backtest-kit";
 
 export const Candle1mView = ({ data, formState }: IOutletModalProps) => {
     const {

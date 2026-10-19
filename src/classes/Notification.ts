@@ -90,7 +90,7 @@ export interface INotificationTarget {
    * Strategy commit confirmations.
    * Covers all committed actions: `partial_profit.commit`, `partial_loss.commit`,
    * `breakeven.commit`, `trailing_stop.commit`, `trailing_take.commit`,
-   * `activate_scheduled.commit`, `average_buy.commit`, `dividend_add.commit`, `dividend_remove.commit`, `cancel_scheduled.commit`,
+   * `activate_scheduled.commit`, `average_buy.commit`, `dividend.commit`, `cancel_scheduled.commit`,
    * `close_pending.commit`.
    * Source: `strategyCommitSubject` (StrategyCommitContract).
    */
@@ -942,9 +942,9 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       createdAt: data.timestamp,
     };
   }
-  if (data.action === "dividend-add" || data.action === "dividend-remove") {
+  if (data.action === "dividend") {
     return {
-      type: data.action === "dividend-add" ? "dividend_add.commit" : "dividend_remove.commit",
+      type: "dividend.commit",
       id: CREATE_KEY_FN(),
       timestamp: data.timestamp,
       backtest: data.backtest,
@@ -952,7 +952,6 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       strategyName: data.strategyName,
       exchangeName: data.exchangeName,
       signalId: data.signalId,
-      accrualId: data.accrualId,
       accrualType: data.accrualType,
       amount: data.amount,
       currentPrice: data.currentPrice,

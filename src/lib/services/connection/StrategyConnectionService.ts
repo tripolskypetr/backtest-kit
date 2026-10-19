@@ -3047,31 +3047,31 @@ export class StrategyConnectionService implements TStrategy {
   };
 
   /**
-   * Checks whether dividendAdd would succeed without executing it.
-   * Delegates to ClientStrategy.validateDividendAdd() — no throws, pure boolean result.
+   * Checks whether dividend would succeed without executing it.
+   * Delegates to ClientStrategy.validateDividend() — no throws, pure boolean result.
    */
-  public validateDividendAdd = async (
+  public validateDividend = async (
     backtest: boolean,
     symbol: string,
     dto: IDividendDto,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
   ): Promise<boolean> => {
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    return await strategy.validateDividendAdd(symbol, dto);
+    return await strategy.validateDividend(symbol, dto);
   };
 
   /**
-   * Records a dividend / staking accrual on the active pending signal.
-   * Delegates to ClientStrategy.dividendAdd() with the current execution-context timestamp.
+   * Records a dividend / staking accrual (signed amount) on the active pending signal.
+   * Delegates to ClientStrategy.dividend() with the current execution-context timestamp.
    */
-  public dividendAdd = async (
+  public dividend = async (
     backtest: boolean,
     symbol: string,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
     dto: IDividendDto,
   ): Promise<boolean> => {
-    this.loggerService.log("strategyConnectionService dividendAdd", {
+    this.loggerService.log("strategyConnectionService dividend", {
       symbol,
       context,
       currentPrice,
@@ -3080,44 +3080,7 @@ export class StrategyConnectionService implements TStrategy {
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
-    return await strategy.dividendAdd(symbol, currentPrice, backtest, timestamp, dto);
-  };
-
-  /**
-   * Checks whether dividendRemove would succeed without executing it.
-   * Delegates to ClientStrategy.validateDividendRemove() — no throws, pure boolean result.
-   */
-  public validateDividendRemove = async (
-    backtest: boolean,
-    symbol: string,
-    accrualId: string,
-    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
-  ): Promise<boolean> => {
-    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    return await strategy.validateDividendRemove(symbol, accrualId);
-  };
-
-  /**
-   * Removes a recorded dividend / staking accrual by id.
-   * Delegates to ClientStrategy.dividendRemove() with the current execution-context timestamp.
-   */
-  public dividendRemove = async (
-    backtest: boolean,
-    symbol: string,
-    currentPrice: number,
-    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
-    accrualId: string,
-  ): Promise<boolean> => {
-    this.loggerService.log("strategyConnectionService dividendRemove", {
-      symbol,
-      context,
-      currentPrice,
-      accrualId,
-      backtest,
-    });
-    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
-    return await strategy.dividendRemove(symbol, currentPrice, backtest, timestamp, accrualId);
+    return await strategy.dividend(symbol, currentPrice, backtest, timestamp, dto);
   };
 
   /**

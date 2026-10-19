@@ -38,8 +38,7 @@ export {
   commitBreakeven,
   commitActivateScheduled,
   commitAverageBuy,
-  commitDividendAdd,
-  commitDividendRemove,
+  commitDividend,
   commitSignalNotify,
   getPendingSignal,
   getScheduledSignal,
@@ -408,8 +407,7 @@ export {
 
 export {
   ICommitRow,
-  IDividendAddCommitRow,
-  IDividendRemoveCommitRow,
+  IDividendCommitRow,
   ISignalAccrual,
   AccrualType,
   IDividendDto,
@@ -484,8 +482,7 @@ export {
   SignalScheduledNotification,
   ValidationErrorNotification,
   AverageBuyCommitNotification,
-  DividendAddCommitNotification,
-  DividendRemoveCommitNotification,
+  DividendCommitNotification,
   OrderSyncCloseNotification,
   OrderSyncOpenNotification,
   OrderSyncCheckNotification,
@@ -550,8 +547,7 @@ export {
   BreakevenCommit,
   ActivateScheduledCommit,
   AverageBuyCommit,
-  DividendAddCommit,
-  DividendRemoveCommit,
+  DividendCommit,
 } from "./contract/StrategyCommit.contract";
 
 export {

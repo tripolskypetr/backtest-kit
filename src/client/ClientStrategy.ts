@@ -983,7 +983,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
       });
       continue;
     }
-    if (commit.action === "dividend-add" || commit.action === "dividend-remove") {
+    if (commit.action === "dividend") {
       const publicSignal = TO_PUBLIC_SIGNAL("pending", attributionSignal, commit.currentPrice);
       await CALL_COMMIT_FN(self, {
         action: commit.action,
@@ -992,7 +992,6 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         exchangeName: self.params.exchangeName,
         frameName: self.params.frameName,
         backtest: commit.backtest,
-        accrualId: commit.accrualId,
         accrualType: commit.accrualType,
         amount: commit.amount,
         currentPrice: commit.currentPrice,
@@ -2789,12 +2788,10 @@ const AVERAGE_BUY_FN = (
 };
 
 /**
- * Accrual DTO normalized to a row: type defaults to "cash", id is generated
- * when omitted. Shared by dividendAdd and validateDividendAdd so both see the
- * same defaults.
+ * Accrual DTO normalized to a row: type defaults to "cash". Shared by dividend
+ * and validateDividend so both see the same defaults.
  */
 const TO_ACCRUAL_ROW_FN = (dto: IDividendDto, timestamp: number): ISignalAccrual => ({
-  id: dto.id || randomString(),
   type: dto.type ?? "cash",
   amount: dto.amount,
   timestamp,
@@ -2802,65 +2799,35 @@ const TO_ACCRUAL_ROW_FN = (dto: IDividendDto, timestamp: number): ISignalAccrual
 });
 
 /**
- * Reason an accrual DTO cannot be recorded on the signal, or null when it can.
- * Checked by dividendAdd (throws the reason) and validateDividendAdd (false).
+ * Reason an accrual DTO cannot be recorded, or null when it can.
+ * Checked by dividend (throws the reason) and validateDividend (false). The
+ * sign of amount is the direction: positive credits the position, negative
+ * charges it (dividend owed on a short, cash-out) — only 0 / NaN / Infinity
+ * are rejected.
  */
-const GET_DIVIDEND_ADD_REJECTION_FN = (signal: ISignalRow, accrual: ISignalAccrual): string | null => {
-  if (typeof accrual.amount !== "number" || !isFinite(accrual.amount) || accrual.amount <= 0) {
-    return `amount must be a positive finite number, got ${accrual.amount}`;
+const GET_DIVIDEND_REJECTION_FN = (accrual: ISignalAccrual): string | null => {
+  if (typeof accrual.amount !== "number" || !isFinite(accrual.amount) || accrual.amount === 0) {
+    return `amount must be a non-zero finite number, got ${accrual.amount}`;
   }
   if (accrual.type !== "cash" && accrual.type !== "asset") {
     return `type must be "cash" or "asset", got ${String(accrual.type)}`;
   }
-  if (typeof accrual.id !== "string" || !accrual.id) {
-    return `id must be a non-empty string, got ${String(accrual.id)}`;
-  }
-  if ((signal._accruals ?? []).some((row) => row.id === accrual.id)) {
-    return `accrual id "${accrual.id}" already exists on signal ${signal.id}`;
-  }
   return null;
 };
 
-const DIVIDEND_ADD_FN = (
+const DIVIDEND_FN = (
   self: ClientStrategy,
   signal: ISignalRow,
   accrual: ISignalAccrual
 ): void => {
   if (!signal._accruals) signal._accruals = [];
   signal._accruals.push(accrual);
-  self.params.logger.info("DIVIDEND_ADD_FN executed", {
+  self.params.logger.info("DIVIDEND_FN executed", {
     signalId: signal.id,
-    accrualId: accrual.id,
     accrualType: accrual.type,
     amount: accrual.amount,
     totalAccruals: signal._accruals.length,
   });
-};
-
-/**
- * Removes the accrual with the given id. Returns the removed row, or null when
- * no accrual with that id exists.
- */
-const DIVIDEND_REMOVE_FN = (
-  self: ClientStrategy,
-  signal: ISignalRow,
-  accrualId: string
-): ISignalAccrual | null => {
-  const accruals = signal._accruals ?? [];
-  const index = accruals.findIndex((row) => row.id === accrualId);
-  if (index < 0) {
-    return null;
-  }
-  const [removed] = accruals.splice(index, 1);
-  signal._accruals = accruals;
-  self.params.logger.info("DIVIDEND_REMOVE_FN executed", {
-    signalId: signal.id,
-    accrualId,
-    accrualType: removed.type,
-    amount: removed.amount,
-    totalAccruals: accruals.length,
-  });
-  return removed;
 };
 
 const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
@@ -11560,18 +11527,17 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
-   * Validates preconditions for dividendAdd without mutating state.
+   * Validates preconditions for dividend without mutating state.
    *
-   * Returns false (never throws) when any condition would cause dividendAdd to throw:
-   * no pending signal, amount not a positive finite number, unknown type, or an
-   * accrual with the same id already recorded.
+   * Returns false (never throws) when any condition would cause dividend to throw:
+   * no pending signal, amount not a non-zero finite number, unknown type.
    *
    * @param symbol - Trading pair symbol
    * @param dto - Accrual to validate
-   * @returns boolean - true if dividendAdd would execute, false otherwise
+   * @returns boolean - true if dividend would execute, false otherwise
    */
-  public async validateDividendAdd(symbol: string, dto: IDividendDto): Promise<boolean> {
-    this.params.logger.debug("ClientStrategy validateDividendAdd", {
+  public async validateDividend(symbol: string, dto: IDividendDto): Promise<boolean> {
+    this.params.logger.debug("ClientStrategy validateDividend", {
       symbol,
       dto,
       hasPendingSignal: this._pendingSignal !== null,
@@ -11579,7 +11545,7 @@ export class ClientStrategy implements IStrategy {
     if (!this._pendingSignal) return false;
     if (!dto || typeof dto !== "object") return false;
     const accrual = TO_ACCRUAL_ROW_FN(dto, 0);
-    return GET_DIVIDEND_ADD_REJECTION_FN(this._pendingSignal, accrual) === null;
+    return GET_DIVIDEND_REJECTION_FN(accrual) === null;
   }
 
   /**
@@ -11587,30 +11553,33 @@ export class ClientStrategy implements IStrategy {
    *
    * Appends the accrual to _accruals; every PNL calculation from now on folds it
    * in (cash as-is, asset × PNL price — see toProfitLossDto / getAccrualsCost) and
-   * publishes the total as pnl.pnlDividends. The engine never schedules accruals
-   * itself; deciding WHEN one is due is application logic.
+   * publishes the total as pnl.pnlDividends. The sign of amount is the
+   * direction: positive credits the position (dividend received, staking
+   * reward), negative charges it (dividend owed on a short, cash-out of a
+   * reward). The engine never schedules accruals itself; deciding WHEN one is
+   * due is application logic.
    *
-   * Validations (throws): no pending signal; invalid DTO (amount not a positive
-   * finite number, unknown type, duplicate id).
+   * Validations (throws): no pending signal; invalid DTO (amount not a non-zero
+   * finite number, unknown type).
    *
-   * Persists the updated signal (live) and queues a "dividend-add" commit that
+   * Persists the updated signal (live) and queues a "dividend" commit that
    * tick()/backtest() emits with the proper execution-context timestamp.
    *
    * @param symbol - Trading pair symbol
    * @param currentPrice - Current market price recorded with the commit event
    * @param backtest - Whether running in backtest mode (controls persistence)
    * @param timestamp - Unix timestamp (ms) of the tick/candle that triggered the accrual
-   * @param dto - Accrual: amount, type ("cash" default | "asset"), optional id and note
+   * @param dto - Accrual: signed amount, type ("cash" default | "asset"), optional note
    * @returns Promise<boolean> - true when the accrual was recorded
    */
-  public async dividendAdd(
+  public async dividend(
     symbol: string,
     currentPrice: number,
     backtest: boolean,
     timestamp: number,
     dto: IDividendDto
   ): Promise<boolean> {
-    this.params.logger.debug("ClientStrategy dividendAdd", {
+    this.params.logger.debug("ClientStrategy dividend", {
       symbol,
       currentPrice,
       dto,
@@ -11619,22 +11588,22 @@ export class ClientStrategy implements IStrategy {
 
     if (!this._pendingSignal) {
       throw new Error(
-        `ClientStrategy dividendAdd: No pending signal exists for symbol=${symbol}`
+        `ClientStrategy dividend: No pending signal exists for symbol=${symbol}`
       );
     }
     if (!dto || typeof dto !== "object") {
       throw new Error(
-        `ClientStrategy dividendAdd: dto must be an object, got ${String(dto)}`
+        `ClientStrategy dividend: dto must be an object, got ${String(dto)}`
       );
     }
 
     const accrual = TO_ACCRUAL_ROW_FN(dto, timestamp);
-    const rejection = GET_DIVIDEND_ADD_REJECTION_FN(this._pendingSignal, accrual);
+    const rejection = GET_DIVIDEND_REJECTION_FN(accrual);
     if (rejection !== null) {
-      throw new Error(`ClientStrategy dividendAdd: ${rejection}`);
+      throw new Error(`ClientStrategy dividend: ${rejection}`);
     }
 
-    DIVIDEND_ADD_FN(this, this._pendingSignal, accrual);
+    DIVIDEND_FN(this, this._pendingSignal, accrual);
 
     this.params.logger.debug("ClientStrategy setPendingSignal (inline)", {
       pendingSignal: this._pendingSignal,
@@ -11661,10 +11630,9 @@ export class ClientStrategy implements IStrategy {
 
     // Queue commit event for processing in tick()/backtest() with proper timestamp
     this._commitQueue.push({
-      action: "dividend-add",
+      action: "dividend",
       symbol,
       backtest,
-      accrualId: accrual.id,
       accrualType: accrual.type,
       amount: accrual.amount,
       currentPrice,
@@ -11672,115 +11640,6 @@ export class ClientStrategy implements IStrategy {
     });
 
     // Persist the queued commit so a crash before the next tick does not lose it
-    await PERSIST_STRATEGY_FN(this);
-
-    return true;
-  }
-
-  /**
-   * Validates preconditions for dividendRemove without mutating state.
-   *
-   * Returns false (never throws) when there is no pending signal or no accrual
-   * with the given id.
-   *
-   * @param symbol - Trading pair symbol
-   * @param accrualId - Id of the accrual to validate
-   * @returns boolean - true if dividendRemove would execute, false otherwise
-   */
-  public async validateDividendRemove(symbol: string, accrualId: string): Promise<boolean> {
-    this.params.logger.debug("ClientStrategy validateDividendRemove", {
-      symbol,
-      accrualId,
-      hasPendingSignal: this._pendingSignal !== null,
-    });
-    if (!this._pendingSignal) return false;
-    if (typeof accrualId !== "string" || !accrualId) return false;
-    return (this._pendingSignal._accruals ?? []).some((row) => row.id === accrualId);
-  }
-
-  /**
-   * Removes a previously recorded accrual by id (slashed staking reward, a
-   * dividend announced but not paid). The PNL drops its value from the next
-   * calculation on.
-   *
-   * Validations (throws): no pending signal; no accrual with that id.
-   *
-   * Persists the updated signal (live) and queues a "dividend-remove" commit that
-   * tick()/backtest() emits with the proper execution-context timestamp.
-   *
-   * @param symbol - Trading pair symbol
-   * @param currentPrice - Current market price recorded with the commit event
-   * @param backtest - Whether running in backtest mode (controls persistence)
-   * @param timestamp - Unix timestamp (ms) of the tick/candle that triggered the removal
-   * @param accrualId - Id of the accrual to remove
-   * @returns Promise<boolean> - true when the accrual was removed
-   */
-  public async dividendRemove(
-    symbol: string,
-    currentPrice: number,
-    backtest: boolean,
-    timestamp: number,
-    accrualId: string
-  ): Promise<boolean> {
-    this.params.logger.debug("ClientStrategy dividendRemove", {
-      symbol,
-      currentPrice,
-      accrualId,
-      hasPendingSignal: this._pendingSignal !== null,
-    });
-
-    if (!this._pendingSignal) {
-      throw new Error(
-        `ClientStrategy dividendRemove: No pending signal exists for symbol=${symbol}`
-      );
-    }
-    if (typeof accrualId !== "string" || !accrualId) {
-      throw new Error(
-        `ClientStrategy dividendRemove: accrualId must be a non-empty string, got ${String(accrualId)}`
-      );
-    }
-
-    const removed = DIVIDEND_REMOVE_FN(this, this._pendingSignal, accrualId);
-    if (!removed) {
-      throw new Error(
-        `ClientStrategy dividendRemove: accrual id "${accrualId}" not found on signal ${this._pendingSignal.id}`
-      );
-    }
-
-    this.params.logger.debug("ClientStrategy setPendingSignal (inline)", {
-      pendingSignal: this._pendingSignal,
-    });
-
-    if (this.params.callbacks?.onWrite) {
-      this.params.callbacks.onWrite(
-        this.params.symbol,
-        TO_PUBLIC_SIGNAL("pending", this._pendingSignal, currentPrice),
-        currentPrice,
-        new Date(timestamp),
-        backtest
-      );
-    }
-
-    if (!backtest) {
-      await PersistSignalAdapter.writeSignalData(
-        this._pendingSignal,
-        this.params.symbol,
-        this.params.strategyName,
-        this.params.exchangeName,
-      );
-    }
-
-    this._commitQueue.push({
-      action: "dividend-remove",
-      symbol,
-      backtest,
-      accrualId: removed.id,
-      accrualType: removed.type,
-      amount: removed.amount,
-      currentPrice,
-      totalAccruals: this._pendingSignal._accruals?.length ?? 0,
-    });
-
     await PERSIST_STRATEGY_FN(this);
 
     return true;

@@ -81,12 +81,8 @@ export class LinkService {
                 this.layoutService.pickAverageBuyCommit(parsed.params.notificationId);
                 return;
             }
-            if (parsed = parseRouteUrl("/pick-dividend-add-commit/:notificationId", href)) {
-                this.layoutService.pickDividendAddCommit(parsed.params.notificationId);
-                return;
-            }
-            if (parsed = parseRouteUrl("/pick-dividend-remove-commit/:notificationId", href)) {
-                this.layoutService.pickDividendRemoveCommit(parsed.params.notificationId);
+            if (parsed = parseRouteUrl("/pick-dividend-commit/:notificationId", href)) {
+                this.layoutService.pickDividendCommit(parsed.params.notificationId);
                 return;
             }
             if (parsed = parseRouteUrl("/pick-cancel-scheduled/:notificationId", href)) {

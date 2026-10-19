@@ -980,7 +980,7 @@
     "maxDrawdownEntries": 200
   },
   {
-    "type": "dividend_add.commit",
+    "type": "dividend.commit",
     "id": "c2d3e4f5-a6b7-4000-c1d2-e3f4a5b6c7d8",
     "timestamp": 1708871860000,
     "backtest": true,
@@ -1032,7 +1032,6 @@
       "pnlEntries": 200,
       "pnlDividends": 0
     },
-    "accrualId": "div-2024-02-25",
     "accrualType": "cash",
     "amount": 5,
     "pnlDividends": 5,
@@ -1051,7 +1050,7 @@
     "createdAt": 1708871860000
   },
   {
-    "type": "dividend_add.commit",
+    "type": "dividend.commit",
     "id": "d3e4f5a6-b7c8-4000-d2e3-f4a5b6c7d8e9",
     "timestamp": 1708871920000,
     "backtest": true,
@@ -1103,7 +1102,6 @@
       "pnlEntries": 200,
       "pnlDividends": 0
     },
-    "accrualId": "epoch-1234",
     "accrualType": "asset",
     "amount": 0.001,
     "pnlDividends": 56.68,
@@ -1122,7 +1120,7 @@
     "createdAt": 1708871920000
   },
   {
-    "type": "dividend_remove.commit",
+    "type": "dividend.commit",
     "id": "e4f5a6b7-c8d9-4000-e3f4-a5b6c7d8e9f0",
     "timestamp": 1708871980000,
     "backtest": true,
@@ -1174,22 +1172,21 @@
       "pnlEntries": 200,
       "pnlDividends": 0
     },
-    "accrualId": "epoch-1234",
-    "accrualType": "asset",
-    "amount": 0.001,
-    "pnlDividends": 5,
-    "totalAccruals": 1,
+    "accrualType": "cash",
+    "amount": -5,
+    "pnlDividends": 51.68,
+    "totalAccruals": 3,
     "pnl": {
-      "pnlPercentage": 2.46,
+      "pnlPercentage": 25.81,
       "priceOpen": 51717,
       "priceClose": 51680,
-      "pnlCost": 4.93,
+      "pnlCost": 51.61,
       "pnlEntries": 200,
-      "pnlDividends": 5
+      "pnlDividends": 51.68
     },
-    "pnlPercentage": 2.47,
-    "pnlCost": 4.93,
-    "note": "staking reward slashed",
+    "pnlPercentage": 25.81,
+    "pnlCost": 51.61,
+    "note": "Q1 dividend cash-out",
     "createdAt": 1708871980000
   },
   {

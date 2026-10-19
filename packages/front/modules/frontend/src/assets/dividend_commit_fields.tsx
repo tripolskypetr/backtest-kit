@@ -129,19 +129,7 @@ export const dividend_commit_fields: TypedField[] = [
                         name: "type",
                         title: t("Event"),
                         readonly: true,
-                        compute: (obj) =>
-                            obj.type === "dividend_remove.commit" ? t("Dividend Remove") : t("Dividend Add"),
-                    },
-                    {
-                        type: FieldType.Text,
-                        outlined: false,
-                        desktopColumns: "4",
-                        tabletColumns: "4",
-                        phoneColumns: "12",
-                        name: "accrualId",
-                        title: t("Accrual ID"),
-                        readonly: true,
-                        compute: (obj) => obj.accrualId || t("Not specified"),
+                        compute: () => t("Dividend"),
                     },
                     {
                         type: FieldType.Text,

@@ -1322,49 +1322,49 @@ export class StrategyCoreService implements TStrategy {
   };
 
   /**
-   * Checks whether dividendAdd would succeed without executing it.
+   * Checks whether dividend would succeed without executing it.
    * Validates strategy existence and delegates to the connection service.
    *
    * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
    * @param dto - Accrual to validate
    * @param context - Execution context with strategyName, exchangeName, frameName
-   * @returns Promise<boolean> - true if dividendAdd would execute, false otherwise
+   * @returns Promise<boolean> - true if dividend would execute, false otherwise
    */
-  public validateDividendAdd = async (
+  public validateDividend = async (
     backtest: boolean,
     symbol: string,
     dto: IDividendDto,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ): Promise<boolean> => {
-    this.loggerService.log("strategyCoreService validateDividendAdd", {
+    this.loggerService.log("strategyCoreService validateDividend", {
       symbol,
       dto,
       context,
       backtest,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.validateDividendAdd(backtest, symbol, dto, context);
+    return await this.strategyConnectionService.validateDividend(backtest, symbol, dto, context);
   };
 
   /**
-   * Records a dividend / staking accrual on the active pending signal.
+   * Records a dividend / staking accrual (signed amount) on the active pending signal.
    *
    * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
    * @param currentPrice - Current market price recorded with the commit event
    * @param context - Execution context with strategyName, exchangeName, frameName
-   * @param dto - Accrual: amount, type ("cash" default | "asset"), optional id and note
+   * @param dto - Accrual: signed amount, type ("cash" default | "asset"), optional note
    * @returns Promise<boolean> - true when the accrual was recorded
    */
-  public dividendAdd = async (
+  public dividend = async (
     backtest: boolean,
     symbol: string,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
     dto: IDividendDto,
   ): Promise<boolean> => {
-    this.loggerService.log("strategyCoreService dividendAdd", {
+    this.loggerService.log("strategyCoreService dividend", {
       symbol,
       currentPrice,
       dto,
@@ -1372,60 +1372,7 @@ export class StrategyCoreService implements TStrategy {
       backtest,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.dividendAdd(backtest, symbol, currentPrice, context, dto);
-  };
-
-  /**
-   * Checks whether dividendRemove would succeed without executing it.
-   *
-   * @param backtest - Whether running in backtest mode
-   * @param symbol - Trading pair symbol
-   * @param accrualId - Id of the accrual to validate
-   * @param context - Execution context with strategyName, exchangeName, frameName
-   * @returns Promise<boolean> - true if dividendRemove would execute, false otherwise
-   */
-  public validateDividendRemove = async (
-    backtest: boolean,
-    symbol: string,
-    accrualId: string,
-    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
-  ): Promise<boolean> => {
-    this.loggerService.log("strategyCoreService validateDividendRemove", {
-      symbol,
-      accrualId,
-      context,
-      backtest,
-    });
-    await this.validate(context);
-    return await this.strategyConnectionService.validateDividendRemove(backtest, symbol, accrualId, context);
-  };
-
-  /**
-   * Removes a recorded dividend / staking accrual from the active pending signal by id.
-   *
-   * @param backtest - Whether running in backtest mode
-   * @param symbol - Trading pair symbol
-   * @param currentPrice - Current market price recorded with the commit event
-   * @param context - Execution context with strategyName, exchangeName, frameName
-   * @param accrualId - Id of the accrual to remove
-   * @returns Promise<boolean> - true when the accrual was removed
-   */
-  public dividendRemove = async (
-    backtest: boolean,
-    symbol: string,
-    currentPrice: number,
-    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
-    accrualId: string,
-  ): Promise<boolean> => {
-    this.loggerService.log("strategyCoreService dividendRemove", {
-      symbol,
-      currentPrice,
-      accrualId,
-      context,
-      backtest,
-    });
-    await this.validate(context);
-    return await this.strategyConnectionService.dividendRemove(backtest, symbol, currentPrice, context, accrualId);
+    return await this.strategyConnectionService.dividend(backtest, symbol, currentPrice, context, dto);
   };
 
   /**
