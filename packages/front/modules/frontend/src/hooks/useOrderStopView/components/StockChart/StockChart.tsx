@@ -248,9 +248,7 @@ export const StockChart = ({
 
         if (timestamp && dayjs(timestamp).isValid()) {
           date = dayjs(timestamp);
-          // Daily bars are UTC days: keep their original time in UTC so the
-          // axis/tooltip show the bar's UTC date; intraday stays local
-          formattedOriginalTime = (source === "1d" ? dayjs.utc(timestamp) : date).format("YYYY-MM-DD HH:mm:ss");
+          formattedOriginalTime = date.format("YYYY-MM-DD HH:mm:ss");
         } else {
           if (source === "1m") {
             momentStamp = MOMENT_STAMP_OFFSET + idx;
@@ -266,7 +264,8 @@ export const StockChart = ({
             date = date.startOf("hour");
           } else if (source === "1d") {
             momentStamp = MOMENT_STAMP_OFFSET + Math.floor(idx / 1440);
-            date = dayjs.utc(fromMomentStamp(momentStamp, "day").valueOf()).startOf("day");
+            date = fromMomentStamp(momentStamp, "day");
+            date = date.startOf("day");
           }
           formattedOriginalTime = date.format("YYYY-MM-DD HH:mm:ss");
           console.warn(
@@ -287,7 +286,7 @@ export const StockChart = ({
           momentStamp = getMomentStamp(alignedDate, "hour");
           time = momentStamp as Time;
         } else if (source === "1d") {
-          const alignedDate = dayjs.utc(date.valueOf()).startOf("day");
+          const alignedDate = date.startOf("day");
           momentStamp = getMomentStamp(alignedDate, "day");
           time = momentStamp as Time;
         }
@@ -338,9 +337,7 @@ export const StockChart = ({
           if (!candle || !candle.originalTime) {
             return t("Invalid date");
           }
-          const date = source === "1d"
-            ? dayjs.utc(candle.originalTime)
-            : dayjs(candle.originalTime);
+          const date = dayjs(candle.originalTime);
           if (!date.isValid()) {
             return t("Invalid date");
           }
@@ -428,7 +425,7 @@ export const StockChart = ({
         const alignedDate = entryDate.startOf("hour").add(minute, "minute");
         entryTime = getMomentStamp(alignedDate, "minute") as Time;
       } else if (source === "1d") {
-        const alignedDate = dayjs.utc(entryDate.valueOf()).startOf("day");
+        const alignedDate = entryDate.startOf("day");
         entryTime = getMomentStamp(alignedDate, "day") as Time;
       } else {
         const alignedDate = entryDate.startOf("hour");
@@ -459,7 +456,7 @@ export const StockChart = ({
               : source === "1d"
                 ? "DD/MM/YYYY"
                 : "DD/MM/YYYY HH:mm";
-          const dateTime = (source === "1d" ? dayjs.utc(data.originalTime) : dayjs(data.originalTime)).format(dateFormat);
+          const dateTime = dayjs(data.originalTime).format(dateFormat);
           const price = formatAmount(data.value, getPriceScale(data.value));
           setTooltipDate(`${dateTime}: ${price}`);
         } else {
@@ -483,7 +480,7 @@ export const StockChart = ({
           const alignedDate = eventDate.startOf("hour").add(minute, "minute");
           eventTime = getMomentStamp(alignedDate, "minute") as Time;
         } else if (source === "1d") {
-          const alignedDate = dayjs.utc(eventDate.valueOf()).startOf("day");
+          const alignedDate = eventDate.startOf("day");
           eventTime = getMomentStamp(alignedDate, "day") as Time;
         } else {
           const alignedDate = eventDate.startOf("hour");

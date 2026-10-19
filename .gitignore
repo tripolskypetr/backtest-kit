@@ -12,3 +12,4 @@ tmp
 generated
 dump
 install-state.gz
+.playwright-mcp
