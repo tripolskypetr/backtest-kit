@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useRef, useLayoutEffect, useState } from "react";
-import { ICandleData } from "backtest-kit";
+import { ICandleData, ISignalAccrual } from "backtest-kit";
 
 import {
     DeepPartial,
@@ -67,6 +67,8 @@ type PositionEntry = {
     timestamp: number
 }
 
+type PositionAccrual = ISignalAccrual;
+
 interface IChartProps {
     height: number;
     width: number;
@@ -86,6 +88,7 @@ interface IChartProps {
     minuteEstimatedTime: number;
     positionPartials: PositionPartial[];
     positionEntries: PositionEntry[];
+    positionAccruals: PositionAccrual[];
 }
 
 const useStyles = makeStyles()({
@@ -165,6 +168,7 @@ export const StockChart = ({
     timestamp,
     positionEntries,
     positionPartials,
+    positionAccruals,
 }: IChartProps) => {
     const { classes } = useStyles();
     const elementRef: Ref = useRef<HTMLDivElement>(undefined as never);
@@ -395,6 +399,23 @@ export const StockChart = ({
             });
         }
 
+        for (const accrual of positionAccruals) {
+            const accrualTime = toMarkerTime(accrual.timestamp);
+            if (accrualTime === null) {
+                continue;
+            }
+            // Cash accruals are USD, asset accruals are units of the coin
+            const amount = formatAmount(accrual.amount, getPriceScale(accrual.amount));
+            markers.push({
+                time: accrualTime,
+                position: "aboveBar",
+                color: colors.teal[500],
+                shape: "circle",
+                size: 1,
+                text: `${t("Dividend")} ${accrual.type === "cash" ? `${amount}$` : amount}`,
+            });
+        }
+
         markers.sort((a, b) => Number(a.time) - Number(b.time));
         series.setMarkers(markers);
 
@@ -452,6 +473,7 @@ export const StockChart = ({
         minuteEstimatedTime,
         positionEntries,
         positionPartials,
+        positionAccruals,
     ]);
 
     return (

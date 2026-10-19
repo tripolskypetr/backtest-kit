@@ -41,6 +41,7 @@
       }
     ],
     "_partial": [],
+    "_accruals": [],
     "_peak": {
       "price": 51800,
       "timestamp": 1708388340000,
@@ -118,6 +119,15 @@
         "timestamp": 1707404580000
       }
     ],
+    "_accruals": [
+      {
+        "id": "acc00001-0000-4000-8000-000000000001",
+        "type": "cash",
+        "amount": 1.25,
+        "timestamp": 1707487380000,
+        "note": "Quarterly dividend"
+      }
+    ],
     "_peak": {
       "price": 44950.99,
       "timestamp": 1707400980000,
@@ -173,6 +183,7 @@
       }
     ],
     "_partial": [],
+    "_accruals": [],
     "_peak": {
       "price": 47378.01,
       "timestamp": 1707494640000,
@@ -228,6 +239,7 @@
       }
     ],
     "_partial": [],
+    "_accruals": [],
     "_peak": {
       "price": 42969.86,
       "timestamp": 1707304440000,
@@ -283,6 +295,7 @@
       }
     ],
     "_partial": [],
+    "_accruals": [],
     "_peak": {
       "price": 51088,
       "timestamp": 1708784040000,
@@ -338,6 +351,7 @@
       }
     ],
     "_partial": [],
+    "_accruals": [],
     "_peak": {
       "price": 44614.48,
       "timestamp": 1707379260000,
@@ -393,6 +407,7 @@
       }
     ],
     "_partial": [],
+    "_accruals": [],
     "_peak": {
       "price": 48604,
       "timestamp": 1707699000000,
@@ -448,6 +463,7 @@
       }
     ],
     "_partial": [],
+    "_accruals": [],
     "_peak": {
       "price": 50957.94,
       "timestamp": 1708549140000,

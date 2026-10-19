@@ -35,6 +35,7 @@ const fetchData = ttl(
 
         const positionEntries = signal._entry ?? [];
         const positionPartials = signal._partial ?? [];
+        const positionAccruals = signal._accruals ?? [];
 
         const status = {
             ...signal,
@@ -44,6 +45,7 @@ const fetchData = ttl(
             pnlEntries: signal.pnl.pnlEntries,
             positionEntries,
             positionPartials,
+            positionAccruals,
         };
 
         return {

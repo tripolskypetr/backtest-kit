@@ -78,6 +78,7 @@
         "timestamp": 1708386600000
       }
     ],
+    "_accruals": [],
     "_peak": {
       "price": 2412.3,
       "timestamp": 1708387200000,
@@ -124,6 +125,7 @@
       }
     ],
     "_partial": [],
+    "_accruals": [],
     "_peak": {
       "price": 96.4,
       "timestamp": 1708384200000,
@@ -170,6 +172,7 @@
       }
     ],
     "_partial": [],
+    "_accruals": [],
     "_peak": {
       "price": 312.7,
       "timestamp": 1708383000000,

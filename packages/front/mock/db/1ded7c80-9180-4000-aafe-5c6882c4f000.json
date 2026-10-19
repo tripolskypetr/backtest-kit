@@ -40,6 +40,15 @@
     }
   ],
   "_partial": [],
+  "_accruals": [
+    {
+      "id": "acc00001-0000-4000-8000-000000000001",
+      "type": "cash",
+      "amount": 1.25,
+      "timestamp": 1707487380000,
+      "note": "Quarterly dividend"
+    }
+  ],
   "_peak": {
     "price": 45181.99,
     "timestamp": 1707400980000,

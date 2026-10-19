@@ -90,6 +90,13 @@ export class StatusViewService {
     if (!positionPartials) {
       return null;
     }
+    const positionAccruals = await Live.getPositionAccruals(symbol, {
+      strategyName,
+      exchangeName,
+    });
+    if (!positionAccruals) {
+      return null;
+    }
     const timestamp = await lib.timeMetaService.getTimestamp(
       pendingSignal.symbol,
       {
@@ -128,6 +135,7 @@ export class StatusViewService {
       positionEntries,
       positionLevels,
       positionPartials,
+      positionAccruals,
       _peak: pendingSignal._peak,
       _fall: pendingSignal._fall,
     };

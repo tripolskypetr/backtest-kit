@@ -1,4 +1,4 @@
-import { type IPublicSignalRow } from "backtest-kit";
+import { type IPublicSignalRow, type ISignalAccrual } from "backtest-kit";
 
 type Partial = {
     type: "profit" | "loss";
@@ -14,6 +14,8 @@ type Entry = {
     cost: number;
     timestamp: number
 };
+
+type Accrual = ISignalAccrual;
 
 type Level = number;
 
@@ -43,6 +45,7 @@ export interface StatusModel {
     positionLevels: Level[];
     positionEntries: Entry[];
     positionPartials: Partial[];
+    positionAccruals: Accrual[];
 }
 
 export default StatusModel;

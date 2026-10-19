@@ -151,6 +151,7 @@ export const StatusWidget = ({
                         minuteEstimatedTime={data.minuteEstimatedTime}
                         positionEntries={data.positionEntries}
                         positionPartials={data.positionPartials}
+                        positionAccruals={data.positionAccruals}
                     />
                 )}
             </AutoSizer>

@@ -151,6 +151,7 @@ declare class StatusMockService {
         positionLevels: any;
         positionEntries: any;
         positionPartials: any;
+        positionAccruals: any;
         _peak: any;
         _fall: any;
     }>;
@@ -260,6 +261,7 @@ declare class StatusViewService {
         positionLevels: any;
         positionEntries: any;
         positionPartials: any;
+        positionAccruals: any;
         _peak: any;
         _fall: any;
     }>;

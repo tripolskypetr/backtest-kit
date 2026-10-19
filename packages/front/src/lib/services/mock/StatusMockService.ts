@@ -61,6 +61,7 @@ export class StatusMockService {
     const positionEntries = status._entry ?? [];
     const positionLevels = positionEntries.map((e) => e.price);
     const positionPartials = status._partial ?? [];
+    const positionAccruals = status._accruals ?? [];
     return {
       signalId: status.signalId,
       position: status.position,
@@ -87,6 +88,7 @@ export class StatusMockService {
       positionLevels,
       positionEntries,
       positionPartials,
+      positionAccruals,
       _peak: status._peak,
       _fall: status._fall,
     };
