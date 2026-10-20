@@ -35,7 +35,7 @@ const columns: IGridColumn<AccrualRow>[] = [
         field: "note",
         label: t("Note"),
         minWidth: 200,
-        width: (fullWidth) => Math.max(fullWidth - 160 - 140 - 160 - 85, 200),
+        width: (fullWidth) => Math.max(fullWidth - 160 - 140 - 140 - 160 - 85, 200),
         format: ({ note }) => note || "",
     },
     {

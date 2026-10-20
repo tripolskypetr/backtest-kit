@@ -1,6 +1,5 @@
 import { TypedField, FieldType, dayjs, copyToClipboard } from "react-declarative";
 import { List, ListItemButton, ListItemText, Typography } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 import ioc from "../lib";
 import getPriceScale from "../utils/getPriceScale";
 import { t } from "../i18n";
@@ -88,10 +87,7 @@ export const position_history_fields: TypedField[] = [
                                 sx={{    
                                     background: (theme) =>
                                         idx % 2 === 0
-                                            ? alpha(
-                                                theme.palette.getContrastText(theme.palette.background.paper),
-                                                0.04
-                                            )
+                                            ? "#F1F3F5"
                                             : "transparent",
                                 }}
                                 onClick={async () => {
@@ -181,12 +177,9 @@ export const position_history_fields: TypedField[] = [
                             <ListItemButton
                                 key={idx} 
                                 sx={{    
-                                    background: (theme) =>
+                                    background: () =>
                                         idx % 2 === 0
-                                            ? alpha(
-                                                theme.palette.getContrastText(theme.palette.background.paper),
-                                                0.04
-                                            )
+                                            ? "#F1F3F5"
                                             : "transparent",
                                 }}
                                 onClick={async () => {
@@ -278,10 +271,7 @@ export const position_history_fields: TypedField[] = [
                                 sx={{    
                                     background: (theme) =>
                                         idx % 2 === 0
-                                            ? alpha(
-                                                theme.palette.getContrastText(theme.palette.background.paper),
-                                                0.04
-                                            )
+                                            ? "#F1F3F5"
                                             : "transparent",
                                 }}
                                 onClick={async () => {
