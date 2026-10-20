@@ -4,6 +4,7 @@ import { alpha } from "@mui/material/styles";
 import ioc from "../lib";
 import getPriceScale from "../utils/getPriceScale";
 import { t } from "../i18n";
+import CopyIcon from "../components/common/CopyIcon";
 
 /**
  * "Position History" section shared by the signal card and every
@@ -36,28 +37,47 @@ export const position_history_fields: TypedField[] = [
             {
                 type: FieldType.Box,
                 sx: {
+                    display: "grid",
+                    gridTemplateColumns: "1fr auto",
                     padding: "15px",
                 },
                 fields: [
                     {
-                        type: FieldType.Typography,
-                        fieldBottomMargin: "1",
-                        typoVariant: "h6",
-                        placeholder: t("Partials"),
+                        type: FieldType.Div,
+                        fields: [
+                            {
+                                type: FieldType.Typography,
+                                fieldBottomMargin: "1",
+                                typoVariant: "h6",
+                                placeholder: t("Partials"),
+                            },
+                            {
+                                type: FieldType.Typography,
+                                fieldBottomMargin: "0",
+                                style: { opacity: 0.5, },
+                                typoVariant: "body2",
+                                placeholder: t("Partial close history of the position"),
+                            },
+                        ]
                     },
                     {
-                        type: FieldType.Typography,
-                        fieldBottomMargin: "0",
-                        style: { opacity: 0.5, },
-                        typoVariant: "body2",
-                        placeholder: t("Partial close history of the position"),
-                    },
+                        type: FieldType.Component,
+                        element: ({ signalId, partials }) => (
+                            <CopyIcon 
+                                onClick={(_, doCopy) => {
+                                    doCopy(JSON.stringify({ signalId, partials }, null, 2))
+                                }}
+                            />
+                        )
+                    }
                 ],
             },
             {
                 type: FieldType.Component,
                 sx: {
-                    minHeight: "360px",
+                    overflowY: "auto",
+                    minHeight: "384px",
+                    maxHeight: "384px",
                 },
                 element: ({ partials }) => (
                     <List dense disablePadding>
@@ -112,28 +132,47 @@ export const position_history_fields: TypedField[] = [
             {
                 type: FieldType.Box,
                 sx: {
+                    display: "grid",
+                    gridTemplateColumns: "1fr auto",
                     padding: "15px",
                 },
                 fields: [
                     {
-                        type: FieldType.Typography,
-                        fieldBottomMargin: "1",
-                        typoVariant: "h6",
-                        placeholder: t("Entries"),
+                        type: FieldType.Div,
+                        fields: [
+                            {
+                                type: FieldType.Typography,
+                                fieldBottomMargin: "1",
+                                typoVariant: "h6",
+                                placeholder: t("Entries"),
+                            },
+                            {
+                                type: FieldType.Typography,
+                                fieldBottomMargin: "0",
+                                style: { opacity: 0.5, },
+                                typoVariant: "body2",
+                                placeholder: t("DCA entry history of the position"),
+                            },
+                        ]
                     },
                     {
-                        type: FieldType.Typography,
-                        fieldBottomMargin: "0",
-                        style: { opacity: 0.5, },
-                        typoVariant: "body2",
-                        placeholder: t("DCA entry history of the position"),
-                    },
+                        type: FieldType.Component,
+                        element: ({ signalId, entries }) => (
+                            <CopyIcon 
+                                onClick={(_, doCopy) => {
+                                    doCopy(JSON.stringify({ signalId, entries }, null, 2))
+                                }}
+                            />
+                        )
+                    }
                 ],
             },
             {
                 type: FieldType.Component,
                 sx: {
-                    minHeight: "360px",
+                    overflowY: "auto",
+                    minHeight: "384px",
+                    maxHeight: "384px",
                 },
                 element: ({ entries }) => (
                     <List dense disablePadding>
@@ -188,28 +227,47 @@ export const position_history_fields: TypedField[] = [
             {
                 type: FieldType.Box,
                 sx: {
+                    display: "grid",
+                    gridTemplateColumns: "1fr auto",
                     padding: "15px",
                 },
                 fields: [
                     {
-                        type: FieldType.Typography,
-                        fieldBottomMargin: "1",
-                        typoVariant: "h6",
-                        placeholder: t("Dividends"),
+                        type: FieldType.Div,
+                        fields: [
+                            {
+                                type: FieldType.Typography,
+                                fieldBottomMargin: "1",
+                                typoVariant: "h6",
+                                placeholder: t("Dividends"),
+                            },
+                            {
+                                type: FieldType.Typography,
+                                fieldBottomMargin: "0",
+                                style: { opacity: 0.5, },
+                                typoVariant: "body2",
+                                placeholder: t("Dividend / staking accruals of the position"),
+                            },
+                        ]
                     },
                     {
-                        type: FieldType.Typography,
-                        fieldBottomMargin: "0",
-                        style: { opacity: 0.5, },
-                        typoVariant: "body2",
-                        placeholder: t("Dividend / staking accruals of the position"),
-                    },
+                        type: FieldType.Component,
+                        element: ({ signalId, accruals }) => (
+                            <CopyIcon 
+                                onClick={(_, doCopy) => {
+                                    doCopy(JSON.stringify({ signalId, accruals }, null, 2))
+                                }}
+                            />
+                        )
+                    }
                 ],
             },
             {
                 type: FieldType.Component,
                 sx: {
-                    minHeight: "360px",
+                    overflowY: "auto",
+                    minHeight: "384px",
+                    maxHeight: "384px",
                 },
                 element: ({ accruals }) => (
                     <List dense disablePadding>
