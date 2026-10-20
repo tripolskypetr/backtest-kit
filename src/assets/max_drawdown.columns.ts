@@ -52,6 +52,15 @@ export const max_drawdown_columns: ColumnModel<MaxDrawdownEvent>[] = [
     isVisible: () => true,
   },
   {
+    key: "pnlDividends",
+    label: "Dividends (USD)",
+    format: (data) =>
+      data.pnl.pnlDividends !== undefined
+        ? `${data.pnl.pnlDividends > 0 ? "+" : ""}${data.pnl.pnlDividends.toFixed(getPriceScale(data.pnl.pnlDividends))} USD`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
     key: "currentPrice",
     label: "DD Price",
     format: (data) => `${data.currentPrice.toFixed(getPriceScale(data.currentPrice))} USD`,

@@ -126,6 +126,7 @@ export class RiskReportService {
       cost: data.currentSignal?.cost,
       pnlPercentage: data.currentSignal?.pnl?.pnlPercentage,
       pnlCost: data.currentSignal?.pnl?.pnlCost,
+      pnlDividends: data.currentSignal?.pnl?.pnlDividends,
       pnlEntries: data.currentSignal?.pnl?.pnlEntries,
       pnlPriceOpen: data.currentSignal?.pnl?.priceOpen,
       pnlPriceClose: data.currentSignal?.pnl?.priceClose,

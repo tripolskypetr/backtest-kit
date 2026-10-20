@@ -76,6 +76,7 @@ export class HeatReportService {
       originalPriceStopLoss: data.signal?.originalPriceStopLoss,
       pnl: data.pnl.pnlPercentage,
       pnlCost: data.pnl.pnlCost,
+      pnlDividends: data.pnl.pnlDividends,
       pnlEntries: data.pnl.pnlEntries,
       pnlPriceOpen: data.pnl.priceOpen,
       pnlPriceClose: data.pnl.priceClose,

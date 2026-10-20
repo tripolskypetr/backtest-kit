@@ -370,6 +370,7 @@ class ReportStorage {
       percentSl: data.percentSl,
       pnl: data.pnl.pnlPercentage,
       pnlCost: data.pnl.pnlCost,
+      pnlDividends: data.pnl.pnlDividends,
       pnlEntries: data.pnl.pnlEntries,
       pendingAt: data.signal.pendingAt,
       scheduledAt: data.signal.scheduledAt,
@@ -433,6 +434,7 @@ class ReportStorage {
       totalPartials: data.signal.totalPartials,
       pnl: data.pnl.pnlPercentage,
       pnlCost: data.pnl.pnlCost,
+      pnlDividends: data.pnl.pnlDividends,
       pnlEntries: data.pnl.pnlEntries,
       closeReason: data.closeReason,
       duration: durationMin,
@@ -510,6 +512,7 @@ class ReportStorage {
       percentSl: data.percentSl,
       pnl: data.pnl.pnlPercentage,
       pnlCost: data.pnl.pnlCost,
+      pnlDividends: data.pnl.pnlDividends,
       pnlEntries: data.pnl.pnlEntries,
       scheduledAt: data.signal.scheduledAt,
     };

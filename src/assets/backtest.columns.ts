@@ -144,6 +144,15 @@ export const backtest_columns: ColumnModel<IStrategyTickResultClosed>[] = [
     isVisible: () => true,
   },
   {
+    key: "pnlDividends",
+    label: "Dividends (USD)",
+    format: (data) =>
+      data.pnl.pnlDividends !== undefined
+        ? `${data.pnl.pnlDividends > 0 ? "+" : ""}${data.pnl.pnlDividends.toFixed(getPriceScale(data.pnl.pnlDividends))} USD`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
     key: "partialExecuted",
     label: "Partial Executed %",
     format: (data) => `${data.signal.partialExecuted.toFixed(1)}%`,

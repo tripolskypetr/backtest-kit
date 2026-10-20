@@ -91,6 +91,7 @@ export class BreakevenReportService {
       cost: data.data.cost,
       pnlPercentage: data.data.pnl.pnlPercentage,
       pnlCost: data.data.pnl.pnlCost,
+      pnlDividends: data.data.pnl.pnlDividends,
       pnlEntries: data.data.pnl.pnlEntries,
       pnlPriceOpen: data.data.pnl.priceOpen,
       pnlPriceClose: data.data.pnl.priceClose,

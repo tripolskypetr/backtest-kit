@@ -199,6 +199,15 @@ export const live_columns: ColumnModel<TickEvent>[] = [
     isVisible: () => true,
   },
   {
+    key: "pnlDividends",
+    label: "Dividends (USD)",
+    format: (data) =>
+      data.pnlDividends !== undefined
+        ? `${data.pnlDividends > 0 ? "+" : ""}${data.pnlDividends.toFixed(getPriceScale(data.pnlDividends))} USD`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
     key: "closeReason",
     label: "Close Reason",
     format: (data) => data.closeReason ?? "N/A",

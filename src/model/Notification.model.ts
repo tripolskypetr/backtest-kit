@@ -64,6 +64,8 @@ export interface SignalOpenedNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -159,6 +161,8 @@ export interface SignalClosedNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -258,6 +262,8 @@ export interface PartialProfitAvailableNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -353,6 +359,8 @@ export interface PartialLossAvailableNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -446,6 +454,8 @@ export interface BreakevenAvailableNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -541,6 +551,8 @@ export interface PartialProfitCommitNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -636,6 +648,8 @@ export interface PartialLossCommitNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -729,6 +743,8 @@ export interface BreakevenCommitNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -824,6 +840,8 @@ export interface AverageBuyCommitNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -1019,6 +1037,8 @@ export interface ActivateScheduledCommitNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -1116,6 +1136,8 @@ export interface TrailingStopCommitNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -1211,6 +1233,8 @@ export interface TrailingTakeCommitNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -1288,6 +1312,8 @@ export interface OrderSyncOpenNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -1383,6 +1409,8 @@ export interface OrderSyncCloseNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -1513,6 +1541,8 @@ export interface OrderSyncCheckNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -1621,6 +1651,8 @@ export interface OrderContinueCheckNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -1730,6 +1762,8 @@ export interface OrderStopCheckNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -1811,6 +1845,8 @@ export interface OrderFillOpenNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -1912,6 +1948,8 @@ export interface OrderFillCloseNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -2022,6 +2060,8 @@ export interface OrderRejectOpenNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -2125,6 +2165,8 @@ export interface OrderRejectCloseNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -2291,6 +2333,8 @@ export interface SignalScheduledNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -2387,6 +2431,8 @@ export interface SignalCancelledNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -2573,6 +2619,8 @@ export interface CancelScheduledCommitNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -2668,6 +2716,8 @@ export interface ClosePendingCommitNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -2757,6 +2807,8 @@ export interface SignalInfoNotification {
   pnlPriceClose: number;
   /** Absolute profit/loss in USD */
   pnlCost: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
+  pnlDividends: number;
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */

@@ -41,6 +41,8 @@ export interface TickEvent {
   isolated?: boolean;
   /** Absolute profit/loss in USD (for active/waiting: unrealized, for closed: realized) */
   pnlCost?: number;
+  /** USD value of the dividend / staking accruals folded into pnlCost (only for rows carrying a PNL) */
+  pnlDividends?: number;
   /** Total invested capital in USD */
   pnlEntries?: number;
   /** Percentage progress towards take profit (only for active/waiting) */
