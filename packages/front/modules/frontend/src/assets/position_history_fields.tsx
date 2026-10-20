@@ -5,6 +5,7 @@ import ioc from "../lib";
 import getPriceScale from "../utils/getPriceScale";
 import { t } from "../i18n";
 import CopyIcon from "../components/common/CopyIcon";
+import toPlainString from "../helpers/toPlainString";
 
 /**
  * "Position History" section shared by the signal card and every
@@ -109,7 +110,7 @@ export const position_history_fields: TypedField[] = [
                             >
                                 <ListItemText
                                     primary={`${row.type === "profit" ? t("Partial Profit") : t("Partial Loss")} ${row.percent}% ${t("at")} ${row.currentPrice.toFixed(getPriceScale(row.currentPrice))}${t("$")}`}
-                                    secondary={[`${t("Cost basis")}: ${row.costBasisAtClose.toFixed(getPriceScale(row.costBasisAtClose))}${t("$")}`, `${t("Entries at close")}: ${row.entryCountAtClose}`, row.note].filter(Boolean).join(" · ")}
+                                    secondary={[`${t("Cost basis")}: ${row.costBasisAtClose.toFixed(getPriceScale(row.costBasisAtClose))}${t("$")}`, `${t("Entries at close")}: ${row.entryCountAtClose}`, toPlainString(row.note)].filter(Boolean).join(" · ")}
                                 />
                                 <Typography variant="body1">{dayjs(row.timestamp).format("DD/MM/YYYY HH:mm:ss")}</Typography>
                             </ListItemButton>
@@ -204,7 +205,7 @@ export const position_history_fields: TypedField[] = [
                             >
                                 <ListItemText
                                     primary={`${t("Entry")} #${idx + 1}: ${row.price.toFixed(getPriceScale(row.price))}${t("$")}`}
-                                    secondary={[`${t("Cost")}: ${row.cost.toFixed(getPriceScale(row.cost))}${t("$")}`, row.note].filter(Boolean).join(" · ")}
+                                    secondary={[`${t("Cost")}: ${row.cost.toFixed(getPriceScale(row.cost))}${t("$")}`, toPlainString(row.note)].filter(Boolean).join(" · ")}
                                 />
                                 <Typography variant="body1">{dayjs(row.timestamp).format("DD/MM/YYYY HH:mm:ss")}</Typography>
                             </ListItemButton>
@@ -299,7 +300,7 @@ export const position_history_fields: TypedField[] = [
                             >
                                 <ListItemText
                                     primary={`${t("Dividend")} ${row.type === "cash" ? `${row.amount.toFixed(getPriceScale(row.amount))}${t("$")}` : `${row.amount} ${t("asset")}`}`}
-                                    secondary={[t(row.type), `${t("Price")}: ${row.currentPrice.toFixed(getPriceScale(row.currentPrice))}${t("$")}`, row.note].filter(Boolean).join(" · ")}
+                                    secondary={[t(row.type), `${t("Price")}: ${row.currentPrice.toFixed(getPriceScale(row.currentPrice))}${t("$")}`, toPlainString(row.note)].filter(Boolean).join(" · ")}
                                 />
                                 <Typography variant="body1">{dayjs(row.timestamp).format("DD/MM/YYYY HH:mm:ss")}</Typography>
                             </ListItemButton>
