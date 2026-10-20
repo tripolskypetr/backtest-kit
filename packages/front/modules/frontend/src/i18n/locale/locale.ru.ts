@@ -765,4 +765,11 @@ export const LOCALE: Record<string, string> = {
   "cash": "деньги",
   "Staking": "Стейкинг",
   "No accruals": "Начислений нет",
+  "at": "по",
+  "Cost basis": "База стоимости",
+  "Partial close history of the position": "История частичных закрытий позиции",
+  "DCA entry history of the position": "История DCA-входов позиции",
+  "Dividend / staking accruals of the position": "Дивиденды и стейкинг-начисления позиции",
+  "Position History": "История позиции",
+  "Entries at close": "Входов на момент закрытия",
 };

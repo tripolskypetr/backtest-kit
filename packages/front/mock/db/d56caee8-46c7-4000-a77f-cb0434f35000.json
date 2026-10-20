@@ -58,6 +58,29 @@
     }
   ],
   "_accruals": [],
+  "entries": [
+    {
+      "price": 51754,
+      "cost": 100,
+      "timestamp": 1708871700000
+    },
+    {
+      "price": 51450,
+      "cost": 100,
+      "timestamp": 1708871700000
+    }
+  ],
+  "partials": [
+    {
+      "type": "loss",
+      "percent": 100,
+      "currentPrice": 51219.65,
+      "costBasisAtClose": 100,
+      "entryCountAtClose": 1,
+      "timestamp": 1708875300000
+    }
+  ],
+  "accruals": [],
   "_peak": {
     "price": 51754,
     "timestamp": 1708871700000,

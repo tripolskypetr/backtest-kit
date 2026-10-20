@@ -765,4 +765,11 @@ export const LOCALE: Record<string, string> = {
   "cash": "nakit",
   "Staking": "Staking",
   "No accruals": "Tahakkuk yok",
+  "at": "@",
+  "Cost basis": "Maliyet tabanı",
+  "Partial close history of the position": "Pozisyonun kısmi kapanış geçmişi",
+  "DCA entry history of the position": "Pozisyonun DCA giriş geçmişi",
+  "Dividend / staking accruals of the position": "Pozisyonun temettü / staking tahakkukları",
+  "Position History": "Pozisyon geçmişi",
+  "Entries at close": "Kapanıştaki girişler",
 };

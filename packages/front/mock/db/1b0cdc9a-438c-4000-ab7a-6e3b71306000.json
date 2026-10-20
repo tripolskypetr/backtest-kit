@@ -15,7 +15,7 @@
   "_isScheduled": false,
   "originalPriceStopLoss": 52836,
   "originalPriceTakeProfit": 50246,
-  "partialExecuted": 0,
+  "partialExecuted": 25,
   "status": "closed",
   "currentPrice": 50934.76,
   "closeReason": "take_profit",
@@ -32,18 +32,78 @@
   "createdAt": 1708388340000,
   "cost": 100,
   "timestamp": 1708388340000,
-  "totalEntries": 1,
-  "totalPartials": 0,
+  "totalEntries": 2,
+  "totalPartials": 1,
   "originalPriceOpen": 51800,
   "_entry": [
     {
       "price": 51800,
       "cost": 100,
       "timestamp": 1708388340000
+    },
+    {
+      "price": 52200,
+      "cost": 50,
+      "timestamp": 1708820340000,
+      "note": "ladder step 2"
     }
   ],
-  "_partial": [],
+  "_partial": [
+    {
+      "type": "profit",
+      "percent": 25,
+      "currentPrice": 50600,
+      "costBasisAtClose": 150,
+      "entryCountAtClose": 2,
+      "timestamp": 1711844340000,
+      "note": "RSI < 30"
+    }
+  ],
   "_accruals": [
+    {
+      "type": "asset",
+      "amount": 0.00011,
+      "timestamp": 1710980340000,
+      "note": "Staking reward #1"
+    },
+    {
+      "type": "asset",
+      "amount": 0.00011,
+      "timestamp": 1713572340000,
+      "note": "Staking reward #2"
+    },
+    {
+      "type": "asset",
+      "amount": 0.00012,
+      "timestamp": 1716077940000,
+      "note": "Staking reward #3"
+    }
+  ],
+  "entries": [
+    {
+      "price": 51800,
+      "cost": 100,
+      "timestamp": 1708388340000
+    },
+    {
+      "price": 52200,
+      "cost": 50,
+      "timestamp": 1708820340000,
+      "note": "ladder step 2"
+    }
+  ],
+  "partials": [
+    {
+      "type": "profit",
+      "percent": 25,
+      "currentPrice": 50600,
+      "costBasisAtClose": 150,
+      "entryCountAtClose": 2,
+      "timestamp": 1711844340000,
+      "note": "RSI < 30"
+    }
+  ],
+  "accruals": [
     {
       "type": "asset",
       "amount": 0.00011,

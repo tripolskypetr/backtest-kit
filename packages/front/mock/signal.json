@@ -38,6 +38,23 @@
       "note": "Quarterly dividend"
     }
   ],
+  "entries": [
+    {
+      "price": 42939.71,
+      "cost": 100,
+      "timestamp": 1707308100000
+    }
+  ],
+  "partials": [],
+  "accruals": [
+    {
+      "id": "acc00002-0000-4000-8000-000000000002",
+      "type": "cash",
+      "amount": 0.8,
+      "timestamp": 1707311700000,
+      "note": "Quarterly dividend"
+    }
+  ],
   "_peak": {
     "price": 42939.71,
     "timestamp": 1707308100000,

@@ -44,6 +44,15 @@
   ],
   "_partial": [],
   "_accruals": [],
+  "entries": [
+    {
+      "price": 49568.01,
+      "cost": 100,
+      "timestamp": 1707893040000
+    }
+  ],
+  "partials": [],
+  "accruals": [],
   "_peak": {
     "price": 49568.01,
     "timestamp": 1707893040000,

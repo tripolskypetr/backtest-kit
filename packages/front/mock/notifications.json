@@ -55,6 +55,10 @@
     "pnlPriceOpen": 51900,
     "pnlPriceClose": 51820.5,
     "pnlCost": -0.15,
+    "pnlDividends": 0,
+    "entries": [],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "createdAt": 1708876700000,
     "peakProfitPercentage": 1.8,
@@ -122,6 +126,10 @@
     "pnlPriceOpen": 0,
     "pnlPriceClose": 0,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 0,
     "peakProfitPercentage": 0,
     "peakProfitPriceOpen": 0,
@@ -183,6 +191,30 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51685.30894301844,
     "pnlCost": -0.53,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "pnlEntries": 100,
     "closeReason": "time_expired",
     "duration": 60,
@@ -225,6 +257,30 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51219.65,
     "pnlCost": -1.03,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "pnlEntries": 100,
     "position": "long",
     "priceOpen": 51754,
@@ -283,6 +339,30 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51940,
     "pnlCost": 0.36,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "pnlEntries": 100,
     "scheduledAt": 1708871640000,
     "pendingAt": 1708871700000,
@@ -331,6 +411,30 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51940,
     "pnlCost": 0.36,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "pnlEntries": 100,
     "scheduledAt": 1708871640000,
     "pendingAt": 1708871700000,
@@ -380,6 +484,30 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 53306.62,
     "pnlCost": 2.6,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "pnlEntries": 100,
     "scheduledAt": 1708871640000,
     "pendingAt": 1708871700000,
@@ -430,6 +558,10 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51940,
     "pnlCost": 0.36,
+    "pnlDividends": 0,
+    "entries": [],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "scheduledAt": 1708871640000,
     "pendingAt": 1708871700000,
@@ -480,6 +612,30 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51940,
     "pnlCost": 0.36,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "pnlEntries": 100,
     "scheduledAt": 1708871640000,
     "pendingAt": 1708871700000,
@@ -531,6 +687,30 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51940,
     "pnlCost": 0.36,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "pnlEntries": 100,
     "scheduledAt": 1708871640000,
     "pendingAt": 1708871700000,
@@ -580,6 +760,30 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51940,
     "pnlCost": 0.36,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "pnlEntries": 100,
     "scheduledAt": 1708871640000,
     "pendingAt": 1708871700000,
@@ -632,6 +836,10 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51700,
     "pnlCost": -0.1,
+    "pnlDividends": 0,
+    "entries": [],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "signalId": "1a95ee20-68d5-42be-a876-3e1fe948bd0b",
     "peakProfitPercentage": 1.8,
@@ -678,6 +886,30 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51700,
     "pnlCost": -0.1,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "pnlEntries": 100,
     "scheduledAt": 1708873140000,
     "pendingAt": 1708873170000,
@@ -728,6 +960,10 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 52000,
     "pnlCost": 0.48,
+    "pnlDividends": 0,
+    "entries": [],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "signalId": "7fd557d2-b764-4e8b-bef1-dfc6b4a74b6e",
     "peakProfitPercentage": 1.8,
@@ -776,6 +1012,10 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51950.75,
     "pnlCost": 0.38,
+    "pnlDividends": 0,
+    "entries": [],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "signalId": "11a786c9-611b-44ed-a570-cdd7e1864b27",
     "peakProfitPercentage": 1.8,
@@ -822,6 +1062,10 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51900.25,
     "pnlCost": 0.28,
+    "pnlDividends": 0,
+    "entries": [],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "createdAt": 1708872300000,
     "peakProfitPercentage": 1.8,
@@ -867,6 +1111,30 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51900.25,
     "pnlCost": 0.28,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "pnlEntries": 100,
     "scheduledAt": 1708872240000,
     "pendingAt": 1708872270000,
@@ -916,6 +1184,10 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51850.5,
     "pnlCost": 0.19,
+    "pnlDividends": 0,
+    "entries": [],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "createdAt": 1708872000000,
     "peakProfitPercentage": 1.8,
@@ -964,6 +1236,30 @@
     "pnlPriceOpen": 51717,
     "pnlPriceClose": 51680,
     "pnlCost": -0.07,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "pnlEntries": 200,
     "scheduledAt": 1708871640000,
     "pendingAt": 1708871700000,
@@ -1035,6 +1331,29 @@
     "accrualType": "cash",
     "amount": 5,
     "pnlDividends": 5,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "totalAccruals": 1,
     "pnl": {
       "pnlPercentage": 2.46,
@@ -1105,6 +1424,29 @@
     "accrualType": "asset",
     "amount": 0.001,
     "pnlDividends": 56.68,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "totalAccruals": 2,
     "pnl": {
       "pnlPercentage": 28.31,
@@ -1175,6 +1517,29 @@
     "accrualType": "cash",
     "amount": -5,
     "pnlDividends": 51.68,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "totalAccruals": 3,
     "pnl": {
       "pnlPercentage": 25.81,
@@ -1220,6 +1585,30 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51850.5,
     "pnlCost": 0.19,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "pnlEntries": 100,
     "scheduledAt": 1708871940000,
     "pendingAt": 1708871970000,
@@ -1270,6 +1659,30 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51754,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "pnlEntries": 100,
     "createdAt": 1708871700000,
     "peakProfitPercentage": 1.8,
@@ -1306,6 +1719,30 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51754,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "pnlEntries": 100,
     "cost": 100,
     "multiplier": 1,
@@ -1354,6 +1791,30 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51754,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "pnlEntries": 100,
     "cost": 100,
     "multiplier": 1,
@@ -1415,6 +1876,16 @@
     "pnlPriceOpen": 51677.02,
     "pnlPriceClose": 51658.38716022372,
     "pnlCost": -0.44,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51677.02,
+        "cost": 100,
+        "timestamp": 1708868040000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51677.02,
@@ -1464,6 +1935,16 @@
     "pnlPriceOpen": 51677.02,
     "pnlPriceClose": 51677.02,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51677.02,
+        "cost": 100,
+        "timestamp": 1708868040000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51677.02,
@@ -1512,6 +1993,16 @@
     "pnlPriceOpen": 51617.56,
     "pnlPriceClose": 51696.42673346863,
     "pnlCost": -0.25,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51617.56,
+        "cost": 100,
+        "timestamp": 1708836480000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51617.56,
@@ -1561,6 +2052,16 @@
     "pnlPriceOpen": 51617.56,
     "pnlPriceClose": 51617.56,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51617.56,
+        "cost": 100,
+        "timestamp": 1708836480000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51617.56,
@@ -1609,6 +2110,16 @@
     "pnlPriceOpen": 51624.99,
     "pnlPriceClose": 51557.14480786588,
     "pnlCost": -0.53,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51624.99,
+        "cost": 100,
+        "timestamp": 1708832820000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51624.99,
@@ -1658,6 +2169,16 @@
     "pnlPriceOpen": 51624.99,
     "pnlPriceClose": 51624.99,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51624.99,
+        "cost": 100,
+        "timestamp": 1708832820000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51624.99,
@@ -1706,6 +2227,16 @@
     "pnlPriceOpen": 51695.22,
     "pnlPriceClose": 51581.2659122087,
     "pnlCost": -0.62,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51695.22,
+        "cost": 100,
+        "timestamp": 1708828860000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51695.22,
@@ -1755,6 +2286,16 @@
     "pnlPriceOpen": 51695.22,
     "pnlPriceClose": 51582.65415952071,
     "pnlCost": -0.22,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51695.22,
+        "cost": 100,
+        "timestamp": 1708828860000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51695.22,
@@ -1803,6 +2344,16 @@
     "pnlPriceOpen": 51695.22,
     "pnlPriceClose": 51695.22,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51695.22,
+        "cost": 100,
+        "timestamp": 1708828860000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51695.22,
@@ -1850,6 +2401,16 @@
     "pnlPriceOpen": 51695.22,
     "pnlPriceClose": 51755.37138327176,
     "pnlCost": 0.12,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51695.22,
+        "cost": 100,
+        "timestamp": 1708828860000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51695.22,
@@ -1897,6 +2458,16 @@
     "pnlPriceOpen": 51619.48,
     "pnlPriceClose": 51755.37138327176,
     "pnlCost": -0.14,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51619.48,
+        "cost": 100,
+        "timestamp": 1708824900000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51619.48,
@@ -1946,6 +2517,16 @@
     "pnlPriceOpen": 51619.48,
     "pnlPriceClose": 51784.55981361557,
     "pnlCost": 0.32,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51619.48,
+        "cost": 100,
+        "timestamp": 1708824900000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51619.48,
@@ -1994,6 +2575,16 @@
     "pnlPriceOpen": 51619.48,
     "pnlPriceClose": 51515.3246377242,
     "pnlCost": -0.2,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51619.48,
+        "cost": 100,
+        "timestamp": 1708824900000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51619.48,
@@ -2042,6 +2633,16 @@
     "pnlPriceOpen": 51619.48,
     "pnlPriceClose": 51619.48,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51619.48,
+        "cost": 100,
+        "timestamp": 1708824900000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51619.48,
@@ -2090,6 +2691,16 @@
     "pnlPriceOpen": 51088,
     "pnlPriceClose": 51147.29174634819,
     "pnlCost": -0.28,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51088,
+        "cost": 100,
+        "timestamp": 1708784040000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51088,
@@ -2139,6 +2750,16 @@
     "pnlPriceOpen": 51088,
     "pnlPriceClose": 51088,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51088,
+        "cost": 100,
+        "timestamp": 1708784040000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51088,
@@ -2186,6 +2807,16 @@
     "pnlPriceOpen": 51088,
     "pnlPriceClose": 51123.376318928415,
     "pnlCost": 0.07,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51088,
+        "cost": 100,
+        "timestamp": 1708784040000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51088,
@@ -2233,6 +2864,16 @@
     "pnlPriceOpen": 51094.52,
     "pnlPriceClose": 51123.376318928415,
     "pnlCost": -0.34,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51094.52,
+        "cost": 100,
+        "timestamp": 1708779900000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51094.52,
@@ -2282,6 +2923,16 @@
     "pnlPriceOpen": 51094.52,
     "pnlPriceClose": 51094.52,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51094.52,
+        "cost": 100,
+        "timestamp": 1708779900000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51094.52,
@@ -2330,6 +2981,16 @@
     "pnlPriceOpen": 50977.99,
     "pnlPriceClose": 50861.0242377258,
     "pnlCost": -0.17,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 50977.99,
+        "cost": 100,
+        "timestamp": 1708702440000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 50977.99,
@@ -2379,6 +3040,16 @@
     "pnlPriceOpen": 50977.99,
     "pnlPriceClose": 50800.19241163556,
     "pnlCost": 0.35,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 50977.99,
+        "cost": 100,
+        "timestamp": 1708702440000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 50977.99,
@@ -2427,6 +3098,16 @@
     "pnlPriceOpen": 50977.99,
     "pnlPriceClose": 50977.99,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 50977.99,
+        "cost": 100,
+        "timestamp": 1708702440000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 50977.99,
@@ -2474,6 +3155,16 @@
     "pnlPriceOpen": 50977.99,
     "pnlPriceClose": 50918.45105553351,
     "pnlCost": 0.12,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 50977.99,
+        "cost": 100,
+        "timestamp": 1708702440000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 50977.99,
@@ -2521,6 +3212,16 @@
     "pnlPriceOpen": 50916.01,
     "pnlPriceClose": 50918.45105553351,
     "pnlCost": -0.41,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 50916.01,
+        "cost": 100,
+        "timestamp": 1708698780000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 50916.01,
@@ -2570,6 +3271,16 @@
     "pnlPriceOpen": 50916.01,
     "pnlPriceClose": 51232.98823845023,
     "pnlCost": -0.62,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 50916.01,
+        "cost": 100,
+        "timestamp": 1708698780000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 50916.01,
@@ -2618,6 +3329,16 @@
     "pnlPriceOpen": 50916.01,
     "pnlPriceClose": 51232.98823845023,
     "pnlCost": -0.62,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 50916.01,
+        "cost": 100,
+        "timestamp": 1708698780000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 50916.01,
@@ -2666,6 +3387,16 @@
     "pnlPriceOpen": 50916.01,
     "pnlPriceClose": 51232.98823845023,
     "pnlCost": -0.62,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 50916.01,
+        "cost": 100,
+        "timestamp": 1708698780000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 50916.01,
@@ -2714,6 +3445,16 @@
     "pnlPriceOpen": 50916.01,
     "pnlPriceClose": 50916.01,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 50916.01,
+        "cost": 100,
+        "timestamp": 1708698780000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 50916.01,
@@ -2762,6 +3503,16 @@
     "pnlPriceOpen": 51616.71,
     "pnlPriceClose": 51771.80443655523,
     "pnlCost": -0.1,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51616.71,
+        "cost": 100,
+        "timestamp": 1708582620000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51616.71,
@@ -2811,6 +3562,16 @@
     "pnlPriceOpen": 51616.71,
     "pnlPriceClose": 51776.13314720883,
     "pnlCost": 0.31,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51616.71,
+        "cost": 100,
+        "timestamp": 1708582620000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51616.71,
@@ -2859,6 +3620,16 @@
     "pnlPriceOpen": 51616.71,
     "pnlPriceClose": 51616.71,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51616.71,
+        "cost": 100,
+        "timestamp": 1708582620000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51616.71,
@@ -2907,6 +3678,16 @@
     "pnlPriceOpen": 51620.87,
     "pnlPriceClose": 51588.20405345147,
     "pnlCost": -0.46,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51620.87,
+        "cost": 100,
+        "timestamp": 1708578960000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51620.87,
@@ -2956,6 +3737,16 @@
     "pnlPriceOpen": 51620.87,
     "pnlPriceClose": 51497.72660877685,
     "pnlCost": -0.24,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51620.87,
+        "cost": 100,
+        "timestamp": 1708578960000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51620.87,
@@ -3004,6 +3795,16 @@
     "pnlPriceOpen": 51620.87,
     "pnlPriceClose": 51620.87,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51620.87,
+        "cost": 100,
+        "timestamp": 1708578960000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 51620.87,
@@ -3052,6 +3853,16 @@
     "pnlPriceOpen": 51385.34,
     "pnlPriceClose": 51503.80803850643,
     "pnlCost": -0.63,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51385.34,
+        "cost": 100,
+        "timestamp": 1708552800000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 51385.34,
@@ -3101,6 +3912,16 @@
     "pnlPriceOpen": 51385.34,
     "pnlPriceClose": 51488.71366372467,
     "pnlCost": -0.2,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51385.34,
+        "cost": 100,
+        "timestamp": 1708552800000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 51385.34,
@@ -3149,6 +3970,16 @@
     "pnlPriceOpen": 51385.34,
     "pnlPriceClose": 51385.34,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51385.34,
+        "cost": 100,
+        "timestamp": 1708552800000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 51385.34,
@@ -3196,6 +4027,16 @@
     "pnlPriceOpen": 51385.34,
     "pnlPriceClose": 51363.58111709624,
     "pnlCost": 0.04,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51385.34,
+        "cost": 100,
+        "timestamp": 1708552800000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 51385.34,
@@ -3243,6 +4084,16 @@
     "pnlPriceOpen": 50957.94,
     "pnlPriceClose": 51363.58111709624,
     "pnlCost": -1.2,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 50957.94,
+        "cost": 100,
+        "timestamp": 1708549140000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 50957.94,
@@ -3292,6 +4143,16 @@
     "pnlPriceOpen": 50957.94,
     "pnlPriceClose": 51265.80381142919,
     "pnlCost": -0.6,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 50957.94,
+        "cost": 100,
+        "timestamp": 1708549140000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 50957.94,
@@ -3340,6 +4201,16 @@
     "pnlPriceOpen": 50957.94,
     "pnlPriceClose": 51184.31465517547,
     "pnlCost": -0.44,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 50957.94,
+        "cost": 100,
+        "timestamp": 1708549140000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 50957.94,
@@ -3388,6 +4259,16 @@
     "pnlPriceOpen": 50957.94,
     "pnlPriceClose": 51074.460187261786,
     "pnlCost": -0.23,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 50957.94,
+        "cost": 100,
+        "timestamp": 1708549140000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 50957.94,
@@ -3436,6 +4317,16 @@
     "pnlPriceOpen": 50957.94,
     "pnlPriceClose": 50957.94,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 50957.94,
+        "cost": 100,
+        "timestamp": 1708549140000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 50957.94,
@@ -3483,6 +4374,16 @@
     "pnlPriceOpen": 50957.94,
     "pnlPriceClose": 50940.64023284996,
     "pnlCost": 0.03,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 50957.94,
+        "cost": 100,
+        "timestamp": 1708549140000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 50957.94,
@@ -3530,6 +4431,51 @@
     "pnlPriceOpen": 51800,
     "pnlPriceClose": 51614.11386594473,
     "pnlCost": -0.04,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51800,
+        "cost": 100,
+        "timestamp": 1708388340000
+      },
+      {
+        "price": 52200,
+        "cost": 50,
+        "timestamp": 1708820340000,
+        "note": "ladder step 2"
+      }
+    ],
+    "partials": [
+      {
+        "type": "profit",
+        "percent": 25,
+        "currentPrice": 50600,
+        "costBasisAtClose": 150,
+        "entryCountAtClose": 2,
+        "timestamp": 1711844340000,
+        "note": "RSI < 30"
+      }
+    ],
+    "accruals": [
+      {
+        "type": "asset",
+        "amount": 0.00011,
+        "timestamp": 1710980340000,
+        "note": "Staking reward #1"
+      },
+      {
+        "type": "asset",
+        "amount": 0.00011,
+        "timestamp": 1713572340000,
+        "note": "Staking reward #2"
+      },
+      {
+        "type": "asset",
+        "amount": 0.00012,
+        "timestamp": 1716077940000,
+        "note": "Staking reward #3"
+      }
+    ],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 51800,
@@ -3579,6 +4525,51 @@
     "pnlPriceOpen": 51800,
     "pnlPriceClose": 51629.19460888641,
     "pnlCost": 0.33,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51800,
+        "cost": 100,
+        "timestamp": 1708388340000
+      },
+      {
+        "price": 52200,
+        "cost": 50,
+        "timestamp": 1708820340000,
+        "note": "ladder step 2"
+      }
+    ],
+    "partials": [
+      {
+        "type": "profit",
+        "percent": 25,
+        "currentPrice": 50600,
+        "costBasisAtClose": 150,
+        "entryCountAtClose": 2,
+        "timestamp": 1711844340000,
+        "note": "RSI < 30"
+      }
+    ],
+    "accruals": [
+      {
+        "type": "asset",
+        "amount": 0.00011,
+        "timestamp": 1710980340000,
+        "note": "Staking reward #1"
+      },
+      {
+        "type": "asset",
+        "amount": 0.00011,
+        "timestamp": 1713572340000,
+        "note": "Staking reward #2"
+      },
+      {
+        "type": "asset",
+        "amount": 0.00012,
+        "timestamp": 1716077940000,
+        "note": "Staking reward #3"
+      }
+    ],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 51800,
@@ -3627,6 +4618,51 @@
     "pnlPriceOpen": 51800,
     "pnlPriceClose": 51800,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51800,
+        "cost": 100,
+        "timestamp": 1708388340000
+      },
+      {
+        "price": 52200,
+        "cost": 50,
+        "timestamp": 1708820340000,
+        "note": "ladder step 2"
+      }
+    ],
+    "partials": [
+      {
+        "type": "profit",
+        "percent": 25,
+        "currentPrice": 50600,
+        "costBasisAtClose": 150,
+        "entryCountAtClose": 2,
+        "timestamp": 1711844340000,
+        "note": "RSI < 30"
+      }
+    ],
+    "accruals": [
+      {
+        "type": "asset",
+        "amount": 0.00011,
+        "timestamp": 1710980340000,
+        "note": "Staking reward #1"
+      },
+      {
+        "type": "asset",
+        "amount": 0.00011,
+        "timestamp": 1713572340000,
+        "note": "Staking reward #2"
+      },
+      {
+        "type": "asset",
+        "amount": 0.00012,
+        "timestamp": 1716077940000,
+        "note": "Staking reward #3"
+      }
+    ],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 51800,
@@ -3674,6 +4710,51 @@
     "pnlPriceOpen": 51800,
     "pnlPriceClose": 51790.73439011578,
     "pnlCost": 0.02,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51800,
+        "cost": 100,
+        "timestamp": 1708388340000
+      },
+      {
+        "price": 52200,
+        "cost": 50,
+        "timestamp": 1708820340000,
+        "note": "ladder step 2"
+      }
+    ],
+    "partials": [
+      {
+        "type": "profit",
+        "percent": 25,
+        "currentPrice": 50600,
+        "costBasisAtClose": 150,
+        "entryCountAtClose": 2,
+        "timestamp": 1711844340000,
+        "note": "RSI < 30"
+      }
+    ],
+    "accruals": [
+      {
+        "type": "asset",
+        "amount": 0.00011,
+        "timestamp": 1710980340000,
+        "note": "Staking reward #1"
+      },
+      {
+        "type": "asset",
+        "amount": 0.00011,
+        "timestamp": 1713572340000,
+        "note": "Staking reward #2"
+      },
+      {
+        "type": "asset",
+        "amount": 0.00012,
+        "timestamp": 1716077940000,
+        "note": "Staking reward #3"
+      }
+    ],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 51800,
@@ -3742,6 +4823,50 @@
     "accrualType": "asset",
     "amount": 0.00011,
     "pnlDividends": 5.67,
+    "entries": [
+      {
+        "price": 51800,
+        "cost": 100,
+        "timestamp": 1708388340000
+      },
+      {
+        "price": 52200,
+        "cost": 50,
+        "timestamp": 1708820340000,
+        "note": "ladder step 2"
+      }
+    ],
+    "partials": [
+      {
+        "type": "profit",
+        "percent": 25,
+        "currentPrice": 50600,
+        "costBasisAtClose": 150,
+        "entryCountAtClose": 2,
+        "timestamp": 1711844340000,
+        "note": "RSI < 30"
+      }
+    ],
+    "accruals": [
+      {
+        "type": "asset",
+        "amount": 0.00011,
+        "timestamp": 1710980340000,
+        "note": "Staking reward #1"
+      },
+      {
+        "type": "asset",
+        "amount": 0.00011,
+        "timestamp": 1713572340000,
+        "note": "Staking reward #2"
+      },
+      {
+        "type": "asset",
+        "amount": 0.00012,
+        "timestamp": 1716077940000,
+        "note": "Staking reward #3"
+      }
+    ],
     "totalAccruals": 1,
     "pnl": {
       "pnlPercentage": 6.25,
@@ -3812,6 +4937,50 @@
     "accrualType": "asset",
     "amount": 0.00011,
     "pnlDividends": 11.26,
+    "entries": [
+      {
+        "price": 51800,
+        "cost": 100,
+        "timestamp": 1708388340000
+      },
+      {
+        "price": 52200,
+        "cost": 50,
+        "timestamp": 1708820340000,
+        "note": "ladder step 2"
+      }
+    ],
+    "partials": [
+      {
+        "type": "profit",
+        "percent": 25,
+        "currentPrice": 50600,
+        "costBasisAtClose": 150,
+        "entryCountAtClose": 2,
+        "timestamp": 1711844340000,
+        "note": "RSI < 30"
+      }
+    ],
+    "accruals": [
+      {
+        "type": "asset",
+        "amount": 0.00011,
+        "timestamp": 1710980340000,
+        "note": "Staking reward #1"
+      },
+      {
+        "type": "asset",
+        "amount": 0.00011,
+        "timestamp": 1713572340000,
+        "note": "Staking reward #2"
+      },
+      {
+        "type": "asset",
+        "amount": 0.00012,
+        "timestamp": 1716077940000,
+        "note": "Staking reward #3"
+      }
+    ],
     "totalAccruals": 2,
     "pnl": {
       "pnlPercentage": 12.42,
@@ -3882,6 +5051,50 @@
     "accrualType": "asset",
     "amount": 0.00012,
     "pnlDividends": 17.32,
+    "entries": [
+      {
+        "price": 51800,
+        "cost": 100,
+        "timestamp": 1708388340000
+      },
+      {
+        "price": 52200,
+        "cost": 50,
+        "timestamp": 1708820340000,
+        "note": "ladder step 2"
+      }
+    ],
+    "partials": [
+      {
+        "type": "profit",
+        "percent": 25,
+        "currentPrice": 50600,
+        "costBasisAtClose": 150,
+        "entryCountAtClose": 2,
+        "timestamp": 1711844340000,
+        "note": "RSI < 30"
+      }
+    ],
+    "accruals": [
+      {
+        "type": "asset",
+        "amount": 0.00011,
+        "timestamp": 1710980340000,
+        "note": "Staking reward #1"
+      },
+      {
+        "type": "asset",
+        "amount": 0.00011,
+        "timestamp": 1713572340000,
+        "note": "Staking reward #2"
+      },
+      {
+        "type": "asset",
+        "amount": 0.00012,
+        "timestamp": 1716077940000,
+        "note": "Staking reward #3"
+      }
+    ],
     "totalAccruals": 3,
     "pnl": {
       "pnlPercentage": 18.99,
@@ -3931,6 +5144,16 @@
     "pnlPriceOpen": 51822.13,
     "pnlPriceClose": 51790.73439011578,
     "pnlCost": -0.34,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51822.13,
+        "cost": 100,
+        "timestamp": 1708384680000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 51822.13,
@@ -3980,6 +5203,16 @@
     "pnlPriceOpen": 51822.13,
     "pnlPriceClose": 51947.95924540789,
     "pnlCost": -0.24,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51822.13,
+        "cost": 100,
+        "timestamp": 1708384680000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 51822.13,
@@ -4028,6 +5261,16 @@
     "pnlPriceOpen": 51822.13,
     "pnlPriceClose": 51822.13,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51822.13,
+        "cost": 100,
+        "timestamp": 1708384680000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 51822.13,
@@ -4076,6 +5319,16 @@
     "pnlPriceOpen": 52427.32,
     "pnlPriceClose": 52368.40183391254,
     "pnlCost": -0.51,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 52427.32,
+        "cost": 100,
+        "timestamp": 1708338720000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 52427.32,
@@ -4125,6 +5378,16 @@
     "pnlPriceOpen": 52427.32,
     "pnlPriceClose": 52237.10842426467,
     "pnlCost": -0.36,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 52427.32,
+        "cost": 100,
+        "timestamp": 1708338720000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 52427.32,
@@ -4173,6 +5436,16 @@
     "pnlPriceOpen": 52427.32,
     "pnlPriceClose": 52427.32,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 52427.32,
+        "cost": 100,
+        "timestamp": 1708338720000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 52427.32,
@@ -4221,6 +5494,16 @@
     "pnlPriceOpen": 52357.01,
     "pnlPriceClose": 52224.491188523825,
     "pnlCost": -0.65,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 52357.01,
+        "cost": 100,
+        "timestamp": 1708335060000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 52357.01,
@@ -4270,6 +5553,16 @@
     "pnlPriceOpen": 52357.01,
     "pnlPriceClose": 52251.403048889675,
     "pnlCost": -0.2,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 52357.01,
+        "cost": 100,
+        "timestamp": 1708335060000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 52357.01,
@@ -4318,6 +5611,16 @@
     "pnlPriceOpen": 52357.01,
     "pnlPriceClose": 52357.01,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 52357.01,
+        "cost": 100,
+        "timestamp": 1708335060000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 52357.01,
@@ -4366,6 +5669,16 @@
     "pnlPriceOpen": 52200.01,
     "pnlPriceClose": 52359.88169848502,
     "pnlCost": -0.09,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 52200.01,
+        "cost": 100,
+        "timestamp": 1707993000000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 52200.01,
@@ -4415,6 +5728,16 @@
     "pnlPriceOpen": 52200.01,
     "pnlPriceClose": 52200.01,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 52200.01,
+        "cost": 100,
+        "timestamp": 1707993000000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 52200.01,
@@ -4462,6 +5785,16 @@
     "pnlPriceOpen": 52200.01,
     "pnlPriceClose": 52214.10540623115,
     "pnlCost": 0.03,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 52200.01,
+        "cost": 100,
+        "timestamp": 1707993000000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 52200.01,
@@ -4509,6 +5842,16 @@
     "pnlPriceOpen": 52078,
     "pnlPriceClose": 52214.10540623115,
     "pnlCost": -0.14,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 52078,
+        "cost": 100,
+        "timestamp": 1707989340000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 52078,
@@ -4558,6 +5901,16 @@
     "pnlPriceOpen": 52078,
     "pnlPriceClose": 52237.88281979302,
     "pnlCost": 0.31,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 52078,
+        "cost": 100,
+        "timestamp": 1707989340000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 52078,
@@ -4606,6 +5959,16 @@
     "pnlPriceOpen": 52078,
     "pnlPriceClose": 52078,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 52078,
+        "cost": 100,
+        "timestamp": 1707989340000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 52078,
@@ -4653,6 +6016,16 @@
     "pnlPriceOpen": 52078,
     "pnlPriceClose": 52128.187391537096,
     "pnlCost": 0.1,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 52078,
+        "cost": 100,
+        "timestamp": 1707989340000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 52078,
@@ -4700,6 +6073,16 @@
     "pnlPriceOpen": 49568.01,
     "pnlPriceClose": 49773.090233467585,
     "pnlCost": 0.01,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 49568.01,
+        "cost": 100,
+        "timestamp": 1707893040000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 49568.01,
@@ -4749,6 +6132,16 @@
     "pnlPriceOpen": 49568.01,
     "pnlPriceClose": 49723.87861223433,
     "pnlCost": 0.31,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 49568.01,
+        "cost": 100,
+        "timestamp": 1707893040000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 49568.01,
@@ -4797,6 +6190,16 @@
     "pnlPriceOpen": 49568.01,
     "pnlPriceClose": 49568.01,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 49568.01,
+        "cost": 100,
+        "timestamp": 1707893040000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 49568.01,
@@ -4844,6 +6247,16 @@
     "pnlPriceOpen": 49568.01,
     "pnlPriceClose": 49606.85203357287,
     "pnlCost": 0.08,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 49568.01,
+        "cost": 100,
+        "timestamp": 1707893040000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 49568.01,
@@ -4891,6 +6304,16 @@
     "pnlPriceOpen": 49524.64,
     "pnlPriceClose": 49606.85203357287,
     "pnlCost": -0.23,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 49524.64,
+        "cost": 100,
+        "timestamp": 1707889320000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 49524.64,
@@ -4940,6 +6363,16 @@
     "pnlPriceOpen": 49524.64,
     "pnlPriceClose": 49524.64,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 49524.64,
+        "cost": 100,
+        "timestamp": 1707889320000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 49524.64,
@@ -4987,6 +6420,16 @@
     "pnlPriceOpen": 49524.64,
     "pnlPriceClose": 49526.347967362584,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 49524.64,
+        "cost": 100,
+        "timestamp": 1707889320000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 49524.64,
@@ -5034,6 +6477,16 @@
     "pnlPriceOpen": 47880.92,
     "pnlPriceClose": 47974.67761803693,
     "pnlCost": -0.6,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 47880.92,
+        "cost": 100,
+        "timestamp": 1707731220000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 47880.92,
@@ -5083,6 +6536,16 @@
     "pnlPriceOpen": 47880.92,
     "pnlPriceClose": 47987.58254913077,
     "pnlCost": -0.22,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 47880.92,
+        "cost": 100,
+        "timestamp": 1707731220000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 47880.92,
@@ -5131,6 +6594,16 @@
     "pnlPriceOpen": 47880.92,
     "pnlPriceClose": 47880.92,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 47880.92,
+        "cost": 100,
+        "timestamp": 1707731220000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 47880.92,
@@ -5179,6 +6652,16 @@
     "pnlPriceOpen": 48114.01,
     "pnlPriceClose": 47986.34632448641,
     "pnlCost": -0.13,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48114.01,
+        "cost": 100,
+        "timestamp": 1707727560000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 48114.01,
@@ -5228,6 +6711,16 @@
     "pnlPriceOpen": 48114.01,
     "pnlPriceClose": 48114.01,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48114.01,
+        "cost": 100,
+        "timestamp": 1707727560000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 48114.01,
@@ -5276,6 +6769,16 @@
     "pnlPriceOpen": 48604,
     "pnlPriceClose": 48415.761194629704,
     "pnlCost": -0.79,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48604,
+        "cost": 100,
+        "timestamp": 1707699000000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48604,
@@ -5325,6 +6828,16 @@
     "pnlPriceOpen": 48604,
     "pnlPriceClose": 48404.513339379286,
     "pnlCost": -0.41,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48604,
+        "cost": 100,
+        "timestamp": 1707699000000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48604,
@@ -5373,6 +6886,16 @@
     "pnlPriceOpen": 48604,
     "pnlPriceClose": 48504.481680080266,
     "pnlCost": -0.2,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48604,
+        "cost": 100,
+        "timestamp": 1707699000000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48604,
@@ -5421,6 +6944,16 @@
     "pnlPriceOpen": 48604,
     "pnlPriceClose": 48604,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48604,
+        "cost": 100,
+        "timestamp": 1707699000000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48604,
@@ -5468,6 +7001,16 @@
     "pnlPriceOpen": 48604,
     "pnlPriceClose": 48615.39414973843,
     "pnlCost": 0.02,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48604,
+        "cost": 100,
+        "timestamp": 1707699000000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48604,
@@ -5515,6 +7058,16 @@
     "pnlPriceOpen": 48299.99,
     "pnlPriceClose": 48615.39414973843,
     "pnlCost": 0.25,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48299.99,
+        "cost": 100,
+        "timestamp": 1707695340000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48299.99,
@@ -5564,6 +7117,16 @@
     "pnlPriceOpen": 48299.99,
     "pnlPriceClose": 48591.647004992425,
     "pnlCost": 0.6,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48299.99,
+        "cost": 100,
+        "timestamp": 1707695340000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48299.99,
@@ -5611,6 +7174,16 @@
     "pnlPriceOpen": 48299.99,
     "pnlPriceClose": 48591.647004992425,
     "pnlCost": 0.6,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48299.99,
+        "cost": 100,
+        "timestamp": 1707695340000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48299.99,
@@ -5659,6 +7232,16 @@
     "pnlPriceOpen": 48299.99,
     "pnlPriceClose": 48480.640286992624,
     "pnlCost": 0.37,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48299.99,
+        "cost": 100,
+        "timestamp": 1707695340000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48299.99,
@@ -5707,6 +7290,16 @@
     "pnlPriceOpen": 48299.99,
     "pnlPriceClose": 48167.01001433432,
     "pnlCost": -0.28,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48299.99,
+        "cost": 100,
+        "timestamp": 1707695340000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48299.99,
@@ -5755,6 +7348,16 @@
     "pnlPriceOpen": 48299.99,
     "pnlPriceClose": 48299.99,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48299.99,
+        "cost": 100,
+        "timestamp": 1707695340000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48299.99,
@@ -5803,6 +7406,16 @@
     "pnlPriceOpen": 48284,
     "pnlPriceClose": 48119.34714871467,
     "pnlCost": -0.74,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48284,
+        "cost": 100,
+        "timestamp": 1707680880000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48284,
@@ -5852,6 +7465,16 @@
     "pnlPriceOpen": 48284,
     "pnlPriceClose": 48180.51668356712,
     "pnlCost": -0.21,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48284,
+        "cost": 100,
+        "timestamp": 1707680880000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48284,
@@ -5900,6 +7523,16 @@
     "pnlPriceOpen": 48284,
     "pnlPriceClose": 48284,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48284,
+        "cost": 100,
+        "timestamp": 1707680880000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48284,
@@ -5947,6 +7580,16 @@
     "pnlPriceOpen": 48284,
     "pnlPriceClose": 48299.63674674899,
     "pnlCost": 0.03,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48284,
+        "cost": 100,
+        "timestamp": 1707680880000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48284,
@@ -5994,6 +7637,16 @@
     "pnlPriceOpen": 48282.22,
     "pnlPriceClose": 48299.63674674899,
     "pnlCost": -0.36,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48282.22,
+        "cost": 100,
+        "timestamp": 1707677160000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48282.22,
@@ -6043,6 +7696,16 @@
     "pnlPriceOpen": 48282.22,
     "pnlPriceClose": 48165.432533539046,
     "pnlCost": -0.24,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48282.22,
+        "cost": 100,
+        "timestamp": 1707677160000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48282.22,
@@ -6091,6 +7754,16 @@
     "pnlPriceOpen": 48282.22,
     "pnlPriceClose": 48282.22,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 48282.22,
+        "cost": 100,
+        "timestamp": 1707677160000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 48282.22,
@@ -6139,6 +7812,16 @@
     "pnlPriceOpen": 47377.98,
     "pnlPriceClose": 47770.70350025848,
     "pnlCost": 0.43,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 47377.98,
+        "cost": 100,
+        "timestamp": 1707498300000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 47377.98,
@@ -6188,6 +7871,16 @@
     "pnlPriceOpen": 47377.98,
     "pnlPriceClose": 47700.222651160446,
     "pnlCost": 0.68,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 47377.98,
+        "cost": 100,
+        "timestamp": 1707498300000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 47377.98,
@@ -6235,6 +7928,16 @@
     "pnlPriceOpen": 47377.98,
     "pnlPriceClose": 47700.222651160446,
     "pnlCost": 0.68,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 47377.98,
+        "cost": 100,
+        "timestamp": 1707498300000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 47377.98,
@@ -6283,6 +7986,16 @@
     "pnlPriceOpen": 47377.98,
     "pnlPriceClose": 47521.97894283117,
     "pnlCost": 0.3,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 47377.98,
+        "cost": 100,
+        "timestamp": 1707498300000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 47377.98,
@@ -6331,6 +8044,16 @@
     "pnlPriceOpen": 47377.98,
     "pnlPriceClose": 47249.33259419059,
     "pnlCost": -0.27,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 47377.98,
+        "cost": 100,
+        "timestamp": 1707498300000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 47377.98,
@@ -6379,6 +8102,16 @@
     "pnlPriceOpen": 47377.98,
     "pnlPriceClose": 47377.98,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 47377.98,
+        "cost": 100,
+        "timestamp": 1707498300000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 47377.98,
@@ -6427,6 +8160,16 @@
     "pnlPriceOpen": 47378.01,
     "pnlPriceClose": 47254.59506687113,
     "pnlCost": -0.66,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 47378.01,
+        "cost": 100,
+        "timestamp": 1707494640000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 47378.01,
@@ -6476,6 +8219,16 @@
     "pnlPriceOpen": 47378.01,
     "pnlPriceClose": 47202.518127277806,
     "pnlCost": -0.37,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 47378.01,
+        "cost": 100,
+        "timestamp": 1707494640000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 47378.01,
@@ -6524,6 +8277,16 @@
     "pnlPriceOpen": 47378.01,
     "pnlPriceClose": 47378.01,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 47378.01,
+        "cost": 100,
+        "timestamp": 1707494640000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 47378.01,
@@ -6572,6 +8335,23 @@
     "pnlPriceOpen": 45181.99,
     "pnlPriceClose": 45119.308804858745,
     "pnlCost": -0.54,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 45181.99,
+        "cost": 100,
+        "timestamp": 1707400980000
+      }
+    ],
+    "partials": [],
+    "accruals": [
+      {
+        "type": "cash",
+        "amount": 1.25,
+        "timestamp": 1707487380000,
+        "note": "Quarterly dividend"
+      }
+    ],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 45181.99,
@@ -6621,6 +8401,23 @@
     "pnlPriceOpen": 45181.99,
     "pnlPriceClose": 44970.67899904455,
     "pnlCost": -0.47,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 45181.99,
+        "cost": 100,
+        "timestamp": 1707400980000
+      }
+    ],
+    "partials": [],
+    "accruals": [
+      {
+        "type": "cash",
+        "amount": 1.25,
+        "timestamp": 1707487380000,
+        "note": "Quarterly dividend"
+      }
+    ],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 45181.99,
@@ -6669,6 +8466,23 @@
     "pnlPriceOpen": 45181.99,
     "pnlPriceClose": 44970.67899904455,
     "pnlCost": -0.47,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 45181.99,
+        "cost": 100,
+        "timestamp": 1707400980000
+      }
+    ],
+    "partials": [],
+    "accruals": [
+      {
+        "type": "cash",
+        "amount": 1.25,
+        "timestamp": 1707487380000,
+        "note": "Quarterly dividend"
+      }
+    ],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 45181.99,
@@ -6717,6 +8531,23 @@
     "pnlPriceOpen": 45181.99,
     "pnlPriceClose": 45181.99,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 45181.99,
+        "cost": 100,
+        "timestamp": 1707400980000
+      }
+    ],
+    "partials": [],
+    "accruals": [
+      {
+        "type": "cash",
+        "amount": 1.25,
+        "timestamp": 1707487380000,
+        "note": "Quarterly dividend"
+      }
+    ],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 45181.99,
@@ -6765,6 +8596,16 @@
     "pnlPriceOpen": 44799.45,
     "pnlPriceClose": 44970.07948879169,
     "pnlCost": -0.02,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 44799.45,
+        "cost": 100,
+        "timestamp": 1707397320000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 44799.45,
@@ -6814,6 +8655,16 @@
     "pnlPriceOpen": 44799.45,
     "pnlPriceClose": 44947.87126421306,
     "pnlCost": 0.33,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 44799.45,
+        "cost": 100,
+        "timestamp": 1707397320000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 44799.45,
@@ -6862,6 +8713,16 @@
     "pnlPriceOpen": 44799.45,
     "pnlPriceClose": 44700.93075689441,
     "pnlCost": -0.22,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 44799.45,
+        "cost": 100,
+        "timestamp": 1707397320000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 44799.45,
@@ -6910,6 +8771,16 @@
     "pnlPriceOpen": 44799.45,
     "pnlPriceClose": 44799.45,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 44799.45,
+        "cost": 100,
+        "timestamp": 1707397320000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 44799.45,
@@ -6958,6 +8829,16 @@
     "pnlPriceOpen": 44624.15,
     "pnlPriceClose": 44699.067574011075,
     "pnlCost": -0.23,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 44624.15,
+        "cost": 100,
+        "timestamp": 1707383460000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 44624.15,
@@ -7007,6 +8888,16 @@
     "pnlPriceOpen": 44624.15,
     "pnlPriceClose": 44624.15,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 44624.15,
+        "cost": 100,
+        "timestamp": 1707383460000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 44624.15,
@@ -7054,6 +8945,16 @@
     "pnlPriceOpen": 44624.15,
     "pnlPriceClose": 44718.045209230186,
     "pnlCost": 0.21,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 44624.15,
+        "cost": 100,
+        "timestamp": 1707383460000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 44624.15,
@@ -7101,6 +9002,16 @@
     "pnlPriceOpen": 44614.48,
     "pnlPriceClose": 44718.045209230186,
     "pnlCost": -0.17,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 44614.48,
+        "cost": 100,
+        "timestamp": 1707379260000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 44614.48,
@@ -7150,6 +9061,16 @@
     "pnlPriceOpen": 44614.48,
     "pnlPriceClose": 44614.48,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 44614.48,
+        "cost": 100,
+        "timestamp": 1707379260000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 44614.48,
@@ -7198,6 +9119,16 @@
     "pnlPriceOpen": 42939.71,
     "pnlPriceClose": 43097.72901789697,
     "pnlCost": -0.77,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 42939.71,
+        "cost": 100,
+        "timestamp": 1707308100000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 42939.71,
@@ -7247,6 +9178,16 @@
     "pnlPriceOpen": 42939.71,
     "pnlPriceClose": 43027.803603820954,
     "pnlCost": -0.21,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 42939.71,
+        "cost": 100,
+        "timestamp": 1707308100000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 42939.71,
@@ -7295,6 +9236,16 @@
     "pnlPriceOpen": 42939.71,
     "pnlPriceClose": 42939.71,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 42939.71,
+        "cost": 100,
+        "timestamp": 1707308100000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 42939.71,
@@ -7342,6 +9293,16 @@
     "pnlPriceOpen": 42939.71,
     "pnlPriceClose": 42917.28753843722,
     "pnlCost": 0.05,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 42939.71,
+        "cost": 100,
+        "timestamp": 1707308100000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 42939.71,
@@ -7389,6 +9350,16 @@
     "pnlPriceOpen": 42969.86,
     "pnlPriceClose": 42917.28753843722,
     "pnlCost": -0.28,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 42969.86,
+        "cost": 100,
+        "timestamp": 1707304440000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 42969.86,
@@ -7438,6 +9409,16 @@
     "pnlPriceOpen": 42969.86,
     "pnlPriceClose": 42969.86,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 42969.86,
+        "cost": 100,
+        "timestamp": 1707304440000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 42969.86,
@@ -7485,6 +9466,16 @@
     "pnlPriceOpen": 42969.86,
     "pnlPriceClose": 42880.56728618986,
     "pnlCost": 0.21,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 42969.86,
+        "cost": 100,
+        "timestamp": 1707304440000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": -1.8,
     "peakProfitPriceOpen": 42969.86,
@@ -7532,6 +9523,16 @@
     "pnlPriceOpen": 43148.41,
     "pnlPriceClose": 43128.18457831416,
     "pnlCost": -0.45,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 43148.41,
+        "cost": 100,
+        "timestamp": 1706874660000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 43148.41,
@@ -7581,6 +9582,16 @@
     "pnlPriceOpen": 43148.41,
     "pnlPriceClose": 43148.41,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 43148.41,
+        "cost": 100,
+        "timestamp": 1706874660000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 43148.41,
@@ -7628,6 +9639,16 @@
     "pnlPriceOpen": 43148.41,
     "pnlPriceClose": 43157.55515625796,
     "pnlCost": 0.02,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 43148.41,
+        "cost": 100,
+        "timestamp": 1706874660000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 43148.41,
@@ -7675,6 +9696,16 @@
     "pnlPriceOpen": 43122.48,
     "pnlPriceClose": 43157.55515625796,
     "pnlCost": -0.32,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 43122.48,
+        "cost": 100,
+        "timestamp": 1706871000000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 43122.48,
@@ -7724,6 +9755,16 @@
     "pnlPriceOpen": 43122.48,
     "pnlPriceClose": 43122.48,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 43122.48,
+        "cost": 100,
+        "timestamp": 1706871000000
+      }
+    ],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPercentage": 1.8,
     "peakProfitPriceOpen": 43122.48,
@@ -7768,6 +9809,10 @@
     "pnlPriceOpen": 51900,
     "pnlPriceClose": 52340,
     "pnlCost": 0.85,
+    "pnlDividends": 0,
+    "entries": [],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 100,
     "note": "RSI crossed 70 — consider partial close",
     "scheduledAt": 1708876600000,
@@ -7835,6 +9880,30 @@
     "pnlPriceOpen": 51754,
     "pnlPriceClose": 51685.30894301844,
     "pnlCost": -0.53,
+    "pnlDividends": 0,
+    "entries": [
+      {
+        "price": 51754,
+        "cost": 100,
+        "timestamp": 1708871700000
+      },
+      {
+        "price": 51450,
+        "cost": 100,
+        "timestamp": 1708871700000
+      }
+    ],
+    "partials": [
+      {
+        "type": "loss",
+        "percent": 100,
+        "currentPrice": 51219.65,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708875300000
+      }
+    ],
+    "accruals": [],
     "pnlEntries": 100,
     "peakProfitPriceOpen": 51754,
     "peakProfitPriceClose": 52685.57,
@@ -7898,6 +9967,10 @@
     "pnlPriceOpen": 0,
     "pnlPriceClose": 0,
     "pnlCost": 0,
+    "pnlDividends": 0,
+    "entries": [],
+    "partials": [],
+    "accruals": [],
     "pnlEntries": 0,
     "peakProfitPriceOpen": 0,
     "peakProfitPriceClose": 0,

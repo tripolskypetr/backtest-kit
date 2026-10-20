@@ -765,4 +765,11 @@ export const LOCALE: Record<string, string> = {
   "cash": "现金",
   "Staking": "质押",
   "No accruals": "暂无计提",
+  "at": "@",
+  "Cost basis": "成本基础",
+  "Partial close history of the position": "该仓位的部分平仓历史",
+  "DCA entry history of the position": "该仓位的 DCA 入场历史",
+  "Dividend / staking accruals of the position": "该仓位的股息 / 质押计提",
+  "Position History": "仓位历史",
+  "Entries at close": "平仓时的入场数",
 };

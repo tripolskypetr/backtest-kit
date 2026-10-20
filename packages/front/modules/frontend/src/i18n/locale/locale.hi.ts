@@ -765,4 +765,11 @@ export const LOCALE: Record<string, string> = {
   "cash": "नकद",
   "Staking": "स्टेकिंग",
   "No accruals": "कोई उपार्जन नहीं",
+  "at": "@",
+  "Cost basis": "लागत आधार",
+  "Partial close history of the position": "पोज़िशन के आंशिक क्लोज़ का इतिहास",
+  "DCA entry history of the position": "पोज़िशन की DCA एंट्री का इतिहास",
+  "Dividend / staking accruals of the position": "पोज़िशन के डिविडेंड / स्टेकिंग उपार्जन",
+  "Position History": "पोज़िशन इतिहास",
+  "Entries at close": "क्लोज़ के समय एंट्री",
 };
