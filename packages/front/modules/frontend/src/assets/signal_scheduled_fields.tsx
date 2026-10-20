@@ -5,6 +5,7 @@ import ioc from "../lib";
 import getPriceScale from "../utils/getPriceScale";
 import Markdown from "../components/common/Markdown";
 import toPlainString from "../helpers/toPlainString";
+import position_history_fields from "./position_history_fields";
 
 export const signal_scheduled_fields: TypedField[] = [
     {
@@ -614,6 +615,7 @@ export const signal_scheduled_fields: TypedField[] = [
                     },
                 ],
             },
+            ...position_history_fields,
             {
                 type: FieldType.Box,
                 sx: {

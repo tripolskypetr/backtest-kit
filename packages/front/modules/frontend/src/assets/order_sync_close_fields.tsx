@@ -6,6 +6,7 @@ import Markdown from "../components/common/Markdown";
 import toPlainString from "../helpers/toPlainString";
 import { t } from "../i18n";
 import formatMinutes from "../utils/formatMinutes";
+import position_history_fields from "./position_history_fields";
 
 export const order_sync_close_fields: TypedField[] = [
     {
@@ -679,6 +680,7 @@ export const order_sync_close_fields: TypedField[] = [
                     },
                 ],
             },
+            ...position_history_fields,
             {
                 type: FieldType.Box,
                 sx: {

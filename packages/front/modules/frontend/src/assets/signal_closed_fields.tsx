@@ -6,6 +6,7 @@ import Markdown from "../components/common/Markdown";
 import toPlainString from "../helpers/toPlainString";
 import { t } from "../i18n";
 import formatMinutes from "../utils/formatMinutes";
+import position_history_fields from "./position_history_fields";
 
 const formatDuration = (durationMinutes: number): string => {
     if (durationMinutes == null) return t("N/A");
@@ -705,6 +706,7 @@ export const signal_closed_fields: TypedField[] = [
                     },
                 ],
             },
+            ...position_history_fields,
             {
                 type: FieldType.Box,
                 sx: {

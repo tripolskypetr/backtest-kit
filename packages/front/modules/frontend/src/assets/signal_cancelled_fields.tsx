@@ -5,6 +5,7 @@ import getPriceScale from "../utils/getPriceScale";
 import Markdown from "../components/common/Markdown";
 import toPlainString from "../helpers/toPlainString";
 import { t } from "../i18n";
+import position_history_fields from "./position_history_fields";
 
 export const signal_cancelled_fields: TypedField[] = [
     {
@@ -489,6 +490,7 @@ export const signal_cancelled_fields: TypedField[] = [
                     },
                 ],
             },
+            ...position_history_fields,
             {
                 type: FieldType.Box,
                 sx: {
