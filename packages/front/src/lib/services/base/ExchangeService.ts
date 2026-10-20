@@ -16,6 +16,7 @@ const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "4h": 240,
   "6h": 360,
   "8h": 480,
+  "12h": 720,
   "1d": 1440,
 };
 
@@ -39,6 +40,7 @@ const STEP_TICKS: Record<CandleInterval, number> = {
   "4h": 240, // 40 days
   "6h": 160, // 40 days
   "8h": 120, // 40 days
+  "12h": 80, // 40 days
   "1d": 90, // 90 days
 };
 

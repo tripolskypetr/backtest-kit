@@ -33,7 +33,7 @@ const ADD_WORKER_METHOD_NAME = "add.addWorkerSchema";
  *
  * @param strategySchema - Strategy configuration object
  * @param strategySchema.strategyName - Unique strategy identifier
- * @param strategySchema.interval - Signal generation interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h")
+ * @param strategySchema.interval - Signal generation interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
  * @param strategySchema.getSignal - Async function that generates trading signals
  * @param strategySchema.callbacks - Optional lifecycle callbacks (onOpen, onClose)
  *

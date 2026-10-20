@@ -111,7 +111,7 @@ Connection services use `MethodContextService` to determine which schema to retr
 
 **Key Fields**:
 - `strategyName`: Unique identifier
-- `interval`: Signal generation throttle interval (`"1m" | "3m" | "5m" | "15m" | "30m" | "1h"`)
+- `interval`: Signal generation throttle interval (`"1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d"`)
 - `getSignal`: Async function returning `ISignalDto | null`
 - `callbacks`: Optional lifecycle hooks (`onOpen`, `onClose`, `onActive`, etc.)
 - `riskName` / `riskList`: Optional risk profile references

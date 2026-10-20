@@ -3461,7 +3461,7 @@ type CommitPayload = {
  * Signal generation interval for throttling.
  * Enforces minimum time between getSignal calls.
  */
-type SignalInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h";
+type SignalInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d";
 /**
  * Kind of a dividend / staking accrual credited to an open position.
  * - "cash": a fixed amount of quote currency (USD) — stock dividends, bond coupons.
@@ -5477,7 +5477,7 @@ interface IAgentLogger {
 /**
  * Candle time interval for fetching historical data.
  */
-type CandleInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "1d";
+type CandleInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d";
 /** Numeric type that can be undefined (used for optional numeric values) */
 type Num = number | undefined;
 interface IPublicCandleData {
@@ -9900,7 +9900,7 @@ declare function getDefaultColumns(): Readonly<{
  *
  * @param strategySchema - Strategy configuration object
  * @param strategySchema.strategyName - Unique strategy identifier
- * @param strategySchema.interval - Signal generation interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h")
+ * @param strategySchema.interval - Signal generation interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
  * @param strategySchema.getSignal - Async function that generates trading signals
  * @param strategySchema.callbacks - Optional lifecycle callbacks (onOpen, onClose)
  *
@@ -14629,7 +14629,7 @@ declare function hasTradeContext(): boolean;
  * Uses the exchange's getCandles implementation.
  *
  * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h")
+ * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
  * @param limit - Number of candles to fetch
  * @returns Promise resolving to array of candle data
  *
@@ -14663,7 +14663,7 @@ declare function getAveragePrice(symbol: string): Promise<number>;
  * Returns the close price of the last completed candle for the given interval.
  *
  * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h")
+ * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
  * @returns Promise resolving to close price of the last candle
  *
  * @example
@@ -14741,7 +14741,7 @@ declare function getOrderBook(symbol: string, depth?: number): Promise<IOrderBoo
  * 5. Only limit: uses execution.context.when as reference (backward)
  *
  * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h")
+ * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
  * @param limit - Optional number of candles to fetch
  * @param sDate - Optional start date in milliseconds
  * @param eDate - Optional end date in milliseconds
@@ -14766,7 +14766,7 @@ declare function getRawCandles(symbol: string, interval: CandleInterval, limit?:
  * Uses the exchange's getNextCandles implementation to retrieve candles
  * that occur after the current context time.
  * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h")
+ * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
  * @param limit - Number of candles to fetch
  * @returns Promise resolving to array of candle data
  */

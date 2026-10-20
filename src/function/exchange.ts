@@ -47,7 +47,7 @@ export function hasTradeContext(): boolean {
  * Uses the exchange's getCandles implementation.
  *
  * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h")
+ * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
  * @param limit - Number of candles to fetch
  * @returns Promise resolving to array of candle data
  *
@@ -115,7 +115,7 @@ export async function getAveragePrice(symbol: string): Promise<number> {
  * Returns the close price of the last completed candle for the given interval.
  *
  * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h")
+ * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
  * @returns Promise resolving to close price of the last candle
  *
  * @example
@@ -248,7 +248,7 @@ export async function getOrderBook(symbol: string, depth?: number): Promise<IOrd
  * 5. Only limit: uses execution.context.when as reference (backward)
  *
  * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h")
+ * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
  * @param limit - Optional number of candles to fetch
  * @param sDate - Optional start date in milliseconds
  * @param eDate - Optional end date in milliseconds
@@ -301,7 +301,7 @@ export async function getRawCandles(
  * Uses the exchange's getNextCandles implementation to retrieve candles
  * that occur after the current context time.
  * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h")
+ * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
  * @param limit - Number of candles to fetch
  * @returns Promise resolving to array of candle data
  */

@@ -43,7 +43,7 @@ The strategy name must be unique across all registered strategies. Multiple call
 
 ### interval
 
-**Type:** `SignalInterval` = `"1m" | "3m" | "5m" | "15m" | "30m" | "1h"`
+**Type:** `SignalInterval` = `"1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d"`
 
 Minimum time interval between `getSignal()` invocations. Implements throttling to prevent signal spam and reduce computational overhead.
 
@@ -388,7 +388,7 @@ Unique identifier for strategy schemas. Used as registry key in `StrategySchemaS
 
 ### SignalInterval
 
-Type: `"1m" | "3m" | "5m" | "15m" | "30m" | "1h"`
+Type: `"1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d"`
 
 Throttling intervals for signal generation. Enforced by `ClientStrategy._lastSignalTimestamp` tracking.
 

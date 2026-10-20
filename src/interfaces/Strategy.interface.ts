@@ -135,7 +135,13 @@ export type SignalInterval =
   | "5m"
   | "15m"
   | "30m"
-  | "1h";
+  | "1h"
+  | "2h"
+  | "4h"
+  | "6h"
+  | "8h"
+  | "12h"
+  | "1d";
 
 /**
  * Kind of a dividend / staking accrual credited to an open position.
