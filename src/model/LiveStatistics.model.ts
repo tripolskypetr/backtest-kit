@@ -1,3 +1,4 @@
+import { ISignalEntry, ISignalPartial, ISignalAccrual } from "../interfaces/Strategy.interface";
 /**
  * Unified tick event data for report generation.
  * Contains all information about a tick event regardless of action type.
@@ -43,6 +44,12 @@ export interface TickEvent {
   pnlCost?: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (only for rows carrying a PNL) */
   pnlDividends?: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; only for rows carrying a signal) */
+  entries?: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials) */
+  partials?: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals) */
+  accruals?: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries?: number;
   /** Percentage progress towards take profit (only for active/waiting) */

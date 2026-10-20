@@ -18601,6 +18601,12 @@ interface TickEvent {
     pnlCost?: number;
     /** USD value of the dividend / staking accruals folded into pnlCost (only for rows carrying a PNL) */
     pnlDividends?: number;
+    /** DCA entry history of the position (IPublicSignalRow.entries; only for rows carrying a signal) */
+    entries?: ISignalEntry[];
+    /** Partial close history of the position (IPublicSignalRow.partials) */
+    partials?: ISignalPartial[];
+    /** Dividend / staking accruals of the position (IPublicSignalRow.accruals) */
+    accruals?: ISignalAccrual[];
     /** Total invested capital in USD */
     pnlEntries?: number;
     /** Percentage progress towards take profit (only for active/waiting) */
@@ -19304,6 +19310,12 @@ interface StrategyEvent {
     totalEntries?: number;
     /** Total number of partial closes executed (_partial.length) */
     totalPartials?: number;
+    /** DCA entry history of the position at the event (IPublicSignalRow.entries) */
+    entries?: ISignalEntry[];
+    /** Partial close history of the position at the event (IPublicSignalRow.partials) */
+    partials?: ISignalPartial[];
+    /** Dividend / staking accruals of the position at the event (IPublicSignalRow.accruals) */
+    accruals?: ISignalAccrual[];
     /** PNL at the moment of this action */
     pnl?: IStrategyPnL;
     /** Cost of this entry in USD (average-buy action only) */
@@ -35648,7 +35660,7 @@ declare class StrategyMarkdownService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Records a partial-loss event when a portion of the position is closed at loss.
      *
@@ -35671,7 +35683,7 @@ declare class StrategyMarkdownService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Records a trailing-stop event when the stop-loss is adjusted.
      *
@@ -35694,7 +35706,7 @@ declare class StrategyMarkdownService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Records a trailing-take event when the take-profit is adjusted.
      *
@@ -35717,7 +35729,7 @@ declare class StrategyMarkdownService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Records a breakeven event when the stop-loss is moved to entry price.
      *
@@ -35739,7 +35751,7 @@ declare class StrategyMarkdownService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Records an activate-scheduled event when a scheduled signal is activated early.
      *
@@ -35763,7 +35775,7 @@ declare class StrategyMarkdownService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number, activateId?: string, note?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number, activateId?: string, note?: string) => Promise<void>;
     /**
      * Records an average-buy (DCA) event when a new averaging entry is added to an open position.
      *
@@ -35787,7 +35799,7 @@ declare class StrategyMarkdownService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, cost: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], cost: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs a dividend / staking accrual event (signed amount) on an open position.
      */
@@ -35795,7 +35807,7 @@ declare class StrategyMarkdownService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalEntries: number, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, originalPriceOpen: number, note?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalEntries: number, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, originalPriceOpen: number, note?: string) => Promise<void>;
     /**
      * Retrieves aggregated statistics from accumulated strategy events.
      *
@@ -47342,7 +47354,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, cancelId?: string, note?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], cancelId?: string, note?: string) => Promise<void>;
     /**
      * Logs a close-pending event when a pending signal is closed.
      */
@@ -47350,7 +47362,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, closeId?: string, note?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], closeId?: string, note?: string) => Promise<void>;
     /**
      * Logs a partial-profit event when a portion of the position is closed at profit.
      */
@@ -47358,7 +47370,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs a partial-loss event when a portion of the position is closed at loss.
      */
@@ -47366,7 +47378,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs a trailing-stop event when the stop-loss is adjusted.
      */
@@ -47374,7 +47386,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs a trailing-take event when the take-profit is adjusted.
      */
@@ -47382,7 +47394,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs a breakeven event when the stop-loss is moved to entry price.
      */
@@ -47390,7 +47402,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs an activate-scheduled event when a scheduled signal is activated early.
      */
@@ -47398,7 +47410,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number, activateId?: string, note?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number, activateId?: string, note?: string) => Promise<void>;
     /**
      * Logs an average-buy (DCA) event when a new averaging entry is added to an open position.
      */
@@ -47406,7 +47418,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, cost: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], cost: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs a dividend / staking accrual event (signed amount) on an open position.
      */
@@ -47414,7 +47426,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalEntries: number, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, originalPriceOpen: number, note?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalEntries: number, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignalAccrual[], position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, originalPriceOpen: number, note?: string) => Promise<void>;
     /**
      * Initializes the service for event logging.
      *

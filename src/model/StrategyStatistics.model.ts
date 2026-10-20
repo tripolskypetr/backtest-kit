@@ -1,4 +1,4 @@
-import { IStrategyPnL, StrategyName, AccrualType } from "../interfaces/Strategy.interface";
+import { IStrategyPnL, StrategyName, AccrualType, ISignalEntry, ISignalPartial, ISignalAccrual } from "../interfaces/Strategy.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
 
@@ -77,6 +77,12 @@ export interface StrategyEvent {
   totalEntries?: number;
   /** Total number of partial closes executed (_partial.length) */
   totalPartials?: number;
+  /** DCA entry history of the position at the event (IPublicSignalRow.entries) */
+  entries?: ISignalEntry[];
+  /** Partial close history of the position at the event (IPublicSignalRow.partials) */
+  partials?: ISignalPartial[];
+  /** Dividend / staking accruals of the position at the event (IPublicSignalRow.accruals) */
+  accruals?: ISignalAccrual[];
   /** PNL at the moment of this action */
   pnl?: IStrategyPnL;
   /** Cost of this entry in USD (average-buy action only) */
