@@ -54,7 +54,7 @@ const fetchData = ttl(
             notification: await ioc.notificationViewService.findByFilter({
                 signalId: id,
             }),
-            staking: positionAccruals,
+            dividend: positionAccruals,
             candle_1m: await ioc.exchangeViewService.getSignalCandles(id, "1m"),
             candle_15m: await ioc.exchangeViewService.getSignalCandles(
                 id,
@@ -71,7 +71,7 @@ const fetchData = ttl(
 );
 
 const handleDownloadJson = async (pathname: string, id: string) => {
-    const { candle_15m, candle_1h, candle_1d, candle_1m, signal, notification, staking } =
+    const { candle_15m, candle_1h, candle_1d, candle_1m, signal, notification, dividend } =
         await fetchData(id);
 
     if (pathname.includes("/signal")) {
@@ -101,12 +101,12 @@ const handleDownloadJson = async (pathname: string, id: string) => {
         return;
     }
 
-    if (pathname.includes("/staking")) {
-        const blob = new Blob([JSON.stringify(staking, null, 2)], {
+    if (pathname.includes("/dividend")) {
+        const blob = new Blob([JSON.stringify(dividend, null, 2)], {
             type: "application/json",
         });
         const url = URL.createObjectURL(blob);
-        ioc.layoutService.downloadFile(url, `staking_${signal.id}.json`);
+        ioc.layoutService.downloadFile(url, `dividend_${signal.id}.json`);
         return;
     }
 
@@ -151,7 +151,7 @@ const handleCopy = async (
     id: string,
     onCopy: (content: string) => void,
 ) => {
-    const { candle_15m, candle_1h, candle_1d, candle_1m, signal, status, notification, staking } =
+    const { candle_15m, candle_1h, candle_1d, candle_1m, signal, status, notification, dividend } =
         await fetchData(id);
 
     if (pathname.includes("/status")) {
@@ -169,8 +169,8 @@ const handleCopy = async (
         return;
     }
 
-    if (pathname.includes("/staking")) {
-        onCopy(JSON.stringify(staking, null, 2));
+    if (pathname.includes("/dividend")) {
+        onCopy(JSON.stringify(dividend, null, 2));
         return;
     }
 
@@ -232,9 +232,9 @@ export const useSignalView = () => {
             history.replace(`/notification`);
             setPathname(`/notification`);
         }
-        if (id === "staking") {
-            history.replace(`/staking`);
-            setPathname(`/staking`);
+        if (id === "dividend") {
+            history.replace(`/dividend`);
+            setPathname(`/dividend`);
         }
         if (id === "candle_1m") {
             history.replace(`/candle_1m`);

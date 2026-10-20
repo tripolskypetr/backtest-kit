@@ -64,7 +64,7 @@ const columns: IGridColumn<AccrualRow>[] = [
     },
 ];
 
-export const StakingView = ({ data }: IOutletModalProps) => {
+export const DividendView = ({ data }: IOutletModalProps) => {
     const accruals: AccrualRow[] = (data as ISignalAccrual[])
         .sort(({ timestamp: a }, { timestamp: b }) => a - b)
         .map((row, idx) => ({
@@ -105,4 +105,4 @@ export const StakingView = ({ data }: IOutletModalProps) => {
     );
 };
 
-export default StakingView;
+export default DividendView;

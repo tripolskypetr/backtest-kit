@@ -763,7 +763,6 @@ export const LOCALE: Record<string, string> = {
   "Dividends Total": "股息合计",
   "Total Accruals": "计提总数",
   "cash": "现金",
-  "Staking": "质押",
   "No accruals": "暂无计提",
   "at": "@",
   "Cost basis": "成本基础",

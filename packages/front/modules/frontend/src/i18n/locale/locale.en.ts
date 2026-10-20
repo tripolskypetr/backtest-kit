@@ -763,7 +763,6 @@ export const LOCALE: Record<string, string> = {
   "Dividends Total": "Dividends Total",
   "Total Accruals": "Total Accruals",
   "cash": "cash",
-  "Staking": "Staking",
   "No accruals": "No accruals",
   "at": "at",
   "Cost basis": "Cost basis",
