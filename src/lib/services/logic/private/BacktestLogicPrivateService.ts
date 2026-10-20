@@ -145,6 +145,18 @@ const GET_CANDLES_FN = async (
   }
 };
 
+/**
+ * Number of 1m candles a position may still consume inside the frame: from
+ * `since` up to frameEndTime plus ONE candle past it. The candle after the
+ * frame end is what PROCESS_PENDING_SIGNAL_CANDLES_FN needs to close by
+ * time_expired (its check is `timestamp > frameEndTime`); nothing beyond it is
+ * ever requested, so a feed that stops at the frame end, a dead feed or a frame
+ * ending today cannot turn into a multi-day gap fill, an "Insufficient candle
+ * data" throw or an empty fetch that leaves the position open.
+ */
+const CANDLES_UNTIL_FRAME_END_FN = (since: Date, frameEndTime: number): number =>
+  Math.max(0, Math.floor((frameEndTime - since.getTime()) / 60_000) + 2);
+
 const BACKTEST_FN = async (
   self: BacktestLogicPrivateService,
   symbol: string,
@@ -218,7 +230,10 @@ const RUN_INFINITY_CHUNK_LOOP_FN = async (
   let chunkStart = new Date(initialResult._backtestLastTimestamp + 60_000 - bufferMs);
 
   while (backtestResult.action === "active") {
-    const chunkCandles = await GET_CANDLES_FN(self, symbol, CHUNK, chunkStart, { signalId });
+    const chunkLimit = Math.min(CHUNK, CANDLES_UNTIL_FRAME_END_FN(chunkStart, frameEndTime));
+    const chunkCandles = chunkLimit > 0
+      ? await GET_CANDLES_FN(self, symbol, chunkLimit, chunkStart, { signalId, chunkLimit })
+      : [];
     if ("__error__" in chunkCandles) {
       return chunkCandles;
     }
@@ -345,7 +360,10 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
   const pendingPhaseMinutes = signal.minuteEstimatedTime === Infinity
     ? GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST
     : signal.minuteEstimatedTime;
-  const candlesNeeded = bufferMinutes + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + pendingPhaseMinutes + SCHEDULE_ACTIVATION_CANDLE_SKIP;
+  const candlesNeeded = Math.min(
+    bufferMinutes + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + pendingPhaseMinutes + SCHEDULE_ACTIVATION_CANDLE_SKIP,
+    CANDLES_UNTIL_FRAME_END_FN(bufferStartTime, frameEndTime),
+  );
 
   const candles = await GET_CANDLES_FN(self, symbol, candlesNeeded, bufferStartTime, { signalId: signal.id, candlesNeeded, bufferMinutes });
   if ("__error__" in candles) {
@@ -478,7 +496,10 @@ const RUN_OPENED_CHUNK_LOOP_FN = async (
   let lastChunkCandles: ICandleData[] = [];
 
   while (true) {
-    const chunkCandles = await GET_CANDLES_FN(self, symbol, CHUNK, chunkStart, { signalId, bufferMs });
+    const chunkLimit = Math.min(CHUNK, CANDLES_UNTIL_FRAME_END_FN(chunkStart, frameEndTime));
+    const chunkCandles = chunkLimit > 0
+      ? await GET_CANDLES_FN(self, symbol, chunkLimit, chunkStart, { signalId, bufferMs, chunkLimit })
+      : [];
     if ("__error__" in chunkCandles) {
       return chunkCandles;
     }
@@ -551,7 +572,10 @@ const PROCESS_OPENED_SIGNAL_FN = async function*(
   let backtestResult: IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive | undefined;
 
   if (signal.minuteEstimatedTime !== Infinity) {
-    const totalCandles = signal.minuteEstimatedTime + GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
+    const totalCandles = Math.min(
+      signal.minuteEstimatedTime + GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT,
+      CANDLES_UNTIL_FRAME_END_FN(bufferStartTime, frameEndTime),
+    );
 
     const candles = await GET_CANDLES_FN(self, symbol, totalCandles, bufferStartTime, { signalId: signal.id, totalCandles, bufferMinutes });
     if ("__error__" in candles) {
@@ -674,6 +698,9 @@ export class BacktestLogicPrivateService {
 
     let _fatalError: unknown = null;
     let previousEventTimestamp: number | null = null;
+    // Action of the last tick / signal processing: anything but idle / closed /
+    // cancelled at the end of the loop means a signal is still open.
+    let lastAction: IStrategyTickResult["action"] | null = null;
 
     const timeframes = await this.frameCoreService.getTimeframe(
       symbol,
@@ -714,6 +741,7 @@ export class BacktestLogicPrivateService {
           _fatalError = new Error(`[${result.reason}] ${result.message}`);
           break;
         }
+        lastAction = result.action;
 
         if (
           result.action === "idle" &&
@@ -746,6 +774,7 @@ export class BacktestLogicPrivateService {
           }
 
           if (r.type === "closed") {
+            lastAction = "closed";
             previousEventTimestamp = r.previousEventTimestamp;
             // Skip frames up to and including closeTimestamp (the close minute is
             // already consumed); the first frame after it must stay tickable, so
@@ -772,6 +801,7 @@ export class BacktestLogicPrivateService {
           }
 
           if (r.type === "closed") {
+            lastAction = "closed";
             previousEventTimestamp = r.previousEventTimestamp;
             // Same off-by-one guard as in the scheduled branch above.
             while (i < timeframes.length && timeframes[i].getTime() <= r.closeTimestamp) {
@@ -788,6 +818,24 @@ export class BacktestLogicPrivateService {
         previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
 
         i++;
+      }
+
+      // The timeframe loop is exhausted with a signal still open (a position that
+      // reached the frame end through "skip" or the tick() path, a scheduled
+      // signal that never activated): replay the frame end with NO candles —
+      // ClientStrategy.backtest treats an empty series as "the frame is over"
+      // and closes by time_expired / cancels by timeout at frameEndTime.
+      if (i >= timeframes.length && lastAction !== null && lastAction !== "idle" && lastAction !== "closed" && lastAction !== "cancelled") {
+        const expired = await BACKTEST_FN(this, symbol, [], frameEndTime, new Date(frameEndTime), {
+          strategyName: this.methodContextService.context.strategyName,
+          exchangeName: this.methodContextService.context.exchangeName,
+          frameName: this.methodContextService.context.frameName,
+        }, { reason: "frame end" });
+        if ("__error__" in expired) {
+          _fatalError = new Error(`[${expired.reason}] ${expired.message}`);
+        } else if (expired.action !== "active") {
+          yield expired;
+        }
       }
 
       // Emit final progress event (100%)

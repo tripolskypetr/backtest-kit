@@ -6921,7 +6921,12 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
   const elapsedTime = closeTimestamp - signalTime;
 
-  if (elapsedTime < maxTimeToWait) {
+  // A series that stops ON the frame end (a source cut by the frame, no candle
+  // past frameEndTime) is complete for this backtest: the position expires with
+  // the frame, it does not lack data.
+  const reachedFrameEnd = closeTimestamp >= frameEndTime;
+
+  if (elapsedTime < maxTimeToWait && !reachedFrameEnd) {
     const bufferCandlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
     const requiredCandlesCount = signal.minuteEstimatedTime + bufferCandlesCount + 1;
     throw new Error(
@@ -9101,6 +9106,39 @@ export class ClientStrategy implements IStrategy {
 
     if (!this.params.execution.context.backtest) {
       throw new Error("ClientStrategy backtest: running in live context");
+    }
+
+    // No candles = the frame is over (the orchestrator replays the frame end
+    // for whatever is still open after its timeframe loop): a pending position
+    // expires with the frame, a scheduled signal that never activated times
+    // out, both stamped with frameEndTime at the current average price.
+    if (candles.length === 0) {
+      const currentPrice = await this.params.exchange.getAveragePrice(symbol);
+      if (this._pendingSignal) {
+        const result = await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
+          this,
+          this._pendingSignal,
+          currentPrice,
+          "time_expired",
+          frameEndTime
+        );
+        if (!result) {
+          throw new Error(
+            `ClientStrategy backtest: frame end time_expired close rejected by sync (signalId=${this._pendingSignal.id}).`
+          );
+        }
+        return result;
+      }
+      if (this._scheduledSignal) {
+        return await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
+          this,
+          this._scheduledSignal,
+          currentPrice,
+          frameEndTime,
+          "timeout"
+        );
+      }
+      throw new Error("ClientStrategy backtest: no candles and no signal to expire at the frame end");
     }
 
     // If signal was cancelled - return cancelled
