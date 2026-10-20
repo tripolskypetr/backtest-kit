@@ -34,6 +34,8 @@ import {
   IStrategyPnL,
   StrategyStatus,
   ISignalAccrual,
+  ISignalEntry,
+  ISignalPartial,
   IDividendDto,
 } from "../interfaces/Strategy.interface";
 import toProfitLossDto from "../helpers/toProfitLossDto";
@@ -69,21 +71,14 @@ const INTERVAL_MINUTES: Record<SignalInterval, number> = {
  * Type for partial profit/loss events queued in ClientStrategy._commitQueue.
  * These events are emitted to onCommit callback with proper execution context timestamp.
  */
-type Partials = Array<{
-  type: "profit" | "loss";
-  percent: number;
-  currentPrice: number;
-  costBasisAtClose: number;
-  entryCountAtClose: number;
-  timestamp: number;
-}>;
+type Partials = ISignalPartial[];
 
 /**
  * Type for DCA average contract used in getPositionEntries
  * Contains details of the average buy execution to calculate effective priceOpen and PnL.
  * Used to track multiple entries in a position and their impact on overall profitability.
  */
-type Entries = Array<{ price: number; cost: number; timestamp: number }>;
+type Entries = ISignalEntry[];
 
 /**
  * Mock value for scheduled signal pendingAt timestamp.
@@ -1087,6 +1082,12 @@ const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRo
   const accruals: ISignalAccrual[] = ("_accruals" in signal && Array.isArray(signal._accruals))
     ? structuredClone(signal._accruals)
     : [];
+  const entries: ISignalEntry[] = ("_entry" in signal && Array.isArray(signal._entry))
+    ? structuredClone(signal._entry)
+    : [];
+  const partials: ISignalPartial[] = ("_partial" in signal && Array.isArray(signal._partial))
+    ? structuredClone(signal._partial)
+    : [];
   const pnl = type === "scheduled" ? ZERO_PNL : toProfitLossDto(signal as ISignalRow, currentPrice);
   const maxDrawdown = type === "scheduled" ? ZERO_PNL : ("_fall" in signal ? !!signal["_fall"] ? ({ ...signal._fall }) : ZERO_PNL : ZERO_PNL);
   const peakProfit = type === "scheduled" ? ZERO_PNL : ("_peak" in signal ? signal["_peak"] ? ({ ...signal._peak }) : ZERO_PNL : ZERO_PNL);
@@ -1111,6 +1112,8 @@ const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRo
     totalEntries,
     totalPartials,
     accruals,
+    entries,
+    partials,
     pnl,
   };
 };
@@ -2179,7 +2182,8 @@ const PARTIAL_PROFIT_FN = (
   signal: ISignalRow,
   percentToClose: number,
   currentPrice: number,
-  timestamp: number
+  timestamp: number,
+  note?: string
 ): boolean => {
   // Initialize partial array if not present
   if (!signal._partial) signal._partial = [];
@@ -2216,6 +2220,7 @@ const PARTIAL_PROFIT_FN = (
     currentPrice,
     costBasisAtClose: remainingCostBasis,
     timestamp,
+    ...(note !== undefined && { note }),
   });
 
   self.params.logger.info("PARTIAL_PROFIT_FN executed", {
@@ -2233,7 +2238,8 @@ const PARTIAL_LOSS_FN = (
   signal: ISignalRow,
   percentToClose: number,
   currentPrice: number,
-  timestamp: number
+  timestamp: number,
+  note?: string
 ): boolean => {
   // Initialize partial array if not present
   if (!signal._partial) signal._partial = [];
@@ -2269,6 +2275,7 @@ const PARTIAL_LOSS_FN = (
     entryCountAtClose,
     costBasisAtClose: remainingCostBasis,
     timestamp,
+    ...(note !== undefined && { note }),
   });
 
   self.params.logger.warn("PARTIAL_LOSS_FN executed", {
@@ -2736,7 +2743,8 @@ const AVERAGE_BUY_FN = (
   signal: ISignalRow,
   currentPrice: number,
   timestamp: number,
-  cost: number = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST
+  cost: number = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
+  note?: string
 ): boolean => {
   // Ensure _entry is initialized (handles signals loaded from disk without _entry).
   // Use the signal's own cost — falling back to CC_POSITION_ENTRY_COST for a
@@ -2773,7 +2781,7 @@ const AVERAGE_BUY_FN = (
     }
   }
 
-  signal._entry.push({ price: currentPrice, cost, timestamp });
+  signal._entry.push({ price: currentPrice, cost, timestamp, ...(note !== undefined && { note }) });
 
   self.params.logger.info("AVERAGE_BUY_FN executed", {
     signalId: signal.id,
@@ -7688,7 +7696,7 @@ export class ClientStrategy implements IStrategy {
       // opened with a custom cost (keep in sync with AVERAGE_BUY_FN fallback)
       return [{ price: this._pendingSignal.priceOpen, cost: this._pendingSignal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp }];
     }
-    return entries.map(({ price, cost, timestamp }) => ({ price, cost, timestamp }));
+    return entries.map(({ price, cost, timestamp, note }) => ({ price, cost, timestamp, ...(note !== undefined && { note }) }));
   }
 
   /**
@@ -10118,7 +10126,8 @@ export class ClientStrategy implements IStrategy {
     percentToClose: number,
     currentPrice: number,
     backtest: boolean,
-    timestamp: number
+    timestamp: number,
+    note?: string
   ): Promise<boolean> {
     this.params.logger.debug("ClientStrategy partialProfit", {
       symbol,
@@ -10206,7 +10215,7 @@ export class ClientStrategy implements IStrategy {
     }
 
     // Execute partial close logic
-    const wasExecuted = PARTIAL_PROFIT_FN(this, this._pendingSignal, percentToClose, currentPrice, timestamp);
+    const wasExecuted = PARTIAL_PROFIT_FN(this, this._pendingSignal, percentToClose, currentPrice, timestamp, note);
 
     // If partial was not executed (exceeded 100%), return false without persistence
     if (!wasExecuted) {
@@ -10383,7 +10392,8 @@ export class ClientStrategy implements IStrategy {
     percentToClose: number,
     currentPrice: number,
     backtest: boolean,
-    timestamp: number
+    timestamp: number,
+    note?: string
   ): Promise<boolean> {
     this.params.logger.debug("ClientStrategy partialLoss", {
       symbol,
@@ -10471,7 +10481,7 @@ export class ClientStrategy implements IStrategy {
     }
 
     // Execute partial close logic
-    const wasExecuted = PARTIAL_LOSS_FN(this, this._pendingSignal, percentToClose, currentPrice, timestamp);
+    const wasExecuted = PARTIAL_LOSS_FN(this, this._pendingSignal, percentToClose, currentPrice, timestamp, note);
 
     // If partial was not executed (exceeded 100%), return false without persistence
     if (!wasExecuted) {
@@ -11440,7 +11450,8 @@ export class ClientStrategy implements IStrategy {
     currentPrice: number,
     backtest: boolean,
     timestamp: number,
-    cost: number = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST
+    cost: number = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
+    note?: string
   ): Promise<boolean> {
     this.params.logger.debug("ClientStrategy averageBuy", {
       symbol,
@@ -11463,7 +11474,7 @@ export class ClientStrategy implements IStrategy {
     }
 
     // Execute averaging logic
-    const result = AVERAGE_BUY_FN(this, this._pendingSignal, currentPrice, timestamp, cost);
+    const result = AVERAGE_BUY_FN(this, this._pendingSignal, currentPrice, timestamp, cost, note);
 
     if (!result) {
       return false;

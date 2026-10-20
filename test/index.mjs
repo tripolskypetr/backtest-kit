@@ -65,6 +65,7 @@ import "./e2e/edge_fn.test.mjs";
 import "./e2e/listen_backtest.test.mjs";
 import "./e2e/step.test.mjs";
 import "./e2e/dividend.test.mjs";
+import "./e2e/partial_note.test.mjs";
 
 import "./spec/audit.test.mjs";
 import "./spec/live.test.mjs";

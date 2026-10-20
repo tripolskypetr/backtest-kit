@@ -928,7 +928,8 @@ export class StrategyCoreService implements TStrategy {
     symbol: string,
     percentToClose: number,
     currentPrice: number,
-    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    note?: string,
   ): Promise<boolean> => {
     this.loggerService.log("strategyCoreService partialProfit", {
       symbol,
@@ -938,7 +939,7 @@ export class StrategyCoreService implements TStrategy {
       backtest,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.partialProfit(backtest, symbol, percentToClose, currentPrice, context);
+    return await this.strategyConnectionService.partialProfit(backtest, symbol, percentToClose, currentPrice, context, note);
   };
 
   /**
@@ -1005,7 +1006,8 @@ export class StrategyCoreService implements TStrategy {
     symbol: string,
     percentToClose: number,
     currentPrice: number,
-    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    note?: string,
   ): Promise<boolean> => {
     this.loggerService.log("strategyCoreService partialLoss", {
       symbol,
@@ -1015,7 +1017,7 @@ export class StrategyCoreService implements TStrategy {
       backtest,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.partialLoss(backtest, symbol, percentToClose, currentPrice, context);
+    return await this.strategyConnectionService.partialLoss(backtest, symbol, percentToClose, currentPrice, context, note);
   };
 
   /**
@@ -1310,6 +1312,7 @@ export class StrategyCoreService implements TStrategy {
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
     cost: number,
+    note?: string,
   ): Promise<boolean> => {
     this.loggerService.log("strategyCoreService averageBuy", {
       symbol,
@@ -1318,7 +1321,7 @@ export class StrategyCoreService implements TStrategy {
       backtest,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.averageBuy(backtest, symbol, currentPrice, context, cost);
+    return await this.strategyConnectionService.averageBuy(backtest, symbol, currentPrice, context, cost, note);
   };
 
   /**

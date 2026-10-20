@@ -2677,6 +2677,7 @@ export class StrategyConnectionService implements TStrategy {
     percentToClose: number,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    note?: string,
   ): Promise<boolean> => {
     this.loggerService.log("strategyConnectionService partialProfit", {
       symbol,
@@ -2687,7 +2688,7 @@ export class StrategyConnectionService implements TStrategy {
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
-    return await strategy.partialProfit(symbol, percentToClose, currentPrice, backtest, timestamp);
+    return await strategy.partialProfit(symbol, percentToClose, currentPrice, backtest, timestamp, note);
   };
 
   /**
@@ -2748,6 +2749,7 @@ export class StrategyConnectionService implements TStrategy {
     percentToClose: number,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    note?: string,
   ): Promise<boolean> => {
     this.loggerService.log("strategyConnectionService partialLoss", {
       symbol,
@@ -2758,7 +2760,7 @@ export class StrategyConnectionService implements TStrategy {
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
-    return await strategy.partialLoss(symbol, percentToClose, currentPrice, backtest, timestamp);
+    return await strategy.partialLoss(symbol, percentToClose, currentPrice, backtest, timestamp, note);
   };
 
   /**
@@ -3034,6 +3036,7 @@ export class StrategyConnectionService implements TStrategy {
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
     cost: number,
+    note?: string,
   ): Promise<boolean> => {
     this.loggerService.log("strategyConnectionService averageBuy", {
       symbol,
@@ -3043,7 +3046,7 @@ export class StrategyConnectionService implements TStrategy {
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
-    return await strategy.averageBuy(symbol, currentPrice, backtest, timestamp, cost);
+    return await strategy.averageBuy(symbol, currentPrice, backtest, timestamp, cost, note);
   };
 
   /**

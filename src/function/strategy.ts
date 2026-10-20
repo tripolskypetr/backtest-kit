@@ -15,7 +15,7 @@ import { Broker } from "../classes/Broker";
 import { GLOBAL_CONFIG } from "../config/params";
 import { not } from "functools-kit";
 import { IPositionOverlapLadder, POSITION_OVERLAP_LADDER_DEFAULT } from "../config/ladder";
-import { IPublicSignalRow, CommitPayload, ISignalDto, StrategyStatus, IDividendDto } from "../interfaces/Strategy.interface";
+import { IPublicSignalRow, CommitPayload, ISignalDto, StrategyStatus, IDividendDto, IPartialDto, IPartialCostDto, IAverageBuyDto } from "../interfaces/Strategy.interface";
 import { SignalNotificationPayload } from "../lib/services/helpers/NotificationHelperService";
 
 const CANCEL_SCHEDULED_METHOD_NAME = "strategy.commitCancelScheduled";
@@ -186,7 +186,7 @@ export async function commitClosePending(
  * Automatically detects backtest/live mode from execution context.
  *
  * @param symbol - Trading pair symbol
- * @param percentToClose - Percentage of position to close (0-100, absolute value)
+ * @param dto - Percentage of the REMAINING position to close (0-100) as a number, or { percent, note } to store a note on the partial row
  * @returns Promise<boolean> - true if partial close executed, false if skipped
  *
  * @throws Error if currentPrice is not in profit direction:
@@ -206,11 +206,13 @@ export async function commitClosePending(
  */
 export async function commitPartialProfit(
   symbol: string,
-  percentToClose: number,
+  dto: number | IPartialDto,
 ): Promise<boolean> {
+  const { percent: percentToClose, note } = typeof dto === "number" ? { percent: dto, note: undefined } : dto;
   backtest.loggerService.info(PARTIAL_PROFIT_METHOD_NAME, {
     symbol,
     percentToClose,
+    note,
   });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("partialProfit requires an execution context");
@@ -274,6 +276,7 @@ export async function commitPartialProfit(
     percentToClose,
     currentPrice,
     { exchangeName, frameName, strategyName },
+    note,
   );
 }
 
@@ -286,7 +289,7 @@ export async function commitPartialProfit(
  * Automatically detects backtest/live mode from execution context.
  *
  * @param symbol - Trading pair symbol
- * @param percentToClose - Percentage of position to close (0-100, absolute value)
+ * @param dto - Percentage of the REMAINING position to close (0-100) as a number, or { percent, note } to store a note on the partial row
  * @returns Promise<boolean> - true if partial close executed, false if skipped
  *
  * @throws Error if currentPrice is not in loss direction:
@@ -306,11 +309,13 @@ export async function commitPartialProfit(
  */
 export async function commitPartialLoss(
   symbol: string,
-  percentToClose: number,
+  dto: number | IPartialDto,
 ): Promise<boolean> {
+  const { percent: percentToClose, note } = typeof dto === "number" ? { percent: dto, note: undefined } : dto;
   backtest.loggerService.info(PARTIAL_LOSS_METHOD_NAME, {
     symbol,
     percentToClose,
+    note,
   });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("partialLoss requires an execution context");
@@ -374,6 +379,7 @@ export async function commitPartialLoss(
     percentToClose,
     currentPrice,
     { exchangeName, frameName, strategyName },
+    note,
   );
 }
 
@@ -948,7 +954,7 @@ export async function commitActivateScheduled(
  * Automatically fetches current price via getAveragePrice.
  *
  * @param symbol - Trading pair symbol
- * @param cost - Dollar amount of the new entry, weights the effective average price (defaults to CC_POSITION_ENTRY_COST)
+ * @param dto - Dollar amount of the new entry as a number (defaults to CC_POSITION_ENTRY_COST), or { cost, note } to store a note on the entry row
  * @returns Promise<boolean> - true if entry added, false if rejected
  *
  * @example
@@ -964,10 +970,13 @@ export async function commitActivateScheduled(
  */
 export async function commitAverageBuy(
   symbol: string,
-  cost: number = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
+  dto: number | IAverageBuyDto = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
 ): Promise<boolean> {
+  const { cost = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, note } = typeof dto === "number" ? { cost: dto, note: undefined } : dto;
   backtest.loggerService.info(AVERAGE_BUY_METHOD_NAME, {
     symbol,
+    cost,
+    note,
   });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("commitAverageBuy requires an execution context");
@@ -1018,6 +1027,7 @@ export async function commitAverageBuy(
     currentPrice,
     { exchangeName, frameName, strategyName },
     cost,
+    note,
   );
 }
 
@@ -1552,7 +1562,7 @@ export async function getPositionPnlPercent(
  * Automatically fetches current price via getAveragePrice.
  *
  * @param symbol - Trading pair symbol
- * @param dollarAmount - Dollar value of position to close (e.g. 150 closes $150 worth)
+ * @param dto - Dollar value of position to close as a number (e.g. 150 closes $150 worth), or { cost, note } to store a note on the partial row
  * @returns Promise<boolean> - true if partial close executed, false if skipped or no position
  *
  * @throws Error if currentPrice is not in profit direction:
@@ -1572,11 +1582,13 @@ export async function getPositionPnlPercent(
  */
 export async function commitPartialProfitCost(
   symbol: string,
-  dollarAmount: number,
+  dto: number | IPartialCostDto,
 ): Promise<boolean> {
+  const { cost: dollarAmount, note } = typeof dto === "number" ? { cost: dto, note: undefined } : dto;
   backtest.loggerService.info(PARTIAL_PROFIT_COST_METHOD_NAME, {
     symbol,
     dollarAmount,
+    note,
   });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("commitPartialProfitCost requires an execution context");
@@ -1642,6 +1654,7 @@ export async function commitPartialProfitCost(
     percentToClose,
     currentPrice,
     { exchangeName, frameName, strategyName },
+    note,
   );
 }
 
@@ -1656,7 +1669,7 @@ export async function commitPartialProfitCost(
  * Automatically fetches current price via getAveragePrice.
  *
  * @param symbol - Trading pair symbol
- * @param dollarAmount - Dollar value of position to close (e.g. 100 closes $100 worth)
+ * @param dto - Dollar value of position to close as a number (e.g. 100 closes $100 worth), or { cost, note } to store a note on the partial row
  * @returns Promise<boolean> - true if partial close executed, false if skipped or no position
  *
  * @throws Error if currentPrice is not in loss direction:
@@ -1676,11 +1689,13 @@ export async function commitPartialProfitCost(
  */
 export async function commitPartialLossCost(
   symbol: string,
-  dollarAmount: number,
+  dto: number | IPartialCostDto,
 ): Promise<boolean> {
+  const { cost: dollarAmount, note } = typeof dto === "number" ? { cost: dto, note: undefined } : dto;
   backtest.loggerService.info(PARTIAL_LOSS_COST_METHOD_NAME, {
     symbol,
     dollarAmount,
+    note,
   });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("commitPartialLossCost requires an execution context");
@@ -1746,6 +1761,7 @@ export async function commitPartialLossCost(
     percentToClose,
     currentPrice,
     { exchangeName, frameName, strategyName },
+    note,
   );
 }
 

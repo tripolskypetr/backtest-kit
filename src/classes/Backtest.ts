@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { IPublicSignalRow, StrategyName, CommitPayload, ISignalDto, StrategyStatus, IDividendDto } from "../interfaces/Strategy.interface";
+import { IPublicSignalRow, StrategyName, CommitPayload, ISignalDto, StrategyStatus, IDividendDto, IPartialDto, IPartialCostDto, IAverageBuyDto } from "../interfaces/Strategy.interface";
 import { exitEmitter, doneBacktestSubject } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
 import {
@@ -3883,7 +3883,7 @@ export class BacktestUtils {
    * Price must be moving toward take profit (in profit direction).
    *
    * @param symbol - Trading pair symbol
-   * @param percentToClose - Percentage of position to close (0-100, absolute value)
+   * @param dto - Percentage of the REMAINING position to close (0-100) as a number, or { percent, note } to store a note on the partial row
    * @param currentPrice - Current market price for this partial close
    * @param context - Execution context with strategyName, exchangeName, and frameName
    * @returns Promise<boolean> - true if partial close executed, false if skipped
@@ -3907,7 +3907,7 @@ export class BacktestUtils {
    */
   public commitPartialProfit = async (
     symbol: string,
-    percentToClose: number,
+    dto: number | IPartialDto,
     currentPrice: number,
     context: {
       strategyName: StrategyName;
@@ -3915,9 +3915,11 @@ export class BacktestUtils {
       frameName: FrameName;
     },
   ): Promise<boolean> => {
+    const { percent: percentToClose, note } = typeof dto === "number" ? { percent: dto, note: undefined } : dto;
     backtest.loggerService.info(BACKTEST_METHOD_NAME_PARTIAL_PROFIT, {
       symbol,
       percentToClose,
+      note,
       currentPrice,
       context,
     });
@@ -4006,6 +4008,7 @@ export class BacktestUtils {
       percentToClose,
       currentPrice,
       context,
+      note,
     );
   };
 
@@ -4016,7 +4019,7 @@ export class BacktestUtils {
    * Price must be moving toward stop loss (in loss direction).
    *
    * @param symbol - Trading pair symbol
-   * @param percentToClose - Percentage of position to close (0-100, absolute value)
+   * @param dto - Percentage of the REMAINING position to close (0-100) as a number, or { percent, note } to store a note on the partial row
    * @param currentPrice - Current market price for this partial close
    * @param context - Execution context with strategyName, exchangeName, and frameName
    * @returns Promise<boolean> - true if partial close executed, false if skipped
@@ -4040,7 +4043,7 @@ export class BacktestUtils {
    */
   public commitPartialLoss = async (
     symbol: string,
-    percentToClose: number,
+    dto: number | IPartialDto,
     currentPrice: number,
     context: {
       strategyName: StrategyName;
@@ -4048,9 +4051,11 @@ export class BacktestUtils {
       frameName: FrameName;
     },
   ): Promise<boolean> => {
+    const { percent: percentToClose, note } = typeof dto === "number" ? { percent: dto, note: undefined } : dto;
     backtest.loggerService.info(BACKTEST_METHOD_NAME_PARTIAL_LOSS, {
       symbol,
       percentToClose,
+      note,
       currentPrice,
       context,
     });
@@ -4139,6 +4144,7 @@ export class BacktestUtils {
       percentToClose,
       currentPrice,
       context,
+      note,
     );
   };
 
@@ -4150,7 +4156,7 @@ export class BacktestUtils {
    * Price must be moving toward take profit (in profit direction).
    *
    * @param symbol - Trading pair symbol
-   * @param dollarAmount - Dollar value of position to close (e.g. 150 closes $150 worth)
+   * @param dto - Dollar value of position to close as a number (e.g. 150 closes $150 worth), or { cost, note } to store a note on the partial row
    * @param currentPrice - Current market price for this partial close
    * @param context - Execution context with strategyName, exchangeName, and frameName
    * @returns Promise<boolean> - true if partial close executed, false if skipped or no position
@@ -4174,7 +4180,7 @@ export class BacktestUtils {
    */
   public commitPartialProfitCost = async (
     symbol: string,
-    dollarAmount: number,
+    dto: number | IPartialCostDto,
     currentPrice: number,
     context: {
       strategyName: StrategyName;
@@ -4182,9 +4188,11 @@ export class BacktestUtils {
       frameName: FrameName;
     },
   ): Promise<boolean> => {
+    const { cost: dollarAmount, note } = typeof dto === "number" ? { cost: dto, note: undefined } : dto;
     backtest.loggerService.info(BACKTEST_METHOD_NAME_PARTIAL_PROFIT_COST, {
       symbol,
       dollarAmount,
+      note,
       currentPrice,
       context,
     });
@@ -4275,6 +4283,7 @@ export class BacktestUtils {
       percentToClose,
       currentPrice,
       context,
+      note,
     );
   };
 
@@ -4286,7 +4295,7 @@ export class BacktestUtils {
    * Price must be moving toward stop loss (in loss direction).
    *
    * @param symbol - Trading pair symbol
-   * @param dollarAmount - Dollar value of position to close (e.g. 100 closes $100 worth)
+   * @param dto - Dollar value of position to close as a number (e.g. 100 closes $100 worth), or { cost, note } to store a note on the partial row
    * @param currentPrice - Current market price for this partial close
    * @param context - Execution context with strategyName, exchangeName, and frameName
    * @returns Promise<boolean> - true if partial close executed, false if skipped or no position
@@ -4310,7 +4319,7 @@ export class BacktestUtils {
    */
   public commitPartialLossCost = async (
     symbol: string,
-    dollarAmount: number,
+    dto: number | IPartialCostDto,
     currentPrice: number,
     context: {
       strategyName: StrategyName;
@@ -4318,9 +4327,11 @@ export class BacktestUtils {
       frameName: FrameName;
     },
   ): Promise<boolean> => {
+    const { cost: dollarAmount, note } = typeof dto === "number" ? { cost: dto, note: undefined } : dto;
     backtest.loggerService.info(BACKTEST_METHOD_NAME_PARTIAL_LOSS_COST, {
       symbol,
       dollarAmount,
+      note,
       currentPrice,
       context,
     });
@@ -4411,6 +4422,7 @@ export class BacktestUtils {
       percentToClose,
       currentPrice,
       context,
+      note,
     );
   };
 
@@ -5183,11 +5195,14 @@ export class BacktestUtils {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
-    cost: number = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
+    dto: number | IAverageBuyDto = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
   ): Promise<boolean> => {
+    const { cost = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, note } = typeof dto === "number" ? { cost: dto, note: undefined } : dto;
     backtest.loggerService.info(BACKTEST_METHOD_NAME_AVERAGE_BUY, {
       symbol,
       currentPrice,
+      cost,
+      note,
       context,
     });
     backtest.strategyValidationService.validate(
@@ -5262,6 +5277,7 @@ export class BacktestUtils {
       currentPrice,
       context,
       cost,
+      note,
     );
   };
 

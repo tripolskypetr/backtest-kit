@@ -104,6 +104,8 @@ const TO_RISK_SIGNAL = <T extends ISignalRow>(signal: T, currentPrice: number, t
     totalEntries: 1,
     totalPartials: 0,
     accruals: ("_accruals" in signal && Array.isArray(signal._accruals)) ? structuredClone(signal._accruals) : [],
+    entries: ("_entry" in signal && Array.isArray(signal._entry)) ? structuredClone(signal._entry) : [],
+    partials: ("_partial" in signal && Array.isArray(signal._partial)) ? structuredClone(signal._partial) : [],
     priceOpen: signal.priceOpen ?? currentPrice,
     priceStopLoss: hasTrailingSL ? signal._trailingPriceStopLoss : signal.priceStopLoss,
     priceTakeProfit: hasTrailingTP ? signal._trailingPriceTakeProfit : signal.priceTakeProfit,

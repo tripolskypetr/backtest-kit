@@ -6,7 +6,7 @@ import {
   CommitPayload,
   ISignalDto,
   StrategyStatus,
-  IDividendDto,
+  IDividendDto, IPartialDto, IPartialCostDto, IAverageBuyDto,
 } from "../interfaces/Strategy.interface";
 import backtest from "../lib";
 import { exitEmitter, doneLiveSubject } from "../config/emitters";
@@ -3864,7 +3864,7 @@ export class LiveUtils {
    * Price must be moving toward take profit (in profit direction).
    *
    * @param symbol - Trading pair symbol
-   * @param percentToClose - Percentage of position to close (0-100, absolute value)
+   * @param dto - Percentage of the REMAINING position to close (0-100) as a number, or { percent, note } to store a note on the partial row
    * @param currentPrice - Current market price for this partial close
    * @param context - Execution context with strategyName and exchangeName
    * @returns Promise<boolean> - true if partial close executed, false if skipped
@@ -3887,16 +3887,18 @@ export class LiveUtils {
    */
   public commitPartialProfit = async (
     symbol: string,
-    percentToClose: number,
+    dto: number | IPartialDto,
     currentPrice: number,
     context: {
       strategyName: StrategyName;
       exchangeName: ExchangeName;
     },
   ): Promise<boolean> => {
+    const { percent: percentToClose, note } = typeof dto === "number" ? { percent: dto, note: undefined } : dto;
     backtest.loggerService.info(LIVE_METHOD_NAME_PARTIAL_PROFIT, {
       symbol,
       percentToClose,
+      note,
       currentPrice,
       context,
     });
@@ -4013,6 +4015,7 @@ export class LiveUtils {
         exchangeName: context.exchangeName,
         frameName: "",
       },
+      note,
     );
   };
 
@@ -4023,7 +4026,7 @@ export class LiveUtils {
    * Price must be moving toward stop loss (in loss direction).
    *
    * @param symbol - Trading pair symbol
-   * @param percentToClose - Percentage of position to close (0-100, absolute value)
+   * @param dto - Percentage of the REMAINING position to close (0-100) as a number, or { percent, note } to store a note on the partial row
    * @param currentPrice - Current market price for this partial close
    * @param context - Execution context with strategyName and exchangeName
    * @returns Promise<boolean> - true if partial close executed, false if skipped
@@ -4046,16 +4049,18 @@ export class LiveUtils {
    */
   public commitPartialLoss = async (
     symbol: string,
-    percentToClose: number,
+    dto: number | IPartialDto,
     currentPrice: number,
     context: {
       strategyName: StrategyName;
       exchangeName: ExchangeName;
     },
   ): Promise<boolean> => {
+    const { percent: percentToClose, note } = typeof dto === "number" ? { percent: dto, note: undefined } : dto;
     backtest.loggerService.info(LIVE_METHOD_NAME_PARTIAL_LOSS, {
       symbol,
       percentToClose,
+      note,
       currentPrice,
       context,
     });
@@ -4172,6 +4177,7 @@ export class LiveUtils {
         exchangeName: context.exchangeName,
         frameName: "",
       },
+      note,
     );
   };
 
@@ -4183,7 +4189,7 @@ export class LiveUtils {
    * Price must be moving toward take profit (in profit direction).
    *
    * @param symbol - Trading pair symbol
-   * @param dollarAmount - Dollar value of position to close (e.g. 150 closes $150 worth)
+   * @param dto - Dollar value of position to close as a number (e.g. 150 closes $150 worth), or { cost, note } to store a note on the partial row
    * @param currentPrice - Current market price for this partial close
    * @param context - Execution context with strategyName and exchangeName
    * @returns Promise<boolean> - true if partial close executed, false if skipped or no position
@@ -4206,13 +4212,15 @@ export class LiveUtils {
    */
   public commitPartialProfitCost = async (
     symbol: string,
-    dollarAmount: number,
+    dto: number | IPartialCostDto,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName },
   ): Promise<boolean> => {
+    const { cost: dollarAmount, note } = typeof dto === "number" ? { cost: dto, note: undefined } : dto;
     backtest.loggerService.info(LIVE_METHOD_NAME_PARTIAL_PROFIT_COST, {
       symbol,
       dollarAmount,
+      note,
       currentPrice,
       context,
     });
@@ -4330,6 +4338,7 @@ export class LiveUtils {
         exchangeName: context.exchangeName,
         frameName: "",
       },
+      note,
     );
   };
 
@@ -4341,7 +4350,7 @@ export class LiveUtils {
    * Price must be moving toward stop loss (in loss direction).
    *
    * @param symbol - Trading pair symbol
-   * @param dollarAmount - Dollar value of position to close (e.g. 100 closes $100 worth)
+   * @param dto - Dollar value of position to close as a number (e.g. 100 closes $100 worth), or { cost, note } to store a note on the partial row
    * @param currentPrice - Current market price for this partial close
    * @param context - Execution context with strategyName and exchangeName
    * @returns Promise<boolean> - true if partial close executed, false if skipped or no position
@@ -4364,13 +4373,15 @@ export class LiveUtils {
    */
   public commitPartialLossCost = async (
     symbol: string,
-    dollarAmount: number,
+    dto: number | IPartialCostDto,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName },
   ): Promise<boolean> => {
+    const { cost: dollarAmount, note } = typeof dto === "number" ? { cost: dto, note: undefined } : dto;
     backtest.loggerService.info(LIVE_METHOD_NAME_PARTIAL_LOSS_COST, {
       symbol,
       dollarAmount,
+      note,
       currentPrice,
       context,
     });
@@ -4488,6 +4499,7 @@ export class LiveUtils {
         exchangeName: context.exchangeName,
         frameName: "",
       },
+      note,
     );
   };
 
@@ -5367,11 +5379,14 @@ export class LiveUtils {
       strategyName: StrategyName;
       exchangeName: ExchangeName;
     },
-    cost: number = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
+    dto: number | IAverageBuyDto = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
   ): Promise<boolean> => {
+    const { cost = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, note } = typeof dto === "number" ? { cost: dto, note: undefined } : dto;
     backtest.loggerService.info(LIVE_METHOD_NAME_AVERAGE_BUY, {
       symbol,
       currentPrice,
+      cost,
+      note,
       context,
     });
     backtest.strategyValidationService.validate(
@@ -5468,6 +5483,7 @@ export class LiveUtils {
         frameName: "",
       },
       cost,
+      note,
     );
   };
 

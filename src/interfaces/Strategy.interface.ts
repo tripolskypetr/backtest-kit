@@ -178,6 +178,85 @@ export interface IDividendDto {
 }
 
 /**
+ * One partial close recorded on a position (ISignalRow._partial, published as
+ * IPublicSignalRow.partials). Appended by commitPartialProfit / commitPartialLoss
+ * (and their *Cost variants).
+ */
+export interface ISignalPartial {
+  /** Type of partial close: profit (moving toward TP) or loss (moving toward SL) */
+  type: "profit" | "loss";
+  /** Percentage of position closed (0-100) */
+  percent: number;
+  /** Price at which this partial was executed */
+  currentPrice: number;
+  /**
+   * Running cost basis (sum of entry costs) at the moment this partial was executed,
+   * BEFORE applying the percent reduction.
+   * Stored as a snapshot so helpers don't need to replay the full entry history.
+   * Effective entry price at this partial = costBasisAtClose / Σ(entry.cost/entry.price for entries[0..entryCountAtClose])
+   */
+  costBasisAtClose: number;
+  /**
+   * Number of _entry elements at the moment this partial close was executed.
+   * Used to slice _entry to only entries that existed at this partial.
+   */
+  entryCountAtClose: number;
+  /** Unix timestamp in milliseconds when this partial close was executed */
+  timestamp: number;
+  /** Optional human-readable description passed with the commit (e.g. "RSI > 70") */
+  note?: string;
+}
+
+/**
+ * One DCA entry recorded on a position (ISignalRow._entry, published as
+ * IPublicSignalRow.entries). The first element is the original entry; the
+ * rest are appended by commitAverageBuy.
+ */
+export interface ISignalEntry {
+  /** Price at which this entry was executed */
+  price: number;
+  /** Cost of this entry in USD (e.g. 100 for $100 position) */
+  cost: number;
+  /** Unix timestamp in milliseconds when this entry was executed */
+  timestamp: number;
+  /** Optional human-readable description passed with the commit (e.g. "ladder step 2") */
+  note?: string;
+}
+
+/**
+ * Partial close DTO accepted by commitPartialProfit / commitPartialLoss.
+ * A plain number is accepted as well and means { percent }.
+ */
+export interface IPartialDto {
+  /** Percentage of the REMAINING position to close (0-100) */
+  percent: number;
+  /** Optional note stored on the partial row (ISignalPartial.note) */
+  note?: string;
+}
+
+/**
+ * Partial close DTO accepted by commitPartialProfitCost / commitPartialLossCost.
+ * A plain number is accepted as well and means { cost }.
+ */
+export interface IPartialCostDto {
+  /** Dollar amount of the position to close */
+  cost: number;
+  /** Optional note stored on the partial row (ISignalPartial.note) */
+  note?: string;
+}
+
+/**
+ * DCA entry DTO accepted by commitAverageBuy.
+ * A plain number is accepted as well and means { cost }.
+ */
+export interface IAverageBuyDto {
+  /** Cost of the new entry in USD. Default: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST */
+  cost?: number;
+  /** Optional note stored on the entry row (ISignalEntry.note) */
+  note?: string;
+}
+
+/**
  * Signal data transfer object returned by getSignal.
  * Will be validated and augmented with auto-generated id.
  */
@@ -279,28 +358,7 @@ export interface ISignalRow extends ISignalDto {
    * - _slClosed: Sum of all "loss" type partial close percentages
    * - _totalClosed: Sum of all partial close percentages (profit + loss)
    */
-  _partial?: Array<{
-    /** Type of partial close: profit (moving toward TP) or loss (moving toward SL) */
-    type: "profit" | "loss";
-    /** Percentage of position closed (0-100) */
-    percent: number;
-    /** Price at which this partial was executed */
-    currentPrice: number;
-    /**
-     * Running cost basis (sum of entry costs) at the moment this partial was executed,
-     * BEFORE applying the percent reduction.
-     * Stored as a snapshot so helpers don't need to replay the full entry history.
-     * Effective entry price at this partial = costBasisAtClose / Σ(entry.cost/entry.price for entries[0..entryCountAtClose])
-     */
-    costBasisAtClose: number;
-    /**
-     * Number of _entry elements at the moment this partial close was executed.
-     * Used to slice _entry to only entries that existed at this partial.
-     */
-    entryCountAtClose: number;
-    /** Unix timestamp in milliseconds when this partial close was executed */
-    timestamp: number;
-  }>;
+  _partial?: ISignalPartial[];
   /**
    * Trailing stop-loss price that overrides priceStopLoss when set.
    * Updated by trailing() method based on position type and percentage distance.
@@ -317,14 +375,7 @@ export interface ISignalRow extends ISignalDto {
    * Effective entry price = simple arithmetic mean of all price values.
    * Original priceOpen is preserved unchanged for identity/audit purposes.
    */
-  _entry?: Array<{
-    /** Price at which this entry was executed */
-    price: number;
-    /** Cost of this entry in USD (e.g. 100 for $100 position) */
-    cost: number;
-    /** Unix timestamp in milliseconds when this entry was executed */
-    timestamp: number;
-  }>;
+  _entry?: ISignalEntry[];
   /**
    * Dividend / staking accruals credited to this position (see ISignalAccrual).
    * Appended by commitDividend (negative amounts are charges). Folded into
@@ -431,6 +482,16 @@ export interface IPublicSignalRow extends ISignalRow {
    * published separately as pnl.pnlDividends.
    */
   accruals: ISignalAccrual[];
+  /**
+   * DCA entry history (copy of _entry; the first element is the original
+   * entry). Each row carries the optional note passed to commitAverageBuy.
+   */
+  entries: ISignalEntry[];
+  /**
+   * Partial close history (copy of _partial, empty array when none). Each row
+   * carries the optional note passed to commitPartialProfit / commitPartialLoss.
+   */
+  partials: ISignalPartial[];
   /**
    * Original entry price set at signal creation (unchanged by averaging).
    * Mirrors signal.priceOpen which is preserved for identity/audit purposes.
@@ -1357,7 +1418,7 @@ export interface IStrategy {
    * @param symbol - Trading pair symbol
    * @returns Promise resolving to array of entry records or null
    */
-  getPositionEntries: (symbol: string, timestamp: number) => Promise<Array<{ price: number; cost: number; timestamp: number }> | null>;
+  getPositionEntries: (symbol: string, timestamp: number) => Promise<ISignalEntry[] | null>;
 
   /**
    * Returns the history of partial closes for the current pending signal.
@@ -1370,7 +1431,7 @@ export interface IStrategy {
    * @param symbol - Trading pair symbol
    * @returns Promise resolving to array of partial close records or null
    */  
-  getPositionPartials: (symbol: string) => Promise<Array<{ type: "profit" | "loss"; percent: number; currentPrice: number; costBasisAtClose: number; entryCountAtClose: number; timestamp: number; }> | null>
+  getPositionPartials: (symbol: string) => Promise<ISignalPartial[] | null>
   /**
    * Fast backtest using historical candles.
    * Iterates through candles, calculates VWAP, checks TP/SL on each candle.
@@ -1574,7 +1635,7 @@ export interface IStrategy {
    * }
    * ```
    */
-  partialProfit: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean, timestamp: number) => Promise<boolean>;
+  partialProfit: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean, timestamp: number, note?: string) => Promise<boolean>;
 
   /**
    * Checks whether `partialProfit` would succeed without executing it.
@@ -1632,7 +1693,7 @@ export interface IStrategy {
    * }
    * ```
    */
-  partialLoss: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean, timestamp: number) => Promise<boolean>;
+  partialLoss: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean, timestamp: number, note?: string) => Promise<boolean>;
 
   /**
    * Checks whether `partialLoss` would succeed without executing it.
@@ -1901,9 +1962,10 @@ export interface IStrategy {
    * @param backtest - Whether running in backtest mode
    * @param timestamp - Unix timestamp (ms) of the candle that triggered this DCA entry
    * @param cost - Optional cost of the new entry (defaults to $100 if not provided)
+   * @param note - Optional note stored on the entry row
    * @returns Promise<boolean> - true if entry added, false if rejected by direction check
    */
-  averageBuy: (symbol: string, currentPrice: number, backtest: boolean, timestamp: number, cost?: number) => Promise<boolean>;
+  averageBuy: (symbol: string, currentPrice: number, backtest: boolean, timestamp: number, cost?: number, note?: string) => Promise<boolean>;
 
   /**
    * Checks whether `averageBuy` would succeed without executing it.

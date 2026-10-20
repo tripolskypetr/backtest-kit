@@ -1,4 +1,4 @@
-import { IStrategyPnL, StrategyName, AccrualType } from "../interfaces/Strategy.interface";
+import { IStrategyPnL, StrategyName, AccrualType, ISignalAccrual, ISignalEntry, ISignalPartial } from "../interfaces/Strategy.interface";
 import { PartialLevel } from "../interfaces/Partial.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
@@ -66,6 +66,12 @@ export interface SignalOpenedNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -163,6 +169,12 @@ export interface SignalClosedNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -264,6 +276,12 @@ export interface PartialProfitAvailableNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -361,6 +379,12 @@ export interface PartialLossAvailableNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -456,6 +480,12 @@ export interface BreakevenAvailableNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -553,6 +583,12 @@ export interface PartialProfitCommitNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -650,6 +686,12 @@ export interface PartialLossCommitNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -745,6 +787,12 @@ export interface BreakevenCommitNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -842,6 +890,12 @@ export interface AverageBuyCommitNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -904,6 +958,12 @@ export interface DividendCommitNotification {
   currentPrice: number;
   /** USD value of all accruals of the position after this event */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total number of accruals on the position after this event */
   totalAccruals: number;
   /** Cost of the initial position entry in USD */
@@ -1039,6 +1099,12 @@ export interface ActivateScheduledCommitNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -1138,6 +1204,12 @@ export interface TrailingStopCommitNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -1235,6 +1307,12 @@ export interface TrailingTakeCommitNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -1314,6 +1392,12 @@ export interface OrderSyncOpenNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -1411,6 +1495,12 @@ export interface OrderSyncCloseNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -1543,6 +1633,12 @@ export interface OrderSyncCheckNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -1653,6 +1749,12 @@ export interface OrderContinueCheckNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -1764,6 +1866,12 @@ export interface OrderStopCheckNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -1847,6 +1955,12 @@ export interface OrderFillOpenNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -1950,6 +2064,12 @@ export interface OrderFillCloseNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -2062,6 +2182,12 @@ export interface OrderRejectOpenNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -2167,6 +2293,12 @@ export interface OrderRejectCloseNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -2335,6 +2467,12 @@ export interface SignalScheduledNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -2433,6 +2571,12 @@ export interface SignalCancelledNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
   /** Peak price reached in profit direction during the life of this position */
@@ -2621,6 +2765,12 @@ export interface CancelScheduledCommitNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -2718,6 +2868,12 @@ export interface ClosePendingCommitNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
@@ -2809,6 +2965,12 @@ export interface SignalInfoNotification {
   pnlCost: number;
   /** USD value of the dividend / staking accruals folded into pnlCost (0 when none) */
   pnlDividends: number;
+  /** DCA entry history of the position (IPublicSignalRow.entries; notes included) */
+  entries: ISignalEntry[];
+  /** Partial close history of the position (IPublicSignalRow.partials; notes included) */
+  partials: ISignalPartial[];
+  /** Dividend / staking accruals of the position (IPublicSignalRow.accruals; signed amounts) */
+  accruals: ISignalAccrual[];
   /** Total invested capital in USD */
   pnlEntries: number;
     /** Peak price reached in profit direction during the life of this position */
