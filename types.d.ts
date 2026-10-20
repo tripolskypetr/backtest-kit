@@ -3483,6 +3483,12 @@ interface ISignalAccrual {
     type: AccrualType;
     /** Signed amount (positive = credit, negative = charge): USD for "cash", asset units for "asset" */
     amount: number;
+    /**
+     * Market price at the moment the accrual was recorded (same source as
+     * ISignalPartial.currentPrice). Informational: the PNL values "asset"
+     * accruals at the PNL price, not at this one.
+     */
+    currentPrice: number;
     /** Unix timestamp in milliseconds when the accrual was recorded (execution-context time) */
     timestamp: number;
     /** Optional human-readable description (e.g. "Q3 dividend", "epoch 1234 staking reward") */
@@ -8243,7 +8249,8 @@ declare function getPositionEntries(symbol: string): Promise<ISignalEntry[]>;
 /**
  * Returns the dividend / staking accruals recorded on the current pending signal
  * (see commitDividend). Each record carries type ("cash" | "asset"), signed
- * amount, timestamp and an optional note.
+ * amount, the market price at the moment of the commit, timestamp and an
+ * optional note.
  *
  * Returns null if no pending signal exists, an empty array when none were recorded.
  *
@@ -8255,7 +8262,7 @@ declare function getPositionEntries(symbol: string): Promise<ISignalEntry[]>;
  * import { getPositionAccruals } from "backtest-kit";
  *
  * const accruals = await getPositionAccruals("AAPL");
- * // [{ type: "cash", amount: 2.4, timestamp: 1715299200000, note: "Q3 dividend" }]
+ * // [{ type: "cash", amount: 2.4, currentPrice: 182.5, timestamp: 1715299200000, note: "Q3 dividend" }]
  * ```
  */
 declare function getPositionAccruals(symbol: string): Promise<ISignalAccrual[]>;

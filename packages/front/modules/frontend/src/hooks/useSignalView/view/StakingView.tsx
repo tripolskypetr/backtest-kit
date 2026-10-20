@@ -49,6 +49,13 @@ const columns: IGridColumn<AccrualRow>[] = [
         },
     },
     {
+        field: "currentPrice",
+        label: t("Price"),
+        minWidth: 140,
+        width: () => 140,
+        format: ({ currentPrice }) => `${formatAmount(currentPrice, getPriceScale(currentPrice))}${t("$")}`,
+    },
+    {
         field: "timestamp",
         label: t("Timestamp"),
         minWidth: 160,

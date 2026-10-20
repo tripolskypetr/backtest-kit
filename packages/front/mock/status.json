@@ -61,18 +61,21 @@
       {
         "type": "asset",
         "amount": 0.00011,
+        "currentPrice": 51500,
         "timestamp": 1710980340000,
         "note": "Staking reward #1"
       },
       {
         "type": "asset",
         "amount": 0.00011,
+        "currentPrice": 51200,
         "timestamp": 1713572340000,
         "note": "Staking reward #2"
       },
       {
         "type": "asset",
         "amount": 0.00012,
+        "currentPrice": 50934.76,
         "timestamp": 1716077940000,
         "note": "Staking reward #3"
       }
@@ -105,18 +108,21 @@
       {
         "type": "asset",
         "amount": 0.00011,
+        "currentPrice": 51500,
         "timestamp": 1710980340000,
         "note": "Staking reward #1"
       },
       {
         "type": "asset",
         "amount": 0.00011,
+        "currentPrice": 51200,
         "timestamp": 1713572340000,
         "note": "Staking reward #2"
       },
       {
         "type": "asset",
         "amount": 0.00012,
+        "currentPrice": 50934.76,
         "timestamp": 1716077940000,
         "note": "Staking reward #3"
       }
@@ -202,6 +208,7 @@
       {
         "type": "cash",
         "amount": 1.25,
+        "currentPrice": 44637.88,
         "timestamp": 1707487380000,
         "note": "Quarterly dividend"
       }
@@ -240,6 +247,7 @@
       {
         "type": "cash",
         "amount": 1.25,
+        "currentPrice": 44637.88,
         "timestamp": 1707487380000,
         "note": "Quarterly dividend"
       }

@@ -927,7 +927,7 @@ export const signal_fields: TypedField[] = [
                                     >
                                         <ListItemText
                                             primary={`${t("Dividend")} ${row.type === "cash" ? `${row.amount.toFixed(getPriceScale(row.amount))}${t("$")}` : `${row.amount} ${t("asset")}`}`}
-                                            secondary={[t(row.type), row.note].filter(Boolean).join(" · ")}
+                                            secondary={[t(row.type), `${t("Price")}: ${row.currentPrice.toFixed(getPriceScale(row.currentPrice))}${t("$")}`, row.note].filter(Boolean).join(" · ")}
                                         />
                                         <Typography variant="body1">{dayjs(row.timestamp).format("DD/MM/YYYY HH:mm:ss")}</Typography>
                                     </ListItemButton>

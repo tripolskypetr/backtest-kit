@@ -98,6 +98,8 @@ test("DIVIDEND: signed cash and asset accruals net into the closed PNL", async (
   if (notes.join(",") !== "Q3 dividend,advance,advance cash-out,staking reward") return fail(`unexpected accrual notes: ${notes}`);
   const charge = signal.accruals.find((a) => a.note === "advance cash-out");
   if (charge.type !== "cash" || charge.amount !== -100) return fail(`the charge must be stored as cash -100, got ${JSON.stringify(charge)}`);
+  // flat market: every accrual is stamped with the VWAP price of its commit (BASE)
+  if (signal.accruals.some((a) => a.currentPrice !== BASE)) return fail(`accruals must record the commit price ${BASE}, got ${JSON.stringify(signal.accruals.map((a) => a.currentPrice))}`);
 
   // cash 5 + asset 0.001 × 50000 (flat market) + 100 − 100 = 55
   if (Math.abs(pnl.pnlDividends - 55) > 1e-9) return fail(`pnlDividends must be 55, got ${pnl.pnlDividends}`);

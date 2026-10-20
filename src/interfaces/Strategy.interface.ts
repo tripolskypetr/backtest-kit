@@ -159,6 +159,12 @@ export interface ISignalAccrual {
   type: AccrualType;
   /** Signed amount (positive = credit, negative = charge): USD for "cash", asset units for "asset" */
   amount: number;
+  /**
+   * Market price at the moment the accrual was recorded (same source as
+   * ISignalPartial.currentPrice). Informational: the PNL values "asset"
+   * accruals at the PNL price, not at this one.
+   */
+  currentPrice: number;
   /** Unix timestamp in milliseconds when the accrual was recorded (execution-context time) */
   timestamp: number;
   /** Optional human-readable description (e.g. "Q3 dividend", "epoch 1234 staking reward") */

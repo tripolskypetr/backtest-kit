@@ -2799,9 +2799,10 @@ const AVERAGE_BUY_FN = (
  * Accrual DTO normalized to a row: type defaults to "cash". Shared by dividend
  * and validateDividend so both see the same defaults.
  */
-const TO_ACCRUAL_ROW_FN = (dto: IDividendDto, timestamp: number): ISignalAccrual => ({
+const TO_ACCRUAL_ROW_FN = (dto: IDividendDto, currentPrice: number, timestamp: number): ISignalAccrual => ({
   type: dto.type ?? "cash",
   amount: dto.amount,
+  currentPrice,
   timestamp,
   note: dto.note,
 });
@@ -11555,7 +11556,7 @@ export class ClientStrategy implements IStrategy {
     });
     if (!this._pendingSignal) return false;
     if (!dto || typeof dto !== "object") return false;
-    const accrual = TO_ACCRUAL_ROW_FN(dto, 0);
+    const accrual = TO_ACCRUAL_ROW_FN(dto, 0, 0);
     return GET_DIVIDEND_REJECTION_FN(accrual) === null;
   }
 
@@ -11608,7 +11609,7 @@ export class ClientStrategy implements IStrategy {
       );
     }
 
-    const accrual = TO_ACCRUAL_ROW_FN(dto, timestamp);
+    const accrual = TO_ACCRUAL_ROW_FN(dto, currentPrice, timestamp);
     const rejection = GET_DIVIDEND_REJECTION_FN(accrual);
     if (rejection !== null) {
       throw new Error(`ClientStrategy dividend: ${rejection}`);

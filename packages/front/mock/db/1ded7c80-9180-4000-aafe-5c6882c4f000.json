@@ -47,6 +47,7 @@
     {
       "type": "cash",
       "amount": 1.25,
+      "currentPrice": 44637.88,
       "timestamp": 1707487380000,
       "note": "Quarterly dividend"
     }
@@ -63,6 +64,7 @@
     {
       "type": "cash",
       "amount": 1.25,
+      "currentPrice": 44637.88,
       "timestamp": 1707487380000,
       "note": "Quarterly dividend"
     }

@@ -1969,7 +1969,8 @@ export async function getPositionEntries(symbol: string) {
 /**
  * Returns the dividend / staking accruals recorded on the current pending signal
  * (see commitDividend). Each record carries type ("cash" | "asset"), signed
- * amount, timestamp and an optional note.
+ * amount, the market price at the moment of the commit, timestamp and an
+ * optional note.
  *
  * Returns null if no pending signal exists, an empty array when none were recorded.
  *
@@ -1981,7 +1982,7 @@ export async function getPositionEntries(symbol: string) {
  * import { getPositionAccruals } from "backtest-kit";
  *
  * const accruals = await getPositionAccruals("AAPL");
- * // [{ type: "cash", amount: 2.4, timestamp: 1715299200000, note: "Q3 dividend" }]
+ * // [{ type: "cash", amount: 2.4, currentPrice: 182.5, timestamp: 1715299200000, note: "Q3 dividend" }]
  * ```
  */
 export async function getPositionAccruals(symbol: string) {
