@@ -3,6 +3,7 @@ import {
   toProfitLossDto,
   getAccrualsCost,
   getBreakevenPrice,
+  getLiquidationPrice,
   setConfig,
   getDefaultConfig,
 } from "../../build/index.mjs";
@@ -81,16 +82,17 @@ test("dividends: accruals fold into the partial-close branch the same way", asyn
   pass("partial-close branch folds accruals identically");
 });
 
-test("dividends: a cash accrual moves the breakeven price toward (and past) the entry", async ({ pass, fail }) => {
+test("dividends: breakeven is a price level — accruals do not move it", async ({ pass, fail }) => {
   setConfig(getDefaultConfig());
   const plain = getBreakevenPrice(base());
-  const paid = getBreakevenPrice(base({ _accruals: [{ type: "cash", amount: 1, timestamp: T0 }] }));
-  if (plain === null || paid === null) return fail("breakeven must be defined for a plain long");
-  if (!(paid < plain)) return fail(`a received dividend must lower the LONG breakeven: ${paid} vs ${plain}`);
-  // the breakeven price still yields exactly 0% PNL with the accrual included
-  const pnl = toProfitLossDto(base({ _accruals: [{ type: "cash", amount: 1, timestamp: T0 }] }), paid);
-  if (!near(pnl.pnlPercentage, 0, 1e-6)) return fail(`closing at breakeven must give 0%, got ${pnl.pnlPercentage}`);
-  pass(`breakeven lowered from ${plain.toFixed(2)} to ${paid.toFixed(2)} by a $1 dividend, exact 0% at the new level`);
+  const paid = getBreakevenPrice(base({ _accruals: [{ type: "cash", amount: 1, currentPrice: 50000, timestamp: T0 }] }));
+  const big = getBreakevenPrice(base({ _accruals: [{ type: "cash", amount: 500, currentPrice: 50000, timestamp: T0 }] }));
+  if (plain === null || paid === null || big === null) return fail("breakeven must be defined for a plain long");
+  if (!near(paid, plain, 1e-9) || !near(big, plain, 1e-9)) return fail(`accruals must not move the breakeven: ${plain} vs ${paid} / ${big}`);
+  // at the breakeven price the price PNL is 0 and the total PNL is exactly the accrual
+  const pnl = toProfitLossDto(base({ _accruals: [{ type: "cash", amount: 1, currentPrice: 50000, timestamp: T0 }] }), paid);
+  if (!near(pnl.pnlCost, 1, 1e-6) || !near(pnl.pnlDividends, 1)) return fail(`closing at breakeven must give exactly the accrual (1$), got ${pnl.pnlCost}`);
+  pass(`breakeven ${plain.toFixed(2)} unchanged by $1 and $500 dividends; total PNL at that price = accrual`);
 });
 
 test("dividends: a negative accrual charges the position and moves the breakeven away from the entry", async ({ pass, fail }) => {
@@ -114,12 +116,26 @@ test("dividends: a negative accrual charges the position and moves the breakeven
   const lev = toProfitLossDto(base({ multiplier: 3, _accruals: [{ type: "cash", amount: -10, timestamp: T0 }] }), 51000);
   const priceLev = toProfitLossDto(base({ multiplier: 3 }), 51000);
   if (!near(lev.pnlCost, priceLev.pnlCost - 10)) return fail(`leveraged pnlCost must be 3x price pnl - 10 (not -30): ${lev.pnlCost}`);
-  // breakeven: a charge raises the LONG breakeven above the plain one, and still yields exactly 0%
+  // breakeven is a price level: a charge does not move it either; the total PNL there is the charge itself
   const plain = getBreakevenPrice(base());
-  const owed = getBreakevenPrice(base({ _accruals: [{ type: "cash", amount: -1, timestamp: T0 }] }));
+  const owed = getBreakevenPrice(base({ _accruals: [{ type: "cash", amount: -1, currentPrice: 50000, timestamp: T0 }] }));
   if (plain === null || owed === null) return fail("breakeven must be defined");
-  if (!(owed > plain)) return fail(`a charge must raise the LONG breakeven: ${owed} vs ${plain}`);
-  const atOwed = toProfitLossDto(base({ _accruals: [{ type: "cash", amount: -1, timestamp: T0 }] }), owed);
-  if (!near(atOwed.pnlPercentage, 0, 1e-6)) return fail(`closing at breakeven must give 0%, got ${atOwed.pnlPercentage}`);
-  pass(`charge -10 USD / -0.001 asset folded with sign, nets to zero against an equal credit, breakeven raised ${plain.toFixed(2)} -> ${owed.toFixed(2)}`);
+  if (!near(owed, plain, 1e-9)) return fail(`a charge must not move the breakeven: ${owed} vs ${plain}`);
+  const atOwed = toProfitLossDto(base({ _accruals: [{ type: "cash", amount: -1, currentPrice: 50000, timestamp: T0 }] }), owed);
+  if (!near(atOwed.pnlCost, -1, 1e-6)) return fail(`closing at breakeven must give exactly the charge (-1$), got ${atOwed.pnlCost}`);
+  pass(`charge -10 USD / -0.001 asset folded with sign, nets to zero against an equal credit, breakeven ${plain.toFixed(2)} unchanged by a charge`);
+});
+
+test("dividends: liquidation is a price level — accruals neither push it away nor pull it closer", async ({ pass, fail }) => {
+  setConfig(getDefaultConfig());
+  const lev = (acc) => base({ multiplier: 5, isolated: true, _accruals: acc });
+  const plain = getLiquidationPrice(lev([]));
+  const paid = getLiquidationPrice(lev([{ type: "cash", amount: 10, currentPrice: 50000, timestamp: T0 }]));
+  const owed = getLiquidationPrice(lev([{ type: "cash", amount: -10, currentPrice: 50000, timestamp: T0 }]));
+  if (plain === null || paid === null || owed === null) return fail("liquidation must be defined for a 5x isolated long");
+  if (!near(paid, plain, 1e-9) || !near(owed, plain, 1e-9)) return fail(`accruals must not move the liquidation price: ${plain} vs ${paid} / ${owed}`);
+  // at the liquidation price the position margin is gone (-100% price PNL); the dividend stays on the account
+  const pnl = toProfitLossDto(lev([{ type: "cash", amount: 10, currentPrice: 50000, timestamp: T0 }]), plain);
+  if (!near(pnl.pnlCost, -100 + 10, 1e-6)) return fail(`PNL at liquidation must be -100% of invested + accrual = -90, got ${pnl.pnlCost}`);
+  pass(`liquidation ${plain.toFixed(2)} unchanged by +10 / -10 accruals; realized at that price: -100 + 10 = ${pnl.pnlCost.toFixed(2)}`);
 });

@@ -6628,7 +6628,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
 
     if (shouldClose) {
       // КРИТИЧНО: используем точную цену уровня для закрытия (как в live mode):
-      // liquidation закрывается по liquidationPrice — toProfitLossDto даёт ровно -100%
+      // liquidation закрывается по liquidationPrice — ценовой PnL ровно -100%
+      // (с начислениями итог -100% + pnlDividends: дивиденды не часть маржи позиции)
       let closePrice: number;
       if (closeReason === "take_profit") {
         closePrice = effectiveTakeProfit; // используем trailing TP если установлен

@@ -5,6 +5,7 @@ interface Signal extends ISignalDto {
   priceOpen: number;
   _entry?: ISignalRow['_entry'];
   _partial?: ISignalRow['_partial'];
+  _accruals?: ISignalRow['_accruals'];
 }
 
 /**
@@ -39,11 +40,18 @@ const LIQUIDATION_PNL_PERCENT = -100;
  * @returns The exact liquidation price, or null when liquidation is unreachable
  */
 export const getLiquidationPrice = (signal: Signal): number | null => {
+  // Liquidation is a PRICE level of the isolated position margin: dividend /
+  // staking accruals (_accruals) are excluded — received cash sits on the
+  // account, not in the position margin, and a staking asset is no margin at
+  // all, so they must not push the liquidation price away (or, for a charge,
+  // pull it closer). The PNL realized at this price is therefore
+  // -100% + pnlDividends once accruals exist — see toProfitLossDto.
+  const priceSignal: Signal = { ...signal, _accruals: [] };
   const p0 = signal.priceOpen;
   const p1 = signal.priceOpen * 0.9;
 
-  const pnl0 = toProfitLossDto(signal, p0).pnlPercentage;
-  const pnl1 = toProfitLossDto(signal, p1).pnlPercentage;
+  const pnl0 = toProfitLossDto(priceSignal, p0).pnlPercentage;
+  const pnl1 = toProfitLossDto(priceSignal, p1).pnlPercentage;
 
   const k = (pnl1 - pnl0) / (p1 - p0);
   if (!Number.isFinite(k) || Math.abs(k) < Number.EPSILON) {

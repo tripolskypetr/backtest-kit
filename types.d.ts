@@ -48537,6 +48537,7 @@ interface Signal$1 extends ISignalDto {
     priceOpen: number;
     _entry?: ISignalRow['_entry'];
     _partial?: ISignalRow['_partial'];
+    _accruals?: ISignalRow['_accruals'];
 }
 /**
  * Computes the exact liquidation price for an isolated-margin position — the
@@ -48569,6 +48570,7 @@ interface Signal extends ISignalDto {
     priceOpen: number;
     _entry?: ISignalRow['_entry'];
     _partial?: ISignalRow['_partial'];
+    _accruals?: ISignalRow['_accruals'];
 }
 /**
  * Computes the exact COST-AWARE breakeven price — the close price at which the
@@ -48590,6 +48592,13 @@ interface Signal extends ISignalDto {
  * k * P + b = 0. This inverts the REAL production PNL calculator, so the
  * formula can never drift from it (closing at the returned price yields
  * exactly 0% by construction).
+ *
+ * Breakeven is a PRICE level: dividend / staking accruals (_accruals) are
+ * deliberately excluded. They are money already received, not price exposure,
+ * and folding them in would announce breakeven.available and park the stop
+ * BELOW the entry right after the first accrual (a 1% dividend puts the
+ * "breakeven" at -0.6% from entry). The PNL at the returned price is therefore
+ * exactly pnlDividends, not 0, once accruals exist — see toProfitLossDto.
  *
  * Returns null when the PNL does not depend on the close price (k ≈ 0): the
  * remaining position weight is zero (fully closed by partials) — nothing left
