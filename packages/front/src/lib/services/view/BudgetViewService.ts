@@ -5,15 +5,24 @@ import { Budget } from "backtest-kit";
 import BudgetMockService, { IBudgetViewContext, TBudgetBalance, TBudgetContext, TBudgetHistoryRow } from "../mock/BudgetMockService";
 import { getConfig as getParamsConfig } from "../../../config/params";
 
-/** Record key and name from the request plus the logical time the caller reads at */
-const TO_BUDGET_CONTEXT_FN = (context: IBudgetViewContext, when: number): TBudgetContext => ({
+/** Record key from the request, the budget name from the strategy, the logical time the caller reads at */
+const TO_BUDGET_CONTEXT_FN = (context: IBudgetViewContext, name: string, when: number): TBudgetContext => ({
     strategyName: context.strategyName,
     exchangeName: context.exchangeName,
     frameName: context.frameName,
     backtest: context.backtest,
-    name: context.name,
+    name,
     when: new Date(when),
 });
+
+/** The budget the dashboard shows: the first one the strategy constructed */
+const GET_BUDGET_NAME_FN = (method: string): string => {
+    const [name] = Budget._getNames();
+    if (!name) {
+        throw new Error(`BudgetViewService ${method} no budget constructed`);
+    }
+    return name;
+};
 
 export class BudgetViewService {
     private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -30,7 +39,8 @@ export class BudgetViewService {
         if (!Budget.enable.hasValue()) {
             throw new Error("BudgetViewService getBalance budget not enabled");
         }
-        return await Budget._getBalance(TO_BUDGET_CONTEXT_FN(context, when));
+        const name = GET_BUDGET_NAME_FN("getBalance");
+        return await Budget._getBalance(TO_BUDGET_CONTEXT_FN(context, name, when));
     }
 
     public getHistory = async (context: IBudgetViewContext, when: number): Promise<TBudgetHistoryRow[]> => {
@@ -44,7 +54,8 @@ export class BudgetViewService {
         if (!Budget.enable.hasValue()) {
             throw new Error("BudgetViewService getHistory budget not enabled");
         }
-        return await Budget._getHistory(TO_BUDGET_CONTEXT_FN(context, when));
+        const name = GET_BUDGET_NAME_FN("getHistory");
+        return await Budget._getHistory(TO_BUDGET_CONTEXT_FN(context, name, when));
     }
 }
 

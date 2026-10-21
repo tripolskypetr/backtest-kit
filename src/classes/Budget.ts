@@ -47,6 +47,7 @@ const BUDGET_LIVE_ADAPTER_METHOD_NAME_CLEAR = "BudgetLiveAdapter.clear";
 
 const BUDGET_METHOD_NAME_ENABLE = "Budget.enable";
 const BUDGET_METHOD_NAME_DISABLE = "Budget.disable";
+const BUDGET_METHOD_NAME_STATIC_GET_NAMES = "Budget._getNames";
 const BUDGET_METHOD_NAME_STATIC_GET_BALANCE = "Budget._getBalance";
 const BUDGET_METHOD_NAME_STATIC_GET_FREE = "Budget._getFree";
 const BUDGET_METHOD_NAME_STATIC_GET_HISTORY = "Budget._getHistory";
@@ -64,6 +65,13 @@ const BUDGET_METHOD_NAME_WITHDRAW = "Budget.withdraw";
 
 /** Label of the quote-currency bucket in `reject` rows produced by `reserve` */
 const CAPITAL_ASSET = "capital";
+
+/**
+ * Budgets constructed in this process, name → initial capital. Strategy code
+ * creates them at module level (`const fund = new Budget({ name, initialCapital })`),
+ * so this is the full set of budget names an observer (dashboard) can read.
+ */
+const BUDGET_NAMES = new Map<BudgetName, number>();
 
 /**
  * Context of a static (context-free) budget call: the record key, the budget
@@ -1042,7 +1050,18 @@ const ASSERT_AMOUNT_FN = (method: string, amount: number): void => {
  */
 export class Budget {
 
-  constructor(private readonly params: { name: BudgetName; initialCapital: number }) { }
+  constructor(private readonly params: { name: BudgetName; initialCapital: number }) {
+    BUDGET_NAMES.set(params.name, params.initialCapital);
+  }
+
+  /**
+   * Names of the budgets constructed in this process, in construction order.
+   * @returns Budget names
+   */
+  public static _getNames = (): BudgetName[] => {
+    swarm.loggerService.debug(BUDGET_METHOD_NAME_STATIC_GET_NAMES);
+    return Array.from(BUDGET_NAMES.keys());
+  };
 
   /**
    * Enables budget storage. Uses singleshot so that `disable()` and `clear()`

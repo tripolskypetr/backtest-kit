@@ -95,7 +95,7 @@ interface BudgetRequest {
   serviceName: string;
   userId: string;
   requestId: string;
-  context: { strategyName: string; exchangeName: string; frameName: string; backtest: boolean; name: string };
+  context: { strategyName: string; exchangeName: string; frameName: string; backtest: boolean };
   when: number;
 }
 

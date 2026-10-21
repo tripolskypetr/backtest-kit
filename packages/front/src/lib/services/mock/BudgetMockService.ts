@@ -16,8 +16,8 @@ export type TBudgetBalance = Awaited<ReturnType<typeof Budget._getBalance>>;
 /** One journal row of a budget */
 export type TBudgetHistoryRow = Awaited<ReturnType<typeof Budget._getHistory>>[number];
 
-/** Record key of a budget journal as the dashboard sends it: a strategy run plus the budget name */
-export type IBudgetViewContext = Pick<TBudgetContext, "strategyName" | "exchangeName" | "frameName" | "backtest" | "name">;
+/** Record key of a budget journal as the dashboard sends it: a strategy run (the budget name is resolved on the backend) */
+export type IBudgetViewContext = Pick<TBudgetContext, "strategyName" | "exchangeName" | "frameName" | "backtest">;
 
 /** Mock layout: one record per mode, the journal already folded with balances after every row */
 interface IBudgetMock {
@@ -46,7 +46,7 @@ export class BudgetMockService {
         const last = history[history.length - 1];
         if (!last) {
             return {
-                name: context.name,
+                name: record.balance.name,
                 when: new Date(when),
                 capital: record.balance.capital,
                 deployed: 0,
@@ -55,7 +55,7 @@ export class BudgetMockService {
             };
         }
         return {
-            name: context.name,
+            name: record.balance.name,
             when: new Date(when),
             ...last.balance,
         };
