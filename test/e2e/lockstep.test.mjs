@@ -9,7 +9,11 @@ import {
   listenError,
   listenIdlePing,
   listenSignalBacktest,
+  listenActivePing,
+  listenSchedulePing,
   setConfig,
+  Budget,
+  BudgetRejectedError,
 } from "../../build/index.mjs";
 import { Subject, sleep } from "functools-kit";
 
@@ -25,6 +29,11 @@ import { Subject, sleep } from "functools-kit";
  *   ping     - no getSignal at all: the position is opened from listenIdlePing via
  *              Backtest.commitCreateSignal; the replay of a 60-minute position moves that
  *              symbol's clock ahead by its lifetime, so the spread is bounded by lifetime + 1 timeframe
+ *   budget   - the Budget is driven from the pings: _getFree on every schedule ping, _reserve on the
+ *              first active ping of a signal, _release on close. Capital fits one position; the slow
+ *              symbol's scheduled signal activates between two positions of the fast one. With lockstep
+ *              the fast symbol's next reserve sees it and is REFUSED; without lockstep the fast symbol
+ *              has already reserved on a free balance and the slow row lands before it: an OVERDRAFT.
  */
 const HOUR_MS = 3_600_000;
 const MIN_MS = 60_000;
@@ -233,4 +242,153 @@ test("LOCKSTEP: a strategy without getSignal that opens from listenIdlePing + co
     return fail(`clocks diverged by ${maxSpread / HOUR_MS} timeframes (expected at most lifetime + 1 = ${bound / HOUR_MS})`);
   }
   pass(`lockstep on, idle ping: max spread ${maxSpread / HOUR_MS} timeframe(s) over ${events.length} ticks, ${signals.length} signal events`);
+});
+
+// ── Budget driven from the pings ─────────────────────────────────────────────
+
+const BUDGET_NAME = "fund";
+const BUDGET_CAPITAL = 1_500;
+const BUDGET_COST = 1_000;
+const FAST_MINUTES = 30;
+const SLOW_MINUTES = 90;
+/** The slow symbol places its only (scheduled) signal on this timeframe */
+const SLOW_SIGNAL_AT = FRAME_START + 1 * HOUR_MS;
+/** The slow symbol's price dips below the scheduled priceOpen from this minute of the signal's hour until the hour ends */
+const SLOW_DIP_MINUTE = 45;
+
+const buildBudgetCase = (name) => {
+  const exchangeName = `lockstep-budget-exchange-${name}`;
+  const strategyName = `lockstep-budget-strategy-${name}`;
+  const frameName = `lockstep-budget-frame-${name}`;
+  addExchangeSchema({
+    exchangeName,
+    // FAST: flat 100. SLOW: 100, dipping to 98 from minute 45 of the signal's hour so a long with priceOpen 99
+    // is scheduled at the hour and activates mid-hour, between two positions of the fast symbol
+    getCandles: async (symbol, interval, since, limit) => {
+      if (interval !== "1m") throw new Error(`lockstep exchange: only 1m bars, got ${interval}`);
+      const out = [];
+      let timestamp = Math.floor(since.getTime() / MIN_MS) * MIN_MS;
+      while (out.length < limit) {
+        const inDip = timestamp >= SLOW_SIGNAL_AT + SLOW_DIP_MINUTE * MIN_MS && timestamp < SLOW_SIGNAL_AT + HOUR_MS;
+        const price = symbol === SLOW_SYMBOL && inDip ? 98 : 100;
+        out.push({ timestamp, open: price, high: price + 0.5, low: price - 0.5, close: price, volume: 1_000 });
+        timestamp += MIN_MS;
+      }
+      return out;
+    },
+    formatPrice: async (_s, p) => p.toFixed(8),
+    formatQuantity: async (_s, q) => q.toFixed(8),
+  });
+  addStrategySchema({
+    strategyName,
+    interval: "1h",
+    getSignal: async (symbol, when) => {
+      if (symbol === FAST_SYMBOL) {
+        return { position: "long", priceStopLoss: 85, priceTakeProfit: 119, cost: BUDGET_COST, minuteEstimatedTime: FAST_MINUTES };
+      }
+      if (when.getTime() === SLOW_SIGNAL_AT) {
+        return { position: "long", priceOpen: 99, priceStopLoss: 85, priceTakeProfit: 119, cost: BUDGET_COST, minuteEstimatedTime: SLOW_MINUTES };
+      }
+      return null;
+    },
+  });
+  addFrameSchema({ frameName, interval: "1h", startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
+  return { exchangeName, strategyName, frameName };
+};
+
+/**
+ * Wires the budget to the ping listeners for one run and returns the journal as of the frame end
+ * together with the free-balance reads taken on schedule pings and the refused reserves.
+ */
+const runBudgetCase = async (schema, symbols) => {
+  Budget.enable();
+  const key = { ...schema, backtest: true, name: BUDGET_NAME, initialCapital: BUDGET_CAPITAL };
+  const contextOf = (symbol, when) => ({ ...key, symbol, when });
+
+  const scheduleReads = [];
+  const rejects = [];
+  const reserved = new Set();
+
+  const unSchedule = listenSchedulePing(async (event) => {
+    if (event.strategyName !== schema.strategyName) return;
+    if (event.symbol === SLOW_SYMBOL) {
+      await sleep(2);
+    }
+    const free = await Budget._getFree(contextOf(event.symbol, event.when));
+    scheduleReads.push({ symbol: event.symbol, when: event.when.getTime(), free });
+  });
+  const unActive = listenActivePing(async (event) => {
+    if (event.strategyName !== schema.strategyName) return;
+    if (event.symbol === SLOW_SYMBOL) {
+      await sleep(2);
+    }
+    if (reserved.has(event.data.id)) return;
+    reserved.add(event.data.id);
+    try {
+      await Budget._reserve({ id: event.data.id, amount: BUDGET_COST, note: event.symbol }, contextOf(event.symbol, event.when));
+    } catch (error) {
+      if (!BudgetRejectedError.isBudgetRejectedError(error)) throw error;
+      rejects.push({ symbol: event.symbol, when: event.when.getTime() });
+    }
+  });
+  const unClosed = listenSignalBacktest(async (event) => {
+    if (event.strategyName !== schema.strategyName) return;
+    if (event.action !== "closed") return;
+    await Budget._release({ id: event.signal.id, pnl: event.pnl.pnlCost }, contextOf(event.symbol, new Date(event.closeTimestamp)));
+  });
+
+  let result;
+  try {
+    result = await runCase(schema, symbols);
+  } finally {
+    unSchedule();
+    unActive();
+    unClosed();
+  }
+  const history = await Budget._getHistory({ ...key, when: new Date(FRAME_END) });
+  return { ...result, scheduleReads, rejects, history };
+};
+
+const describeRows = (rows) => rows.map((r) => `${r.type}:${r.symbol}@${new Date(r.timestamp).toISOString().slice(11, 16)}${r.overdraft !== undefined ? `(overdraft ${r.overdraft})` : ""}`).join(", ");
+
+test("LOCKSTEP + BUDGET: with lockstep the budget driven from schedule/active pings refuses the colliding reserve instead of overdrafting", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  const symbols = [SLOW_SYMBOL, FAST_SYMBOL];
+  const schema = buildBudgetCase("on");
+  const { maxSpread, scheduleReads, rejects, history } = await runBudgetCase(schema, symbols);
+
+  if (!scheduleReads.length) return fail("expected the slow symbol's scheduled signal to ping the budget before activating");
+  const negativeRead = scheduleReads.find((r) => r.free < 0);
+  if (negativeRead) return fail(`a schedule ping read a negative free balance: ${JSON.stringify(negativeRead)}`);
+
+  const slowReserve = history.find((r) => r.type === "reserve" && r.symbol === SLOW_SYMBOL);
+  if (!slowReserve) return fail(`the slow symbol never reserved from its active ping: ${describeRows(history)}`);
+  if (slowReserve.timestamp <= SLOW_SIGNAL_AT || slowReserve.timestamp >= SLOW_SIGNAL_AT + HOUR_MS) {
+    return fail(`the slow reserve must sit mid-hour after activation, got ${new Date(slowReserve.timestamp).toISOString()}`);
+  }
+
+  const overdrafts = history.filter((r) => r.type === "reserve" && r.overdraft !== undefined);
+  if (overdrafts.length) return fail(`lockstep on: expected no overdraft, got ${describeRows(overdrafts)}`);
+  const negativeRow = history.find((r) => r.balance.free < 0);
+  if (negativeRow) return fail(`lockstep on: free balance went negative at ${describeRows([negativeRow])}`);
+  if (!rejects.length || rejects.some((r) => r.symbol !== FAST_SYMBOL)) {
+    return fail(`lockstep on: expected the fast symbol's colliding reserve to be refused, got ${JSON.stringify(rejects)}`);
+  }
+  const rejectRows = history.filter((r) => r.type === "reject");
+  if (rejectRows.length !== rejects.length) return fail(`every refused reserve must leave a reject row: rows=${rejectRows.length} thrown=${rejects.length}`);
+
+  pass(`lockstep on + budget: ${rejects.length} refused, 0 overdraft, spread ${maxSpread / HOUR_MS} tf, journal: ${describeRows(history)}`);
+});
+
+test("LOCKSTEP + BUDGET: without lockstep the slow symbol's reserve lands before the fast symbol's and leaves an overdraft row", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: false }, true);
+  const symbols = [SLOW_SYMBOL, FAST_SYMBOL];
+  const schema = buildBudgetCase("off");
+  const { maxSpread, history } = await runBudgetCase(schema, symbols);
+
+  const overdrafts = history.filter((r) => r.type === "reserve" && r.overdraft !== undefined);
+  if (!overdrafts.length) return fail(`lockstep off: expected an overdraft on a fast reserve, journal: ${describeRows(history)}`);
+  if (overdrafts.some((r) => r.symbol !== FAST_SYMBOL)) return fail(`the overdraft must be on the fast symbol's rows, got ${describeRows(overdrafts)}`);
+
+  pass(`lockstep off + budget: ${overdrafts.length} overdraft row(s), spread ${maxSpread / HOUR_MS} tf, journal: ${describeRows(history)}`);
 });
