@@ -11,6 +11,19 @@ import {
   listenSignalBacktest,
   listenActivePing,
   listenSchedulePing,
+  listenSignal,
+  listenSignalEvent,
+  listenOrderSchedule,
+  listenStrategyCommit,
+  listenHighestProfit,
+  listenMaxDrawdown,
+  listenPause,
+  listenSync,
+  listenCheck,
+  listenOrderFill,
+  listenOrderReject,
+  listenOrderContinue,
+  listenOrderStop,
   setConfig,
   Budget,
   BudgetRejectedError,
@@ -53,6 +66,17 @@ import { Subject, sleep } from "functools-kit";
  *              chunked replay, eight symbols with throwing listeners and a dying peer. Every survivor
  *              reports done within a timeout and a probe backtest launched afterwards finishes too,
  *              which it cannot do if the lock was left held
+ *   listeners- every listen* that StrategyConnectionService feeds through a subject gets a listener
+ *              that throws on every other event. The backtest scenario fires the pings, the signal /
+ *              schedule / commit events, highest profit and max drawdown; pause, sync / check and the
+ *              order fill / reject / continue / stop channels are live-only (CREATE_SYNC_FN returns
+ *              "confirmed" without emitting when event.backtest is true) and stay subscribed but silent
+ *   budget   - the same backtest channels drive the Budget with NO try/catch in the handlers: a reserve
+ *   callbacks  on the first active ping, the same id reserved AGAIN on the second one (an Error thrown
+ *              out of the queued dispatch), a withdraw above the held amount from listenMaxDrawdown
+ *              (a BudgetRejectedError thrown out of the handler), deposits from listenHighestProfit and
+ *              listenOrderSchedule, reads from the rest. Nothing hangs, the journal stays consistent and
+ *              the budget's write queue is still alive afterwards
  */
 const HOUR_MS = 3_600_000;
 const MIN_MS = 60_000;
@@ -60,6 +84,8 @@ const MIN_MS = 60_000;
 const FRAME_START = Date.parse("2024-01-01T00:00:00Z");
 const FRAME_HOURS = 12;
 const FRAME_END = FRAME_START + FRAME_HOURS * HOUR_MS;
+/** A position opened on the last timeframe closes one candle past the frame end: the journal is read after that */
+const JOURNAL_END = FRAME_END + HOUR_MS;
 
 const SLOW_SYMBOL = "SLOWUSDT";
 const FAST_SYMBOL = "FASTUSDT";
@@ -364,7 +390,7 @@ const runBudgetCase = async (schema, symbols) => {
     unActive();
     unClosed();
   }
-  const history = await Budget._getHistory({ ...key, when: new Date(FRAME_END) });
+  const history = await Budget._getHistory({ ...key, when: new Date(JOURNAL_END) });
   return { ...result, scheduleReads, rejects, history };
 };
 
@@ -766,7 +792,7 @@ const runJumpCase = async (schema) => {
     unActive();
     unClosed();
   }
-  const history = await Budget._getHistory({ ...key, when: new Date(FRAME_END) });
+  const history = await Budget._getHistory({ ...key, when: new Date(JOURNAL_END) });
   return { ...result, rejects, history };
 };
 
@@ -1001,4 +1027,274 @@ test("LOCKSTEP ERRORS: eight backtests with throwing listeners and a dying peer 
   if ((schema.ticks[dead] ?? 0) < 3) return fail(`the dying peer never reached its fatal tick, ticks=${schema.ticks[dead]}`);
   if (await failedSurvivorsOrLock(schema, done, survivors, fail)) return;
   pass(`${survivors.length} survivors finished with ${thrown} listener throws and one dead peer, the probe finished`);
+});
+
+// ── Every listener fed by StrategyConnectionService throws ───────────────────
+
+/** Every subject StrategyConnectionService emits on (errorEmitter aside: a listenError that throws would feed itself) */
+const CONNECTION_LISTENERS = {
+  listenIdlePing,
+  listenSchedulePing,
+  listenActivePing,
+  listenSignal,
+  listenSignalBacktest,
+  listenSignalEvent,
+  listenOrderSchedule,
+  listenStrategyCommit,
+  listenHighestProfit,
+  listenMaxDrawdown,
+  listenPause,
+  listenSync,
+  listenCheck,
+  listenOrderFill,
+  listenOrderReject,
+  listenOrderContinue,
+  listenOrderStop,
+};
+
+/** Channels a backtest feeds; pause, sync / check and the order channels are live-only and must stay silent */
+const MUST_FIRE = [
+  "listenIdlePing", "listenSchedulePing", "listenActivePing", "listenSignal", "listenSignalBacktest",
+  "listenSignalEvent", "listenOrderSchedule", "listenStrategyCommit", "listenHighestProfit", "listenMaxDrawdown",
+];
+const LIVE_ONLY = Object.keys(CONNECTION_LISTENERS).filter((name) => !MUST_FIRE.includes(name));
+
+const LISTENER_SIGNAL_AT = FRAME_START + 1 * HOUR_MS;
+
+/**
+ * FAST: a market long on every tick (30 minutes). SLOW: one scheduled long on hour 1 that
+ * activates on the dip, then rides a bump (highest profit) and a slump (max drawdown).
+ */
+const buildListenerCase = (name) => {
+  const exchangeName = `lockstep-listener-exchange-${name}`;
+  const strategyName = `lockstep-listener-strategy-${name}`;
+  const frameName = `lockstep-listener-frame-${name}`;
+  const slowPriceAt = (timestamp) => {
+    const minute = (timestamp - LISTENER_SIGNAL_AT) / MIN_MS;
+    if (minute >= 45 && minute < 60) return 98;   // dip: the scheduled long at 99 activates
+    if (minute >= 60 && minute < 75) return 103;  // bump: highest profit
+    if (minute >= 75 && minute < 90) return 97;   // slump: max drawdown
+    return 100;
+  };
+  addExchangeSchema({
+    exchangeName,
+    getCandles: async (symbol, interval, since, limit) => {
+      if (interval !== "1m") throw new Error(`lockstep exchange: only 1m bars, got ${interval}`);
+      const out = [];
+      let timestamp = Math.floor(since.getTime() / MIN_MS) * MIN_MS;
+      while (out.length < limit) {
+        const price = symbol === SLOW_SYMBOL ? slowPriceAt(timestamp) : 100;
+        out.push({ timestamp, open: price, high: price + 0.5, low: price - 0.5, close: price, volume: 1_000 });
+        timestamp += MIN_MS;
+      }
+      return out;
+    },
+    formatPrice: async (_s, p) => p.toFixed(8),
+    formatQuantity: async (_s, q) => q.toFixed(8),
+  });
+  addStrategySchema({
+    strategyName,
+    interval: "1h",
+    getSignal: async (symbol, when) => {
+      if (symbol === FAST_SYMBOL) {
+        return { position: "long", priceStopLoss: 85, priceTakeProfit: 119, cost: 1000, minuteEstimatedTime: 30 };
+      }
+      if (when.getTime() === LISTENER_SIGNAL_AT) {
+        return { position: "long", priceOpen: 99, priceStopLoss: 85, priceTakeProfit: 119, cost: 1000, minuteEstimatedTime: 90 };
+      }
+      return null;
+    },
+  });
+  addFrameSchema({ frameName, interval: "1h", startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
+  return { exchangeName, strategyName, frameName };
+};
+
+test("LOCKSTEP ERRORS: every listener fed by StrategyConnectionService throws on every other event and nothing hangs", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  const schema = buildListenerCase("all");
+  const symbols = [SLOW_SYMBOL, FAST_SYMBOL];
+
+  const own = (event) => event.strategyName === schema.strategyName || symbols.includes(event.symbol);
+  const hits = Object.fromEntries(Object.keys(CONNECTION_LISTENERS).map((name) => [name, 0]));
+  const throws = Object.fromEntries(Object.keys(CONNECTION_LISTENERS).map((name) => [name, 0]));
+  const dividends = new Set();
+  const unsubscribe = Object.entries(CONNECTION_LISTENERS).map(([name, listen]) => listen(async (event) => {
+    if (!own(event)) return;
+    hits[name] += 1;
+    // the commit channel carries user commits only: a dividend on the first active ping of every position
+    if (name === "listenActivePing" && !dividends.has(event.data.id)) {
+      dividends.add(event.data.id);
+      await Backtest.commitDividend(event.symbol, event.currentPrice, schema, { amount: 1, note: "lockstep listeners" });
+    }
+    if (hits[name] % 2 === 1) {
+      throws[name] += 1;
+      throw new Error(`lockstep listeners: ${name} exploded`);
+    }
+  }));
+
+  let done;
+  try {
+    done = await withFatalStub(() => runUntilDone(schema, symbols, ERROR_TIMEOUT_MS));
+  } finally {
+    unsubscribe.forEach((un) => un());
+  }
+
+  const silent = MUST_FIRE.filter((name) => hits[name] === 0);
+  if (silent.length) {
+    return fail(`channels the scenario was built to fire stayed silent: ${silent.join(", ")}; hits=${JSON.stringify(hits)}`);
+  }
+  const leaked = LIVE_ONLY.filter((name) => hits[name] > 0);
+  if (leaked.length) {
+    return fail(`live-only channels fired in a backtest: ${leaked.join(", ")}`);
+  }
+  const neverThrew = Object.keys(CONNECTION_LISTENERS).filter((name) => hits[name] > 0 && throws[name] === 0);
+  if (neverThrew.length) {
+    return fail(`listeners fired but never threw: ${neverThrew.join(", ")}`);
+  }
+  if (await failedSurvivorsOrLock(schema, done, symbols, fail)) return;
+  const summary = Object.entries(hits).map(([name, count]) => `${name.replace("listen", "")}=${count}/${throws[name]}`).join(" ");
+  pass(`both backtests and the probe finished; hits/throws: ${summary}`);
+});
+
+// ── Budget driven from every callback, errors thrown out of the handlers ─────
+
+const CALLBACK_BUDGET_CAPITAL = 2_500;
+const CALLBACK_BUDGET_COST = 1_000;
+
+test("LOCKSTEP ERRORS: budget writes and their errors thrown out of every backtest callback neither hang nor corrupt the journal", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  Budget.enable();
+  const schema = buildListenerCase("budget");
+  const symbols = [SLOW_SYMBOL, FAST_SYMBOL];
+  const key = { ...schema, backtest: true, name: BUDGET_NAME, initialCapital: CALLBACK_BUDGET_CAPITAL };
+  const contextOf = (symbol, when) => ({ ...key, symbol, when });
+  const whenOf = (event) => event.when ?? new Date(event.timestamp ?? event.closeTimestamp ?? event.createdAt);
+  const own = (event) => event.strategyName === schema.strategyName || symbols.includes(event.symbol);
+
+  const hits = {};
+  const count = (name) => { hits[name] = (hits[name] ?? 0) + 1; };
+  const activePings = new Map();
+  let reReserveAttempts = 0;
+  let overWithdrawAttempts = 0;
+  const unsubscribe = [
+    listenIdlePing(async (event) => {
+      if (!own(event)) return;
+      count("idle");
+      await Budget._getFree(contextOf(event.symbol, event.when));
+    }),
+    listenSchedulePing(async (event) => {
+      if (!own(event)) return;
+      count("schedule");
+      await Budget._getBalance(contextOf(event.symbol, event.when));
+    }),
+    listenActivePing(async (event) => {
+      if (!own(event)) return;
+      count("active");
+      const ping = (activePings.get(event.data.id) ?? 0) + 1;
+      activePings.set(event.data.id, ping);
+      if (ping === 1) {
+        // may throw BudgetRejectedError straight out of the handler
+        await Budget._reserve({ id: event.data.id, amount: CALLBACK_BUDGET_COST, note: "entry" }, contextOf(event.symbol, event.when));
+      }
+      if (ping === 2) {
+        // the same id again: an Error thrown from inside the queued setState dispatch
+        reReserveAttempts += 1;
+        await Budget._reserve({ id: event.data.id, amount: CALLBACK_BUDGET_COST, note: "duplicate" }, contextOf(event.symbol, event.when));
+      }
+    }),
+    listenSignalBacktest(async (event) => {
+      if (!own(event)) return;
+      count("signalBacktest");
+      if (event.action === "closed") {
+        await Budget._release({ id: event.signal.id, pnl: event.pnl.pnlCost }, contextOf(event.symbol, new Date(event.closeTimestamp)));
+      }
+    }),
+    listenSignal(async (event) => {
+      if (!own(event)) return;
+      count("signal");
+      await Budget._getHistory(contextOf(event.symbol, whenOf(event)));
+    }),
+    listenSignalEvent(async (event) => {
+      if (!own(event)) return;
+      count("signalEvent");
+      await Budget._getHistory(contextOf(event.symbol, event.when));
+    }),
+    listenOrderSchedule(async (event) => {
+      if (!own(event)) return;
+      count("orderSchedule");
+      await Budget._deposit({ asset: "SCHED", amount: 1, note: event.action }, contextOf(event.symbol, event.when));
+    }),
+    listenStrategyCommit(async (event) => {
+      if (!own(event)) return;
+      count("strategyCommit");
+      await Budget._getBalance(contextOf(event.symbol, event.when));
+    }),
+    listenHighestProfit(async (event) => {
+      if (!own(event)) return;
+      count("highestProfit");
+      await Budget._deposit({ asset: "PEAK", amount: 1, note: "peak" }, contextOf(event.symbol, event.when));
+    }),
+    listenMaxDrawdown(async (event) => {
+      if (!own(event)) return;
+      count("maxDrawdown");
+      // more than ever deposited: BudgetRejectedError thrown out of the handler
+      overWithdrawAttempts += 1;
+      await Budget._withdraw({ asset: "PEAK", amount: 1_000, note: "slump" }, contextOf(event.symbol, event.when));
+    }),
+  ];
+  // the commit channel needs a user commit: a dividend on the first active ping of every position
+  const dividends = new Set();
+  unsubscribe.push(listenActivePing(async (event) => {
+    if (!own(event) || dividends.has(event.data.id)) return;
+    dividends.add(event.data.id);
+    await Backtest.commitDividend(event.symbol, event.currentPrice, schema, { amount: 1, note: "lockstep budget" });
+  }));
+  const surfaced = { rejected: 0, duplicate: 0, other: [] };
+  unsubscribe.push(listenError((error) => {
+    if (BudgetRejectedError.isBudgetRejectedError(error)) surfaced.rejected += 1;
+    else if (String(error?.message).includes("is already open in budget")) surfaced.duplicate += 1;
+    else surfaced.other.push(String(error?.message).slice(0, 120));
+  }));
+
+  let done;
+  try {
+    done = await withFatalStub(() => runUntilDone(schema, symbols, ERROR_TIMEOUT_MS));
+  } finally {
+    unsubscribe.forEach((un) => un());
+  }
+
+  const silent = ["idle", "schedule", "active", "signalBacktest", "signal", "signalEvent", "orderSchedule", "strategyCommit", "highestProfit", "maxDrawdown"].filter((name) => !hits[name]);
+  if (silent.length) return fail(`channels stayed silent: ${silent.join(", ")}; hits=${JSON.stringify(hits)}`);
+  if (await failedSurvivorsOrLock(schema, done, symbols, fail)) return;
+
+  // the errors left the handlers and reached the error channel, nothing else did
+  if (!reReserveAttempts || surfaced.duplicate !== reReserveAttempts) {
+    return fail(`expected every duplicate reserve to surface as an error: attempts=${reReserveAttempts} surfaced=${surfaced.duplicate}`);
+  }
+  if (!overWithdrawAttempts || surfaced.rejected < overWithdrawAttempts) {
+    return fail(`expected every over-withdraw to surface as BudgetRejectedError: attempts=${overWithdrawAttempts} surfaced=${surfaced.rejected}`);
+  }
+  if (surfaced.other.length) return fail(`unexpected errors on the error channel: ${surfaced.other.slice(0, 3).join(" | ")}`);
+
+  // the journal: consistent under lockstep, one release per reserve, every refusal recorded
+  const history = await Budget._getHistory({ ...key, when: new Date(JOURNAL_END) });
+  const overdrafts = history.filter((r) => r.type === "reserve" && r.overdraft !== undefined);
+  if (overdrafts.length) return fail(`overdraft under lockstep: ${describeRows(overdrafts)}`);
+  const negativeRow = history.find((r) => r.balance.free < 0);
+  if (negativeRow) return fail(`free went negative at ${describeRows([negativeRow])}`);
+  const reserves = history.filter((r) => r.type === "reserve").length;
+  const releases = history.filter((r) => r.type === "release").length;
+  if (reserves !== releases) return fail(`every reserve must be released: reserves=${reserves} releases=${releases}`);
+  const rejectRows = history.filter((r) => r.type === "reject").length;
+  if (rejectRows !== surfaced.rejected) return fail(`every BudgetRejectedError must leave a reject row: rows=${rejectRows} errors=${surfaced.rejected}`);
+  const assets = history[history.length - 1].balance.assets;
+  if (!(assets.PEAK > 0) || !(assets.SCHED > 0)) return fail(`deposits from highestProfit / orderSchedule missing: ${JSON.stringify(assets)}`);
+
+  // the write queue survived the thrown dispatches: a fresh reserve / release still goes through
+  const after = contextOf(FAST_SYMBOL, new Date(JOURNAL_END));
+  await Budget._reserve({ id: "after-run", amount: 1 }, after);
+  const released = await Budget._release({ id: "after-run", pnl: 0 }, after);
+  if (released.deployed !== 0) return fail(`the budget queue is wedged after the thrown dispatches: ${JSON.stringify(released)}`);
+
+  pass(`budget from every callback: ${history.length} rows, ${reserves} reserves/releases, ${rejectRows} refusals, ${surfaced.duplicate} duplicate reserves thrown, hits=${JSON.stringify(hits)}`);
 });
