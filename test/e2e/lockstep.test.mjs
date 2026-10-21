@@ -34,6 +34,10 @@ import { Subject, sleep } from "functools-kit";
  *              symbol's scheduled signal activates between two positions of the fast one. With lockstep
  *              the fast symbol's next reserve sees it and is REFUSED; without lockstep the fast symbol
  *              has already reserved on a free balance and the slow row lands before it: an OVERDRAFT.
+ *   order    - the budget journal is the same whatever order the symbols were launched in
+ *   break    - a consumer breaking out of Backtest.run while its iteration holds the lock
+ *              releases it (finally): the peer backtest still finishes
+ *   fatal    - a backtest dying on a fatal tick error releases the lock the same way
  */
 const HOUR_MS = 3_600_000;
 const MIN_MS = 60_000;
@@ -391,4 +395,134 @@ test("LOCKSTEP + BUDGET: without lockstep the slow symbol's reserve lands before
   if (overdrafts.some((r) => r.symbol !== FAST_SYMBOL)) return fail(`the overdraft must be on the fast symbol's rows, got ${describeRows(overdrafts)}`);
 
   pass(`lockstep off + budget: ${overdrafts.length} overdraft row(s), spread ${maxSpread / HOUR_MS} tf, journal: ${describeRows(history)}`);
+});
+
+// ── Lock hygiene ─────────────────────────────────────────────────────────────
+
+/** Resolves true when the symbol's backtest reports done within the timeout, false otherwise */
+const waitForDone = async (schema, symbol, timeoutMs) => {
+  const doneSubject = new Subject();
+  const unDone = listenDoneBacktest((event) => {
+    if (event.frameName !== schema.frameName) return;
+    if (event.symbol !== symbol) return;
+    doneSubject.next();
+  });
+  try {
+    return await Promise.race([
+      doneSubject.toPromise().then(() => true),
+      sleep(timeoutMs).then(() => false),
+    ]);
+  } finally {
+    unDone();
+  }
+};
+
+const PEER_SYMBOL = "PEERUSDT";
+const PEER_TIMEOUT_MS = 10_000;
+
+/** Rows of a journal without the run-specific signal ids: what two runs of the same scenario must share */
+const journalShape = (rows) => rows.map((r) => [
+  r.type,
+  r.symbol,
+  r.timestamp,
+  "amount" in r ? r.amount : null,
+  "requested" in r ? r.requested : null,
+  r.balance.capital,
+  r.balance.deployed,
+  r.balance.free,
+  r.overdraft ?? null,
+].join("|"));
+
+test("LOCKSTEP + BUDGET: the journal is the same whatever order the symbols were launched in", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  const first = await runBudgetCase(buildBudgetCase("order-a"), [SLOW_SYMBOL, FAST_SYMBOL]);
+  const second = await runBudgetCase(buildBudgetCase("order-b"), [FAST_SYMBOL, SLOW_SYMBOL]);
+  const a = journalShape(first.history);
+  const b = journalShape(second.history);
+  if (a.length !== b.length) {
+    return fail(`journals differ in length: ${a.length} vs ${b.length}\n${describeRows(first.history)}\n${describeRows(second.history)}`);
+  }
+  const mismatch = a.findIndex((row, i) => row !== b[i]);
+  if (mismatch !== -1) {
+    return fail(`journals differ at row ${mismatch}: ${a[mismatch]} vs ${b[mismatch]}`);
+  }
+  pass(`same journal of ${a.length} rows from both launch orders`);
+});
+
+test("LOCKSTEP: a consumer breaking out of Backtest.run releases the lock, the peer backtest still finishes", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  const schema = buildBudgetCase("break");
+  const peerDone = waitForDone(schema, PEER_SYMBOL, PEER_TIMEOUT_MS);
+
+  // PEER ticks without signals; FAST opens on every tick and its consumer leaves on the first opened event,
+  // i.e. in the middle of the locked iteration (the yield happens with the lock held)
+  Backtest.background(PEER_SYMBOL, schema);
+  let left = null;
+  for await (const result of Backtest.run(FAST_SYMBOL, schema)) {
+    if (result.action === "opened") {
+      left = result;
+      break;
+    }
+  }
+  if (!left) return fail("expected the fast backtest to yield an opened signal to break on");
+
+  if (!(await peerDone)) {
+    return fail(`the peer backtest did not finish within ${PEER_TIMEOUT_MS} ms after the consumer broke out: the lock was not released`);
+  }
+  pass("peer finished after the consumer broke out of Backtest.run mid-iteration");
+});
+
+test("LOCKSTEP: a backtest dying on a fatal tick error releases the lock, the peer backtest still finishes", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  const DEAD_SYMBOL = "DEADUSDT";
+  const exchangeName = "lockstep-fatal-exchange";
+  const strategyName = "lockstep-fatal-strategy";
+  const frameName = "lockstep-fatal-frame";
+  addExchangeSchema({
+    exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const out = [];
+      let timestamp = Math.floor(since.getTime() / MIN_MS) * MIN_MS;
+      while (out.length < limit) {
+        out.push({ timestamp, open: 100, high: 100.5, low: 99.5, close: 100, volume: 1_000 });
+        timestamp += MIN_MS;
+      }
+      return out;
+    },
+    formatPrice: async (_s, p) => p.toFixed(8),
+    formatQuantity: async (_s, q) => q.toFixed(8),
+  });
+  let deadTicks = 0;
+  addStrategySchema({
+    strategyName,
+    interval: "1h",
+    // the dead symbol throws inside its third tick, while it holds the lockstep lock
+    getSignal: async (symbol) => {
+      if (symbol === DEAD_SYMBOL && ++deadTicks === 3) {
+        throw new Error("lockstep fatal: strategy exploded");
+      }
+      return null;
+    },
+  });
+  addFrameSchema({ frameName, interval: "1h", startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
+  const schema = { exchangeName, strategyName, frameName };
+
+  // a fatal tick error ends in process.exit(-1); the stub turns it into a throw so the worker survives
+  const realExit = process.exit;
+  const realError = console.error;
+  process.exit = (code) => { throw new Error(`process.exit(${code})`); };
+  console.error = () => void 0;
+  try {
+    const peerDone = waitForDone(schema, PEER_SYMBOL, PEER_TIMEOUT_MS);
+    Backtest.background(DEAD_SYMBOL, schema);
+    Backtest.background(PEER_SYMBOL, schema);
+    if (!(await peerDone)) {
+      return fail(`the peer backtest did not finish within ${PEER_TIMEOUT_MS} ms after its peer died: the lock was not released`);
+    }
+  } finally {
+    process.exit = realExit;
+    console.error = realError;
+  }
+  if (deadTicks < 3) return fail(`the dead symbol never reached its fatal tick, ticks=${deadTicks}`);
+  pass("peer finished after its peer died on a fatal tick error");
 });
