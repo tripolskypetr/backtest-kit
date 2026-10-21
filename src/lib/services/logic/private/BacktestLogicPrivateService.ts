@@ -38,9 +38,11 @@ const CREATE_LOCKSTEP_KEY_FN = (symbol: string, context: { strategyName: string;
 /**
  * Where a running backtest stands with respect to the lockstep lock: whether
  * its current iteration holds it, the next timeframe boundary of that
- * iteration and the timeframe step. Updated by `run()`, read by `handoff()`.
+ * iteration, the timeframe step and the logical time it has reached (`clock`:
+ * the iteration's timeframe, or the boundary it is parked on inside a replay).
+ * Updated by `run()`, read by `handoff()` of every running backtest.
  */
-type TLockstepCursor = { locked: boolean; nextBoundary: number; stepMs: number };
+type TLockstepCursor = { locked: boolean; nextBoundary: number; stepMs: number; clock: number };
 
 const SYMBOL_FN_ERROR = Symbol("backtest-fn-error");
 
@@ -708,8 +710,15 @@ export class BacktestLogicPrivateService {
    * `StrategyConnectionService` calls this from its `onSchedulePing` /
    * `onActivePing` system callbacks: on the last candle before the next
    * timeframe boundary `Lockstep.spinLock` releases the lock and takes it
-   * again, and the FIFO queue lets every peer run its iteration up to that
-   * boundary first.
+   * again, and the FIFO queue lets the peers run. One spin gives every peer
+   * ONE iteration, and a peer may lag several iterations behind the
+   * boundary (it ran its 01:00 tick while this replay crossed 01:59), so the
+   * spin repeats until every running peer's clock has reached the boundary:
+   * only then is a write on the boundary candle checked against everything
+   * the peers wrote before it. A peer parked in its own hand-off counts as
+   * standing on its boundary, so two replays never wait for each other. The
+   * spin stops early when a round brought no peer forward (a peer blocked
+   * outside the orchestrator), rather than spinning forever.
    *
    * No-op when lockstep is off, when the symbol is not inside `run()` (a tick
    * driven directly, outside the orchestrator) or when its iteration does not
@@ -736,12 +745,27 @@ export class BacktestLogicPrivateService {
     if (timestamp + 60_000 < cursor.nextBoundary) {
       return;
     }
+    const boundary = cursor.nextBoundary;
     this.loggerService.debug("backtestLogicPrivateService lockstep handoff", {
       symbol,
       timestamp,
-      nextBoundary: cursor.nextBoundary,
+      boundary,
     });
-    await Lockstep.spinLock(LOCKSTEP_HANDOFF_SOURCE);
+    // parked on the boundary: peers waiting for this symbol see it as having reached it
+    cursor.clock = boundary;
+    const peers = () => Array.from(this._lockstep.values()).filter((peer) => peer !== cursor);
+    const lagging = () => peers().filter((peer) => peer.clock < boundary);
+    const snapshot = () => lagging().map((peer) => peer.clock).join(",");
+    let before = snapshot();
+    do {
+      await Lockstep.spinLock(LOCKSTEP_HANDOFF_SOURCE);
+      const after = snapshot();
+      if (after === before) {
+        // no lagging peer moved during this round: nothing to wait for
+        break;
+      }
+      before = after;
+    } while (lagging().length > 0);
     while (timestamp + 60_000 >= cursor.nextBoundary) {
       cursor.nextBoundary += cursor.stepMs;
     }
@@ -785,7 +809,7 @@ export class BacktestLogicPrivateService {
     // Lockstep cursor of this run: the ping hand-off (see handoff) reads it while a replay runs
     const stepMs = totalFrames > 1 ? timeframes[1].getTime() - timeframes[0].getTime() : 60_000;
     const lockstepKey = CREATE_LOCKSTEP_KEY_FN(symbol, this.methodContextService.context);
-    const cursor: TLockstepCursor = { locked: false, nextBoundary: 0, stepMs };
+    const cursor: TLockstepCursor = { locked: false, nextBoundary: 0, stepMs, clock: timeframes[0].getTime() };
     this._lockstep.set(lockstepKey, cursor);
 
     let i = 0;
@@ -803,6 +827,7 @@ export class BacktestLogicPrivateService {
           const timeframeStartTime = performance.now();
           const when = timeframes[i];
           cursor.nextBoundary = when.getTime() + stepMs;
+          cursor.clock = when.getTime();
 
           await EMIT_PROGRESS_FN(this, symbol, totalFrames, i, when);
 

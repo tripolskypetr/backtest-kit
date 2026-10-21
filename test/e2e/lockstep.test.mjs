@@ -24,6 +24,11 @@ import {
   listenOrderReject,
   listenOrderContinue,
   listenOrderStop,
+  listenPartialProfitAvailable,
+  listenPartialLossAvailable,
+  listenBreakevenAvailable,
+  listenRisk,
+  addRiskSchema,
   setConfig,
   Budget,
   BudgetRejectedError,
@@ -77,6 +82,12 @@ import { Subject, sleep } from "functools-kit";
  *              (a BudgetRejectedError thrown out of the handler), deposits from listenHighestProfit and
  *              listenOrderSchedule, reads from the rest. Nothing hangs, the journal stays consistent and
  *              the budget's write queue is still alive afterwards
+ *   partial  - the Partial / Breakeven / Risk connection services: a partial exit AND a budget reserve
+ *              from listenPartialProfitAvailable in the middle of a replay, a deposit from
+ *              listenBreakevenAvailable, a read from listenRisk, every handler throwing on odd events,
+ *              while the peer competes for the same money. The reserve from the partial callback is
+ *              checked against the peer's rows (lockstep hand-off), ends as a reserve or a refusal,
+ *              never as an overdraft; nothing hangs
  */
 const HOUR_MS = 3_600_000;
 const MIN_MS = 60_000;
@@ -1065,7 +1076,7 @@ const LISTENER_SIGNAL_AT = FRAME_START + 1 * HOUR_MS;
  * FAST: a market long on every tick (30 minutes). SLOW: one scheduled long on hour 1 that
  * activates on the dip, then rides a bump (highest profit) and a slump (max drawdown).
  */
-const buildListenerCase = (name) => {
+const buildListenerCase = (name, { riskName } = {}) => {
   const exchangeName = `lockstep-listener-exchange-${name}`;
   const strategyName = `lockstep-listener-strategy-${name}`;
   const frameName = `lockstep-listener-frame-${name}`;
@@ -1094,6 +1105,7 @@ const buildListenerCase = (name) => {
   });
   addStrategySchema({
     strategyName,
+    ...(riskName && { riskName }),
     interval: "1h",
     getSignal: async (symbol, when) => {
       if (symbol === FAST_SYMBOL) {
@@ -1297,4 +1309,118 @@ test("LOCKSTEP ERRORS: budget writes and their errors thrown out of every backte
   if (released.deployed !== 0) return fail(`the budget queue is wedged after the thrown dispatches: ${JSON.stringify(released)}`);
 
   pass(`budget from every callback: ${history.length} rows, ${reserves} reserves/releases, ${rejectRows} refusals, ${surfaced.duplicate} duplicate reserves thrown, hits=${JSON.stringify(hits)}`);
+});
+
+// ── Partial / Breakeven / Risk connection services ───────────────────────────
+
+const PARTIAL_BUDGET_CAPITAL = 2_500;
+const PARTIAL_BUDGET_COST = 1_000;
+
+test("LOCKSTEP ERRORS: a reserve from the partial-profit callback competes with the peer under the hand-off and never overdrafts", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  Budget.enable();
+  // a risk that refuses every fourth check: the risk channel fires and FAST skips some opens
+  let riskChecks = 0;
+  addRiskSchema({
+    riskName: "lockstep-partial-risk",
+    validations: [
+      () => {
+        riskChecks += 1;
+        if (riskChecks % 4 === 0) throw new Error("lockstep partial: risk refused");
+      },
+    ],
+  });
+  const schema = buildListenerCase("partial", { riskName: "lockstep-partial-risk" });
+  const symbols = [SLOW_SYMBOL, FAST_SYMBOL];
+  const key = { ...schema, backtest: true, name: BUDGET_NAME, initialCapital: PARTIAL_BUDGET_CAPITAL };
+  const contextOf = (symbol, when) => ({ ...key, symbol, when });
+  const own = (event) => event.strategyName === schema.strategyName;
+
+  const hits = {};
+  const count = (name) => { hits[name] = (hits[name] ?? 0) + 1; return hits[name]; };
+  const reserved = new Set();
+  const topUps = [];
+  const partialExits = [];
+  const unsubscribe = [
+    listenActivePing(async (event) => {
+      if (!own(event) || reserved.has(event.data.id)) return;
+      reserved.add(event.data.id);
+      await Budget._reserve({ id: event.data.id, amount: PARTIAL_BUDGET_COST, note: "entry" }, contextOf(event.symbol, event.when));
+    }),
+    listenPartialProfitAvailable(async (event) => {
+      if (!own(event)) return;
+      const n = count("partialProfit");
+      // a partial exit on the level, then the profit re-deployed as a fresh reserve: both from inside the replay
+      const exited = await Backtest.commitPartialProfit(event.symbol, { percent: 50, note: `level ${event.level}` }, event.currentPrice, schema);
+      partialExits.push({ symbol: event.symbol, level: event.level, exited });
+      const id = `${event.data.id}-pp${event.level}`;
+      topUps.push({ id, when: event.when.getTime() });
+      await Budget._reserve({ id, amount: PARTIAL_BUDGET_COST, note: `partial ${event.level}` }, contextOf(event.symbol, event.when));
+      if (n % 2 === 1) throw new Error("lockstep partial: partial-profit handler exploded");
+    }),
+    listenPartialLossAvailable(async (event) => {
+      if (!own(event)) return;
+      const n = count("partialLoss");
+      await Budget._getFree(contextOf(event.symbol, event.when));
+      if (n % 2 === 1) throw new Error("lockstep partial: partial-loss handler exploded");
+    }),
+    listenBreakevenAvailable(async (event) => {
+      if (!own(event)) return;
+      const n = count("breakeven");
+      await Budget._deposit({ asset: "BE", amount: 1, note: "breakeven" }, contextOf(event.symbol, event.when));
+      if (n % 2 === 1) throw new Error("lockstep partial: breakeven handler exploded");
+    }),
+    listenRisk(async (event) => {
+      if (!own(event)) return;
+      const n = count("risk");
+      await Budget._getFree(contextOf(event.symbol, event.when));
+      if (n % 2 === 1) throw new Error("lockstep partial: risk handler exploded");
+    }),
+    listenSignalBacktest(async (event) => {
+      if (!own(event) || event.action !== "closed") return;
+      const context = contextOf(event.symbol, new Date(event.closeTimestamp));
+      await Budget._release({ id: event.signal.id, pnl: event.pnl.pnlCost }, context);
+      for (const { id } of topUps) {
+        if (id.startsWith(`${event.signal.id}-pp`)) await Budget._release({ id, pnl: 0 }, context);
+      }
+    }),
+  ];
+  const surfaced = { rejected: 0, handler: 0, other: [] };
+  unsubscribe.push(listenError((error) => {
+    if (BudgetRejectedError.isBudgetRejectedError(error)) surfaced.rejected += 1;
+    else if (String(error?.message).includes("handler exploded")) surfaced.handler += 1;
+    else if (String(error?.message).includes("risk refused")) return;
+    else surfaced.other.push(String(error?.message).slice(0, 120));
+  }));
+
+  let done;
+  try {
+    done = await withFatalStub(() => runUntilDone(schema, symbols, ERROR_TIMEOUT_MS));
+  } finally {
+    unsubscribe.forEach((un) => un());
+  }
+
+  const silent = ["partialProfit", "breakeven", "risk"].filter((name) => !hits[name]);
+  if (silent.length) return fail(`channels stayed silent: ${silent.join(", ")}; hits=${JSON.stringify(hits)} riskChecks=${riskChecks}`);
+  if (await failedSurvivorsOrLock(schema, done, symbols, fail)) return;
+  if (!partialExits.some((e) => e.exited)) return fail(`no partial exit went through: ${JSON.stringify(partialExits)}`);
+  if (!surfaced.handler) return fail("the thrown handler errors never reached the error channel");
+  if (surfaced.other.length) return fail(`unexpected errors on the error channel: ${surfaced.other.slice(0, 3).join(" | ")}`);
+
+  const history = await Budget._getHistory({ ...key, when: new Date(JOURNAL_END) });
+  const overdrafts = history.filter((r) => r.type === "reserve" && r.overdraft !== undefined);
+  if (overdrafts.length) return fail(`overdraft under lockstep: ${describeRows(overdrafts)}`);
+  const negativeRow = history.find((r) => r.balance.free < 0);
+  if (negativeRow) return fail(`free went negative at ${describeRows([negativeRow])}`);
+  // every top-up attempted from the partial callback is either a reserve row or a reject row at its time
+  for (const { id, when } of topUps) {
+    const row = history.find((r) => (r.type === "reserve" && r.id === id) || (r.type === "reject" && r.symbol === SLOW_SYMBOL && r.timestamp === when));
+    if (!row) return fail(`the partial-profit reserve ${id} left no reserve or reject row at ${new Date(when).toISOString()}: ${describeRows(history)}`);
+  }
+  const reserves = history.filter((r) => r.type === "reserve").length;
+  const releases = history.filter((r) => r.type === "release").length;
+  if (reserves !== releases) return fail(`every reserve must be released: reserves=${reserves} releases=${releases}; ${describeRows(history)}`);
+  if (!(history[history.length - 1].balance.assets.BE > 0)) return fail("the breakeven deposit is missing");
+
+  pass(`partial exits=${partialExits.filter((e) => e.exited).length}, top-ups=${topUps.length} (refused ${surfaced.rejected}), handler throws surfaced=${surfaced.handler}, hits=${JSON.stringify(hits)}, journal: ${describeRows(history)}`);
 });

@@ -42943,8 +42943,15 @@ declare class BacktestLogicPrivateService {
      * `StrategyConnectionService` calls this from its `onSchedulePing` /
      * `onActivePing` system callbacks: on the last candle before the next
      * timeframe boundary `Lockstep.spinLock` releases the lock and takes it
-     * again, and the FIFO queue lets every peer run its iteration up to that
-     * boundary first.
+     * again, and the FIFO queue lets the peers run. One spin gives every peer
+     * ONE iteration, and a peer may lag several iterations behind the
+     * boundary (it ran its 01:00 tick while this replay crossed 01:59), so the
+     * spin repeats until every running peer's clock has reached the boundary:
+     * only then is a write on the boundary candle checked against everything
+     * the peers wrote before it. A peer parked in its own hand-off counts as
+     * standing on its boundary, so two replays never wait for each other. The
+     * spin stops early when a round brought no peer forward (a peer blocked
+     * outside the orchestrator), rather than spinning forever.
      *
      * No-op when lockstep is off, when the symbol is not inside `run()` (a tick
      * driven directly, outside the orchestrator) or when its iteration does not
