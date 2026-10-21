@@ -94,6 +94,11 @@ const useStyles = makeStyles()((theme) => ({
     justifyContent: "center",
   },
   footer: {
+    // The card sits in a flex chain of One (min-width: auto all the way down), so a
+    // nowrap footer would widen the whole card past its column. inline-size containment
+    // keeps the footer out of the card's intrinsic width: the card takes the column,
+    // the label gets clipped with an ellipsis.
+    contain: "inline-size",
     minHeight: "32px",
     display: "flex",
     alignItems: "center",
@@ -104,6 +109,11 @@ const useStyles = makeStyles()((theme) => ({
     padding: "10px",
     borderTop: `1px solid ${theme.palette.divider}`,
     "& > *": { flex: 1 },
+  },
+  footerLabel: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   solidText: {
     color: "#fff",
@@ -203,7 +213,9 @@ export const BalanceValueWidget = memo(
             })}
             style={bodyStyle}
           >
-            {footerLabel}
+            <span className={classes.footerLabel} title={typeof footerLabel === "string" ? footerLabel : undefined}>
+              {footerLabel}
+            </span>
           </div>
         )}
       </Paper>
