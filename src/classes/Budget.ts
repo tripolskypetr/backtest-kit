@@ -187,8 +187,8 @@ export interface IBudgetReserveRow extends IBudgetHistoryRowBase {
    * behind this one) made this reserve exceed the free balance: `-free` after
    * the row. The budget never hides it (see the Budget class notes). Under
    * `CC_BACKTEST_LOCKSTEP` the clocks of parallel backtests stay within one
-   * timeframe between ticks, so this only arises when a replayed position
-   * carried this symbol's clock ahead of its peers.
+   * timeframe, replays included, so this only arises with the flag off or
+   * with ties inside one timeframe.
    */
   overdraft?: number;
 }
@@ -1027,10 +1027,10 @@ const ASSERT_AMOUNT_FN = (method: string, amount: number): void => {
  * - the budget itself never waits for another symbol and holds no lock of its
  *   own; the clocks of parallel backtests are kept together by the engine's
  *   `CC_BACKTEST_LOCKSTEP` (`Lockstep` in `BacktestLogicPrivateService.run`):
- *   every timeframe iteration runs under a process-wide FIFO mutex, so between
- *   ticks the symbols are at most one timeframe apart. A position replayed
- *   inside one iteration still moves that symbol's clock ahead by its
- *   lifetime, and with the flag off (the test config) the symbols drift freely;
+ *   every timeframe iteration runs under a process-wide FIFO mutex, and a
+ *   candle replay hands it off at every timeframe boundary, so the symbols
+ *   are at most one timeframe apart even while one of them replays a long
+ *   position; with the flag off (the test config) the symbols drift freely;
  * - an overdraft (two symbols took the same money because one clock lagged
  *   behind the other) is recorded on the reserve row as `overdraft` and
  *   logged, never hidden — `getFree()` goes negative and later reserves are

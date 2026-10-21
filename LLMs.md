@@ -2432,7 +2432,7 @@ Set with `setConfig(partial)` **before running any strategy**. `getConfig()` ret
 | `CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN` | `5` | Below this count, use average instead of median for anomaly reference. |
 | `CC_ENABLE_CANDLE_FETCH_MUTEX` | `true` | Serialize concurrent fetches of identical candles. |
 | `CC_ENABLE_BACKTEST_PARALLEL_SPIN` | `true` | Cooperative round-robin interleaving of parallel backtests after each fetch (skipped when single workload, mutex off or lockstep on). |
-| `CC_BACKTEST_LOCKSTEP` | `true` | Parallel backtests advance one timeframe at a time under a FIFO mutex (`Lockstep`): a strategy blocked in `getSignal` parks its peers at the same `when`. |
+| `CC_BACKTEST_LOCKSTEP` | `true` | Parallel backtests advance one timeframe at a time under a FIFO mutex (`Lockstep`); a candle replay hands the lock off at every timeframe boundary via its own pings, so a strategy blocked in `getSignal` or a ping handler parks its peers at the same `when`. |
 
 ### 26.4 Order book & aggregated trades
 
@@ -3686,7 +3686,7 @@ Default `false` for the three `*_EVERYWHERE` (conservative); the DCA/PPPL/traili
 | `CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR`, `CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN` | `validateCandles` | Anomaly rejection (price ≫ factor below median) + median-vs-average switch ([§7.6](#76-candle-data-validation)). |
 | `CC_ENABLE_CANDLE_FETCH_MUTEX` | `Candle.ts` (`spinLock`, fetch lock) | Serializes concurrent identical-candle fetches. |
 | `CC_ENABLE_BACKTEST_PARALLEL_SPIN` | `Candle.ts` (`spinLock`) | Cooperative round-robin yield between parallel backtests after each fetch (skipped if single workload, mutex off or lockstep on). |
-| `CC_BACKTEST_LOCKSTEP` | `Lockstep.ts`, `BacktestLogicPrivateService.run` | Every timeframe iteration of a backtest runs under a process-wide FIFO mutex, keeping parallel backtests on the same logical time. |
+| `CC_BACKTEST_LOCKSTEP` | `Lockstep.ts`, `BacktestLogicPrivateService.run` | Every timeframe iteration of a backtest runs under a process-wide FIFO mutex, handed off at timeframe boundaries inside candle replays, keeping parallel backtests on the same logical time. |
 | `CC_ORDER_BOOK_TIME_OFFSET_MINUTES` | order-book window math | Time window/offset for `getOrderBook`. |
 | `CC_ORDER_BOOK_MAX_DEPTH_LEVELS` | `Exchange.getOrderBook` / `ClientExchange` default `depth` arg | Default depth when `getOrderBook(symbol)` omits depth. |
 | `CC_AGGREGATED_TRADES_MAX_MINUTES` | `Exchange` / `ClientExchange` (`windowMs = CC_… × 60000 − 60000`) | Aggregated-trades window size & pagination chunk. |

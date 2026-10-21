@@ -4,6 +4,7 @@ import { Lock } from "./Lock";
 
 const METHOD_NAME_ACQUIRE_LOCK = "LockstepUtils.acquireLock";
 const METHOD_NAME_RELEASE_LOCK = "LockstepUtils.releaseLock";
+const METHOD_NAME_SPIN_LOCK = "LockstepUtils.spinLock";
 
 /** Logger service injected as DI singleton */
 const LOGGER_SERVICE = new LoggerService();
@@ -19,13 +20,19 @@ const LOGGER_SERVICE = new LoggerService();
  * that blocks inside `getSignal` (an LLM call, a `sleep`) parks every peer at
  * the same `when` instead of letting them run ahead by hours of logical time.
  *
- * Both operations are no-ops when `CC_BACKTEST_LOCKSTEP` is `false`.
+ * Inside a candle replay the iteration keeps the lock for many timeframes, so
+ * `BacktestLogicPrivateService.handoff` calls {@link spinLock} on the last
+ * candle before every timeframe boundary: the lock is released and taken
+ * again, and the FIFO queue runs every waiting peer up to that boundary first.
+ *
+ * All three operations are no-ops when `CC_BACKTEST_LOCKSTEP` is `false`.
  *
  * @example
  * ```typescript
  * await Lockstep.acquireLock("BacktestLogicPrivateService run");
  * try {
- *   // one timeframe of one backtest
+ *   // one timeframe of one backtest; inside a replay, at a timeframe boundary:
+ *   await Lockstep.spinLock("BacktestLogicPrivateService handoff");
  * } finally {
  *   await Lockstep.releaseLock("BacktestLogicPrivateService run");
  * }
@@ -65,6 +72,26 @@ export class LockstepUtils {
       return;
     }
     return await this._lock.releaseLock();
+  };
+
+  /**
+   * Hands the lockstep mutex off to the waiting peers and takes it back:
+   * release, then a fresh FIFO acquire, so every backtest parked on the lock
+   * runs its iteration before the caller continues. Must be called while the
+   * caller holds the lock (inside a candle replay, see
+   * `BacktestLogicPrivateService.handoff`).
+   *
+   * @param source - Caller identifier for logging.
+   */
+  public spinLock = async (source: string) => {
+    LOGGER_SERVICE.info(METHOD_NAME_SPIN_LOCK, {
+      source,
+    });
+    if (!GLOBAL_CONFIG.CC_BACKTEST_LOCKSTEP) {
+      return;
+    }
+    await this._lock.releaseLock();
+    await this._lock.acquireLock();
   };
 }
 

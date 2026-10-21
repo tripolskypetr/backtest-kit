@@ -481,12 +481,17 @@ export const GLOBAL_CONFIG = {
    * Keeps parallel backtests on the same logical time.
    *
    * Mechanism (implemented in `Lockstep` and used by `BacktestLogicPrivateService.run`):
-   * - Every timeframe iteration (the tick and, when a signal opens, the whole candle replay
-   *   of that signal) runs under a process-wide FIFO mutex and releases it before the next
-   *   timeframe, so concurrent `Backtest.run` / `Backtest.background` workloads interleave
+   * - Every timeframe iteration (the tick and, when a signal opens, the candle replay of that
+   *   signal) runs under a process-wide FIFO mutex and releases it before the next timeframe,
+   *   so concurrent `Backtest.run` / `Backtest.background` workloads interleave
    *   A(t0) B(t0) A(t1) B(t1) … and never drift apart by more than one timeframe.
-   * - A strategy that blocks inside `getSignal` (an LLM call, a `sleep`) therefore parks its
-   *   peers at the same `when`; shared state such as `Budget` sees the symbols in time order.
+   * - A replay spans many timeframes in one iteration, so inside it the orchestrator listens to
+   *   its own schedule / active pings (one per replayed candle) and on the last candle before
+   *   every timeframe boundary releases the lock and takes it again: the peers run their
+   *   iterations up to that boundary before the replay continues.
+   * - A strategy that blocks inside `getSignal` or a ping handler (an LLM call, a `sleep`)
+   *   therefore parks its peers at the same `when`; shared state such as `Budget` sees the
+   *   symbols in time order, a write from the middle of a replay included.
    * - While the lock is held the generator still yields to its consumer, so a consumer that
    *   waits for ANOTHER backtest's progress inside the `for await` body would deadlock.
    * - Makes `CC_ENABLE_BACKTEST_PARALLEL_SPIN` redundant: `Candle.spinLock` is skipped while

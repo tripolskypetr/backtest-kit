@@ -9431,12 +9431,17 @@ declare const GLOBAL_CONFIG: {
      * Keeps parallel backtests on the same logical time.
      *
      * Mechanism (implemented in `Lockstep` and used by `BacktestLogicPrivateService.run`):
-     * - Every timeframe iteration (the tick and, when a signal opens, the whole candle replay
-     *   of that signal) runs under a process-wide FIFO mutex and releases it before the next
-     *   timeframe, so concurrent `Backtest.run` / `Backtest.background` workloads interleave
+     * - Every timeframe iteration (the tick and, when a signal opens, the candle replay of that
+     *   signal) runs under a process-wide FIFO mutex and releases it before the next timeframe,
+     *   so concurrent `Backtest.run` / `Backtest.background` workloads interleave
      *   A(t0) B(t0) A(t1) B(t1) … and never drift apart by more than one timeframe.
-     * - A strategy that blocks inside `getSignal` (an LLM call, a `sleep`) therefore parks its
-     *   peers at the same `when`; shared state such as `Budget` sees the symbols in time order.
+     * - A replay spans many timeframes in one iteration, so inside it the orchestrator listens to
+     *   its own schedule / active pings (one per replayed candle) and on the last candle before
+     *   every timeframe boundary releases the lock and takes it again: the peers run their
+     *   iterations up to that boundary before the replay continues.
+     * - A strategy that blocks inside `getSignal` or a ping handler (an LLM call, a `sleep`)
+     *   therefore parks its peers at the same `when`; shared state such as `Budget` sees the
+     *   symbols in time order, a write from the middle of a replay included.
      * - While the lock is held the generator still yields to its consumer, so a consumer that
      *   waits for ANOTHER backtest's progress inside the `for await` body would deadlock.
      * - Makes `CC_ENABLE_BACKTEST_PARALLEL_SPIN` redundant: `Candle.spinLock` is skipped while
@@ -33469,8 +33474,8 @@ interface IBudgetReserveRow extends IBudgetHistoryRowBase {
      * behind this one) made this reserve exceed the free balance: `-free` after
      * the row. The budget never hides it (see the Budget class notes). Under
      * `CC_BACKTEST_LOCKSTEP` the clocks of parallel backtests stay within one
-     * timeframe between ticks, so this only arises when a replayed position
-     * carried this symbol's clock ahead of its peers.
+     * timeframe, replays included, so this only arises with the flag off or
+     * with ties inside one timeframe.
      */
     overdraft?: number;
 }
@@ -33716,10 +33721,10 @@ declare class BudgetLiveAdapter implements TBudgetAdapter {
  * - the budget itself never waits for another symbol and holds no lock of its
  *   own; the clocks of parallel backtests are kept together by the engine's
  *   `CC_BACKTEST_LOCKSTEP` (`Lockstep` in `BacktestLogicPrivateService.run`):
- *   every timeframe iteration runs under a process-wide FIFO mutex, so between
- *   ticks the symbols are at most one timeframe apart. A position replayed
- *   inside one iteration still moves that symbol's clock ahead by its
- *   lifetime, and with the flag off (the test config) the symbols drift freely;
+ *   every timeframe iteration runs under a process-wide FIFO mutex, and a
+ *   candle replay hands it off at every timeframe boundary, so the symbols
+ *   are at most one timeframe apart even while one of them replays a long
+ *   position; with the flag off (the test config) the symbols drift freely;
  * - an overdraft (two symbols took the same money because one clock lagged
  *   behind the other) is recorded on the reserve row as `overdraft` and
  *   logged, never hidden — `getFree()` goes negative and later reserves are
@@ -41075,180 +41080,1403 @@ declare class StrategySchemaService {
     get: (key: StrategyName) => IStrategySchema;
 }
 
-/** Type for active position map */
-type RiskMap = Map<string, IRiskActivePosition>;
-/** Symbol indicating that positions need to be fetched from persistence */
-declare const POSITION_NEED_FETCH: unique symbol;
 /**
- * ClientRisk implementation for portfolio-level risk management.
- *
- * Provides risk checking logic to prevent signals that violate configured limits:
- * - Maximum concurrent positions (tracks across all strategies)
- * - Custom validations with access to all active positions
- *
- * Multiple ClientStrategy instances share the same ClientRisk instance,
- * allowing cross-strategy risk analysis.
- *
- * Used internally by strategy execution to validate signals before opening positions.
+ * Type definition for strategy methods.
+ * Maps all keys of IStrategy to any type.
+ * Used for dynamic method routing in StrategyCoreService.
  */
-declare class ClientRisk implements IRisk {
-    readonly params: IRiskParams;
+type TStrategy$1 = {
+    [key in keyof IStrategy]: any;
+};
+/**
+ * Global service for strategy operations with execution context injection.
+ *
+ * Wraps StrategyConnectionService with ExecutionContextService to inject
+ * symbol, when, and backtest parameters into the execution context.
+ *
+ * Used internally by BacktestLogicPrivateService and LiveLogicPrivateService.
+ */
+declare class StrategyCoreService implements TStrategy$1 {
+    private readonly loggerService;
+    private readonly strategyConnectionService;
+    private readonly strategySchemaService;
+    private readonly riskValidationService;
+    private readonly strategyValidationService;
+    private readonly exchangeValidationService;
+    private readonly frameValidationService;
+    private readonly actionValidationService;
     /**
-     * Map of active positions tracked across all strategies.
-     * Key: `${strategyName}_${exchangeName}_${symbol}` (see CREATE_NAME_FN)
-     * Starts as POSITION_NEED_FETCH symbol, gets initialized on first use.
+     * Validates strategy and associated risk configuration.
+     *
+     * Memoized to avoid redundant validations for the same symbol-strategy-exchange-frame combination.
+     * Logs validation activity.
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise that resolves when validation is complete
      */
-    _activePositions: RiskMap | typeof POSITION_NEED_FETCH;
+    private validate;
     /**
-     * Keys of transient reservation placeholders (checkSignalAndReserve) still
-     * awaiting their finalizing addSignal / releasing removeSignal. Excluded from
-     * persisted snapshots in _updatePositions: a reservation is process-transient,
-     * but a CONCURRENT strategy's addSignal persists the whole shared map — flushed
-     * to disk that placeholder would survive a crash as a phantom position and
-     * block the shared concurrency limit for the whole signal lifetime (forever
-     * for minuteEstimatedTime: Infinity, which the expiry pruning never removes).
+     * Retrieves the currently active pending signal for the symbol.
+     * If no active signal exists, returns null.
+     * Used internally for monitoring TP/SL and time expiration.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to pending signal or null
      */
-    _reservedKeys: Set<string>;
-    constructor(params: IRiskParams);
-    /**
-     * Initializes active positions by loading from persistence.
-     * Uses singleshot pattern to ensure initialization happens exactly once.
-     * Skips persistence in backtest mode.
-     */
-    private waitForInit;
-    /**
-     * Persists current active positions to disk.
-     * Skips in backtest mode.
-     */
-    private _updatePositions;
-    /**
-     * Registers a new opened signal.
-     * Called by StrategyConnectionService after signal is opened.
-     */
-    addSignal(symbol: string, context: {
+    getPendingSignal: (backtest: boolean, symbol: string, currentPrice: number, context: {
         strategyName: StrategyName;
-        riskName: RiskName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, positionData: {
-        position: "long" | "short";
-        priceOpen: number;
-        priceStopLoss: number;
-        priceTakeProfit: number;
-        minuteEstimatedTime: number;
-        openTimestamp: number;
-    }): Promise<void>;
+    }) => Promise<IPublicSignalRow | null>;
     /**
-     * Removes a closed signal.
-     * Called by StrategyConnectionService when signal is closed.
+     * Returns the still-held share of the position as a percentage.
+     * 100 = nothing has been closed (full position), 0 = fully closed.
+     * Correctly accounts for DCA entries between partial closes.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<number> - held percentage (0–100)
      */
-    removeSignal(symbol: string, context: {
+    getTotalPercentHeld: (backtest: boolean, symbol: string, context: {
         strategyName: StrategyName;
-        riskName: RiskName;
         exchangeName: ExchangeName;
-        frameName: string;
-    }): Promise<void>;
+        frameName: FrameName;
+    }) => Promise<number | null>;
     /**
-     * Checks if a signal should be allowed based on risk limits.
+     * Returns the remaining cost basis in dollars after partial closes.
+     * Correctly accounts for DCA entries between partial closes.
      *
-     * Executes custom validations with access to:
-     * - Passthrough params from ClientStrategy (symbol, strategyName, exchangeName, currentPrice, timestamp)
-     * - Active positions via this.activePositions getter
-     *
-     * Returns false immediately if any validation throws error.
-     * Triggers callbacks (onRejected, onAllowed) based on result.
-     *
-     * @param params - Risk check arguments (passthrough from ClientStrategy)
-     * @returns Promise resolving to true if allowed, false if rejected
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<number> - remaining cost basis in dollars
      */
-    checkSignal: (params: IRiskCheckArgs, options?: Partial<IRiskCheckOptions>) => Promise<boolean>;
+    getRemainingCostBasis: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
     /**
-     * Concurrency-safe variant of {@link checkSignal}: validates the signal AND
-     * reserves a placeholder slot in the active position map atomically.
+     * Returns the effective (DCA-averaged) entry price for the current pending signal.
      *
-     * **Why this exists.** `checkSignal` followed later by `addSignal` is not
-     * atomic — between the two calls the caller does signal setup work that
-     * yields to the event loop (sync-open callback, persist writes, etc.). When
-     * several strategies sharing the same risk profile run in parallel, all of
-     * them can pass `checkSignal` while the active position map is still empty,
-     * then each call `addSignal` and blow past the limit. Reserving inside the
-     * lock guarantees the next concurrent caller observes the incremented size
-     * before its own validation runs.
+     * This is the harmonic mean of all _entry prices, which is the correct
+     * cost-basis price used in all PNL calculations.
+     * With no DCA entries, equals the original priceOpen.
      *
-     * The reservation uses the same map key as the eventual `addSignal` call
-     * (`strategyName + exchangeName + symbol`), so `addSignal` overwrites the
-     * placeholder rather than appending a duplicate.
+     * Returns null if no pending signal exists.
      *
-     * Callers MUST ensure that every successful return is followed by either
-     * `addSignal` (overwrites the placeholder with real data) or `removeSignal`
-     * (clears the placeholder if opening is aborted). Otherwise the riskMap
-     * accumulates stale reservations.
-     *
-     * @param params - Risk check arguments (passthrough from ClientStrategy)
-     * @returns Promise resolving to true if allowed (and reserved), false if rejected (no reservation)
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to effective entry price or null
      */
-    checkSignalAndReserve: (params: IRiskCheckArgs) => Promise<boolean>;
+    getPositionEffectivePrice: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the number of DCA entries made for the current pending signal.
+     *
+     * 1 = original entry only (no DCA).
+     * Increases by 1 with each successful commitAverageBuy().
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to entry count or null
+     */
+    getPositionInvestedCount: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the total invested cost basis in dollars for the current pending signal.
+     *
+     * Equal to entryCount × $100 (COST_BASIS_PER_ENTRY).
+     * 1 entry = $100, 2 entries = $200, etc.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to total invested cost in dollars or null
+     */
+    getPositionInvestedCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the unrealized PNL percentage for the current pending signal at currentPrice.
+     *
+     * Accounts for partial closes, DCA entries, slippage and fees
+     * (delegates to toProfitLossDto).
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to pnlPercentage or null
+     */
+    getPositionPnlPercent: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the unrealized PNL in dollars for the current pending signal at currentPrice.
+     *
+     * Calculated as: pnlPercentage / 100 × totalInvestedCost
+     * Accounts for partial closes, DCA entries, slippage and fees.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to pnl in dollars or null
+     */
+    getPositionPnlCost: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the list of DCA entry prices for the current pending signal.
+     *
+     * The first element is always the original priceOpen (initial entry).
+     * Each subsequent element is a price added by commitAverageBuy().
+     *
+     * Returns null if no pending signal exists.
+     * Returns a single-element array [priceOpen] if no DCA entries were made.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to array of entry prices or null
+     *
+     * @example
+     * ```typescript
+     * // No DCA: [43000]
+     * // One DCA: [43000, 42000]
+     * // Two DCA: [43000, 42000, 41500]
+     * ```
+     */
+    getPositionLevels: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number[] | null>;
+    /**
+     * Returns the list of partial closes for the current pending signal.
+     *
+     * Each entry records a partial profit or loss close event with its type,
+     * percent closed, price at close, cost basis snapshot, and entry count at close.
+     *
+     * Returns null if no pending signal exists.
+     * Returns an empty array if no partial closes have been executed.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to array of partial close records or null
+     */
+    getPositionPartials: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<ISignalPartial[]>;
+    /**
+     * Returns the list of DCA entry prices and costs for the current pending signal.
+     *
+     * Each entry records the price and cost of a single position entry.
+     * The first element is always the original priceOpen (initial entry).
+     * Each subsequent element is an entry added by averageBuy().
+     *
+     * Returns null if no pending signal exists.
+     * Returns a single-element array [{ price: priceOpen, cost }] if no DCA entries were made.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to array of entry records or null
+     *
+     * @example
+     * ```typescript
+     * // No DCA: [{ price: 43000, cost: 100 }]
+     * // One DCA: [{ price: 43000, cost: 100 }, { price: 42000, cost: 100 }]
+     * ```
+     */
+    getPositionEntries: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<ISignalEntry[]>;
+    /**
+     * Retrieves the currently active scheduled signal for the symbol.
+     * If no scheduled signal exists, returns null.
+     * Used internally for monitoring scheduled signal activation.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to scheduled signal or null
+     */
+    getScheduledSignal: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<IScheduledSignalRow | null>;
+    /**
+     * Checks if breakeven threshold has been reached for the current pending signal.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to check if price has moved far enough to cover transaction costs.
+     *
+     * Does not require execution context as this is a state query operation.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price to check against threshold
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if breakeven threshold reached, false otherwise
+     *
+     * @example
+     * ```typescript
+     * // Check if breakeven is available for LONG position (entry=100, threshold=0.4%)
+     * const canBreakeven = await strategyCoreService.getBreakeven(
+     *   false,
+     *   "BTCUSDT",
+     *   100.5,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * // Returns true (price >= 100.4)
+     *
+     * if (canBreakeven) {
+     *   await strategyCoreService.breakeven(false, "BTCUSDT", 100.5, context);
+     * }
+     * ```
+     */
+    getBreakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks if the strategy has been stopped.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to retrieve the stopped state from the strategy instance.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to true if strategy is stopped, false otherwise
+     */
+    getStopped: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks if the strategy is paused.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to retrieve the paused state from the strategy instance.
+     * Works out of the async-hooks execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to true if strategy is paused, false otherwise
+     */
+    getPaused: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Pauses or resumes the strategy's own signal generation.
+     *
+     * Validates strategy existence and delegates to connection service.
+     * While paused getSignal is not called; existing signals keep being monitored
+     * and close normally. The flag is persisted and survives restarts and signal
+     * transitions until an explicit setPaused(false).
+     * Works out of the async-hooks execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param paused - New paused state
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise that resolves when the flag is set (and persisted in live mode)
+     */
+    setPaused: (backtest: boolean, symbol: string, paused: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Checks signal status at a specific timestamp.
+     *
+     * Wraps strategy tick() with execution context containing symbol, timestamp,
+     * and backtest mode flag.
+     *
+     * CALLER CONTRACT: ticks for the same (symbol, strategy, exchange) MUST NOT
+     * overlap — there is deliberately no internal mutex. `Live.run` satisfies this
+     * (strict `await tick` loop); manual callers must serialize too. Two concurrent
+     * ticks race the retry slot (the slot bypasses the generation throttle): both
+     * consume it, the open gate fires twice CONCURRENTLY with the same signalId,
+     * and two "opened" results are emitted for one position.
+     *
+     * @param symbol - Trading pair symbol
+     * @param when - Timestamp for tick evaluation
+     * @param backtest - Whether running in backtest mode
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Discriminated union of tick result (idle, opened, active, closed)
+     */
+    tick: (symbol: string, when: Date, backtest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<IStrategyTickResult>;
+    /**
+     * Runs fast backtest against candle array.
+     *
+     * Wraps strategy backtest() with execution context containing symbol,
+     * timestamp, and backtest mode flag.
+     *
+     * @param symbol - Trading pair symbol
+     * @param candles - Array of historical candles to test against
+     * @param when - Starting timestamp for backtest
+     * @param backtest - Whether running in backtest mode (typically true)
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Closed signal result with PNL
+     */
+    backtest: (symbol: string, candles: ICandleData[], frameEndTime: number, when: Date, backtest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive>;
+    /**
+     * Stops the strategy from generating new signals.
+     *
+     * Delegates to StrategyConnectionService.stop() to set internal flag.
+     * Does not require execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param ctx - Context with strategyName, exchangeName, frameName
+     * @returns Promise that resolves when stop flag is set
+     */
+    stopStrategy: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Cancels the scheduled signal without stopping the strategy.
+     *
+     * Delegates to StrategyConnectionService.cancelScheduled() to clear scheduled signal
+     * and emit cancelled event through emitters.
+     * Does not require execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param ctx - Context with strategyName, exchangeName, frameName
+     * @param payload - Optional commit payload with id and note
+     * @returns Promise that resolves when scheduled signal is cancelled
+     */
+    cancelScheduled: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
+    /**
+     * Closes the pending signal without stopping the strategy.
+     *
+     * Clears the pending signal (active position).
+     * Does NOT affect scheduled signals or strategy operation.
+     * Does NOT set stop flag - strategy can continue generating new signals.
+     *
+     * Delegates to StrategyConnectionService.closePending() to clear pending signal
+     * and emit closed event through emitters.
+     * Does not require execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Context with strategyName, exchangeName, frameName
+     * @param payload - Optional commit payload with id and note
+     * @returns Promise that resolves when pending signal is closed
+     */
+    closePending: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
+    /**
+     * Queues a user-supplied signal DTO to be consumed by the next tick instead of getSignal.
+     *
+     * Validates the context, then delegates to StrategyConnectionService.createSignal().
+     * Rejected if a signal or deferred action is already in flight. Does not require execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param dto - Signal DTO to open
+     * @param context - Context with strategyName, exchangeName, frameName
+     * @returns Promise that resolves when the DTO is queued
+     */
+    createSignal: (backtest: boolean, symbol: string, dto: ISignalDto, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Reports that the pending position's take-profit order was actually filled on the exchange
+     * (e.g. by candle high/low), forcing a close that bypasses the framework's VWAP-based TP check.
+     *
+     * Validates the context, then delegates to StrategyConnectionService.createTakeProfit().
+     * The close is deferred and emitted with closeReason "take_profit" on the next tick/backtest.
+     * Does not require execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Context with strategyName, exchangeName, frameName
+     * @param payload - Optional commit payload with id and note
+     * @returns Promise that resolves when the take-profit fill is queued
+     */
+    createTakeProfit: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
+    /**
+     * Reports that the pending position's stop-loss order was actually filled on the exchange
+     * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based SL check (closed-candle granularity).
+     *
+     * Validates the context, then delegates to StrategyConnectionService.createStopLoss().
+     * The close is deferred and emitted with closeReason "stop_loss" on the next tick/backtest.
+     * Does not require execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Context with strategyName, exchangeName, frameName
+     * @param payload - Optional commit payload with id and note
+     * @returns Promise that resolves when the stop-loss fill is queued
+     */
+    createStopLoss: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
+    /**
+     * Returns the in-memory deferred strategy-state snapshot for this iteration.
+     *
+     * Validates the context, then delegates to StrategyConnectionService.getStatus().
+     * Does not require execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to the current StrategyStatus snapshot
+     */
+    getStatus: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<StrategyStatus>;
+    /**
+     * Disposes the ClientStrategy instance for the given context.
+     *
+     * Calls dispose on the strategy instance to clean up resources,
+     * then removes it from cache.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     */
+    dispose: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Clears the memoized ClientStrategy instance from cache.
+     *
+     * Delegates to StrategyConnectionService.dispose() if payload provided,
+     * otherwise clears all strategy instances.
+     *
+     * @param payload - Optional payload with symbol, context and backtest flag (clears all if not provided)
+     */
+    clear: (payload?: {
+        symbol: string;
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+        backtest: boolean;
+    }) => Promise<void>;
+    /**
+     * Checks whether `partialProfit` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validatePartialProfit().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentToClose - Percentage of position to check (0-100]
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `partialProfit` would execute, false otherwise
+     */
+    validatePartialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Executes partial close at profit level (moving toward TP).
+     *
+     * Validates strategy existence and delegates to connection service
+     * to close a percentage of the pending position at profit.
+     *
+     * Does not require execution context as this is a direct state mutation.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentToClose - Percentage of position to close (0-100, absolute value)
+     * @param currentPrice - Current market price for this partial close (must be in profit direction)
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if partial close executed, false if skipped
+     *
+     * @example
+     * ```typescript
+     * // Close 30% of position at profit
+     * const success = await strategyCoreService.partialProfit(
+     *   false,
+     *   "BTCUSDT",
+     *   30,
+     *   45000,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * if (success) {
+     *   console.log('Partial profit executed');
+     * }
+     * ```
+     */
+    partialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, note?: string) => Promise<boolean>;
+    /**
+     * Checks whether `partialLoss` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validatePartialLoss().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentToClose - Percentage of position to check (0-100]
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `partialLoss` would execute, false otherwise
+     */
+    validatePartialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Executes partial close at loss level (moving toward SL).
+     *
+     * Validates strategy existence and delegates to connection service
+     * to close a percentage of the pending position at loss.
+     *
+     * Does not require execution context as this is a direct state mutation.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentToClose - Percentage of position to close (0-100, absolute value)
+     * @param currentPrice - Current market price for this partial close (must be in loss direction)
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if partial close executed, false if skipped
+     *
+     * @example
+     * ```typescript
+     * // Close 40% of position at loss
+     * const success = await strategyCoreService.partialLoss(
+     *   false,
+     *   "BTCUSDT",
+     *   40,
+     *   38000,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * if (success) {
+     *   console.log('Partial loss executed');
+     * }
+     * ```
+     */
+    partialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, note?: string) => Promise<boolean>;
+    /**
+     * Checks whether `trailingStop` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validateTrailingStop().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage shift of ORIGINAL SL distance [-100, 100], excluding 0
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `trailingStop` would execute, false otherwise
+     */
+    validateTrailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Adjusts the trailing stop-loss distance for an active pending signal.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to update the stop-loss distance by a percentage adjustment.
+     *
+     * Does not require execution context as this is a direct state mutation.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if trailing SL was updated, false otherwise
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalSL=90, distance=10%, currentPrice=102
+     * // Tighten stop by 50%: newSL = 100 - 5% = 95
+     * await strategyCoreService.trailingStop(
+     *   false,
+     *   "BTCUSDT",
+     *   -50,
+     *   102,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * ```
+     */
+    trailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks whether `trailingTake` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validateTrailingTake().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to ORIGINAL TP distance [-100, 100], excluding 0
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `trailingTake` would execute, false otherwise
+     */
+    validateTrailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Adjusts the trailing take-profit distance for an active pending signal.
+     * Validates context and delegates to StrategyConnectionService.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
+     * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if trailing TP was updated, false otherwise
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+     * // Move TP further by 50%: newTP = 100 + 15% = 115
+     * await strategyCoreService.trailingTake(
+     *   false,
+     *   "BTCUSDT",
+     *   50,
+     *   102,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * ```
+     */
+    trailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks whether `breakeven` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validateBreakeven().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `breakeven` would execute, false otherwise
+     */
+    validateBreakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Moves stop-loss to breakeven when price reaches threshold.
+     * Validates context and delegates to StrategyConnectionService.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price to check threshold
+     * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if breakeven was set, false otherwise
+     *
+     * @example
+     * ```typescript
+     * const moved = await strategyCoreService.breakeven(
+     *   false,
+     *   "BTCUSDT",
+     *   112,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * ```
+     */
+    breakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Activates a scheduled signal early without waiting for price to reach priceOpen.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to set the activation flag. The actual activation happens on next tick().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @param payload - Optional commit payload with id and note
+     * @returns Promise that resolves when activation flag is set
+     *
+     * @example
+     * ```typescript
+     * // Activate scheduled signal early
+     * await strategyCoreService.activateScheduled(
+     *   false,
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
+     *   { id: "manual-activation" }
+     * );
+     * ```
+     */
+    activateScheduled: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
+    /**
+     * Checks whether `averageBuy` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validateAverageBuy().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - New entry price to validate
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `averageBuy` would execute, false otherwise
+     */
+    validateAverageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Adds a new DCA entry to the active pending signal.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to add a new averaging entry to the position.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - New entry price to add to the averaging history
+     * @param cost - Cost basis for this entry in dollars
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if entry added, false if rejected
+     */
+    averageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, cost: number, note?: string) => Promise<boolean>;
+    /**
+     * Checks whether dividend would succeed without executing it.
+     * Validates strategy existence and delegates to the connection service.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param dto - Accrual to validate
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if dividend would execute, false otherwise
+     */
+    validateDividend: (backtest: boolean, symbol: string, dto: IDividendDto, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Records a dividend / staking accrual (signed amount) on the active pending signal.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price recorded with the commit event
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @param dto - Accrual: signed amount, type ("cash" default | "asset"), optional note
+     * @returns Promise<boolean> - true when the accrual was recorded
+     */
+    dividend: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, dto: IDividendDto) => Promise<boolean>;
+    /**
+     * Returns the dividend / staking accruals recorded on the current pending signal.
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to the accrual list or null
+     */
+    getPositionAccruals: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<ISignalAccrual[]>;
+    /**
+     * Checks if there is an active pending signal for the symbol.
+     * Validates strategy existence and delegates to connection service
+     * to check if a pending signal exists for the symbol.
+     * Does not require execution context as this is a state query operation.
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if pending signal exists, false otherwise
+     */
+    hasPendingSignal: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks if there is a waiting scheduled signal for the symbol.
+     * Validates strategy existence and delegates to connection service
+     * to check if a scheduled signal exists for the symbol.
+     * Does not require execution context as this is a state query operation.
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if scheduled signal exists, false otherwise
+     */
+    hasScheduledSignal: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Returns the original estimated duration for the current pending signal.
+     *
+     * Validates strategy existence and delegates to connection service.
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to estimated duration in minutes or null
+     */
+    getPositionEstimateMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the remaining time before the position expires, clamped to zero.
+     *
+     * Validates strategy existence and delegates to connection service.
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to remaining minutes (≥ 0) or null
+     */
+    getPositionCountdownMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the number of minutes the position has been active since it opened.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to active minutes (≥ 0) or null
+     */
+    getPositionActiveMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the number of minutes the scheduled signal has been waiting for activation.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to waiting minutes (≥ 0) or null
+     */
+    getPositionWaitingMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the best price reached in the profit direction during this position's life.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to price or null
+     */
+    getPositionHighestProfitPrice: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the timestamp when the best profit price was recorded during this position's life.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to timestamp in milliseconds or null
+     */
+    getPositionHighestProfitTimestamp: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the PnL percentage at the moment the best profit price was recorded during this position's life.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to PnL percentage or null
+     */
+    getPositionHighestPnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the PnL cost (in quote currency) at the moment the best profit price was recorded during this position's life.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to PnL cost or null
+     */
+    getPositionHighestPnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns whether breakeven was mathematically reachable at the highest profit price.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to true if breakeven was reachable at peak, false otherwise, or null
+     */
+    getPositionHighestProfitBreakeven: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean | null>;
+    /**
+     * Returns the number of minutes elapsed since the highest profit price was recorded.
+     *
+     * Validates strategy existence and delegates to connection service.
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to drawdown duration in minutes or null
+     */
+    getPositionDrawdownMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the number of minutes elapsed since the highest profit price was recorded.
+     *
+     * Alias for getPositionDrawdownMinutes — measures how long the position has been
+     * pulling back from its peak profit level.
+     *
+     * Validates strategy existence and delegates to connection service.
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to minutes since last profit peak or null
+     */
+    getPositionHighestProfitMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the number of minutes elapsed since the worst loss price was recorded.
+     *
+     * Measures how long ago the deepest drawdown point occurred.
+     * Zero when called at the exact moment the trough was set.
+     *
+     * Validates strategy existence and delegates to connection service.
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to minutes since last drawdown trough or null
+     */
+    getPositionMaxDrawdownMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the worst price reached in the loss direction during this position's life.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to price or null
+     */
+    getPositionMaxDrawdownPrice: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the timestamp when the worst loss price was recorded during this position's life.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to timestamp in milliseconds or null
+     */
+    getPositionMaxDrawdownTimestamp: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the PnL percentage at the moment the worst loss price was recorded during this position's life.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to PnL percentage or null
+     */
+    getPositionMaxDrawdownPnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the PnL cost (in quote currency) at the moment the worst loss price was recorded during this position's life.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to PnL cost or null
+     */
+    getPositionMaxDrawdownPnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL percentage between the current price and the highest profit peak.
+     *
+     * Delegates to StrategyConnectionService.getPositionHighestProfitDistancePnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to drawdown distance in PnL% (≥ 0) or null
+     */
+    getPositionHighestProfitDistancePnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL cost between the current price and the highest profit peak.
+     *
+     * Delegates to StrategyConnectionService.getPositionHighestProfitDistancePnlCost().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to drawdown distance in PnL cost (≥ 0) or null
+     */
+    getPositionHighestProfitDistancePnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+     *
+     * Delegates to StrategyConnectionService.getPositionHighestMaxDrawdownPnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to recovery distance in PnL% (≥ 0) or null
+     */
+    getPositionHighestMaxDrawdownPnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL cost between the current price and the worst drawdown trough.
+     *
+     * Delegates to StrategyConnectionService.getPositionHighestMaxDrawdownPnlCost().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to recovery distance in PnL cost (≥ 0) or null
+     */
+    getPositionHighestMaxDrawdownPnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+     *
+     * Delegates to StrategyConnectionService.getMaxDrawdownDistancePnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
+     */
+    getMaxDrawdownDistancePnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+     *
+     * Delegates to StrategyConnectionService.getMaxDrawdownDistancePnlCost().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
+     */
+    getMaxDrawdownDistancePnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
 }
 
 /**
- * Service for managing risk schema registry.
- *
- * Uses ToolRegistry from functools-kit for type-safe schema storage.
- * Risk profiles are registered via addRisk() and retrieved by name.
+ * Type definition for exchange methods.
+ * Maps all keys of IExchange to any type.
+ * Used for dynamic method routing in ExchangeCoreService.
  */
-declare class RiskSchemaService {
-    readonly loggerService: {
-        readonly methodContextService: {
-            readonly context: IMethodContext;
-        };
-        readonly executionContextService: {
-            readonly context: IExecutionContext;
-        };
-        _commonLogger: ILogger;
-        readonly _methodContext: {};
-        readonly _executionContext: {};
-        log: (topic: string, ...args: any[]) => Promise<void>;
-        debug: (topic: string, ...args: any[]) => Promise<void>;
-        info: (topic: string, ...args: any[]) => Promise<void>;
-        warn: (topic: string, ...args: any[]) => Promise<void>;
-        setLogger: (logger: ILogger) => void;
-    };
-    private _registry;
+type TExchange = {
+    [key in keyof IExchange]: any;
+};
+/**
+ * Global service for exchange operations with execution context injection.
+ *
+ * Wraps ExchangeConnectionService with ExecutionContextService to inject
+ * symbol, when, and backtest parameters into the execution context.
+ *
+ * Used internally by BacktestLogicPrivateService and LiveLogicPrivateService.
+ */
+declare class ExchangeCoreService implements TExchange {
+    private readonly loggerService;
+    private readonly exchangeConnectionService;
+    private readonly methodContextService;
+    private readonly exchangeValidationService;
     /**
-     * Registers a new risk schema.
-     *
-     * @param key - Unique risk profile name
-     * @param value - Risk schema configuration
-     * @throws Error if risk name already exists
+     * Validates exchange configuration.
+     * Memoized to avoid redundant validations for the same exchange.
+     * Logs validation activity.
+     * @param exchangeName - Name of the exchange to validate
+     * @returns Promise that resolves when validation is complete
      */
-    register: (key: RiskName, value: IRiskSchema) => void;
+    private validate;
     /**
-     * Validates risk schema structure for required properties.
+     * Fetches historical candles with execution context.
      *
-     * Performs shallow validation to ensure all required properties exist
-     * and have correct types before registration in the registry.
-     *
-     * @param riskSchema - Risk schema to validate
-     * @throws Error if riskName is missing or not a string
+     * @param symbol - Trading pair symbol
+     * @param interval - Candle interval (e.g., "1m", "1h")
+     * @param limit - Maximum number of candles to fetch
+     * @param when - Timestamp for context (used in backtest mode)
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to array of candles
      */
-    private validateShallow;
+    getCandles: (symbol: string, interval: CandleInterval, limit: number, when: Date, backtest: boolean) => Promise<ICandleData[]>;
     /**
-     * Overrides an existing risk schema with partial updates.
+     * Fetches future candles (backtest mode only) with execution context.
      *
-     * @param key - Risk name to override
-     * @param value - Partial schema updates
-     * @returns Updated risk schema
-     * @throws Error if risk name doesn't exist
+     * @param symbol - Trading pair symbol
+     * @param interval - Candle interval
+     * @param limit - Maximum number of candles to fetch
+     * @param when - Timestamp for context
+     * @param backtest - Whether running in backtest mode (must be true)
+     * @returns Promise resolving to array of future candles
      */
-    override: (key: RiskName, value: Partial<IRiskSchema>) => IRiskSchema;
+    getNextCandles: (symbol: string, interval: CandleInterval, limit: number, when: Date, backtest: boolean) => Promise<ICandleData[]>;
     /**
-     * Retrieves a risk schema by name.
+     * Calculates VWAP with execution context.
      *
-     * @param key - Risk name
-     * @returns Risk schema configuration
-     * @throws Error if risk name doesn't exist
+     * @param symbol - Trading pair symbol
+     * @param when - Timestamp for context
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to VWAP price
      */
-    get: (key: RiskName) => IRiskSchema;
+    getAveragePrice: (symbol: string, when: Date, backtest: boolean) => Promise<number>;
+    /**
+     * Returns the close price of the last completed candle for the given interval with execution context.
+     *
+     * @param symbol - Trading pair symbol
+     * @param interval - Candle interval (e.g., "1m", "1h")
+     * @param when - Timestamp for context (used in backtest mode)
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to close price of the last candle
+     */
+    getClosePrice: (symbol: string, interval: CandleInterval, when: Date, backtest: boolean) => Promise<number>;
+    /**
+     * Formats price with execution context.
+     *
+     * @param symbol - Trading pair symbol
+     * @param price - Price to format
+     * @param when - Timestamp for context
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to formatted price string
+     */
+    formatPrice: (symbol: string, price: number, when: Date, backtest: boolean) => Promise<string>;
+    /**
+     * Formats quantity with execution context.
+     *
+     * @param symbol - Trading pair symbol
+     * @param quantity - Quantity to format
+     * @param when - Timestamp for context
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to formatted quantity string
+     */
+    formatQuantity: (symbol: string, quantity: number, when: Date, backtest: boolean) => Promise<string>;
+    /**
+     * Fetches order book with execution context.
+     *
+     * Sets up execution context with the provided when/backtest parameters.
+     * The exchange implementation will receive time range parameters but may
+     * choose to use them (backtest) or ignore them (live).
+     *
+     * @param symbol - Trading pair symbol
+     * @param when - Timestamp for context
+     * @param backtest - Whether running in backtest mode
+     * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
+     * @returns Promise resolving to order book data
+     */
+    getOrderBook: (symbol: string, when: Date, backtest: boolean, depth?: number) => Promise<IOrderBookData>;
+    /**
+     * Fetches aggregated trades with execution context.
+     *
+     * @param symbol - Trading pair symbol
+     * @param when - Timestamp for context (used in backtest mode)
+     * @param backtest - Whether running in backtest mode
+     * @param limit - Optional maximum number of trades to fetch
+     * @returns Promise resolving to array of aggregated trade data
+     */
+    getAggregatedTrades: (symbol: string, when: Date, backtest: boolean, limit?: number) => Promise<IAggregatedTradeData[]>;
+    /**
+     * Fetches raw candles with flexible date/limit parameters and execution context.
+     *
+     * @param symbol - Trading pair symbol
+     * @param interval - Candle interval (e.g., "1m", "1h")
+     * @param when - Timestamp for context (used in backtest mode)
+     * @param backtest - Whether running in backtest mode
+     * @param limit - Optional number of candles to fetch
+     * @param sDate - Optional start date in milliseconds
+     * @param eDate - Optional end date in milliseconds
+     * @returns Promise resolving to array of candles
+     */
+    getRawCandles: (symbol: string, interval: CandleInterval, when: Date, backtest: boolean, limit?: number, sDate?: number, eDate?: number) => Promise<ICandleData[]>;
+}
+
+/**
+ * Type definition for frame methods.
+ * Maps all keys of IFrame to any type.
+ * Used for dynamic method routing in FrameCoreService.
+ */
+type TFrame = {
+    [key in keyof IFrame]: any;
+};
+/**
+ * Global service for frame operations.
+ *
+ * Wraps FrameConnectionService for timeframe generation.
+ * Used internally by BacktestLogicPrivateService.
+ */
+declare class FrameCoreService implements TFrame {
+    private readonly loggerService;
+    private readonly frameConnectionService;
+    private readonly frameValidationService;
+    /**
+     * Generates timeframe array for backtest iteration.
+     *
+     * @param frameName - Target frame name (e.g., "1m", "1h")
+     * @returns Promise resolving to array of Date objects
+     */
+    getTimeframe: (symbol: string, frameName: FrameName) => Promise<Date[]>;
 }
 
 /**
@@ -41555,6 +42783,373 @@ declare class ActionCoreService implements TAction$1 {
         frameName: FrameName;
         backtest: boolean;
     }) => Promise<void>;
+}
+
+/**
+ * Service for tracking the latest market price per symbol-strategy-exchange-frame combination.
+ *
+ * Maintains a memoized BehaviorSubject per unique key that is updated on every strategy tick
+ * by StrategyConnectionService. Consumers can synchronously read the last known price or
+ * await the first value if none has arrived yet.
+ *
+ * Primary use case: providing the current price outside of a tick execution context,
+ * e.g., when a command is triggered between ticks.
+ *
+ * Features:
+ * - One BehaviorSubject per (symbol, strategyName, exchangeName, frameName, backtest) key
+ * - Falls back to ExchangeConnectionService.getAveragePrice when called inside an execution context
+ * - Waits up to LISTEN_TIMEOUT ms for the first price if none is cached yet
+ * - clear() disposes the BehaviorSubject for a single key or all keys
+ *
+ * Architecture:
+ * - Registered as singleton in DI container
+ * - Updated by StrategyConnectionService after each tick
+ * - Cleared by Backtest/Live/Walker at strategy start to prevent stale data
+ *
+ * @example
+ * ```typescript
+ * const price = await backtest.priceMetaService.getCurrentPrice("BTCUSDT", context, false);
+ * ```
+ */
+declare class PriceMetaService {
+    private readonly loggerService;
+    private readonly exchangeConnectionService;
+    /**
+     * Memoized factory for BehaviorSubject streams keyed by (symbol, strategyName, exchangeName, frameName, backtest).
+     *
+     * Each subject holds the latest currentPrice emitted by the strategy iterator for that key.
+     * Instances are cached until clear() is called.
+     */
+    private getSource;
+    /**
+     * Checks if a price exists for the given key and has emitted at least one value.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Strategy, exchange, and frame identifiers
+     * @param backtest - True if backtest mode, false if live mode
+     * @returns True if a price exists and has emitted a value, false otherwise
+     */
+    hasPrice: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+    }, backtest: boolean) => boolean;
+    /**
+     * Returns the current market price for the given symbol and context.
+     *
+     * When called inside an execution context (i.e., during a signal handler or action),
+     * delegates to ExchangeConnectionService.getAveragePrice for the live exchange price.
+     * Otherwise, reads the last value from the cached BehaviorSubject. If no value has
+     * been emitted yet, waits up to LISTEN_TIMEOUT ms for the first tick before throwing.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Strategy, exchange, and frame identifiers
+     * @param backtest - True if backtest mode, false if live mode
+     * @returns Current market price in quote currency
+     * @throws When no price arrives within LISTEN_TIMEOUT ms
+     */
+    getCurrentPrice: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+    }, backtest: boolean) => Promise<number>;
+    /**
+     * Pushes a new price value into the BehaviorSubject for the given key.
+     *
+     * Called by StrategyConnectionService after each strategy tick to keep
+     * the cached price up to date.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param currentPrice - The latest price from the tick
+     * @param context - Strategy, exchange, and frame identifiers
+     * @param backtest - True if backtest mode, false if live mode
+     */
+    next: (symbol: string, currentPrice: number, context: {
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+    }, backtest: boolean) => Promise<void>;
+    /**
+     * Disposes cached BehaviorSubject(s) to free memory and prevent stale data.
+     *
+     * When called without arguments, clears all memoized price streams.
+     * When called with a payload, clears only the stream for the specified key.
+     * Should be called at strategy start (Backtest/Live/Walker) to reset state.
+     *
+     * @param payload - Optional key to clear a single stream; omit to clear all
+     */
+    clear: (payload?: {
+        symbol: string;
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+        backtest: boolean;
+    }) => void;
+}
+
+/**
+ * Private service for backtest orchestration using async generators.
+ *
+ * Flow:
+ * 1. Get timeframes from frame service
+ * 2. Iterate through timeframes calling tick()
+ * 3. When signal opens: fetch candles and call backtest()
+ * 4. Skip timeframes until signal closes
+ * 5. Yield closed result and continue
+ *
+ * Memory efficient: streams results without array accumulation.
+ * Supports early termination via break in consumer.
+ *
+ * With `CC_BACKTEST_LOCKSTEP` every timeframe iteration runs under the
+ * process-wide `Lockstep` mutex, so parallel backtests advance one
+ * timeframe at a time instead of drifting apart in logical time.
+ */
+declare class BacktestLogicPrivateService {
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
+    readonly strategyCoreService: StrategyCoreService;
+    readonly exchangeCoreService: ExchangeCoreService;
+    readonly frameCoreService: FrameCoreService;
+    readonly methodContextService: {
+        readonly context: IMethodContext;
+    };
+    readonly actionCoreService: ActionCoreService;
+    readonly timeMetaService: TimeMetaService;
+    readonly priceMetaService: PriceMetaService;
+    /** Lockstep cursor of every backtest currently inside `run()`, by symbol and context */
+    private _lockstep;
+    /**
+     * Lock hand-off inside a candle replay (CC_BACKTEST_LOCKSTEP).
+     *
+     * BACKTEST_FN replays a whole array of candles under the lockstep lock, so the
+     * symbol's clock would jump by the position lifetime while its peers wait on
+     * one timeframe; anything the strategy writes from the middle of the replay (a
+     * DCA entry, a budget reserve) would then be checked against a journal the
+     * peers have not reached yet. ClientStrategy pings on every replayed candle and
+     * `StrategyConnectionService` calls this from its `onSchedulePing` /
+     * `onActivePing` system callbacks: on the last candle before the next
+     * timeframe boundary `Lockstep.spinLock` releases the lock and takes it
+     * again, and the FIFO queue lets every peer run its iteration up to that
+     * boundary first.
+     *
+     * No-op when lockstep is off, when the symbol is not inside `run()` (a tick
+     * driven directly, outside the orchestrator) or when its iteration does not
+     * hold the lock.
+     *
+     * @param symbol - Trading pair symbol of the pinging backtest
+     * @param timestamp - Timestamp of the replayed candle that pinged
+     * @param context - Strategy, exchange and frame of the backtest
+     */
+    handoff: (symbol: string, timestamp: number, context: {
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+    }) => Promise<void>;
+    /**
+     * Runs backtest for a symbol, streaming closed signals as async generator.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @yields Closed signal results with PNL
+     *
+     * @example
+     * ```typescript
+     * for await (const result of backtestLogic.run("BTCUSDT")) {
+     *   console.log(result.closeReason, result.pnl.pnlPercentage);
+     *   if (result.pnl.pnlPercentage < -10) break; // Early termination
+     * }
+     * ```
+     */
+    run(symbol: string): AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, any>;
+}
+
+/** Type for active position map */
+type RiskMap = Map<string, IRiskActivePosition>;
+/** Symbol indicating that positions need to be fetched from persistence */
+declare const POSITION_NEED_FETCH: unique symbol;
+/**
+ * ClientRisk implementation for portfolio-level risk management.
+ *
+ * Provides risk checking logic to prevent signals that violate configured limits:
+ * - Maximum concurrent positions (tracks across all strategies)
+ * - Custom validations with access to all active positions
+ *
+ * Multiple ClientStrategy instances share the same ClientRisk instance,
+ * allowing cross-strategy risk analysis.
+ *
+ * Used internally by strategy execution to validate signals before opening positions.
+ */
+declare class ClientRisk implements IRisk {
+    readonly params: IRiskParams;
+    /**
+     * Map of active positions tracked across all strategies.
+     * Key: `${strategyName}_${exchangeName}_${symbol}` (see CREATE_NAME_FN)
+     * Starts as POSITION_NEED_FETCH symbol, gets initialized on first use.
+     */
+    _activePositions: RiskMap | typeof POSITION_NEED_FETCH;
+    /**
+     * Keys of transient reservation placeholders (checkSignalAndReserve) still
+     * awaiting their finalizing addSignal / releasing removeSignal. Excluded from
+     * persisted snapshots in _updatePositions: a reservation is process-transient,
+     * but a CONCURRENT strategy's addSignal persists the whole shared map — flushed
+     * to disk that placeholder would survive a crash as a phantom position and
+     * block the shared concurrency limit for the whole signal lifetime (forever
+     * for minuteEstimatedTime: Infinity, which the expiry pruning never removes).
+     */
+    _reservedKeys: Set<string>;
+    constructor(params: IRiskParams);
+    /**
+     * Initializes active positions by loading from persistence.
+     * Uses singleshot pattern to ensure initialization happens exactly once.
+     * Skips persistence in backtest mode.
+     */
+    private waitForInit;
+    /**
+     * Persists current active positions to disk.
+     * Skips in backtest mode.
+     */
+    private _updatePositions;
+    /**
+     * Registers a new opened signal.
+     * Called by StrategyConnectionService after signal is opened.
+     */
+    addSignal(symbol: string, context: {
+        strategyName: StrategyName;
+        riskName: RiskName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, positionData: {
+        position: "long" | "short";
+        priceOpen: number;
+        priceStopLoss: number;
+        priceTakeProfit: number;
+        minuteEstimatedTime: number;
+        openTimestamp: number;
+    }): Promise<void>;
+    /**
+     * Removes a closed signal.
+     * Called by StrategyConnectionService when signal is closed.
+     */
+    removeSignal(symbol: string, context: {
+        strategyName: StrategyName;
+        riskName: RiskName;
+        exchangeName: ExchangeName;
+        frameName: string;
+    }): Promise<void>;
+    /**
+     * Checks if a signal should be allowed based on risk limits.
+     *
+     * Executes custom validations with access to:
+     * - Passthrough params from ClientStrategy (symbol, strategyName, exchangeName, currentPrice, timestamp)
+     * - Active positions via this.activePositions getter
+     *
+     * Returns false immediately if any validation throws error.
+     * Triggers callbacks (onRejected, onAllowed) based on result.
+     *
+     * @param params - Risk check arguments (passthrough from ClientStrategy)
+     * @returns Promise resolving to true if allowed, false if rejected
+     */
+    checkSignal: (params: IRiskCheckArgs, options?: Partial<IRiskCheckOptions>) => Promise<boolean>;
+    /**
+     * Concurrency-safe variant of {@link checkSignal}: validates the signal AND
+     * reserves a placeholder slot in the active position map atomically.
+     *
+     * **Why this exists.** `checkSignal` followed later by `addSignal` is not
+     * atomic — between the two calls the caller does signal setup work that
+     * yields to the event loop (sync-open callback, persist writes, etc.). When
+     * several strategies sharing the same risk profile run in parallel, all of
+     * them can pass `checkSignal` while the active position map is still empty,
+     * then each call `addSignal` and blow past the limit. Reserving inside the
+     * lock guarantees the next concurrent caller observes the incremented size
+     * before its own validation runs.
+     *
+     * The reservation uses the same map key as the eventual `addSignal` call
+     * (`strategyName + exchangeName + symbol`), so `addSignal` overwrites the
+     * placeholder rather than appending a duplicate.
+     *
+     * Callers MUST ensure that every successful return is followed by either
+     * `addSignal` (overwrites the placeholder with real data) or `removeSignal`
+     * (clears the placeholder if opening is aborted). Otherwise the riskMap
+     * accumulates stale reservations.
+     *
+     * @param params - Risk check arguments (passthrough from ClientStrategy)
+     * @returns Promise resolving to true if allowed (and reserved), false if rejected (no reservation)
+     */
+    checkSignalAndReserve: (params: IRiskCheckArgs) => Promise<boolean>;
+}
+
+/**
+ * Service for managing risk schema registry.
+ *
+ * Uses ToolRegistry from functools-kit for type-safe schema storage.
+ * Risk profiles are registered via addRisk() and retrieved by name.
+ */
+declare class RiskSchemaService {
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
+    private _registry;
+    /**
+     * Registers a new risk schema.
+     *
+     * @param key - Unique risk profile name
+     * @param value - Risk schema configuration
+     * @throws Error if risk name already exists
+     */
+    register: (key: RiskName, value: IRiskSchema) => void;
+    /**
+     * Validates risk schema structure for required properties.
+     *
+     * Performs shallow validation to ensure all required properties exist
+     * and have correct types before registration in the registry.
+     *
+     * @param riskSchema - Risk schema to validate
+     * @throws Error if riskName is missing or not a string
+     */
+    private validateShallow;
+    /**
+     * Overrides an existing risk schema with partial updates.
+     *
+     * @param key - Risk name to override
+     * @param value - Partial schema updates
+     * @returns Updated risk schema
+     * @throws Error if risk name doesn't exist
+     */
+    override: (key: RiskName, value: Partial<IRiskSchema>) => IRiskSchema;
+    /**
+     * Retrieves a risk schema by name.
+     *
+     * @param key - Risk name
+     * @returns Risk schema configuration
+     * @throws Error if risk name doesn't exist
+     */
+    get: (key: RiskName) => IRiskSchema;
 }
 
 /**
@@ -41939,113 +43534,11 @@ declare class BreakevenConnectionService implements IBreakeven {
 }
 
 /**
- * Service for tracking the latest market price per symbol-strategy-exchange-frame combination.
- *
- * Maintains a memoized BehaviorSubject per unique key that is updated on every strategy tick
- * by StrategyConnectionService. Consumers can synchronously read the last known price or
- * await the first value if none has arrived yet.
- *
- * Primary use case: providing the current price outside of a tick execution context,
- * e.g., when a command is triggered between ticks.
- *
- * Features:
- * - One BehaviorSubject per (symbol, strategyName, exchangeName, frameName, backtest) key
- * - Falls back to ExchangeConnectionService.getAveragePrice when called inside an execution context
- * - Waits up to LISTEN_TIMEOUT ms for the first price if none is cached yet
- * - clear() disposes the BehaviorSubject for a single key or all keys
- *
- * Architecture:
- * - Registered as singleton in DI container
- * - Updated by StrategyConnectionService after each tick
- * - Cleared by Backtest/Live/Walker at strategy start to prevent stale data
- *
- * @example
- * ```typescript
- * const price = await backtest.priceMetaService.getCurrentPrice("BTCUSDT", context, false);
- * ```
- */
-declare class PriceMetaService {
-    private readonly loggerService;
-    private readonly exchangeConnectionService;
-    /**
-     * Memoized factory for BehaviorSubject streams keyed by (symbol, strategyName, exchangeName, frameName, backtest).
-     *
-     * Each subject holds the latest currentPrice emitted by the strategy iterator for that key.
-     * Instances are cached until clear() is called.
-     */
-    private getSource;
-    /**
-     * Checks if a price exists for the given key and has emitted at least one value.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param context - Strategy, exchange, and frame identifiers
-     * @param backtest - True if backtest mode, false if live mode
-     * @returns True if a price exists and has emitted a value, false otherwise
-     */
-    hasPrice: (symbol: string, context: {
-        strategyName: string;
-        exchangeName: string;
-        frameName: string;
-    }, backtest: boolean) => boolean;
-    /**
-     * Returns the current market price for the given symbol and context.
-     *
-     * When called inside an execution context (i.e., during a signal handler or action),
-     * delegates to ExchangeConnectionService.getAveragePrice for the live exchange price.
-     * Otherwise, reads the last value from the cached BehaviorSubject. If no value has
-     * been emitted yet, waits up to LISTEN_TIMEOUT ms for the first tick before throwing.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param context - Strategy, exchange, and frame identifiers
-     * @param backtest - True if backtest mode, false if live mode
-     * @returns Current market price in quote currency
-     * @throws When no price arrives within LISTEN_TIMEOUT ms
-     */
-    getCurrentPrice: (symbol: string, context: {
-        strategyName: string;
-        exchangeName: string;
-        frameName: string;
-    }, backtest: boolean) => Promise<number>;
-    /**
-     * Pushes a new price value into the BehaviorSubject for the given key.
-     *
-     * Called by StrategyConnectionService after each strategy tick to keep
-     * the cached price up to date.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param currentPrice - The latest price from the tick
-     * @param context - Strategy, exchange, and frame identifiers
-     * @param backtest - True if backtest mode, false if live mode
-     */
-    next: (symbol: string, currentPrice: number, context: {
-        strategyName: string;
-        exchangeName: string;
-        frameName: string;
-    }, backtest: boolean) => Promise<void>;
-    /**
-     * Disposes cached BehaviorSubject(s) to free memory and prevent stale data.
-     *
-     * When called without arguments, clears all memoized price streams.
-     * When called with a payload, clears only the stream for the specified key.
-     * Should be called at strategy start (Backtest/Live/Walker) to reset state.
-     *
-     * @param payload - Optional key to clear a single stream; omit to clear all
-     */
-    clear: (payload?: {
-        symbol: string;
-        strategyName: string;
-        exchangeName: string;
-        frameName: string;
-        backtest: boolean;
-    }) => void;
-}
-
-/**
  * Type definition for strategy methods.
  * Maps all keys of IStrategy to any type.
  * Used for dynamic method routing in StrategyConnectionService.
  */
-type TStrategy$1 = {
+type TStrategy = {
     [key in keyof IStrategy]: any;
 };
 /**
@@ -42068,7 +43561,7 @@ type TStrategy$1 = {
  * // Routes to correct strategy instance for symbol-strategy pair
  * ```
  */
-declare class StrategyConnectionService implements TStrategy$1 {
+declare class StrategyConnectionService implements TStrategy {
     readonly loggerService: {
         readonly methodContextService: {
             readonly context: IMethodContext;
@@ -42099,6 +43592,8 @@ declare class StrategyConnectionService implements TStrategy$1 {
     readonly actionCoreService: ActionCoreService;
     readonly timeMetaService: TimeMetaService;
     readonly priceMetaService: PriceMetaService;
+    /** The backtest orchestrator: the lockstep lock hand-off inside a candle replay (a di-kit cycle, resolved lazily) */
+    readonly backtestLogicPrivateService: BacktestLogicPrivateService;
     /**
      * Retrieves memoized ClientStrategy instance for given symbol-strategy pair with exchange and frame isolation.
      *
@@ -44186,1405 +45681,6 @@ declare class ActionConnectionService implements TAction {
 }
 
 /**
- * Type definition for exchange methods.
- * Maps all keys of IExchange to any type.
- * Used for dynamic method routing in ExchangeCoreService.
- */
-type TExchange = {
-    [key in keyof IExchange]: any;
-};
-/**
- * Global service for exchange operations with execution context injection.
- *
- * Wraps ExchangeConnectionService with ExecutionContextService to inject
- * symbol, when, and backtest parameters into the execution context.
- *
- * Used internally by BacktestLogicPrivateService and LiveLogicPrivateService.
- */
-declare class ExchangeCoreService implements TExchange {
-    private readonly loggerService;
-    private readonly exchangeConnectionService;
-    private readonly methodContextService;
-    private readonly exchangeValidationService;
-    /**
-     * Validates exchange configuration.
-     * Memoized to avoid redundant validations for the same exchange.
-     * Logs validation activity.
-     * @param exchangeName - Name of the exchange to validate
-     * @returns Promise that resolves when validation is complete
-     */
-    private validate;
-    /**
-     * Fetches historical candles with execution context.
-     *
-     * @param symbol - Trading pair symbol
-     * @param interval - Candle interval (e.g., "1m", "1h")
-     * @param limit - Maximum number of candles to fetch
-     * @param when - Timestamp for context (used in backtest mode)
-     * @param backtest - Whether running in backtest mode
-     * @returns Promise resolving to array of candles
-     */
-    getCandles: (symbol: string, interval: CandleInterval, limit: number, when: Date, backtest: boolean) => Promise<ICandleData[]>;
-    /**
-     * Fetches future candles (backtest mode only) with execution context.
-     *
-     * @param symbol - Trading pair symbol
-     * @param interval - Candle interval
-     * @param limit - Maximum number of candles to fetch
-     * @param when - Timestamp for context
-     * @param backtest - Whether running in backtest mode (must be true)
-     * @returns Promise resolving to array of future candles
-     */
-    getNextCandles: (symbol: string, interval: CandleInterval, limit: number, when: Date, backtest: boolean) => Promise<ICandleData[]>;
-    /**
-     * Calculates VWAP with execution context.
-     *
-     * @param symbol - Trading pair symbol
-     * @param when - Timestamp for context
-     * @param backtest - Whether running in backtest mode
-     * @returns Promise resolving to VWAP price
-     */
-    getAveragePrice: (symbol: string, when: Date, backtest: boolean) => Promise<number>;
-    /**
-     * Returns the close price of the last completed candle for the given interval with execution context.
-     *
-     * @param symbol - Trading pair symbol
-     * @param interval - Candle interval (e.g., "1m", "1h")
-     * @param when - Timestamp for context (used in backtest mode)
-     * @param backtest - Whether running in backtest mode
-     * @returns Promise resolving to close price of the last candle
-     */
-    getClosePrice: (symbol: string, interval: CandleInterval, when: Date, backtest: boolean) => Promise<number>;
-    /**
-     * Formats price with execution context.
-     *
-     * @param symbol - Trading pair symbol
-     * @param price - Price to format
-     * @param when - Timestamp for context
-     * @param backtest - Whether running in backtest mode
-     * @returns Promise resolving to formatted price string
-     */
-    formatPrice: (symbol: string, price: number, when: Date, backtest: boolean) => Promise<string>;
-    /**
-     * Formats quantity with execution context.
-     *
-     * @param symbol - Trading pair symbol
-     * @param quantity - Quantity to format
-     * @param when - Timestamp for context
-     * @param backtest - Whether running in backtest mode
-     * @returns Promise resolving to formatted quantity string
-     */
-    formatQuantity: (symbol: string, quantity: number, when: Date, backtest: boolean) => Promise<string>;
-    /**
-     * Fetches order book with execution context.
-     *
-     * Sets up execution context with the provided when/backtest parameters.
-     * The exchange implementation will receive time range parameters but may
-     * choose to use them (backtest) or ignore them (live).
-     *
-     * @param symbol - Trading pair symbol
-     * @param when - Timestamp for context
-     * @param backtest - Whether running in backtest mode
-     * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
-     * @returns Promise resolving to order book data
-     */
-    getOrderBook: (symbol: string, when: Date, backtest: boolean, depth?: number) => Promise<IOrderBookData>;
-    /**
-     * Fetches aggregated trades with execution context.
-     *
-     * @param symbol - Trading pair symbol
-     * @param when - Timestamp for context (used in backtest mode)
-     * @param backtest - Whether running in backtest mode
-     * @param limit - Optional maximum number of trades to fetch
-     * @returns Promise resolving to array of aggregated trade data
-     */
-    getAggregatedTrades: (symbol: string, when: Date, backtest: boolean, limit?: number) => Promise<IAggregatedTradeData[]>;
-    /**
-     * Fetches raw candles with flexible date/limit parameters and execution context.
-     *
-     * @param symbol - Trading pair symbol
-     * @param interval - Candle interval (e.g., "1m", "1h")
-     * @param when - Timestamp for context (used in backtest mode)
-     * @param backtest - Whether running in backtest mode
-     * @param limit - Optional number of candles to fetch
-     * @param sDate - Optional start date in milliseconds
-     * @param eDate - Optional end date in milliseconds
-     * @returns Promise resolving to array of candles
-     */
-    getRawCandles: (symbol: string, interval: CandleInterval, when: Date, backtest: boolean, limit?: number, sDate?: number, eDate?: number) => Promise<ICandleData[]>;
-}
-
-/**
- * Type definition for strategy methods.
- * Maps all keys of IStrategy to any type.
- * Used for dynamic method routing in StrategyCoreService.
- */
-type TStrategy = {
-    [key in keyof IStrategy]: any;
-};
-/**
- * Global service for strategy operations with execution context injection.
- *
- * Wraps StrategyConnectionService with ExecutionContextService to inject
- * symbol, when, and backtest parameters into the execution context.
- *
- * Used internally by BacktestLogicPrivateService and LiveLogicPrivateService.
- */
-declare class StrategyCoreService implements TStrategy {
-    private readonly loggerService;
-    private readonly strategyConnectionService;
-    private readonly strategySchemaService;
-    private readonly riskValidationService;
-    private readonly strategyValidationService;
-    private readonly exchangeValidationService;
-    private readonly frameValidationService;
-    private readonly actionValidationService;
-    /**
-     * Validates strategy and associated risk configuration.
-     *
-     * Memoized to avoid redundant validations for the same symbol-strategy-exchange-frame combination.
-     * Logs validation activity.
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise that resolves when validation is complete
-     */
-    private validate;
-    /**
-     * Retrieves the currently active pending signal for the symbol.
-     * If no active signal exists, returns null.
-     * Used internally for monitoring TP/SL and time expiration.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to pending signal or null
-     */
-    getPendingSignal: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<IPublicSignalRow | null>;
-    /**
-     * Returns the still-held share of the position as a percentage.
-     * 100 = nothing has been closed (full position), 0 = fully closed.
-     * Correctly accounts for DCA entries between partial closes.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<number> - held percentage (0–100)
-     */
-    getTotalPercentHeld: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the remaining cost basis in dollars after partial closes.
-     * Correctly accounts for DCA entries between partial closes.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<number> - remaining cost basis in dollars
-     */
-    getRemainingCostBasis: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the effective (DCA-averaged) entry price for the current pending signal.
-     *
-     * This is the harmonic mean of all _entry prices, which is the correct
-     * cost-basis price used in all PNL calculations.
-     * With no DCA entries, equals the original priceOpen.
-     *
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to effective entry price or null
-     */
-    getPositionEffectivePrice: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the number of DCA entries made for the current pending signal.
-     *
-     * 1 = original entry only (no DCA).
-     * Increases by 1 with each successful commitAverageBuy().
-     *
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to entry count or null
-     */
-    getPositionInvestedCount: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the total invested cost basis in dollars for the current pending signal.
-     *
-     * Equal to entryCount × $100 (COST_BASIS_PER_ENTRY).
-     * 1 entry = $100, 2 entries = $200, etc.
-     *
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to total invested cost in dollars or null
-     */
-    getPositionInvestedCost: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the unrealized PNL percentage for the current pending signal at currentPrice.
-     *
-     * Accounts for partial closes, DCA entries, slippage and fees
-     * (delegates to toProfitLossDto).
-     *
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param currentPrice - Current market price
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to pnlPercentage or null
-     */
-    getPositionPnlPercent: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the unrealized PNL in dollars for the current pending signal at currentPrice.
-     *
-     * Calculated as: pnlPercentage / 100 × totalInvestedCost
-     * Accounts for partial closes, DCA entries, slippage and fees.
-     *
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param currentPrice - Current market price
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to pnl in dollars or null
-     */
-    getPositionPnlCost: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the list of DCA entry prices for the current pending signal.
-     *
-     * The first element is always the original priceOpen (initial entry).
-     * Each subsequent element is a price added by commitAverageBuy().
-     *
-     * Returns null if no pending signal exists.
-     * Returns a single-element array [priceOpen] if no DCA entries were made.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to array of entry prices or null
-     *
-     * @example
-     * ```typescript
-     * // No DCA: [43000]
-     * // One DCA: [43000, 42000]
-     * // Two DCA: [43000, 42000, 41500]
-     * ```
-     */
-    getPositionLevels: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number[] | null>;
-    /**
-     * Returns the list of partial closes for the current pending signal.
-     *
-     * Each entry records a partial profit or loss close event with its type,
-     * percent closed, price at close, cost basis snapshot, and entry count at close.
-     *
-     * Returns null if no pending signal exists.
-     * Returns an empty array if no partial closes have been executed.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to array of partial close records or null
-     */
-    getPositionPartials: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<ISignalPartial[]>;
-    /**
-     * Returns the list of DCA entry prices and costs for the current pending signal.
-     *
-     * Each entry records the price and cost of a single position entry.
-     * The first element is always the original priceOpen (initial entry).
-     * Each subsequent element is an entry added by averageBuy().
-     *
-     * Returns null if no pending signal exists.
-     * Returns a single-element array [{ price: priceOpen, cost }] if no DCA entries were made.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to array of entry records or null
-     *
-     * @example
-     * ```typescript
-     * // No DCA: [{ price: 43000, cost: 100 }]
-     * // One DCA: [{ price: 43000, cost: 100 }, { price: 42000, cost: 100 }]
-     * ```
-     */
-    getPositionEntries: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<ISignalEntry[]>;
-    /**
-     * Retrieves the currently active scheduled signal for the symbol.
-     * If no scheduled signal exists, returns null.
-     * Used internally for monitoring scheduled signal activation.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to scheduled signal or null
-     */
-    getScheduledSignal: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<IScheduledSignalRow | null>;
-    /**
-     * Checks if breakeven threshold has been reached for the current pending signal.
-     *
-     * Validates strategy existence and delegates to connection service
-     * to check if price has moved far enough to cover transaction costs.
-     *
-     * Does not require execution context as this is a state query operation.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param currentPrice - Current market price to check against threshold
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if breakeven threshold reached, false otherwise
-     *
-     * @example
-     * ```typescript
-     * // Check if breakeven is available for LONG position (entry=100, threshold=0.4%)
-     * const canBreakeven = await strategyCoreService.getBreakeven(
-     *   false,
-     *   "BTCUSDT",
-     *   100.5,
-     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
-     * );
-     * // Returns true (price >= 100.4)
-     *
-     * if (canBreakeven) {
-     *   await strategyCoreService.breakeven(false, "BTCUSDT", 100.5, context);
-     * }
-     * ```
-     */
-    getBreakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Checks if the strategy has been stopped.
-     *
-     * Validates strategy existence and delegates to connection service
-     * to retrieve the stopped state from the strategy instance.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to true if strategy is stopped, false otherwise
-     */
-    getStopped: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Checks if the strategy is paused.
-     *
-     * Validates strategy existence and delegates to connection service
-     * to retrieve the paused state from the strategy instance.
-     * Works out of the async-hooks execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to true if strategy is paused, false otherwise
-     */
-    getPaused: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Pauses or resumes the strategy's own signal generation.
-     *
-     * Validates strategy existence and delegates to connection service.
-     * While paused getSignal is not called; existing signals keep being monitored
-     * and close normally. The flag is persisted and survives restarts and signal
-     * transitions until an explicit setPaused(false).
-     * Works out of the async-hooks execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param paused - New paused state
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise that resolves when the flag is set (and persisted in live mode)
-     */
-    setPaused: (backtest: boolean, symbol: string, paused: boolean, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<void>;
-    /**
-     * Checks signal status at a specific timestamp.
-     *
-     * Wraps strategy tick() with execution context containing symbol, timestamp,
-     * and backtest mode flag.
-     *
-     * CALLER CONTRACT: ticks for the same (symbol, strategy, exchange) MUST NOT
-     * overlap — there is deliberately no internal mutex. `Live.run` satisfies this
-     * (strict `await tick` loop); manual callers must serialize too. Two concurrent
-     * ticks race the retry slot (the slot bypasses the generation throttle): both
-     * consume it, the open gate fires twice CONCURRENTLY with the same signalId,
-     * and two "opened" results are emitted for one position.
-     *
-     * @param symbol - Trading pair symbol
-     * @param when - Timestamp for tick evaluation
-     * @param backtest - Whether running in backtest mode
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Discriminated union of tick result (idle, opened, active, closed)
-     */
-    tick: (symbol: string, when: Date, backtest: boolean, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<IStrategyTickResult>;
-    /**
-     * Runs fast backtest against candle array.
-     *
-     * Wraps strategy backtest() with execution context containing symbol,
-     * timestamp, and backtest mode flag.
-     *
-     * @param symbol - Trading pair symbol
-     * @param candles - Array of historical candles to test against
-     * @param when - Starting timestamp for backtest
-     * @param backtest - Whether running in backtest mode (typically true)
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Closed signal result with PNL
-     */
-    backtest: (symbol: string, candles: ICandleData[], frameEndTime: number, when: Date, backtest: boolean, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive>;
-    /**
-     * Stops the strategy from generating new signals.
-     *
-     * Delegates to StrategyConnectionService.stop() to set internal flag.
-     * Does not require execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param ctx - Context with strategyName, exchangeName, frameName
-     * @returns Promise that resolves when stop flag is set
-     */
-    stopStrategy: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<void>;
-    /**
-     * Cancels the scheduled signal without stopping the strategy.
-     *
-     * Delegates to StrategyConnectionService.cancelScheduled() to clear scheduled signal
-     * and emit cancelled event through emitters.
-     * Does not require execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param ctx - Context with strategyName, exchangeName, frameName
-     * @param payload - Optional commit payload with id and note
-     * @returns Promise that resolves when scheduled signal is cancelled
-     */
-    cancelScheduled: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, payload?: Partial<CommitPayload>) => Promise<void>;
-    /**
-     * Closes the pending signal without stopping the strategy.
-     *
-     * Clears the pending signal (active position).
-     * Does NOT affect scheduled signals or strategy operation.
-     * Does NOT set stop flag - strategy can continue generating new signals.
-     *
-     * Delegates to StrategyConnectionService.closePending() to clear pending signal
-     * and emit closed event through emitters.
-     * Does not require execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Context with strategyName, exchangeName, frameName
-     * @param payload - Optional commit payload with id and note
-     * @returns Promise that resolves when pending signal is closed
-     */
-    closePending: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, payload?: Partial<CommitPayload>) => Promise<void>;
-    /**
-     * Queues a user-supplied signal DTO to be consumed by the next tick instead of getSignal.
-     *
-     * Validates the context, then delegates to StrategyConnectionService.createSignal().
-     * Rejected if a signal or deferred action is already in flight. Does not require execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param dto - Signal DTO to open
-     * @param context - Context with strategyName, exchangeName, frameName
-     * @returns Promise that resolves when the DTO is queued
-     */
-    createSignal: (backtest: boolean, symbol: string, dto: ISignalDto, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<void>;
-    /**
-     * Reports that the pending position's take-profit order was actually filled on the exchange
-     * (e.g. by candle high/low), forcing a close that bypasses the framework's VWAP-based TP check.
-     *
-     * Validates the context, then delegates to StrategyConnectionService.createTakeProfit().
-     * The close is deferred and emitted with closeReason "take_profit" on the next tick/backtest.
-     * Does not require execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Context with strategyName, exchangeName, frameName
-     * @param payload - Optional commit payload with id and note
-     * @returns Promise that resolves when the take-profit fill is queued
-     */
-    createTakeProfit: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, payload?: Partial<CommitPayload>) => Promise<void>;
-    /**
-     * Reports that the pending position's stop-loss order was actually filled on the exchange
-     * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based SL check (closed-candle granularity).
-     *
-     * Validates the context, then delegates to StrategyConnectionService.createStopLoss().
-     * The close is deferred and emitted with closeReason "stop_loss" on the next tick/backtest.
-     * Does not require execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Context with strategyName, exchangeName, frameName
-     * @param payload - Optional commit payload with id and note
-     * @returns Promise that resolves when the stop-loss fill is queued
-     */
-    createStopLoss: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, payload?: Partial<CommitPayload>) => Promise<void>;
-    /**
-     * Returns the in-memory deferred strategy-state snapshot for this iteration.
-     *
-     * Validates the context, then delegates to StrategyConnectionService.getStatus().
-     * Does not require execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to the current StrategyStatus snapshot
-     */
-    getStatus: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<StrategyStatus>;
-    /**
-     * Disposes the ClientStrategy instance for the given context.
-     *
-     * Calls dispose on the strategy instance to clean up resources,
-     * then removes it from cache.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     */
-    dispose: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<void>;
-    /**
-     * Clears the memoized ClientStrategy instance from cache.
-     *
-     * Delegates to StrategyConnectionService.dispose() if payload provided,
-     * otherwise clears all strategy instances.
-     *
-     * @param payload - Optional payload with symbol, context and backtest flag (clears all if not provided)
-     */
-    clear: (payload?: {
-        symbol: string;
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-        backtest: boolean;
-    }) => Promise<void>;
-    /**
-     * Checks whether `partialProfit` would succeed without executing it.
-     * Validates context, then delegates to StrategyConnectionService.validatePartialProfit().
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param percentToClose - Percentage of position to check (0-100]
-     * @param currentPrice - Current market price to validate against
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if `partialProfit` would execute, false otherwise
-     */
-    validatePartialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Executes partial close at profit level (moving toward TP).
-     *
-     * Validates strategy existence and delegates to connection service
-     * to close a percentage of the pending position at profit.
-     *
-     * Does not require execution context as this is a direct state mutation.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param percentToClose - Percentage of position to close (0-100, absolute value)
-     * @param currentPrice - Current market price for this partial close (must be in profit direction)
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if partial close executed, false if skipped
-     *
-     * @example
-     * ```typescript
-     * // Close 30% of position at profit
-     * const success = await strategyCoreService.partialProfit(
-     *   false,
-     *   "BTCUSDT",
-     *   30,
-     *   45000,
-     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
-     * );
-     * if (success) {
-     *   console.log('Partial profit executed');
-     * }
-     * ```
-     */
-    partialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, note?: string) => Promise<boolean>;
-    /**
-     * Checks whether `partialLoss` would succeed without executing it.
-     * Validates context, then delegates to StrategyConnectionService.validatePartialLoss().
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param percentToClose - Percentage of position to check (0-100]
-     * @param currentPrice - Current market price to validate against
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if `partialLoss` would execute, false otherwise
-     */
-    validatePartialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Executes partial close at loss level (moving toward SL).
-     *
-     * Validates strategy existence and delegates to connection service
-     * to close a percentage of the pending position at loss.
-     *
-     * Does not require execution context as this is a direct state mutation.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param percentToClose - Percentage of position to close (0-100, absolute value)
-     * @param currentPrice - Current market price for this partial close (must be in loss direction)
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if partial close executed, false if skipped
-     *
-     * @example
-     * ```typescript
-     * // Close 40% of position at loss
-     * const success = await strategyCoreService.partialLoss(
-     *   false,
-     *   "BTCUSDT",
-     *   40,
-     *   38000,
-     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
-     * );
-     * if (success) {
-     *   console.log('Partial loss executed');
-     * }
-     * ```
-     */
-    partialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, note?: string) => Promise<boolean>;
-    /**
-     * Checks whether `trailingStop` would succeed without executing it.
-     * Validates context, then delegates to StrategyConnectionService.validateTrailingStop().
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param percentShift - Percentage shift of ORIGINAL SL distance [-100, 100], excluding 0
-     * @param currentPrice - Current market price to validate against
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if `trailingStop` would execute, false otherwise
-     */
-    validateTrailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Adjusts the trailing stop-loss distance for an active pending signal.
-     *
-     * Validates strategy existence and delegates to connection service
-     * to update the stop-loss distance by a percentage adjustment.
-     *
-     * Does not require execution context as this is a direct state mutation.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
-     * @param currentPrice - Current market price to check for intrusion
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if trailing SL was updated, false otherwise
-     *
-     * @example
-     * ```typescript
-     * // LONG: entry=100, originalSL=90, distance=10%, currentPrice=102
-     * // Tighten stop by 50%: newSL = 100 - 5% = 95
-     * await strategyCoreService.trailingStop(
-     *   false,
-     *   "BTCUSDT",
-     *   -50,
-     *   102,
-     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
-     * );
-     * ```
-     */
-    trailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Checks whether `trailingTake` would succeed without executing it.
-     * Validates context, then delegates to StrategyConnectionService.validateTrailingTake().
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param percentShift - Percentage adjustment to ORIGINAL TP distance [-100, 100], excluding 0
-     * @param currentPrice - Current market price to validate against
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if `trailingTake` would execute, false otherwise
-     */
-    validateTrailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Adjusts the trailing take-profit distance for an active pending signal.
-     * Validates context and delegates to StrategyConnectionService.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
-     * @param currentPrice - Current market price to check for intrusion
-     * @param context - Strategy context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if trailing TP was updated, false otherwise
-     *
-     * @example
-     * ```typescript
-     * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
-     * // Move TP further by 50%: newTP = 100 + 15% = 115
-     * await strategyCoreService.trailingTake(
-     *   false,
-     *   "BTCUSDT",
-     *   50,
-     *   102,
-     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
-     * );
-     * ```
-     */
-    trailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Checks whether `breakeven` would succeed without executing it.
-     * Validates context, then delegates to StrategyConnectionService.validateBreakeven().
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param currentPrice - Current market price to validate against
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if `breakeven` would execute, false otherwise
-     */
-    validateBreakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Moves stop-loss to breakeven when price reaches threshold.
-     * Validates context and delegates to StrategyConnectionService.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param currentPrice - Current market price to check threshold
-     * @param context - Strategy context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if breakeven was set, false otherwise
-     *
-     * @example
-     * ```typescript
-     * const moved = await strategyCoreService.breakeven(
-     *   false,
-     *   "BTCUSDT",
-     *   112,
-     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
-     * );
-     * ```
-     */
-    breakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Activates a scheduled signal early without waiting for price to reach priceOpen.
-     *
-     * Validates strategy existence and delegates to connection service
-     * to set the activation flag. The actual activation happens on next tick().
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @param payload - Optional commit payload with id and note
-     * @returns Promise that resolves when activation flag is set
-     *
-     * @example
-     * ```typescript
-     * // Activate scheduled signal early
-     * await strategyCoreService.activateScheduled(
-     *   false,
-     *   "BTCUSDT",
-     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
-     *   { id: "manual-activation" }
-     * );
-     * ```
-     */
-    activateScheduled: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, payload?: Partial<CommitPayload>) => Promise<void>;
-    /**
-     * Checks whether `averageBuy` would succeed without executing it.
-     * Validates context, then delegates to StrategyConnectionService.validateAverageBuy().
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param currentPrice - New entry price to validate
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if `averageBuy` would execute, false otherwise
-     */
-    validateAverageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Adds a new DCA entry to the active pending signal.
-     *
-     * Validates strategy existence and delegates to connection service
-     * to add a new averaging entry to the position.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param currentPrice - New entry price to add to the averaging history
-     * @param cost - Cost basis for this entry in dollars
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if entry added, false if rejected
-     */
-    averageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, cost: number, note?: string) => Promise<boolean>;
-    /**
-     * Checks whether dividend would succeed without executing it.
-     * Validates strategy existence and delegates to the connection service.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param dto - Accrual to validate
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if dividend would execute, false otherwise
-     */
-    validateDividend: (backtest: boolean, symbol: string, dto: IDividendDto, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Records a dividend / staking accrual (signed amount) on the active pending signal.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param currentPrice - Current market price recorded with the commit event
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @param dto - Accrual: signed amount, type ("cash" default | "asset"), optional note
-     * @returns Promise<boolean> - true when the accrual was recorded
-     */
-    dividend: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, dto: IDividendDto) => Promise<boolean>;
-    /**
-     * Returns the dividend / staking accruals recorded on the current pending signal.
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to the accrual list or null
-     */
-    getPositionAccruals: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<ISignalAccrual[]>;
-    /**
-     * Checks if there is an active pending signal for the symbol.
-     * Validates strategy existence and delegates to connection service
-     * to check if a pending signal exists for the symbol.
-     * Does not require execution context as this is a state query operation.
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if pending signal exists, false otherwise
-     */
-    hasPendingSignal: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Checks if there is a waiting scheduled signal for the symbol.
-     * Validates strategy existence and delegates to connection service
-     * to check if a scheduled signal exists for the symbol.
-     * Does not require execution context as this is a state query operation.
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if scheduled signal exists, false otherwise
-     */
-    hasScheduledSignal: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Returns the original estimated duration for the current pending signal.
-     *
-     * Validates strategy existence and delegates to connection service.
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to estimated duration in minutes or null
-     */
-    getPositionEstimateMinutes: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the remaining time before the position expires, clamped to zero.
-     *
-     * Validates strategy existence and delegates to connection service.
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to remaining minutes (≥ 0) or null
-     */
-    getPositionCountdownMinutes: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the number of minutes the position has been active since it opened.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to active minutes (≥ 0) or null
-     */
-    getPositionActiveMinutes: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the number of minutes the scheduled signal has been waiting for activation.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to waiting minutes (≥ 0) or null
-     */
-    getPositionWaitingMinutes: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the best price reached in the profit direction during this position's life.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to price or null
-     */
-    getPositionHighestProfitPrice: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the timestamp when the best profit price was recorded during this position's life.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to timestamp in milliseconds or null
-     */
-    getPositionHighestProfitTimestamp: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the PnL percentage at the moment the best profit price was recorded during this position's life.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to PnL percentage or null
-     */
-    getPositionHighestPnlPercentage: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the PnL cost (in quote currency) at the moment the best profit price was recorded during this position's life.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to PnL cost or null
-     */
-    getPositionHighestPnlCost: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns whether breakeven was mathematically reachable at the highest profit price.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to true if breakeven was reachable at peak, false otherwise, or null
-     */
-    getPositionHighestProfitBreakeven: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean | null>;
-    /**
-     * Returns the number of minutes elapsed since the highest profit price was recorded.
-     *
-     * Validates strategy existence and delegates to connection service.
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to drawdown duration in minutes or null
-     */
-    getPositionDrawdownMinutes: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the number of minutes elapsed since the highest profit price was recorded.
-     *
-     * Alias for getPositionDrawdownMinutes — measures how long the position has been
-     * pulling back from its peak profit level.
-     *
-     * Validates strategy existence and delegates to connection service.
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to minutes since last profit peak or null
-     */
-    getPositionHighestProfitMinutes: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the number of minutes elapsed since the worst loss price was recorded.
-     *
-     * Measures how long ago the deepest drawdown point occurred.
-     * Zero when called at the exact moment the trough was set.
-     *
-     * Validates strategy existence and delegates to connection service.
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to minutes since last drawdown trough or null
-     */
-    getPositionMaxDrawdownMinutes: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the worst price reached in the loss direction during this position's life.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to price or null
-     */
-    getPositionMaxDrawdownPrice: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the timestamp when the worst loss price was recorded during this position's life.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to timestamp in milliseconds or null
-     */
-    getPositionMaxDrawdownTimestamp: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the PnL percentage at the moment the worst loss price was recorded during this position's life.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to PnL percentage or null
-     */
-    getPositionMaxDrawdownPnlPercentage: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the PnL cost (in quote currency) at the moment the worst loss price was recorded during this position's life.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to PnL cost or null
-     */
-    getPositionMaxDrawdownPnlCost: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the distance in PnL percentage between the current price and the highest profit peak.
-     *
-     * Delegates to StrategyConnectionService.getPositionHighestProfitDistancePnlPercentage().
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to drawdown distance in PnL% (≥ 0) or null
-     */
-    getPositionHighestProfitDistancePnlPercentage: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the distance in PnL cost between the current price and the highest profit peak.
-     *
-     * Delegates to StrategyConnectionService.getPositionHighestProfitDistancePnlCost().
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to drawdown distance in PnL cost (≥ 0) or null
-     */
-    getPositionHighestProfitDistancePnlCost: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the distance in PnL percentage between the current price and the worst drawdown trough.
-     *
-     * Delegates to StrategyConnectionService.getPositionHighestMaxDrawdownPnlPercentage().
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to recovery distance in PnL% (≥ 0) or null
-     */
-    getPositionHighestMaxDrawdownPnlPercentage: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the distance in PnL cost between the current price and the worst drawdown trough.
-     *
-     * Delegates to StrategyConnectionService.getPositionHighestMaxDrawdownPnlCost().
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to recovery distance in PnL cost (≥ 0) or null
-     */
-    getPositionHighestMaxDrawdownPnlCost: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
-     *
-     * Delegates to StrategyConnectionService.getMaxDrawdownDistancePnlPercentage().
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
-     */
-    getMaxDrawdownDistancePnlPercentage: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
-     *
-     * Delegates to StrategyConnectionService.getMaxDrawdownDistancePnlCost().
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
-     */
-    getMaxDrawdownDistancePnlCost: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-}
-
-/**
- * Type definition for frame methods.
- * Maps all keys of IFrame to any type.
- * Used for dynamic method routing in FrameCoreService.
- */
-type TFrame = {
-    [key in keyof IFrame]: any;
-};
-/**
- * Global service for frame operations.
- *
- * Wraps FrameConnectionService for timeframe generation.
- * Used internally by BacktestLogicPrivateService.
- */
-declare class FrameCoreService implements TFrame {
-    private readonly loggerService;
-    private readonly frameConnectionService;
-    private readonly frameValidationService;
-    /**
-     * Generates timeframe array for backtest iteration.
-     *
-     * @param frameName - Target frame name (e.g., "1m", "1h")
-     * @returns Promise resolving to array of Date objects
-     */
-    getTimeframe: (symbol: string, frameName: FrameName) => Promise<Date[]>;
-}
-
-/**
  * Type definition for sizing methods.
  * Maps all keys of ISizing to any type.
  * Used for dynamic method routing in SizingGlobalService.
@@ -45723,66 +45819,6 @@ declare class RiskGlobalService implements TRisk {
 }
 
 /**
- * Private service for backtest orchestration using async generators.
- *
- * Flow:
- * 1. Get timeframes from frame service
- * 2. Iterate through timeframes calling tick()
- * 3. When signal opens: fetch candles and call backtest()
- * 4. Skip timeframes until signal closes
- * 5. Yield closed result and continue
- *
- * Memory efficient: streams results without array accumulation.
- * Supports early termination via break in consumer.
- *
- * With `CC_BACKTEST_LOCKSTEP` every timeframe iteration runs under the
- * process-wide `Lockstep` mutex, so parallel backtests advance one
- * timeframe at a time instead of drifting apart in logical time.
- */
-declare class BacktestLogicPrivateService {
-    readonly loggerService: {
-        readonly methodContextService: {
-            readonly context: IMethodContext;
-        };
-        readonly executionContextService: {
-            readonly context: IExecutionContext;
-        };
-        _commonLogger: ILogger;
-        readonly _methodContext: {};
-        readonly _executionContext: {};
-        log: (topic: string, ...args: any[]) => Promise<void>;
-        debug: (topic: string, ...args: any[]) => Promise<void>;
-        info: (topic: string, ...args: any[]) => Promise<void>;
-        warn: (topic: string, ...args: any[]) => Promise<void>;
-        setLogger: (logger: ILogger) => void;
-    };
-    readonly strategyCoreService: StrategyCoreService;
-    readonly exchangeCoreService: ExchangeCoreService;
-    readonly frameCoreService: FrameCoreService;
-    readonly methodContextService: {
-        readonly context: IMethodContext;
-    };
-    readonly actionCoreService: ActionCoreService;
-    readonly timeMetaService: TimeMetaService;
-    readonly priceMetaService: PriceMetaService;
-    /**
-     * Runs backtest for a symbol, streaming closed signals as async generator.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @yields Closed signal results with PNL
-     *
-     * @example
-     * ```typescript
-     * for await (const result of backtestLogic.run("BTCUSDT")) {
-     *   console.log(result.closeReason, result.pnl.pnlPercentage);
-     *   if (result.pnl.pnlPercentage < -10) break; // Early termination
-     * }
-     * ```
-     */
-    run(symbol: string): AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, any>;
-}
-
-/**
  * Service for managing frame schema registry.
  *
  * Uses ToolRegistry from functools-kit for type-safe schema storage.
@@ -45858,6 +45894,7 @@ type IBacktestLogicPrivateService = Omit<BacktestLogicPrivateService, keyof {
     methodContextService: never;
     priceMetaService: never;
     timeMetaService: never;
+    handoff: never;
 }>;
 /**
  * Type definition for BacktestLogicPublicService.

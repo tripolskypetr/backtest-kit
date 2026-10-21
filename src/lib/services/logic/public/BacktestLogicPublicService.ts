@@ -27,6 +27,8 @@ type IBacktestLogicPrivateService = Omit<BacktestLogicPrivateService, keyof {
   methodContextService: never;
   priceMetaService: never;
   timeMetaService: never;
+  // lockstep lock hand-off called by StrategyConnectionService from the replay pings, not a public entry point
+  handoff: never;
 }>;
 
 /**

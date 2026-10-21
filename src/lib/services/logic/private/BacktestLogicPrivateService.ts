@@ -28,6 +28,20 @@ const SCHEDULE_ACTIVATION_CANDLE_SKIP = 1;
 
 const KILL_SYMBOL = Symbol.for("backtest-kit-kill");
 
+const LOCKSTEP_SOURCE = "BacktestLogicPrivateService run";
+const LOCKSTEP_HANDOFF_SOURCE = "BacktestLogicPrivateService handoff";
+
+/** Memo key of a running backtest's lockstep cursor */
+const CREATE_LOCKSTEP_KEY_FN = (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string }) =>
+  `${symbol}:${context.strategyName}:${context.exchangeName}:${context.frameName}`;
+
+/**
+ * Where a running backtest stands with respect to the lockstep lock: whether
+ * its current iteration holds it, the next timeframe boundary of that
+ * iteration and the timeframe step. Updated by `run()`, read by `handoff()`.
+ */
+type TLockstepCursor = { locked: boolean; nextBoundary: number; stepMs: number };
+
 const SYMBOL_FN_ERROR = Symbol("backtest-fn-error");
 
 /**
@@ -680,6 +694,59 @@ export class BacktestLogicPrivateService {
     TYPES.priceMetaService
   );
 
+  /** Lockstep cursor of every backtest currently inside `run()`, by symbol and context */
+  private _lockstep = new Map<string, TLockstepCursor>();
+
+  /**
+   * Lock hand-off inside a candle replay (CC_BACKTEST_LOCKSTEP).
+   *
+   * BACKTEST_FN replays a whole array of candles under the lockstep lock, so the
+   * symbol's clock would jump by the position lifetime while its peers wait on
+   * one timeframe; anything the strategy writes from the middle of the replay (a
+   * DCA entry, a budget reserve) would then be checked against a journal the
+   * peers have not reached yet. ClientStrategy pings on every replayed candle and
+   * `StrategyConnectionService` calls this from its `onSchedulePing` /
+   * `onActivePing` system callbacks: on the last candle before the next
+   * timeframe boundary `Lockstep.spinLock` releases the lock and takes it
+   * again, and the FIFO queue lets every peer run its iteration up to that
+   * boundary first.
+   *
+   * No-op when lockstep is off, when the symbol is not inside `run()` (a tick
+   * driven directly, outside the orchestrator) or when its iteration does not
+   * hold the lock.
+   *
+   * @param symbol - Trading pair symbol of the pinging backtest
+   * @param timestamp - Timestamp of the replayed candle that pinged
+   * @param context - Strategy, exchange and frame of the backtest
+   */
+  public handoff = async (
+    symbol: string,
+    timestamp: number,
+    context: { strategyName: string; exchangeName: string; frameName: string },
+  ): Promise<void> => {
+    if (!GLOBAL_CONFIG.CC_BACKTEST_LOCKSTEP) {
+      return;
+    }
+    const cursor = this._lockstep.get(CREATE_LOCKSTEP_KEY_FN(symbol, context));
+    if (!cursor || !cursor.locked) {
+      return;
+    }
+    // the candle right before the boundary: the strategy's write ON the boundary candle
+    // already sees what the peers wrote up to it
+    if (timestamp + 60_000 < cursor.nextBoundary) {
+      return;
+    }
+    this.loggerService.debug("backtestLogicPrivateService lockstep handoff", {
+      symbol,
+      timestamp,
+      nextBoundary: cursor.nextBoundary,
+    });
+    await Lockstep.spinLock(LOCKSTEP_HANDOFF_SOURCE);
+    while (timestamp + 60_000 >= cursor.nextBoundary) {
+      cursor.nextBoundary += cursor.stepMs;
+    }
+  };
+
   /**
    * Runs backtest for a symbol, streaming closed signals as async generator.
    *
@@ -715,17 +782,27 @@ export class BacktestLogicPrivateService {
     
     let frameEndTime = timeframes[totalFrames - 1].getTime();
 
+    // Lockstep cursor of this run: the ping hand-off (see handoff) reads it while a replay runs
+    const stepMs = totalFrames > 1 ? timeframes[1].getTime() - timeframes[0].getTime() : 60_000;
+    const lockstepKey = CREATE_LOCKSTEP_KEY_FN(symbol, this.methodContextService.context);
+    const cursor: TLockstepCursor = { locked: false, nextBoundary: 0, stepMs };
+    this._lockstep.set(lockstepKey, cursor);
+
     let i = 0;
 
     try {
       while (i < timeframes.length) {
         // One timeframe per turn across parallel backtests (CC_BACKTEST_LOCKSTEP):
         // the lock spans the tick and the candle replay of a signal opened on it,
-        // and is released in the finally before the next timeframe.
-        await Lockstep.acquireLock("BacktestLogicPrivateService run");
+        // and is released in the finally before the next timeframe. Inside the
+        // replay the ping hand-off (see handoff) lets the peers catch up at every
+        // timeframe boundary.
+        await Lockstep.acquireLock(LOCKSTEP_SOURCE);
+        cursor.locked = true;
         try {
           const timeframeStartTime = performance.now();
           const when = timeframes[i];
+          cursor.nextBoundary = when.getTime() + stepMs;
 
           await EMIT_PROGRESS_FN(this, symbol, totalFrames, i, when);
 
@@ -829,7 +906,8 @@ export class BacktestLogicPrivateService {
 
           i++;
         } finally {
-          await Lockstep.releaseLock("BacktestLogicPrivateService run");
+          cursor.locked = false;
+          await Lockstep.releaseLock(LOCKSTEP_SOURCE);
         }
       }
 
@@ -839,15 +917,21 @@ export class BacktestLogicPrivateService {
       // ClientStrategy.backtest treats an empty series as "the frame is over"
       // and closes by time_expired / cancels by timeout at frameEndTime.
       if (i >= timeframes.length && lastAction !== null && lastAction !== "idle" && lastAction !== "closed" && lastAction !== "cancelled") {
-        const expired = await BACKTEST_FN(this, symbol, [], frameEndTime, new Date(frameEndTime), {
-          strategyName: this.methodContextService.context.strategyName,
-          exchangeName: this.methodContextService.context.exchangeName,
-          frameName: this.methodContextService.context.frameName,
-        }, { reason: "frame end" });
-        if ("__error__" in expired) {
-          _fatalError = new Error(`[${expired.reason}] ${expired.message}`);
-        } else if (expired.action !== "active") {
-          yield expired;
+        // The frame-end close commits and emits like any other iteration: under the lock
+        await Lockstep.acquireLock(LOCKSTEP_SOURCE);
+        try {
+          const expired = await BACKTEST_FN(this, symbol, [], frameEndTime, new Date(frameEndTime), {
+            strategyName: this.methodContextService.context.strategyName,
+            exchangeName: this.methodContextService.context.exchangeName,
+            frameName: this.methodContextService.context.frameName,
+          }, { reason: "frame end" });
+          if ("__error__" in expired) {
+            _fatalError = new Error(`[${expired.reason}] ${expired.message}`);
+          } else if (expired.action !== "active") {
+            yield expired;
+          }
+        } finally {
+          await Lockstep.releaseLock(LOCKSTEP_SOURCE);
         }
       }
 
@@ -872,6 +956,7 @@ export class BacktestLogicPrivateService {
     } catch (error) {
       _fatalError = error;
     } finally {
+      this._lockstep.delete(lockstepKey);
       if (_fatalError !== null) {
         console.error(
           `[BacktestLogicPrivateService] Fatal error — backtest sequence broken for symbol=${symbol} ` +

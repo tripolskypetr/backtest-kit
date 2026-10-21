@@ -38,6 +38,16 @@ import { Subject, sleep } from "functools-kit";
  *   break    - a consumer breaking out of Backtest.run while its iteration holds the lock
  *              releases it (finally): the peer backtest still finishes
  *   fatal    - a backtest dying on a fatal tick error releases the lock the same way
+ *   order    - every progress / idle / schedule / active ping of both symbols is appended to one array
+ *              in arrival order while every handler holds on a long sleep (a real timer, so the event loop
+ *              is free to run the other symbol); under lockstep the symbols only ever switch at a lock
+ *              boundary: a new iteration (progress) or the timeframe boundary inside a replay where the
+ *              orchestrator hands the lock off (last candle before the boundary / first candle on it)
+ *   jump     - BACKTEST_FN replays a whole ARRAY of candles inside one locked iteration, so without the
+ *              ping hand-off the symbol's clock would jump by the position lifetime and a budget write from
+ *              the middle of the replay (a DCA top-up on hour 3) would be checked against a journal the
+ *              lagging peer has not written to yet. With the hand-off the peer's reserve on hour 2 is in
+ *              the journal first and the top-up is REFUSED instead of ending in overdraft
  */
 const HOUR_MS = 3_600_000;
 const MIN_MS = 60_000;
@@ -525,4 +535,252 @@ test("LOCKSTEP: a backtest dying on a fatal tick error releases the lock, the pe
   }
   if (deadTicks < 3) return fail(`the dead symbol never reached its fatal tick, ticks=${deadTicks}`);
   pass("peer finished after its peer died on a fatal tick error");
+});
+
+// ── Ping order without timers ────────────────────────────────────────────────
+
+const PING_A = "PINGAUSDT";
+const PING_B = "PINGBUSDT";
+/** Both symbols place a scheduled long on this timeframe; the dip activates it mid-hour, then it lives 60 minutes */
+const PING_SIGNAL_AT = FRAME_START + 1 * HOUR_MS;
+
+const buildPingOrderCase = (name) => {
+  const exchangeName = `lockstep-order-exchange-${name}`;
+  const strategyName = `lockstep-order-strategy-${name}`;
+  const frameName = `lockstep-order-frame-${name}`;
+  addExchangeSchema({
+    exchangeName,
+    getCandles: async (_symbol, interval, since, limit) => {
+      if (interval !== "1m") throw new Error(`lockstep exchange: only 1m bars, got ${interval}`);
+      const out = [];
+      let timestamp = Math.floor(since.getTime() / MIN_MS) * MIN_MS;
+      while (out.length < limit) {
+        const inDip = timestamp >= PING_SIGNAL_AT + SLOW_DIP_MINUTE * MIN_MS && timestamp < PING_SIGNAL_AT + HOUR_MS;
+        const price = inDip ? 98 : 100;
+        out.push({ timestamp, open: price, high: price + 0.5, low: price - 0.5, close: price, volume: 1_000 });
+        timestamp += MIN_MS;
+      }
+      return out;
+    },
+    formatPrice: async (_s, p) => p.toFixed(8),
+    formatQuantity: async (_s, q) => q.toFixed(8),
+  });
+  addStrategySchema({
+    strategyName,
+    interval: "1h",
+    // idle ticks everywhere except the signal hour: scheduled pings until the dip, then active pings for an hour
+    getSignal: async (_symbol, when) => {
+      if (when.getTime() === PING_SIGNAL_AT) {
+        return { position: "long", priceOpen: 99, priceStopLoss: 85, priceTakeProfit: 119, cost: 1000, minuteEstimatedTime: 60 };
+      }
+      return null;
+    },
+  });
+  addFrameSchema({ frameName, interval: "1h", startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
+  return { exchangeName, strategyName, frameName };
+};
+
+/**
+ * Every ping handler parks on a real timer this long before it records the ping: a microtask
+ * could be flushed implicitly by the emitter's own queue, a timer cannot, so the other symbol
+ * gets a full turn of the event loop to sneak its pings in if nothing holds it back.
+ */
+const PING_HANDLER_SLEEP_MS = 20;
+
+/**
+ * Runs both symbols and returns every progress marker and ping in arrival order,
+ * plus the blocks between consecutive progress markers that mix symbols.
+ */
+const runPingOrderCase = async (schema) => {
+  const symbols = [PING_A, PING_B];
+  const order = [];
+  const push = (kind) => async (event) => {
+    if (event.strategyName !== schema.strategyName) return;
+    if (kind === "progress" && event.progress >= 1) return;
+    await sleep(PING_HANDLER_SLEEP_MS);
+    order.push({ symbol: event.symbol, kind, when: event.when.getTime() });
+  };
+  const unsubscribe = [
+    listenBacktestProgress(push("progress")),
+    listenIdlePing(push("idle")),
+    listenSchedulePing(push("schedule")),
+    listenActivePing(push("active")),
+  ];
+  try {
+    await runCase(schema, symbols);
+  } finally {
+    unsubscribe.forEach((un) => un());
+  }
+
+  // A switch from one symbol's entry to another's is legal only at a lock boundary: the next entry
+  // starts an iteration (progress), or the previous entry is the last candle before a timeframe
+  // boundary (the replay handed the lock off there), or the next entry is the first candle on a
+  // boundary (the replay resumed there). Anything else is an await that let the peer in.
+  const describe = (e) => `${e.kind}:${e.symbol}@${new Date(e.when).toISOString().slice(11, 16)}`;
+  const illegalSwitches = [];
+  for (let i = 1; i < order.length; i++) {
+    const prev = order[i - 1];
+    const next = order[i];
+    if (prev.symbol === next.symbol) continue;
+    const legal =
+      next.kind === "progress" ||
+      (prev.when + MIN_MS) % HOUR_MS === 0 ||
+      next.when % HOUR_MS === 0;
+    if (!legal) illegalSwitches.push(`${describe(prev)} -> ${describe(next)}`);
+  }
+
+  const kinds = Object.fromEntries(symbols.map((symbol) => [symbol, Object.fromEntries(["idle", "schedule", "active"].map((kind) => [kind, order.filter((e) => e.symbol === symbol && e.kind === kind).length]))]));
+  return { order, illegalSwitches, kinds };
+};
+
+/** Fails unless every symbol produced idle, schedule and active pings; returns true on failure */
+const failedPingKinds = (kinds, fail) => {
+  for (const [symbol, counts] of Object.entries(kinds)) {
+    const missing = Object.entries(counts).filter(([, count]) => count === 0).map(([kind]) => kind);
+    if (missing.length) {
+      fail(`${symbol} produced no ${missing.join(" / ")} pings: ${JSON.stringify(counts)}`);
+      return true;
+    }
+  }
+  return false;
+};
+
+test("LOCKSTEP: a ping handler parked on a long sleep never lets another symbol's pings in except at a lock boundary (iteration start or timeframe hand-off)", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  const { order, illegalSwitches, kinds } = await runPingOrderCase(buildPingOrderCase("on"));
+  if (failedPingKinds(kinds, fail)) return;
+  if (illegalSwitches.length) {
+    return fail(`${illegalSwitches.length} switch(es) between symbols away from a lock boundary; first: ${illegalSwitches.slice(0, 4).join("; ")}`);
+  }
+  pass(`${order.length} entries, symbols switch only at lock boundaries: ${JSON.stringify(kinds)}`);
+});
+
+test("LOCKSTEP: without lockstep the pings of the two symbols interleave inside an iteration (the harness detects it)", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: false }, true);
+  const { order, illegalSwitches, kinds } = await runPingOrderCase(buildPingOrderCase("off"));
+  if (failedPingKinds(kinds, fail)) return;
+  if (!illegalSwitches.length) {
+    return fail(`expected interleaved pings with lockstep off, every one of the ${order.length} entries switched at a lock boundary`);
+  }
+  pass(`lockstep off: ${illegalSwitches.length} switch(es) away from a lock boundary over ${order.length} entries`);
+});
+
+// ── Array replay inside one locked iteration ─────────────────────────────────
+
+const JUMP_SYMBOL = "JUMPUSDT";
+const LAG_SYMBOL = "LAGUSDT";
+const JUMP_CAPITAL = 2_500;
+const JUMP_COST = 1_000;
+/** The jumping symbol opens on hour 0 and holds for 5 hours: one BACKTEST_FN call replays 300 candles under the lock */
+const JUMP_MINUTES = 300;
+/** Mid-replay the jumping symbol tops the position up (a DCA entry) once its clock passes this hour */
+const JUMP_DCA_AT = FRAME_START + 3 * HOUR_MS;
+/** The lagging symbol opens on hour 2 for 90 minutes: still open on hour 3, inserted before the top-up */
+const LAG_SIGNAL_AT = FRAME_START + 2 * HOUR_MS;
+const LAG_MINUTES = 90;
+
+const buildJumpCase = (name) => {
+  const exchangeName = `lockstep-jump-exchange-${name}`;
+  const strategyName = `lockstep-jump-strategy-${name}`;
+  const frameName = `lockstep-jump-frame-${name}`;
+  addExchangeSchema({
+    exchangeName,
+    getCandles: async (_symbol, interval, since, limit) => {
+      if (interval !== "1m") throw new Error(`lockstep exchange: only 1m bars, got ${interval}`);
+      const out = [];
+      let timestamp = Math.floor(since.getTime() / MIN_MS) * MIN_MS;
+      while (out.length < limit) {
+        out.push({ timestamp, open: 100, high: 100.5, low: 99.5, close: 100, volume: 1_000 });
+        timestamp += MIN_MS;
+      }
+      return out;
+    },
+    formatPrice: async (_s, p) => p.toFixed(8),
+    formatQuantity: async (_s, q) => q.toFixed(8),
+  });
+  addStrategySchema({
+    strategyName,
+    interval: "1h",
+    getSignal: async (symbol, when) => {
+      if (symbol === JUMP_SYMBOL && when.getTime() === FRAME_START) {
+        return { position: "long", priceStopLoss: 85, priceTakeProfit: 119, cost: JUMP_COST, minuteEstimatedTime: JUMP_MINUTES };
+      }
+      if (symbol === LAG_SYMBOL && when.getTime() === LAG_SIGNAL_AT) {
+        return { position: "long", priceStopLoss: 85, priceTakeProfit: 119, cost: JUMP_COST, minuteEstimatedTime: LAG_MINUTES };
+      }
+      return null;
+    },
+  });
+  addFrameSchema({ frameName, interval: "1h", startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
+  return { exchangeName, strategyName, frameName };
+};
+
+/** Reserves on the first active ping of every signal, tops the jumping position up mid-replay, releases on close */
+const runJumpCase = async (schema) => {
+  Budget.enable();
+  const key = { ...schema, backtest: true, name: BUDGET_NAME, initialCapital: JUMP_CAPITAL };
+  const contextOf = (symbol, when) => ({ ...key, symbol, when });
+
+  const reserved = new Set();
+  const toppedUp = new Set();
+  const rejects = [];
+  const reserve = async (id, note, event) => {
+    try {
+      await Budget._reserve({ id, amount: JUMP_COST, note }, contextOf(event.symbol, event.when));
+    } catch (error) {
+      if (!BudgetRejectedError.isBudgetRejectedError(error)) throw error;
+      rejects.push({ symbol: event.symbol, id, when: event.when.getTime() });
+    }
+  };
+  const unActive = listenActivePing(async (event) => {
+    if (event.strategyName !== schema.strategyName) return;
+    if (!reserved.has(event.data.id)) {
+      reserved.add(event.data.id);
+      await reserve(event.data.id, "entry", event);
+      return;
+    }
+    if (event.symbol === JUMP_SYMBOL && event.when.getTime() >= JUMP_DCA_AT && !toppedUp.has(event.data.id)) {
+      toppedUp.add(event.data.id);
+      await reserve(`${event.data.id}-dca`, "dca", event);
+    }
+  });
+  const unClosed = listenSignalBacktest(async (event) => {
+    if (event.strategyName !== schema.strategyName) return;
+    if (event.action !== "closed") return;
+    const context = contextOf(event.symbol, new Date(event.closeTimestamp));
+    await Budget._release({ id: event.signal.id, pnl: event.pnl.pnlCost }, context);
+    if (toppedUp.has(event.signal.id)) {
+      await Budget._release({ id: `${event.signal.id}-dca`, pnl: 0 }, context);
+    }
+  });
+
+  let result;
+  try {
+    result = await runCase(schema, [JUMP_SYMBOL, LAG_SYMBOL]);
+  } finally {
+    unActive();
+    unClosed();
+  }
+  const history = await Budget._getHistory({ ...key, when: new Date(FRAME_END) });
+  return { ...result, rejects, history };
+};
+
+test("LOCKSTEP + BUDGET: a mid-replay budget write sees what the lagging peer wrote before it (the top-up is refused, no overdraft)", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  const { history, rejects } = await runJumpCase(buildJumpCase("on"));
+
+  const lag = history.find((r) => r.type === "reserve" && r.symbol === LAG_SYMBOL);
+  if (!lag) return fail(`expected the lagging reserve in the journal: ${describeRows(history)}`);
+  const topUpReject = rejects.find((r) => r.symbol === JUMP_SYMBOL && r.id.endsWith("-dca"));
+  if (!topUpReject) return fail(`the DCA top-up on hour 3 must be refused once the lagging reserve of hour 2 is in the journal; rejects=${JSON.stringify(rejects)}; journal: ${describeRows(history)}`);
+  if (!(lag.timestamp < topUpReject.when)) return fail(`the lagging reserve must precede the top-up in logical time: ${new Date(lag.timestamp).toISOString()} vs ${new Date(topUpReject.when).toISOString()}`);
+  const rejectRow = history.find((r) => r.type === "reject" && r.symbol === JUMP_SYMBOL && r.timestamp === topUpReject.when);
+  if (!rejectRow) return fail(`the refused top-up must leave a reject row at ${new Date(topUpReject.when).toISOString()}: ${describeRows(history)}`);
+
+  const overdrafts = history.filter((r) => r.type === "reserve" && r.overdraft !== undefined);
+  const negativeRow = history.find((r) => r.balance.free < 0);
+  if (overdrafts.length || negativeRow) {
+    return fail(`the replayed symbol wrote from the future: ${describeRows(overdrafts)}; journal: ${describeRows(history)}`);
+  }
+  pass(`lockstep on: the top-up on hour 3 was refused against the lagging reserve of hour 2, journal: ${describeRows(history)}`);
 });
