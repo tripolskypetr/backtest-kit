@@ -1,9 +1,21 @@
-import { dayjs, formatAmount, Grid, IGridColumn, typo } from "react-declarative";
+import {
+  ActionMenu,
+  copyToClipboard,
+  dayjs,
+  formatAmount,
+  Grid,
+  IGridColumn,
+  IOption,
+  typo,
+} from "react-declarative";
 import { Box, MenuItem, Paper, Stack, TextField } from "@mui/material";
 import { SxProps } from "@mui/system";
+import { ContentCopy, DataObject, Download } from "@mui/icons-material";
 import { useMemo, useState } from "react";
 
+import IconWrapper from "../../components/common/IconWrapper";
 import { TBudgetHistoryRow } from "../../model/Budget.model";
+import ioc from "../../lib";
 import { t } from "../../i18n";
 
 interface IBalanceGridWidgetProps {
@@ -115,6 +127,19 @@ const TO_GRID_ITEM_FN = (row: TBudgetHistoryRow, index: number): GridItem => {
     note: row.note ?? "",
   };
 };
+
+const menu_options: IOption[] = [
+  {
+    action: "download-json",
+    label: t("Download JSON"),
+    icon: () => <IconWrapper icon={Download} color="#4caf50" />,
+  },
+  {
+    action: "copy-json",
+    label: t("Copy JSON"),
+    icon: () => <IconWrapper icon={ContentCopy} color="#4caf50" />,
+  },
+];
 
 const getRowColor = (row: GridItem): string => {
   if (row.type === "reject") {
@@ -274,6 +299,20 @@ export const BalanceGridWidget = ({ sx, items }: IBalanceGridWidgetProps) => {
       .sort((a, b) => b.index - a.index);
   }, [items, type, symbol]);
 
+  const handleMenuAction = async (action: string) => {
+    const content = JSON.stringify(data, null, 2);
+    if (action === "download-json") {
+      const blob = new Blob([content], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      ioc.layoutService.downloadFile(url, `budget_history_${Date.now()}.json`);
+    }
+    if (action === "copy-json") {
+      if (await copyToClipboard(content)) {
+        ioc.alertService.notify(t("Copied!"));
+      }
+    }
+  };
+
   return (
     <Paper
       sx={{
@@ -323,6 +362,12 @@ export const BalanceGridWidget = ({ sx, items }: IBalanceGridWidgetProps) => {
             </MenuItem>
           ))}
         </TextField>
+        <Box sx={{ flex: 1 }} />
+        <ActionMenu
+          transparent
+          options={menu_options}
+          onAction={handleMenuAction}
+        />
       </Stack>
       <Grid
         sx={{ flex: 1, background: "transparent !important" }}

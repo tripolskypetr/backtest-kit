@@ -803,4 +803,5 @@ export const LOCALE: Record<string, string> = {
   "Refused reserves and withdrawals": "被拒绝的预留和提取",
   "overdraft": "次透支",
   "overdrafts": "次透支",
+  "Copy JSON": "复制 JSON",
 };

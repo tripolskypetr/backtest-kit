@@ -803,4 +803,5 @@ export const LOCALE: Record<string, string> = {
   "Refused reserves and withdrawals": "Reservas y retiros rechazados",
   "overdraft": "sobregiro",
   "overdrafts": "sobregiros",
+  "Copy JSON": "Copiar JSON",
 };
