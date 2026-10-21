@@ -804,4 +804,5 @@ export const LOCALE: Record<string, string> = {
   "overdraft": "aşım",
   "overdrafts": "aşım",
   "Copy JSON": "JSON kopyala",
+  "No budget": "Bütçe yok",
 };

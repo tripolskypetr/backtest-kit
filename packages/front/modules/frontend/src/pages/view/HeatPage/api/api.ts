@@ -41,8 +41,9 @@ export const fetchBudgetScope = ttl(
 
 // ── Journal ───────────────────────────────────────────────────────────────────
 
+/** null when the strategy declared no budget */
 export const fetchBudgetBalance = ttl(
-    async (): Promise<TBudgetBalance> => {
+    async (): Promise<TBudgetBalance | null> => {
         const { context, when } = await fetchBudgetScope();
         return await ioc.budgetViewService.getBalance(context, when);
     },
@@ -82,8 +83,11 @@ const getInitialCapital = (balance: TBudgetBalance, history: TBudgetHistoryRow[]
     return first.balance.capital;
 };
 
-export const fetchBalanceKpiMeasure = async (): Promise<IBalanceKpi> => {
+export const fetchBalanceKpiMeasure = async (): Promise<IBalanceKpi | null> => {
     const balance = await fetchBudgetBalance();
+    if (!balance) {
+        return null;
+    }
     const history = await fetchBudgetHistory();
     const overdrafts = history.filter(
         (row): row is Extract<TBudgetHistoryRow, { type: "reserve" }> =>
@@ -122,6 +126,9 @@ export const fetchBalanceCurveMeasure = async (): Promise<IBalancePoint[]> => {
 
 export const fetchBalanceAssetsMeasure = async (): Promise<IBalanceAsset[]> => {
     const balance = await fetchBudgetBalance();
+    if (!balance) {
+        return [];
+    }
     return Object.keys(balance.assets)
         .map((asset) => ({ asset, amount: balance.assets[asset] }))
         .sort((a, b) => a.asset.localeCompare(b.asset));
@@ -129,7 +136,8 @@ export const fetchBalanceAssetsMeasure = async (): Promise<IBalanceAsset[]> => {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export const fetchBalanceMeasure = async (): Promise<IBalanceMeasure> => {
+/** null when the strategy declared no budget: the page shows an empty state instead of the form */
+export const fetchBalanceMeasure = async (): Promise<IBalanceMeasure | null> => {
     const { when, mode } = await fetchBudgetScope();
     const [balance, history, kpi, curve, assets] = await Promise.all([
         fetchBudgetBalance(),
@@ -138,6 +146,9 @@ export const fetchBalanceMeasure = async (): Promise<IBalanceMeasure> => {
         fetchBalanceCurveMeasure(),
         fetchBalanceAssetsMeasure(),
     ]);
+    if (!balance || !kpi) {
+        return null;
+    }
     return {
         mode,
         name: balance.name,

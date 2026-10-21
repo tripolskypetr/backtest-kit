@@ -1,6 +1,7 @@
 import {
     Breadcrumbs2,
     Breadcrumbs2Type,
+    Center,
     IBreadcrumbs2Action,
     IBreadcrumbs2Option,
     LoaderView,
@@ -9,7 +10,7 @@ import {
     useAsyncValue,
     useOnce,
 } from "react-declarative";
-import { Box, Container } from "@mui/material";
+import { Box, Container, Typography } from "@mui/material";
 import { DataObject, KeyboardArrowLeft, Refresh } from "@mui/icons-material";
 
 import {
@@ -70,8 +71,9 @@ const actions: IBreadcrumbs2Action[] = [
 ];
 
 export const BalanceView = () => {
+    // Wrapped so a strategy without a budget (measure === null) is told apart from "not loaded yet"
     const [data, { loading, execute }] = useAsyncValue(
-        async () => await fetchBalanceMeasure(),
+        async () => ({ measure: await fetchBalanceMeasure() }),
         {
             onLoadStart: () => ioc.layoutService.setAppbarLoader(true),
             onLoadEnd: () => ioc.layoutService.setAppbarLoader(false),
@@ -87,7 +89,7 @@ export const BalanceView = () => {
             const url = URL.createObjectURL(blob);
             ioc.layoutService.downloadFile(
                 url,
-                `budget_${data?.mode ?? "unknown"}_${Date.now()}.json`,
+                `budget_${data?.measure?.mode ?? "unknown"}_${Date.now()}.json`,
             );
         },
         {
@@ -118,14 +120,24 @@ export const BalanceView = () => {
         if (!data || loading) {
             return <LoaderView sx={{ height: "calc(100dvh - 165px)" }} />;
         }
+        if (!data.measure) {
+            return (
+                <Center sx={{ height: "calc(100dvh - 165px)" }}>
+                    <Typography variant="h6" sx={{ opacity: 0.5 }}>
+                        {t("No budget")}
+                    </Typography>
+                </Center>
+            );
+        }
+        const { measure } = data;
         return (
             <One
-                handler={data}
+                handler={measure}
                 payload={() => ({
                     handleUpdate() {
                         reloadSubject.next();
                     },
-                    mode: data.mode,
+                    mode: measure.mode,
                 })}
                 fields={balance_fields}
             />
@@ -137,7 +149,7 @@ export const BalanceView = () => {
             <Breadcrumbs2
                 items={options}
                 actions={actions}
-                payload={data?.mode ?? ""}
+                payload={data?.measure?.mode ?? ""}
                 onAction={handleAction}
             />
             {renderInner()}

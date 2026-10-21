@@ -20,7 +20,7 @@ export class BudgetViewService {
     );
 
     public getBalance = ttl(
-        async (context: IBudgetViewContext, when: number): Promise<TBudgetBalance> => {
+        async (context: IBudgetViewContext, when: number): Promise<TBudgetBalance | null> => {
             this.loggerService.log("budgetViewService getBalance", { context, when });
             if (CC_ENABLE_MOCK) {
                 return await this.budgetMockService.getBalance(context, when);

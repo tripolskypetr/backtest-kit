@@ -15,11 +15,16 @@ const TO_BUDGET_CONTEXT_FN = (context: IBudgetViewContext, name: string, when: n
     when: new Date(when),
 });
 
-/** The budget the dashboard shows: the first one the strategy constructed */
-const GET_BUDGET_NAME_FN = (method: string): string => {
+/** The budget the dashboard shows: the first one the strategy constructed, null when the strategy declared none */
+const GET_BUDGET_NAME_FN = (method: string): string | null => {
+    if (!Budget.enable.hasValue()) {
+        console.warn(`@backtest-kit/ui budgetViewService ${method} budget not enabled`);
+        return null;
+    }
     const [name] = Budget._getNames();
     if (!name) {
-        throw new Error(`BudgetViewService ${method} no budget constructed`);
+        console.warn(`@backtest-kit/ui budgetViewService ${method} no budget constructed`);
+        return null;
     }
     return name;
 };
@@ -28,7 +33,7 @@ export class BudgetViewService {
     private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
     private readonly budgetMockService = inject<BudgetMockService>(TYPES.budgetMockService);
 
-    public getBalance = async (context: IBudgetViewContext, when: number): Promise<TBudgetBalance> => {
+    public getBalance = async (context: IBudgetViewContext, when: number): Promise<TBudgetBalance | null> => {
         this.loggerService.log("budgetViewService getBalance", {
             context,
             when,
@@ -36,10 +41,10 @@ export class BudgetViewService {
         if (getParamsConfig().CC_ENABLE_MOCK) {
             return await this.budgetMockService.getBalance(context, when);
         }
-        if (!Budget.enable.hasValue()) {
-            throw new Error("BudgetViewService getBalance budget not enabled");
-        }
         const name = GET_BUDGET_NAME_FN("getBalance");
+        if (!name) {
+            return null;
+        }
         return await Budget._getBalance(TO_BUDGET_CONTEXT_FN(context, name, when));
     }
 
@@ -51,10 +56,10 @@ export class BudgetViewService {
         if (getParamsConfig().CC_ENABLE_MOCK) {
             return await this.budgetMockService.getHistory(context, when);
         }
-        if (!Budget.enable.hasValue()) {
-            throw new Error("BudgetViewService getHistory budget not enabled");
-        }
         const name = GET_BUDGET_NAME_FN("getHistory");
+        if (!name) {
+            return [];
+        }
         return await Budget._getHistory(TO_BUDGET_CONTEXT_FN(context, name, when));
     }
 }

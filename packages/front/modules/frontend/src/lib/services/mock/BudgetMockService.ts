@@ -10,7 +10,7 @@ export class BudgetMockService {
   public getBalance = async (
     context: IBudgetViewContext,
     when: number,
-  ): Promise<TBudgetBalance> => {
+  ): Promise<TBudgetBalance | null> => {
     this.loggerService.log("budgetMockService getBalance", { context, when });
     const { data, error } = await fetchApi("/api/v1/mock/budget_balance", {
       method: "POST",
