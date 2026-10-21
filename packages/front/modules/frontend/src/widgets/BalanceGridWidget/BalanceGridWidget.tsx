@@ -313,6 +313,20 @@ export const BalanceGridWidget = ({ sx, items }: IBalanceGridWidgetProps) => {
     }
   };
 
+  const handleRowClick = async (row: GridItem) => {
+      if (
+          await copyToClipboard(
+              JSON.stringify(
+                  { ...row, id: undefined, idx: undefined },
+                  null,
+                  2,
+              ),
+          )
+      ) {
+          ioc.alertService.notify(t("Copied!"));
+      }
+  };
+
   return (
     <Paper
       sx={{
@@ -372,6 +386,7 @@ export const BalanceGridWidget = ({ sx, items }: IBalanceGridWidgetProps) => {
       <Grid
         sx={{ flex: 1, background: "transparent !important" }}
         rowColor={getRowColor}
+        onRowClick={handleRowClick}
         hasMore={false}
         loading={false}
         onSkip={() => undefined}

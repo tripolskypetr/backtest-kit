@@ -67,6 +67,7 @@ import "./e2e/step.test.mjs";
 import "./e2e/dividend.test.mjs";
 import "./e2e/partial_note.test.mjs";
 import "./e2e/frame_end.test.mjs";
+import "./e2e/lockstep.test.mjs";
 
 import "./spec/audit.test.mjs";
 import "./spec/live.test.mjs";

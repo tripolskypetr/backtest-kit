@@ -30,8 +30,10 @@ const LOGGER_SERVICE = new LoggerService();
  *   `Backtest.run` workloads interleave instead of one monopolizing the loop.
  *
  * All three operations are no-ops when `CC_ENABLE_CANDLE_FETCH_MUTEX` is `false`.
- * The spin additionally requires `CC_ENABLE_BACKTEST_PARALLEL_SPIN` and at least
- * two registered activities in `Lookup` (see `Lookup.isParallel`).
+ * The spin additionally requires `CC_ENABLE_BACKTEST_PARALLEL_SPIN`, at least
+ * two registered activities in `Lookup` (see `Lookup.isParallel`) and
+ * `CC_BACKTEST_LOCKSTEP` off: under lockstep the peers are parked on the
+ * `Lockstep` mutex, so spinning here would only add the timeout to every fetch.
  *
  * @example
  * ```typescript
@@ -104,6 +106,7 @@ export class CandleUtils {
    * Returns immediately as a no-op when any of these is true:
    * - `CC_ENABLE_CANDLE_FETCH_MUTEX` is disabled (mutex is off entirely),
    * - `CC_ENABLE_BACKTEST_PARALLEL_SPIN` is disabled (cooperative yielding off),
+   * - `CC_BACKTEST_LOCKSTEP` is enabled (peers are parked on the lockstep mutex),
    * - `Lookup.isParallel` is `false` (only one active workload — no peer to yield to).
    *
    * @param source - Caller identifier for logging.
@@ -116,6 +119,9 @@ export class CandleUtils {
       return;
     }
     if (!GLOBAL_CONFIG.CC_ENABLE_BACKTEST_PARALLEL_SPIN) {
+      return;
+    }
+    if (GLOBAL_CONFIG.CC_BACKTEST_LOCKSTEP) {
       return;
     }
     if (!Lookup.isParallel) {

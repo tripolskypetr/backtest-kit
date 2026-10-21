@@ -19,6 +19,7 @@ import { GLOBAL_CONFIG } from "../../../../config/params";
 import { and, errorData, getErrorMessage } from "functools-kit";
 import ActionCoreService from "../../core/ActionCoreService";
 import { Candle } from "../../../../classes/Candle";
+import { Lockstep } from "../../../../classes/Lockstep";
 import TimeMetaService from "../../meta/TimeMetaService";
 import PriceMetaService from "../../meta/PriceMetaService";
 
@@ -650,6 +651,10 @@ const PROCESS_OPENED_SIGNAL_FN = async function*(
  *
  * Memory efficient: streams results without array accumulation.
  * Supports early termination via break in consumer.
+ *
+ * With `CC_BACKTEST_LOCKSTEP` every timeframe iteration runs under the
+ * process-wide `Lockstep` mutex, so parallel backtests advance one
+ * timeframe at a time instead of drifting apart in logical time.
  */
 export class BacktestLogicPrivateService {
   readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
@@ -714,110 +719,118 @@ export class BacktestLogicPrivateService {
 
     try {
       while (i < timeframes.length) {
-        const timeframeStartTime = performance.now();
-        const when = timeframes[i];
+        // One timeframe per turn across parallel backtests (CC_BACKTEST_LOCKSTEP):
+        // the lock spans the tick and the candle replay of a signal opened on it,
+        // and is released in the finally before the next timeframe.
+        await Lockstep.acquireLock("BacktestLogicPrivateService run");
+        try {
+          const timeframeStartTime = performance.now();
+          const when = timeframes[i];
 
-        await EMIT_PROGRESS_FN(this, symbol, totalFrames, i, when);
+          await EMIT_PROGRESS_FN(this, symbol, totalFrames, i, when);
 
-        if (globalThis[KILL_SYMBOL]) {
-          this.loggerService.info(
-            "backtestLogicPrivateService stopped by kill flag",
-            {
+          if (globalThis[KILL_SYMBOL]) {
+            this.loggerService.info(
+              "backtestLogicPrivateService stopped by kill flag",
+              {
+                symbol,
+                when: when.toISOString(),
+                processedFrames: i,
+                totalFrames,
+              }
+            );
+            break;
+          }
+
+          if (await CHECK_STOPPED_FN(this, symbol, "before tick", { when: when.toISOString(), processedFrames: i, totalFrames })) {
+            break;
+          }
+
+          const result = await TICK_FN(this, symbol, when);
+          if ("__error__" in result) {
+            _fatalError = new Error(`[${result.reason}] ${result.message}`);
+            break;
+          }
+          lastAction = result.action;
+
+          if (
+            result.action === "idle" &&
+            await and(
+              Promise.resolve(true),
+              this.strategyCoreService.getStopped(true, symbol, {
+                strategyName: this.methodContextService.context.strategyName,
+                exchangeName: this.methodContextService.context.exchangeName,
+                frameName: this.methodContextService.context.frameName,
+              })
+            )
+          ) {
+            this.loggerService.info("backtestLogicPrivateService stopped by user request (idle state)", {
               symbol,
               when: when.toISOString(),
               processedFrames: i,
               totalFrames,
-            }
-          );
-          break;
-        }
-
-        if (await CHECK_STOPPED_FN(this, symbol, "before tick", { when: when.toISOString(), processedFrames: i, totalFrames })) {
-          break;
-        }
-
-        const result = await TICK_FN(this, symbol, when);
-        if ("__error__" in result) {
-          _fatalError = new Error(`[${result.reason}] ${result.message}`);
-          break;
-        }
-        lastAction = result.action;
-
-        if (
-          result.action === "idle" &&
-          await and(
-            Promise.resolve(true),
-            this.strategyCoreService.getStopped(true, symbol, {
-              strategyName: this.methodContextService.context.strategyName,
-              exchangeName: this.methodContextService.context.exchangeName,
-              frameName: this.methodContextService.context.frameName,
-            })
-          )
-        ) {
-          this.loggerService.info("backtestLogicPrivateService stopped by user request (idle state)", {
-            symbol,
-            when: when.toISOString(),
-            processedFrames: i,
-            totalFrames,
-          });
-          break;
-        }
-
-        if (result.action === "scheduled") {
-          yield result;
-
-          const r = yield* PROCESS_SCHEDULED_SIGNAL_FN(this, symbol, when, result, previousEventTimestamp, frameEndTime);
-
-          if (r.type === "error") {
-            _fatalError = new Error(`[${r.reason}] ${r.message}`);
+            });
             break;
           }
 
-          if (r.type === "closed") {
-            lastAction = "closed";
-            previousEventTimestamp = r.previousEventTimestamp;
-            // Skip frames up to and including closeTimestamp (the close minute is
-            // already consumed); the first frame after it must stay tickable, so
-            // continue past the loop-bottom i++.
-            while (i < timeframes.length && timeframes[i].getTime() <= r.closeTimestamp) {
-              i++;
-            }
-            if (r.shouldStop) {
+          if (result.action === "scheduled") {
+            yield result;
+
+            const r = yield* PROCESS_SCHEDULED_SIGNAL_FN(this, symbol, when, result, previousEventTimestamp, frameEndTime);
+
+            if (r.type === "error") {
+              _fatalError = new Error(`[${r.reason}] ${r.message}`);
               break;
             }
-            previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
-            continue;
-          }
-        }
 
-        if (result.action === "opened") {
-          yield result;
-
-          const r = yield* PROCESS_OPENED_SIGNAL_FN(this, symbol, when, result, previousEventTimestamp, frameEndTime);
-
-          if (r.type === "error") {
-            _fatalError = new Error(`[${r.reason}] ${r.message}`);
-            break;
-          }
-
-          if (r.type === "closed") {
-            lastAction = "closed";
-            previousEventTimestamp = r.previousEventTimestamp;
-            // Same off-by-one guard as in the scheduled branch above.
-            while (i < timeframes.length && timeframes[i].getTime() <= r.closeTimestamp) {
-              i++;
+            if (r.type === "closed") {
+              lastAction = "closed";
+              previousEventTimestamp = r.previousEventTimestamp;
+              // Skip frames up to and including closeTimestamp (the close minute is
+              // already consumed); the first frame after it must stay tickable, so
+              // continue past the loop-bottom i++.
+              while (i < timeframes.length && timeframes[i].getTime() <= r.closeTimestamp) {
+                i++;
+              }
+              if (r.shouldStop) {
+                break;
+              }
+              previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
+              continue;
             }
-            if (r.shouldStop) {
+          }
+
+          if (result.action === "opened") {
+            yield result;
+
+            const r = yield* PROCESS_OPENED_SIGNAL_FN(this, symbol, when, result, previousEventTimestamp, frameEndTime);
+
+            if (r.type === "error") {
+              _fatalError = new Error(`[${r.reason}] ${r.message}`);
               break;
             }
-            previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
-            continue;
+
+            if (r.type === "closed") {
+              lastAction = "closed";
+              previousEventTimestamp = r.previousEventTimestamp;
+              // Same off-by-one guard as in the scheduled branch above.
+              while (i < timeframes.length && timeframes[i].getTime() <= r.closeTimestamp) {
+                i++;
+              }
+              if (r.shouldStop) {
+                break;
+              }
+              previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
+              continue;
+            }
           }
+
+          previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
+
+          i++;
+        } finally {
+          await Lockstep.releaseLock("BacktestLogicPrivateService run");
         }
-
-        previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
-
-        i++;
       }
 
       // The timeframe loop is exhausted with a signal still open (a position that

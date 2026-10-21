@@ -9428,6 +9428,24 @@ declare const GLOBAL_CONFIG: {
      */
     CC_ENABLE_BACKTEST_PARALLEL_SPIN: boolean;
     /**
+     * Keeps parallel backtests on the same logical time.
+     *
+     * Mechanism (implemented in `Lockstep` and used by `BacktestLogicPrivateService.run`):
+     * - Every timeframe iteration (the tick and, when a signal opens, the whole candle replay
+     *   of that signal) runs under a process-wide FIFO mutex and releases it before the next
+     *   timeframe, so concurrent `Backtest.run` / `Backtest.background` workloads interleave
+     *   A(t0) B(t0) A(t1) B(t1) … and never drift apart by more than one timeframe.
+     * - A strategy that blocks inside `getSignal` (an LLM call, a `sleep`) therefore parks its
+     *   peers at the same `when`; shared state such as `Budget` sees the symbols in time order.
+     * - While the lock is held the generator still yields to its consumer, so a consumer that
+     *   waits for ANOTHER backtest's progress inside the `for await` body would deadlock.
+     * - Makes `CC_ENABLE_BACKTEST_PARALLEL_SPIN` redundant: `Candle.spinLock` is skipped while
+     *   lockstep is on, the peers are parked on this mutex anyway.
+     *
+     * Default: true (parallel backtests advance one timeframe at a time)
+     */
+    CC_BACKTEST_LOCKSTEP: boolean;
+    /**
      * Enables DCA (Dollar-Cost Averaging) logic even if antirecord is not broken.
      * Allows to commitAverageBuy if currentPrice is not the lowest price since entry, but still lower than priceOpen.
      * This can help improve average entry price in cases where price has rebounded after entry but is still below priceOpen, without waiting for a new lower price.
@@ -9715,6 +9733,7 @@ declare function getConfig(): {
     CC_MAX_LOG_LINES: number;
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
     CC_ENABLE_BACKTEST_PARALLEL_SPIN: boolean;
+    CC_BACKTEST_LOCKSTEP: boolean;
     CC_ENABLE_DCA_EVERYWHERE: boolean;
     CC_ENABLE_PPPL_EVERYWHERE: boolean;
     CC_ENABLE_LONG_SIGNAL: boolean;
@@ -9789,6 +9808,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_MAX_LOG_LINES: number;
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
     CC_ENABLE_BACKTEST_PARALLEL_SPIN: boolean;
+    CC_BACKTEST_LOCKSTEP: boolean;
     CC_ENABLE_DCA_EVERYWHERE: boolean;
     CC_ENABLE_PPPL_EVERYWHERE: boolean;
     CC_ENABLE_LONG_SIGNAL: boolean;
@@ -33445,9 +33465,12 @@ interface IBudgetReserveRow extends IBudgetHistoryRowBase {
     amount: number;
     note?: string;
     /**
-     * Set when a later-inserted earlier row (another symbol with lagging clocks)
-     * made this reserve exceed the free balance: `-free` after the row. The
-     * budget never hides it (see the Budget class notes).
+     * Set when a later-inserted earlier row (another symbol whose clock lagged
+     * behind this one) made this reserve exceed the free balance: `-free` after
+     * the row. The budget never hides it (see the Budget class notes). Under
+     * `CC_BACKTEST_LOCKSTEP` the clocks of parallel backtests stay within one
+     * timeframe between ticks, so this only arises when a replayed position
+     * carried this symbol's clock ahead of its peers.
      */
     overdraft?: number;
 }
@@ -33690,11 +33713,17 @@ declare class BudgetLiveAdapter implements TBudgetAdapter {
  *   after; the balances after it are recomputed;
  * - the journal order is `(timestamp, symbol, seq)` — the same run yields the
  *   same journal whatever order Node interleaved the symbols in;
- * - nothing waits for another symbol, nothing is synchronized;
- * - an overdraft (two symbols took the same money because of lagging clocks)
- *   is recorded on the reserve row as `overdraft` and logged, never hidden —
- *   `getFree()` goes negative and later reserves are refused until releases
- *   bring it back.
+ * - the budget itself never waits for another symbol and holds no lock of its
+ *   own; the clocks of parallel backtests are kept together by the engine's
+ *   `CC_BACKTEST_LOCKSTEP` (`Lockstep` in `BacktestLogicPrivateService.run`):
+ *   every timeframe iteration runs under a process-wide FIFO mutex, so between
+ *   ticks the symbols are at most one timeframe apart. A position replayed
+ *   inside one iteration still moves that symbol's clock ahead by its
+ *   lifetime, and with the flag off (the test config) the symbols drift freely;
+ * - an overdraft (two symbols took the same money because one clock lagged
+ *   behind the other) is recorded on the reserve row as `overdraft` and
+ *   logged, never hidden — `getFree()` goes negative and later reserves are
+ *   refused until releases bring it back.
  *
  * Requires an explicit `Budget.enable()` call before use, like `State.enable()`.
  *
@@ -45705,6 +45734,10 @@ declare class RiskGlobalService implements TRisk {
  *
  * Memory efficient: streams results without array accumulation.
  * Supports early termination via break in consumer.
+ *
+ * With `CC_BACKTEST_LOCKSTEP` every timeframe iteration runs under the
+ * process-wide `Lockstep` mutex, so parallel backtests advance one
+ * timeframe at a time instead of drifting apart in logical time.
  */
 declare class BacktestLogicPrivateService {
     readonly loggerService: {

@@ -478,6 +478,25 @@ export const GLOBAL_CONFIG = {
   CC_ENABLE_BACKTEST_PARALLEL_SPIN: true,
 
   /**
+   * Keeps parallel backtests on the same logical time.
+   *
+   * Mechanism (implemented in `Lockstep` and used by `BacktestLogicPrivateService.run`):
+   * - Every timeframe iteration (the tick and, when a signal opens, the whole candle replay
+   *   of that signal) runs under a process-wide FIFO mutex and releases it before the next
+   *   timeframe, so concurrent `Backtest.run` / `Backtest.background` workloads interleave
+   *   A(t0) B(t0) A(t1) B(t1) … and never drift apart by more than one timeframe.
+   * - A strategy that blocks inside `getSignal` (an LLM call, a `sleep`) therefore parks its
+   *   peers at the same `when`; shared state such as `Budget` sees the symbols in time order.
+   * - While the lock is held the generator still yields to its consumer, so a consumer that
+   *   waits for ANOTHER backtest's progress inside the `for await` body would deadlock.
+   * - Makes `CC_ENABLE_BACKTEST_PARALLEL_SPIN` redundant: `Candle.spinLock` is skipped while
+   *   lockstep is on, the peers are parked on this mutex anyway.
+   *
+   * Default: true (parallel backtests advance one timeframe at a time)
+   */
+  CC_BACKTEST_LOCKSTEP: true,
+
+  /**
    * Enables DCA (Dollar-Cost Averaging) logic even if antirecord is not broken.
    * Allows to commitAverageBuy if currentPrice is not the lowest price since entry, but still lower than priceOpen.
    * This can help improve average entry price in cases where price has rebounded after entry but is still below priceOpen, without waiting for a new lower price.

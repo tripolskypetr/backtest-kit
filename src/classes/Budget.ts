@@ -183,9 +183,12 @@ export interface IBudgetReserveRow extends IBudgetHistoryRowBase {
   amount: number;
   note?: string;
   /**
-   * Set when a later-inserted earlier row (another symbol with lagging clocks)
-   * made this reserve exceed the free balance: `-free` after the row. The
-   * budget never hides it (see the Budget class notes).
+   * Set when a later-inserted earlier row (another symbol whose clock lagged
+   * behind this one) made this reserve exceed the free balance: `-free` after
+   * the row. The budget never hides it (see the Budget class notes). Under
+   * `CC_BACKTEST_LOCKSTEP` the clocks of parallel backtests stay within one
+   * timeframe between ticks, so this only arises when a replayed position
+   * carried this symbol's clock ahead of its peers.
    */
   overdraft?: number;
 }
@@ -1021,11 +1024,17 @@ const ASSERT_AMOUNT_FN = (method: string, amount: number): void => {
  *   after; the balances after it are recomputed;
  * - the journal order is `(timestamp, symbol, seq)` — the same run yields the
  *   same journal whatever order Node interleaved the symbols in;
- * - nothing waits for another symbol, nothing is synchronized;
- * - an overdraft (two symbols took the same money because of lagging clocks)
- *   is recorded on the reserve row as `overdraft` and logged, never hidden —
- *   `getFree()` goes negative and later reserves are refused until releases
- *   bring it back.
+ * - the budget itself never waits for another symbol and holds no lock of its
+ *   own; the clocks of parallel backtests are kept together by the engine's
+ *   `CC_BACKTEST_LOCKSTEP` (`Lockstep` in `BacktestLogicPrivateService.run`):
+ *   every timeframe iteration runs under a process-wide FIFO mutex, so between
+ *   ticks the symbols are at most one timeframe apart. A position replayed
+ *   inside one iteration still moves that symbol's clock ahead by its
+ *   lifetime, and with the flag off (the test config) the symbols drift freely;
+ * - an overdraft (two symbols took the same money because one clock lagged
+ *   behind the other) is recorded on the reserve row as `overdraft` and
+ *   logged, never hidden — `getFree()` goes negative and later reserves are
+ *   refused until releases bring it back.
  *
  * Requires an explicit `Budget.enable()` call before use, like `State.enable()`.
  *
