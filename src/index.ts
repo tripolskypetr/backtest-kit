@@ -669,6 +669,12 @@ export {
   IPersistStateInstance,
   PersistStateInstance,
   TPersistStateInstanceCtor,
+  BudgetData,
+  BudgetRecordKey,
+  PersistBudgetAdapter,
+  IPersistBudgetInstance,
+  PersistBudgetInstance,
+  TPersistBudgetInstanceCtor,
   DictionaryData,
   PersistDictionaryAdapter,
   IPersistDictionaryInstance,
@@ -786,6 +792,37 @@ export {
   IStateInstance,
   TStateInstanceCtor,
 } from "./classes/State";
+export {
+  Budget,
+  BudgetLive,
+  BudgetBacktest,
+  BudgetBacktestAdapter,
+  BudgetLiveAdapter,
+  BudgetLocalInstance,
+  BudgetPersistInstance,
+  BudgetDummyInstance,
+  IBudgetInstance,
+  TBudgetInstanceCtor,
+  BudgetName,
+  BudgetAction,
+  BudgetDispatch,
+  IBudgetContext,
+  IBudgetBalance,
+  IBudgetValue,
+  IBudgetInitial,
+  IBudgetReserveDto,
+  IBudgetReleaseDto,
+  IBudgetDepositDto,
+  IBudgetWithdrawDto,
+  IBudgetHistoryRow,
+  IBudgetHistoryRowBase,
+  IBudgetRowBalance,
+  IBudgetReserveRow,
+  IBudgetReleaseRow,
+  IBudgetRejectRow,
+  IBudgetDepositRow,
+  IBudgetWithdrawRow,
+} from "./classes/Budget";
 export {
   Dictionary,
   DictionaryLive,
@@ -909,6 +946,7 @@ export { getCandlesSampled } from "./helpers/getCandlesSampled";
 
 export { OrderDeletedError } from "./error/OrderDeletedError";
 export { OrderRejectedError } from "./error/OrderRejectedError";
+export { BudgetRejectedError } from "./error/BudgetRejectedError";
 export { OrderTransientError } from "./error/OrderTransientError";
 export { GeneralExpectedError } from "./error/GeneralExpectedError";
 export { GeneralUnexpectedError } from "./error/GeneralUnexpectedError";

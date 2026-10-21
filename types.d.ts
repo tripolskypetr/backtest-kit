@@ -22512,6 +22512,198 @@ declare class PersistStateUtils {
  */
 declare const PersistStateAdapter: PersistStateUtils;
 /**
+ * Type for persisted budget entry data.
+ * Wraps the whole budget record (initial capital + ordered journal) with a
+ * unique id; `when` is the logical timestamp of the last write.
+ */
+type BudgetData = {
+    id: string;
+    data: object;
+    when: number;
+};
+/**
+ * Record key of a budget: one record per strategy run
+ * (strategyName, exchangeName, frameName, backtest) — shared by every symbol of
+ * that run, never branched by signalId.
+ */
+type BudgetRecordKey = {
+    strategyName: string;
+    exchangeName: string;
+    frameName: string;
+    backtest: boolean;
+};
+/**
+ * Per-context budget persistence instance interface.
+ * Scoped to a budget record key and a budget name (bucket inside the record).
+ *
+ * Used by BudgetPersistInstance for crash-safe budget journal storage.
+ * Custom adapters should implement this interface to override the default
+ * file-based budget behavior.
+ */
+interface IPersistBudgetInstance {
+    /**
+     * Initialize storage for this budget context.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
+    waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read the persisted budget record for this context.
+     *
+     * @returns Promise resolving to budget data or null if none persisted
+     */
+    readBudgetData(): Promise<BudgetData | null>;
+    /**
+     * Write the budget record for this context.
+     *
+     * @param data - Budget data to persist (already carries `data.when`)
+     * @param when - Logical timestamp this value belongs to (duplicates `data.when` for API consistency)
+     * @returns Promise that resolves when write is complete
+     */
+    writeBudgetData(data: BudgetData, when: Date): Promise<void>;
+    /**
+     * Release any resources held by this instance.
+     * Default implementations may treat this as a no-op.
+     */
+    dispose(): void;
+}
+/**
+ * Default file-based implementation of IPersistBudgetInstance.
+ *
+ * Features:
+ * - Wraps PersistBase for atomic JSON writes
+ * - Uses the budget name as entity ID within a per-record PersistBase
+ * - dispose is a no-op (memo cache is managed by PersistBudgetUtils)
+ *
+ * Storage layout: ./dump/budget/<strategyName>:<exchangeName>:<frameName>:<backtest|live>/<name>.json
+ * — no signalId anywhere in the path: the record is shared by every symbol of the run.
+ */
+declare class PersistBudgetInstance implements IPersistBudgetInstance {
+    readonly key: BudgetRecordKey;
+    readonly name: string;
+    /** Underlying file-based storage scoped to this context */
+    private readonly _storage;
+    /**
+     * Creates new budget persistence instance.
+     *
+     * @param key - Budget record key (folder name under budget/)
+     * @param name - Budget name (file name)
+     */
+    constructor(key: BudgetRecordKey, name: string);
+    /**
+     * Initializes the underlying PersistBase storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
+    waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads the persisted budget record using `name` as the entity key.
+     *
+     * @returns Promise resolving to budget data or null if not found
+     */
+    readBudgetData(): Promise<BudgetData | null>;
+    /**
+     * Writes the budget record using `name` as the entity key.
+     *
+     * @param data - Budget data to persist
+     * @returns Promise that resolves when write is complete
+     */
+    writeBudgetData(data: BudgetData, _when: Date): Promise<void>;
+    /**
+     * No-op for the default file-based implementation.
+     * Resource cleanup (memo cache invalidation) is handled by PersistBudgetUtils.dispose().
+     */
+    dispose(): void;
+}
+/**
+ * Constructor type for IPersistBudgetInstance.
+ * Used by PersistBudgetUtils.usePersistBudgetAdapter() to register custom adapters.
+ */
+type TPersistBudgetInstanceCtor = new (key: BudgetRecordKey, name: string) => IPersistBudgetInstance;
+/**
+ * Utility class for managing budget persistence.
+ *
+ * Features:
+ * - Memoized storage instances per (record key, name) pair
+ * - Custom adapter support
+ * - Atomic read/write operations
+ *
+ * Storage layout: ./dump/budget/<strategyName>:<exchangeName>:<frameName>:<backtest|live>/<name>.json
+ *
+ * Used by BudgetPersistInstance for crash-safe budget journal persistence.
+ */
+declare class PersistBudgetUtils {
+    /**
+     * Constructor used to create per-context budget instances.
+     * Replaceable via usePersistBudgetAdapter() / useJson() / useDummy().
+     */
+    private PersistBudgetInstanceCtor;
+    /**
+     * Memoized factory creating one IPersistBudgetInstance per (record key, name) pair.
+     */
+    private getBudgetStorage;
+    /**
+     * Registers a custom IPersistBudgetInstance constructor.
+     * Clears the memoization cache so subsequent calls use the new adapter.
+     *
+     * @param Ctor - Custom IPersistBudgetInstance constructor
+     */
+    usePersistBudgetAdapter(Ctor: TPersistBudgetInstanceCtor): void;
+    /**
+     * Initializes the budget storage for the given context.
+     * Skips initialization when `initial` is false (used to gate first-time setup).
+     *
+     * @param key - Budget record key
+     * @param name - Budget name
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
+    waitForInit: (key: BudgetRecordKey, name: string, initial: boolean) => Promise<void>;
+    /**
+     * Reads the persisted budget record for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param key - Budget record key
+     * @param name - Budget name
+     * @returns Promise resolving to budget data or null if none persisted
+     */
+    readBudgetData: (key: BudgetRecordKey, name: string) => Promise<BudgetData | null>;
+    /**
+     * Writes the budget record for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param data - Budget data to persist (already carries `data.when`)
+     * @param key - Budget record key
+     * @param name - Budget name
+     * @param when - Logical timestamp this value belongs to (duplicates `data.when` for API consistency)
+     * @returns Promise that resolves when write is complete
+     */
+    writeBudgetData: (data: BudgetData, key: BudgetRecordKey, name: string, when: Date) => Promise<void>;
+    /**
+     * Switches to PersistBudgetDummyInstance (all operations are no-ops).
+     */
+    useDummy: () => void;
+    /**
+     * Switches to the default file-based PersistBudgetInstance.
+     */
+    useJson: () => void;
+    /**
+     * Drops the memoized instance for the given context.
+     * Call when a budget record is cleared to clean up its associated storage entry.
+     *
+     * @param key - Budget record key
+     * @param name - Budget name
+     */
+    dispose: (key: BudgetRecordKey, name: string) => void;
+}
+/**
+ * Global singleton instance of PersistBudgetUtils.
+ * Used by BudgetPersistInstance for crash-safe budget journal persistence.
+ */
+declare const PersistBudgetAdapter: PersistBudgetUtils;
+/**
  * Type for persisted dictionary entry data.
  * Wraps the whole dictionary as a single snapshot: `data` maps entry keys to
  * `{ value, when }` records (per-entry look-ahead timestamps), the top-level
@@ -33139,6 +33331,655 @@ declare const StateLive: StateLiveAdapter;
  * Provides backtest state storage with pluggable backends.
  */
 declare const StateBacktest: StateBacktestAdapter;
+
+/**
+ * Logical name of a budget inside a strategy run, e.g. "fund" — the bucket of
+ * the record, like `BucketName` for `State`. Two budgets of one run with
+ * different names are two independent journals.
+ */
+type BudgetName = string;
+/**
+ * Context of a static (context-free) budget call: the record key, the budget
+ * name, the logical time of the action and the symbol that authored it.
+ * Mirrors the dto of `State._getState` / `State._setState` with the record key
+ * in place of `signalId`.
+ */
+interface IBudgetContext {
+    /** Strategy name of the run (part of the record key) */
+    strategyName: StrategyName;
+    /** Exchange name of the run (part of the record key) */
+    exchangeName: ExchangeName;
+    /** Frame name of the run (part of the record key; empty string in live mode) */
+    frameName: FrameName;
+    /** Backtest or live record (part of the record key) */
+    backtest: boolean;
+    /** Budget name — the bucket inside the record */
+    name: BudgetName;
+    /** Logical time of the read / the action's `timestamp` */
+    when: Date;
+    /** Symbol that authors the history row (null for a call without a symbol) */
+    symbol?: string;
+    /**
+     * Initial capital of the record when this call is the first one to create it
+     * (static callers outside the strategy module, e.g. listeners). Ignored once
+     * the record exists. Default: 0.
+     */
+    initialCapital?: number;
+}
+/** Balance of a budget at a logical time: the fold of the journal up to `when` */
+interface IBudgetBalance {
+    /** Budget name */
+    name: BudgetName;
+    /** Logical time the balance is taken at */
+    when: Date;
+    /** Capital: initialCapital plus every realized pnl of released reserves */
+    capital: number;
+    /** Sum of open reserves */
+    deployed: number;
+    /** capital − deployed (negative only after an overdraft, see IBudgetReserveRow) */
+    free: number;
+    /** Units held per asset (deposits − withdrawals) */
+    assets: Record<string, number>;
+}
+/** `reserve`: move `amount` from free to deployed under the key `id` */
+interface IBudgetReserveDto {
+    /** Reserve identifier (typically the signal id); must not be open already */
+    id: string;
+    /** Amount to reserve in quote currency (> 0) */
+    amount: number;
+    /** Optional human-readable note stored on the row */
+    note?: string;
+}
+/** `release`: give the reserve `id` back to free and book its pnl on capital */
+interface IBudgetReleaseDto {
+    /** Reserve identifier passed to `reserve` */
+    id: string;
+    /** Realized pnl of the position in quote currency (added to capital). Default: 0 */
+    pnl?: number;
+    /** Optional human-readable note stored on the row */
+    note?: string;
+}
+/** `deposit`: add `amount` units of `asset` (dividends in shares, staking rewards) */
+interface IBudgetDepositDto {
+    /** Asset label, e.g. "ETH" */
+    asset: string;
+    /** Units to add (> 0) */
+    amount: number;
+    /** Optional human-readable note stored on the row */
+    note?: string;
+}
+/** `withdraw`: remove `amount` units of `asset`; more than held is rejected */
+interface IBudgetWithdrawDto {
+    /** Asset label, e.g. "ETH" */
+    asset: string;
+    /** Units to remove (> 0) */
+    amount: number;
+    /** Optional human-readable note stored on the row */
+    note?: string;
+}
+/** Balance part stored on every history row: the balance AFTER the row */
+type IBudgetRowBalance = Pick<IBudgetBalance, "capital" | "deployed" | "free" | "assets">;
+/**
+ * Fields shared by every journal row. strategyName, exchangeName, frameName and
+ * backtest are the record key and are not repeated on rows.
+ */
+interface IBudgetHistoryRowBase {
+    /** Logical time of the action (`when` of the call that produced it) */
+    timestamp: number;
+    /** Symbol that authored the row, null when the call had no symbol */
+    symbol: string | null;
+    /** Insertion order — the last tie-break of the journal order (timestamp, symbol, seq) */
+    seq: number;
+    /** Balance after this row */
+    balance: IBudgetRowBalance;
+}
+/** A reserve took `amount` from free */
+interface IBudgetReserveRow extends IBudgetHistoryRowBase {
+    type: "reserve";
+    id: string;
+    amount: number;
+    note?: string;
+    /**
+     * Set when a later-inserted earlier row (another symbol with lagging clocks)
+     * made this reserve exceed the free balance: `-free` after the row. The
+     * budget never hides it (see the Budget class notes).
+     */
+    overdraft?: number;
+}
+/** A reserve went back to free; `pnl` was booked on capital */
+interface IBudgetReleaseRow extends IBudgetHistoryRowBase {
+    type: "release";
+    id: string;
+    amount: number;
+    pnl: number;
+    note?: string;
+}
+/** A `reserve` / `withdraw` was refused; the balance is unchanged */
+interface IBudgetRejectRow extends IBudgetHistoryRowBase {
+    type: "reject";
+    action: "reserve" | "withdraw";
+    /** "capital" for reserve, the asset label for withdraw */
+    asset: string;
+    requested: number;
+    available: number;
+}
+/** Units of `asset` added */
+interface IBudgetDepositRow extends IBudgetHistoryRowBase {
+    type: "deposit";
+    asset: string;
+    amount: number;
+    note?: string;
+}
+/** Units of `asset` removed */
+interface IBudgetWithdrawRow extends IBudgetHistoryRowBase {
+    type: "withdraw";
+    asset: string;
+    amount: number;
+    note?: string;
+}
+/** Journal row of a budget record, ordered by (timestamp, symbol, seq) */
+type IBudgetHistoryRow = IBudgetReserveRow | IBudgetReleaseRow | IBudgetRejectRow | IBudgetDepositRow | IBudgetWithdrawRow;
+/**
+ * Value of a budget record: the initial capital and the ordered journal.
+ * `getState(when)` returns the fold of it up to `when` (rows with
+ * `timestamp <= when`), never the rows written by a symbol that is ahead.
+ */
+interface IBudgetValue {
+    initialCapital: number;
+    journal: IBudgetHistoryRow[];
+}
+/** Initial value of a budget record, the counterpart of `initialValue` in `State` */
+interface IBudgetInitial {
+    initialCapital: number;
+}
+/**
+ * An action to insert into the journal: a history row minus the fields the
+ * instance computes (`timestamp`, `seq`, `balance`). Returned by a dispatch.
+ */
+type BudgetAction = Omit<IBudgetReserveRow, "timestamp" | "seq" | "balance" | "overdraft"> | Omit<IBudgetReleaseRow, "timestamp" | "seq" | "balance"> | Omit<IBudgetRejectRow, "timestamp" | "seq" | "balance"> | Omit<IBudgetDepositRow, "timestamp" | "seq" | "balance"> | Omit<IBudgetWithdrawRow, "timestamp" | "seq" | "balance">;
+/**
+ * Updater of `setState` — receives the fold of the journal up to `when` (what
+ * the caller is allowed to see) and returns the action to insert at `when`, or
+ * null for a no-op. Runs inside the instance's `queued` section, so the check
+ * and the write are atomic within the process, like `setState(prev => ...)`.
+ */
+type BudgetDispatch = (prev: IBudgetValue) => BudgetAction | null | Promise<BudgetAction | null>;
+/**
+ * Interface for budget instance implementations.
+ * Defines the contract for local, persist, and dummy backends — the same four
+ * methods as `IStateInstance`, with the record value being an ordered journal
+ * instead of a single `(_value, _when)` pair:
+ *
+ * - `getState(when)` returns the fold of the journal up to `when` (I1: a read
+ *   sees only the past, including rows written by symbols that are ahead only
+ *   up to the reader's own time);
+ * - `setState(dispatch, when)` inserts the action returned by `dispatch` at its
+ *   `timestamp = when` and recomputes the balances after it (I2: a row from the
+ *   past shifts later balances instead of overwriting them).
+ */
+interface IBudgetInstance {
+    /**
+     * Initialize the budget instance.
+     * @param initial - Whether this is the first initialization
+     */
+    waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read the fold of the journal up to `when` inclusive.
+     * @param when - Logical timestamp at which the read is happening
+     * @returns Initial capital and the visible rows (a copy)
+     */
+    getState(when: Date): Promise<IBudgetValue>;
+    /**
+     * Insert the action returned by `dispatch` at `when`.
+     * The dispatch receives the fold up to `when`; the check it does and the
+     * insertion are atomic within the process (`queued`).
+     * @param dispatch - Updater returning the action to insert, or null for a no-op
+     * @param when - Logical timestamp of the action
+     * @returns The inserted row (a copy) or null when the dispatch returned null
+     */
+    setState(dispatch: BudgetDispatch, when: Date): Promise<IBudgetHistoryRow | null>;
+    /**
+     * Releases any resources held by this instance.
+     */
+    dispose(): Promise<void>;
+}
+/**
+ * Constructor type for budget instance implementations.
+ * Used for swapping backends via BudgetBacktestAdapter / BudgetLiveAdapter.
+ */
+type TBudgetInstanceCtor = new (initialValue: IBudgetInitial, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, name: BudgetName) => IBudgetInstance;
+/**
+ * Public surface of BudgetBacktestAdapter / BudgetLiveAdapter — IBudgetInstance minus waitForInit and dispose.
+ * waitForInit and dispose are managed internally by the adapter.
+ */
+type TBudgetAdapter = {
+    [key in Exclude<keyof IBudgetInstance, "waitForInit" | "dispose">]: any;
+};
+/**
+ * In-process budget instance: the journal lives in process memory only.
+ * Default backend of BudgetBacktestAdapter.
+ *
+ * Features:
+ * - Sorted journal, binary search for the fold at `when`, tail recompute on insert
+ * - `queued` writes: the dispatch's check and the insertion are atomic
+ * - Scoped per (record key, name): one record for every symbol of the run
+ */
+declare class BudgetLocalInstance implements IBudgetInstance {
+    readonly initialValue: IBudgetInitial;
+    readonly strategyName: StrategyName;
+    readonly exchangeName: ExchangeName;
+    readonly frameName: FrameName;
+    readonly backtest: boolean;
+    readonly name: BudgetName;
+    _value: IBudgetValue;
+    _seq: number;
+    constructor(initialValue: IBudgetInitial, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, name: BudgetName);
+    /**
+     * Initializes an empty journal from initialValue - local budget needs no async setup.
+     * @returns Promise that resolves immediately
+     */
+    waitForInit: ((_initial: boolean) => Promise<void>) & functools_kit.ISingleshotClearable<(_initial: boolean) => Promise<void>>;
+    /**
+     * Read the fold of the in-memory journal up to `when`.
+     * @param when - Logical timestamp at which the read is happening
+     * @returns Initial capital and the visible rows (a copy)
+     */
+    getState(when: Date): Promise<IBudgetValue>;
+    /**
+     * Insert the action returned by `dispatch` at `when` into the in-memory journal.
+     * @param dispatch - Updater returning the action to insert, or null for a no-op
+     * @param when - Logical timestamp of the action
+     * @returns The inserted row (a copy) or null
+     */
+    private _setState;
+    /**
+     * Insert the action returned by `dispatch` at `when` (queued: the check in the dispatch and the insertion are atomic).
+     * @param dispatch - Updater returning the action to insert, or null for a no-op
+     * @param when - Logical timestamp of the action
+     * @returns The inserted row (a copy) or null
+     */
+    setState(dispatch: BudgetDispatch, when: Date): Promise<IBudgetHistoryRow | null>;
+    /** Releases resources held by this instance. */
+    dispose(): Promise<void>;
+}
+/**
+ * No-op budget instance that discards all writes.
+ * Reads return the initial capital with an empty journal, so `getFree()` is
+ * always the initial capital and every `reserve` succeeds without being kept.
+ */
+declare class BudgetDummyInstance implements IBudgetInstance {
+    readonly initialValue: IBudgetInitial;
+    readonly strategyName: StrategyName;
+    readonly exchangeName: ExchangeName;
+    readonly frameName: FrameName;
+    readonly backtest: boolean;
+    readonly name: BudgetName;
+    constructor(initialValue: IBudgetInitial, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, name: BudgetName);
+    /**
+     * No-op initialization.
+     * @returns Promise that resolves immediately
+     */
+    waitForInit: ((_initial: boolean) => Promise<void>) & functools_kit.ISingleshotClearable<(_initial: boolean) => Promise<void>>;
+    /**
+     * No-op read - always the initial capital with an empty journal.
+     * @returns Initial value
+     */
+    getState(_when: Date): Promise<IBudgetValue>;
+    /**
+     * No-op write - discards the action.
+     * @returns null
+     */
+    setState(_dispatch: BudgetDispatch, _when: Date): Promise<IBudgetHistoryRow | null>;
+    /** No-op. */
+    dispose(): Promise<void>;
+}
+/**
+ * File-system backed budget instance.
+ * The whole record (initial capital + journal) is persisted atomically to disk
+ * via PersistBudgetAdapter after every write and restored from disk on
+ * waitForInit, so a live run resumes with its reserves and assets intact.
+ * Default backend of BudgetLiveAdapter.
+ */
+declare class BudgetPersistInstance implements IBudgetInstance {
+    readonly initialValue: IBudgetInitial;
+    readonly strategyName: StrategyName;
+    readonly exchangeName: ExchangeName;
+    readonly frameName: FrameName;
+    readonly backtest: boolean;
+    readonly name: BudgetName;
+    _value: IBudgetValue;
+    _seq: number;
+    constructor(initialValue: IBudgetInitial, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, name: BudgetName);
+    /** Record key of this instance for PersistBudgetAdapter */
+    private get key();
+    /**
+     * Initialize persistence storage and restore the journal from disk.
+     * @param initial - Whether this is the first initialization
+     */
+    waitForInit: ((initial: boolean) => Promise<void>) & functools_kit.ISingleshotClearable<(initial: boolean) => Promise<void>>;
+    /**
+     * Read the fold of the persisted journal up to `when`.
+     * @param when - Logical timestamp at which the read is happening
+     * @returns Initial capital and the visible rows (a copy)
+     */
+    getState(when: Date): Promise<IBudgetValue>;
+    /**
+     * Insert the action returned by `dispatch` at `when` and persist the whole record atomically.
+     * @param dispatch - Updater returning the action to insert, or null for a no-op
+     * @param when - Logical timestamp of the action
+     * @returns The inserted row (a copy) or null
+     */
+    private _setState;
+    /**
+     * Insert the action returned by `dispatch` at `when` (queued: the check in the dispatch and the insertion are atomic).
+     * @param dispatch - Updater returning the action to insert, or null for a no-op
+     * @param when - Logical timestamp of the action
+     * @returns The inserted row (a copy) or null
+     */
+    setState(dispatch: BudgetDispatch, when: Date): Promise<IBudgetHistoryRow | null>;
+    /** Releases resources held by this instance. */
+    dispose(): Promise<void>;
+}
+/** Dto of the adapter methods: the record key, the budget name, the initial value and the logical time */
+type TBudgetAdapterDto = BudgetRecordKey & {
+    name: BudgetName;
+    initialValue: IBudgetInitial;
+    when: Date;
+};
+/**
+ * Backtest budget adapter with pluggable storage backend.
+ *
+ * Features:
+ * - Adapter pattern for swappable budget instance implementations
+ * - Default backend: BudgetLocalInstance (in-memory, no disk persistence)
+ * - Alternative backends: BudgetPersistInstance, BudgetDummyInstance
+ * - Convenience methods: useLocal(), usePersist(), useDummy(), useBudgetAdapter()
+ * - Memoized instances per (record key, name) pair; the record lives until clear()
+ *   (no per-signal disposal: it is not bound to a signal)
+ */
+declare class BudgetBacktestAdapter implements TBudgetAdapter {
+    private BudgetFactory;
+    private getInstance;
+    /**
+     * Read the fold of the journal up to `dto.when`.
+     * @param dto - Record key, budget name, initial value and logical time
+     * @returns Initial capital and the visible rows
+     */
+    getState: (dto: TBudgetAdapterDto) => Promise<IBudgetValue>;
+    /**
+     * Insert the action returned by `dispatch` at `dto.when`.
+     * @param dispatch - Updater returning the action to insert, or null for a no-op
+     * @param dto - Record key, budget name, initial value and logical time
+     * @returns The inserted row or null
+     */
+    setState: (dispatch: BudgetDispatch, dto: TBudgetAdapterDto) => Promise<IBudgetHistoryRow | null>;
+    /**
+     * Switches to in-memory adapter (default).
+     * All data lives in process memory only.
+     */
+    useLocal: () => void;
+    /**
+     * Switches to file-system backed adapter.
+     * Data is persisted to disk via PersistBudgetAdapter.
+     */
+    usePersist: () => void;
+    /**
+     * Switches to dummy adapter that discards all writes.
+     */
+    useDummy: () => void;
+    /**
+     * Switches to a custom budget adapter implementation.
+     * @param Ctor - Constructor for the custom budget instance
+     */
+    useBudgetAdapter: (Ctor: TBudgetInstanceCtor) => void;
+    /**
+     * Clears the memoized instance cache.
+     * Call this before a new run (or when process.cwd() changes between strategy
+     * iterations) so new instances start from a fresh journal / the updated base path.
+     */
+    clear: () => void;
+}
+/**
+ * Live trading budget adapter with pluggable storage backend.
+ *
+ * Features:
+ * - Adapter pattern for swappable budget instance implementations
+ * - Default backend: BudgetPersistInstance (file-system backed, survives restarts)
+ * - Alternative backends: BudgetLocalInstance, BudgetDummyInstance
+ * - Convenience methods: useLocal(), usePersist(), useDummy(), useBudgetAdapter()
+ * - Memoized instances per (record key, name) pair; the record lives until clear()
+ */
+declare class BudgetLiveAdapter implements TBudgetAdapter {
+    private BudgetFactory;
+    private getInstance;
+    /**
+     * Read the fold of the journal up to `dto.when`.
+     * @param dto - Record key, budget name, initial value and logical time
+     * @returns Initial capital and the visible rows
+     */
+    getState: (dto: TBudgetAdapterDto) => Promise<IBudgetValue>;
+    /**
+     * Insert the action returned by `dispatch` at `dto.when`.
+     * @param dispatch - Updater returning the action to insert, or null for a no-op
+     * @param dto - Record key, budget name, initial value and logical time
+     * @returns The inserted row or null
+     */
+    setState: (dispatch: BudgetDispatch, dto: TBudgetAdapterDto) => Promise<IBudgetHistoryRow | null>;
+    /**
+     * Switches to in-memory adapter.
+     * All data lives in process memory only.
+     */
+    useLocal: () => void;
+    /**
+     * Switches to file-system backed adapter (default).
+     * Data is persisted to disk via PersistBudgetAdapter.
+     */
+    usePersist: () => void;
+    /**
+     * Switches to dummy adapter that discards all writes.
+     */
+    useDummy: () => void;
+    /**
+     * Switches to a custom budget adapter implementation.
+     * @param Ctor - Constructor for the custom budget instance
+     */
+    useBudgetAdapter: (Ctor: TBudgetInstanceCtor) => void;
+    /**
+     * Clears the memoized instance cache.
+     * Call this when process.cwd() changes between strategy iterations
+     * so new instances are created with the updated base path.
+     */
+    clear: () => void;
+}
+/**
+ * Shared balance of a strategy run — one record for every symbol of the run,
+ * kept as a journal of actions and read at the caller's logical time.
+ *
+ * Works like `State`: an instance in the strategy module, no schemas, every
+ * instance method resolves the mode, the logical time and the symbol itself
+ * from `backtest.executionContextService` / `backtest.methodContextService`.
+ * Unlike `State`, the record is NOT bound to a signal: its key is
+ * `(strategyName, exchangeName, frameName, backtest)` plus the budget `name`,
+ * so every symbol of the run reads and writes the same journal, and no signal
+ * lookup happens (the methods work from `getSignal` as well as from callbacks).
+ *
+ * Invariants:
+ * - a read at `when` sees only rows with `timestamp <= when` (a symbol that is
+ *   ahead in logical time does not leak its future into a lagging one);
+ * - an action is inserted at its `timestamp`, never overwriting what came
+ *   after; the balances after it are recomputed;
+ * - the journal order is `(timestamp, symbol, seq)` — the same run yields the
+ *   same journal whatever order Node interleaved the symbols in;
+ * - nothing waits for another symbol, nothing is synchronized;
+ * - an overdraft (two symbols took the same money because of lagging clocks)
+ *   is recorded on the reserve row as `overdraft` and logged, never hidden —
+ *   `getFree()` goes negative and later reserves are refused until releases
+ *   bring it back.
+ *
+ * Requires an explicit `Budget.enable()` call before use, like `State.enable()`.
+ *
+ * @example
+ * ```typescript
+ * Budget.enable();
+ * const fund = new Budget({ name: "fund", initialCapital: 10_000_000 });
+ *
+ * // inside getSignal / any lifecycle callback:
+ * const free = await fund.getFree();
+ * try {
+ *   await fund.reserve({ id, amount: cost });
+ * } catch (error) {
+ *   if (BudgetRejectedError.isBudgetRejectedError(error)) return null;
+ *   throw error;
+ * }
+ *
+ * // outside the execution context (a listener): the context travels as the last argument
+ * listenSignalBacktestClosed(({ data, pnl, timestamp }) =>
+ *   Budget._release({ id: data.id, pnl: pnl.pnlCost }, { ...keyOf(data), name: "fund", when: new Date(timestamp), symbol: data.symbol }));
+ * ```
+ */
+declare class Budget {
+    private readonly params;
+    constructor(params: {
+        name: BudgetName;
+        initialCapital: number;
+    });
+    /**
+     * Enables budget storage. Uses singleshot so that `disable()` and `clear()`
+     * behave like `State`'s; there are no event subscriptions — the record is not
+     * bound to a signal and is not cleaned up on its close.
+     *
+     * @returns Cleanup function
+     */
+    static enable: (() => (...args: any[]) => any) & functools_kit.ISingleshotClearable<() => (...args: any[]) => any>;
+    /**
+     * Disables budget storage.
+     * Safe to call multiple times.
+     */
+    static disable: () => void;
+    /** Fold of the record up to `context.when`, routed to BudgetBacktest / BudgetLive by `context.backtest` */
+    private static _getValue;
+    /** Insert an action at `context.when`, routed to BudgetBacktest / BudgetLive by `context.backtest` */
+    private static _setValue;
+    /**
+     * Context-free balance at `context.when`.
+     * @param context - Record key, budget name, logical time and symbol
+     * @returns Capital, deployed, free and assets as of `when`
+     * @throws Error if Budget is not enabled
+     */
+    static _getBalance: (context: IBudgetContext) => Promise<IBudgetBalance>;
+    /**
+     * Context-free free balance (capital − deployed) at `context.when`.
+     * @param context - Record key, budget name, logical time and symbol
+     * @returns Free balance (negative only after an overdraft)
+     * @throws Error if Budget is not enabled
+     */
+    static _getFree: (context: IBudgetContext) => Promise<number>;
+    /**
+     * Context-free journal up to `context.when`, ascending.
+     * @param context - Record key, budget name, logical time and symbol
+     * @returns Visible rows (a copy)
+     * @throws Error if Budget is not enabled
+     */
+    static _getHistory: (context: IBudgetContext) => Promise<IBudgetHistoryRow[]>;
+    /**
+     * Context-free reserve: free → deployed under `dto.id` at `context.when`.
+     * Refused (a `reject` row, then BudgetRejectedError) when `dto.amount` exceeds
+     * the free balance as of `when`.
+     * @param dto - Reserve id, amount and optional note
+     * @param context - Record key, budget name, logical time and symbol
+     * @returns Balance after the reserve
+     * @throws BudgetRejectedError when the free balance is insufficient
+     * @throws Error if Budget is not enabled, the amount is invalid or the id is already open
+     */
+    static _reserve: (dto: IBudgetReserveDto, context: IBudgetContext) => Promise<IBudgetBalance>;
+    /**
+     * Context-free release: deployed → free for `dto.id`, `dto.pnl` booked on capital.
+     * A second release of the same id (or of an id never reserved) is a no-op.
+     * @param dto - Reserve id, optional realized pnl and note
+     * @param context - Record key, budget name, logical time and symbol
+     * @returns Balance after the release
+     * @throws Error if Budget is not enabled
+     */
+    static _release: (dto: IBudgetReleaseDto, context: IBudgetContext) => Promise<IBudgetBalance>;
+    /**
+     * Context-free deposit of `dto.amount` units of `dto.asset` at `context.when`.
+     * @param dto - Asset, units and optional note
+     * @param context - Record key, budget name, logical time and symbol
+     * @returns Balance after the deposit
+     * @throws Error if Budget is not enabled or the amount is invalid
+     */
+    static _deposit: (dto: IBudgetDepositDto, context: IBudgetContext) => Promise<IBudgetBalance>;
+    /**
+     * Context-free withdrawal of `dto.amount` units of `dto.asset` at `context.when`.
+     * Refused (a `reject` row, then BudgetRejectedError) when more than held as of `when`.
+     * @param dto - Asset, units and optional note
+     * @param context - Record key, budget name, logical time and symbol
+     * @returns Balance after the withdrawal
+     * @throws BudgetRejectedError when the held amount is insufficient
+     * @throws Error if Budget is not enabled or the amount is invalid
+     */
+    static _withdraw: (dto: IBudgetWithdrawDto, context: IBudgetContext) => Promise<IBudgetBalance>;
+    /** Context of the instance methods: record key, logical time and symbol from the execution / method context */
+    private getContext;
+    /**
+     * Balance at the logical time of the current execution context.
+     * @returns Capital, deployed, free and assets as of `when`
+     * @throws Error if no execution/method context
+     */
+    getBalance: () => Promise<IBudgetBalance>;
+    /**
+     * Free balance (capital − deployed) at the logical time of the current execution context.
+     * @returns Free balance (negative only after an overdraft)
+     * @throws Error if no execution/method context
+     */
+    getFree: () => Promise<number>;
+    /**
+     * Journal up to the logical time of the current execution context, ascending.
+     * @returns Visible rows (a copy)
+     * @throws Error if no execution/method context
+     */
+    getHistory: () => Promise<IBudgetHistoryRow[]>;
+    /**
+     * Reserve: free → deployed under `dto.id` at the current logical time.
+     * @param dto - Reserve id, amount and optional note
+     * @returns Balance after the reserve
+     * @throws BudgetRejectedError when the free balance is insufficient
+     * @throws Error if no execution/method context
+     */
+    reserve: (dto: IBudgetReserveDto) => Promise<IBudgetBalance>;
+    /**
+     * Release: deployed → free for `dto.id`, `dto.pnl` booked on capital, at the current logical time.
+     * @param dto - Reserve id, optional realized pnl and note
+     * @returns Balance after the release
+     * @throws Error if no execution/method context
+     */
+    release: (dto: IBudgetReleaseDto) => Promise<IBudgetBalance>;
+    /**
+     * Deposit `dto.amount` units of `dto.asset` at the current logical time.
+     * @param dto - Asset, units and optional note
+     * @returns Balance after the deposit
+     * @throws Error if no execution/method context
+     */
+    deposit: (dto: IBudgetDepositDto) => Promise<IBudgetBalance>;
+    /**
+     * Withdraw `dto.amount` units of `dto.asset` at the current logical time.
+     * @param dto - Asset, units and optional note
+     * @returns Balance after the withdrawal
+     * @throws BudgetRejectedError when the held amount is insufficient
+     * @throws Error if no execution/method context
+     */
+    withdraw: (dto: IBudgetWithdrawDto) => Promise<IBudgetBalance>;
+}
+/**
+ * Global singleton instance of BudgetLiveAdapter.
+ * Provides live trading budget storage with pluggable backends.
+ */
+declare const BudgetLive: BudgetLiveAdapter;
+/**
+ * Global singleton instance of BudgetBacktestAdapter.
+ * Provides backtest budget storage with pluggable backends.
+ */
+declare const BudgetBacktest: BudgetBacktestAdapter;
 
 /**
  * Logical name of a dictionary, e.g. "llm" or "levels".
@@ -48957,6 +49798,57 @@ declare class OrderRejectedError extends Error {
 }
 
 /**
+ * Business rejection of a `Budget` action: `reserve` asked for more than the
+ * free balance, or `withdraw` asked for more units of an asset than the budget
+ * holds, both at the logical time of the call.
+ *
+ * The rejection is recorded in the budget journal as a `reject` row (visible in
+ * `getHistory()` and the budget report) BEFORE the error is thrown, so a refused
+ * action is never silent. The strategy decides what to do with it — typically
+ * `return null` from `getSignal` (no trade this tick).
+ *
+ * Nominal runtime identification: the framework and user code recognize the
+ * error by the `__type__ === Symbol.for("BudgetRejectedError")` brand via the
+ * static guard — never by `instanceof`, so it survives duplicated module
+ * instances across bundles.
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await fund.reserve({ id, amount: cost });
+ * } catch (error) {
+ *   if (BudgetRejectedError.isBudgetRejectedError(error)) return null;
+ *   throw error;
+ * }
+ * ```
+ */
+declare class BudgetRejectedError extends Error {
+    /** Runtime brand (Symbol.for — survives duplicated module instances) */
+    readonly __type__: symbol;
+    /**
+     * @param message - Optional human-readable reason (logged, not routed on)
+     */
+    constructor(message?: string);
+    /**
+     * Nominal type guard by the runtime brand. Use this instead of `instanceof`:
+     * the check is based on `Symbol.for`, so it recognizes instances created by a
+     * DIFFERENT copy of this module (duplicated bundles, linked packages).
+     *
+     * @param error - Any thrown object
+     * @returns true when the object carries the BudgetRejectedError brand
+     */
+    static isBudgetRejectedError(error: object): boolean;
+    /**
+     * Nominal constructor for a new BudgetRejectedError from any thrown object.
+     *
+     * @param error - Any thrown object
+     * @returns a new BudgetRejectedError with the original message, or a default message
+     *          if the original was not a string
+     */
+    static fromError(error: object): BudgetRejectedError;
+}
+
+/**
  * EXPLICIT transient failure marker — "the operation failed for a temporary /
  * unknown reason (network blip, lost response, exchange 5xx, rate limit); retry me".
  *
@@ -49264,4 +50156,4 @@ declare class GeneralUnexpectedError extends Error {
     static fromError(error: object): GeneralUnexpectedError;
 }
 
-export { type AccrualType, ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, Dictionary, DictionaryBacktest, DictionaryBacktestAdapter, type DictionaryData, DictionaryLive, DictionaryLiveAdapter, type DividendCommit, type DividendCommitNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, GeneralExpectedError, GeneralUnexpectedError, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAgentLogger, type IAggregatedTradeData, type IAverageBuyDto, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type ICandleData, type ICommitRow, type IDictionaryInstance, type IDividendCommitRow, type IDividendDto, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILauncherSchema, type ILog, type ILogEntry, type ILogger, type IMCPAverageBuyCommand, type IMCPContext, type IMCPImageMessage, type IMCPMessage, type IMCPPositionCloseCommand, type IMCPPositionOpenCommand, type IMCPSchema, type IMCPSignalNotifyCommand, type IMCPTextMessage, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialCostDto, type IPartialDto, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistDictionaryInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalAccrual, type ISignalDto, type ISignalEntry, type ISignalIntervalDto, type ISignalPartial, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ISweepBest, type ISweepGridAxes, type ISweepGridPoint, type ISweepIdea, type ISweepMetricReport, type ISweepPointReport, type ISweepResult, type ISweepSchema, type ISweepTrack, type ISweepTrade, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IWorkerSchema, type IdlePingContract, type InfoErrorNotification, type InitialDispatchContract, Interval, type IntervalData, Launcher, Level, Live, type LiveStatisticsModel, Log, type LogData, Lookup, MCP, type MCPMessageId, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, type OrderContinueContract, OrderDeletedError, type OrderFillCloseContract, type OrderFillContract, type OrderFillOpenContract, type OrderOpenContract, type OrderRejectCloseContract, type OrderRejectContract, type OrderRejectOpenContract, OrderRejectedError, type OrderStopContract, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, OrderTransientError, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, type PauseContract, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistDictionaryAdapter, PersistDictionaryInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyPauseNotification, type StrategyStatisticsModel, type StrategyStatus, Sweep, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDictionaryInstanceCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistDictionaryInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, Worker, addActionSchema, addExchangeSchema, addFrameSchema, addLauncherSchema, addMCPSchema, addRiskSchema, addSizingSchema, addStrategySchema, addSweepSchema, addWalkerSchema, addWorkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitDividend, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpMCPStatus, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getAccrualsCost, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getBreakevenPrice, getCandleAnomalyFlags, getCandles, getCandlesFilled, getCandlesSampled, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getLauncherSchema, getLiquidationPrice, getMCPSchema, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionAccruals, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSizingSchema, getStrategyPaused, getStrategySchema, getStrategyStatus, getSweepSchema, getSymbol, getTimestamp, getTotalClosed, getTotalPercentHeld, getWalkerSchema, getWorkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStart, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listLauncherSchema, listMCPSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listSweepSchema, listWalkerSchema, listWorkerSchema, listenActivePing, listenActivePingFilter, listenActivePingOnce, listenActivePingUnique, listenAfterEnd, listenAfterEndFilter, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartFilter, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableFilter, listenBreakevenAvailableOnce, listenBreakevenAvailableUnique, listenCheck, listenDoneBacktest, listenDoneBacktestFilter, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveFilter, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerFilter, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitFilter, listenHighestProfitOnce, listenHighestProfitUnique, listenIdlePing, listenIdlePingFilter, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownFilter, listenMaxDrawdownOnce, listenMaxDrawdownUnique, listenOrderContinue, listenOrderFill, listenOrderReject, listenOrderSchedule, listenOrderScheduleUnique, listenOrderStop, listenPartialLossAvailable, listenPartialLossAvailableFilter, listenPartialLossAvailableOnce, listenPartialLossAvailableUnique, listenPartialProfitAvailable, listenPartialProfitAvailableFilter, listenPartialProfitAvailableOnce, listenPartialProfitAvailableUnique, listenPause, listenPauseFilter, listenPauseOnce, listenPerformance, listenRisk, listenRiskFilter, listenRiskOnce, listenSchedulePing, listenSchedulePingFilter, listenSchedulePingOnce, listenSchedulePingUnique, listenSignal, listenSignalActive, listenSignalActiveUnique, listenSignalBacktest, listenSignalBacktestActive, listenSignalBacktestActiveUnique, listenSignalBacktestCancelled, listenSignalBacktestCancelledUnique, listenSignalBacktestClosed, listenSignalBacktestClosedUnique, listenSignalBacktestFilter, listenSignalBacktestIdle, listenSignalBacktestOnce, listenSignalBacktestOpened, listenSignalBacktestOpenedUnique, listenSignalBacktestScheduled, listenSignalBacktestScheduledUnique, listenSignalBacktestUnique, listenSignalBacktestWaiting, listenSignalBacktestWaitingUnique, listenSignalCancelled, listenSignalCancelledUnique, listenSignalClosed, listenSignalClosedUnique, listenSignalEvent, listenSignalEventFilter, listenSignalEventOnce, listenSignalEventUnique, listenSignalFilter, listenSignalIdle, listenSignalLive, listenSignalLiveActive, listenSignalLiveActiveUnique, listenSignalLiveCancelled, listenSignalLiveCancelledUnique, listenSignalLiveClosed, listenSignalLiveClosedUnique, listenSignalLiveFilter, listenSignalLiveIdle, listenSignalLiveOnce, listenSignalLiveOpened, listenSignalLiveOpenedUnique, listenSignalLiveScheduled, listenSignalLiveScheduledUnique, listenSignalLiveUnique, listenSignalLiveWaiting, listenSignalLiveWaitingUnique, listenSignalNotify, listenSignalNotifyFilter, listenSignalNotifyOnce, listenSignalNotifyUnique, listenSignalOnce, listenSignalOpened, listenSignalOpenedUnique, listenSignalScheduled, listenSignalScheduledUnique, listenSignalUnique, listenSignalWaiting, listenSignalWaitingUnique, listenStrategyCommit, listenStrategyCommitFilter, listenStrategyCommitOnce, listenStrategyCommitUnique, listenSync, listenValidation, listenWalker, listenWalkerComplete, listenWalkerFilter, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideLauncherSchema, overrideMCPSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideSweepSchema, overrideWalkerSchema, overrideWorkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setStrategyPaused, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };
+export { type AccrualType, ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Budget, type BudgetAction, BudgetBacktest, BudgetBacktestAdapter, type BudgetData, type BudgetDispatch, BudgetDummyInstance, BudgetLive, BudgetLiveAdapter, BudgetLocalInstance, type BudgetName, BudgetPersistInstance, type BudgetRecordKey, BudgetRejectedError, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, Dictionary, DictionaryBacktest, DictionaryBacktestAdapter, type DictionaryData, DictionaryLive, DictionaryLiveAdapter, type DividendCommit, type DividendCommitNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, GeneralExpectedError, GeneralUnexpectedError, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAgentLogger, type IAggregatedTradeData, type IAverageBuyDto, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type IBudgetBalance, type IBudgetContext, type IBudgetDepositDto, type IBudgetDepositRow, type IBudgetHistoryRow, type IBudgetHistoryRowBase, type IBudgetInitial, type IBudgetInstance, type IBudgetRejectRow, type IBudgetReleaseDto, type IBudgetReleaseRow, type IBudgetReserveDto, type IBudgetReserveRow, type IBudgetRowBalance, type IBudgetValue, type IBudgetWithdrawDto, type IBudgetWithdrawRow, type ICandleData, type ICommitRow, type IDictionaryInstance, type IDividendCommitRow, type IDividendDto, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILauncherSchema, type ILog, type ILogEntry, type ILogger, type IMCPAverageBuyCommand, type IMCPContext, type IMCPImageMessage, type IMCPMessage, type IMCPPositionCloseCommand, type IMCPPositionOpenCommand, type IMCPSchema, type IMCPSignalNotifyCommand, type IMCPTextMessage, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialCostDto, type IPartialDto, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistBudgetInstance, type IPersistCandleInstance, type IPersistDictionaryInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalAccrual, type ISignalDto, type ISignalEntry, type ISignalIntervalDto, type ISignalPartial, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ISweepBest, type ISweepGridAxes, type ISweepGridPoint, type ISweepIdea, type ISweepMetricReport, type ISweepPointReport, type ISweepResult, type ISweepSchema, type ISweepTrack, type ISweepTrade, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IWorkerSchema, type IdlePingContract, type InfoErrorNotification, type InitialDispatchContract, Interval, type IntervalData, Launcher, Level, Live, type LiveStatisticsModel, Log, type LogData, Lookup, MCP, type MCPMessageId, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, type OrderContinueContract, OrderDeletedError, type OrderFillCloseContract, type OrderFillContract, type OrderFillOpenContract, type OrderOpenContract, type OrderRejectCloseContract, type OrderRejectContract, type OrderRejectOpenContract, OrderRejectedError, type OrderStopContract, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, OrderTransientError, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, type PauseContract, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistBudgetAdapter, PersistBudgetInstance, PersistCandleAdapter, PersistCandleInstance, PersistDictionaryAdapter, PersistDictionaryInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyPauseNotification, type StrategyStatisticsModel, type StrategyStatus, Sweep, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TBudgetInstanceCtor, type TDictionaryInstanceCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistBudgetInstanceCtor, type TPersistCandleInstanceCtor, type TPersistDictionaryInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, Worker, addActionSchema, addExchangeSchema, addFrameSchema, addLauncherSchema, addMCPSchema, addRiskSchema, addSizingSchema, addStrategySchema, addSweepSchema, addWalkerSchema, addWorkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitDividend, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpMCPStatus, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getAccrualsCost, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getBreakevenPrice, getCandleAnomalyFlags, getCandles, getCandlesFilled, getCandlesSampled, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getLauncherSchema, getLiquidationPrice, getMCPSchema, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionAccruals, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSizingSchema, getStrategyPaused, getStrategySchema, getStrategyStatus, getSweepSchema, getSymbol, getTimestamp, getTotalClosed, getTotalPercentHeld, getWalkerSchema, getWorkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStart, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listLauncherSchema, listMCPSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listSweepSchema, listWalkerSchema, listWorkerSchema, listenActivePing, listenActivePingFilter, listenActivePingOnce, listenActivePingUnique, listenAfterEnd, listenAfterEndFilter, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartFilter, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableFilter, listenBreakevenAvailableOnce, listenBreakevenAvailableUnique, listenCheck, listenDoneBacktest, listenDoneBacktestFilter, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveFilter, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerFilter, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitFilter, listenHighestProfitOnce, listenHighestProfitUnique, listenIdlePing, listenIdlePingFilter, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownFilter, listenMaxDrawdownOnce, listenMaxDrawdownUnique, listenOrderContinue, listenOrderFill, listenOrderReject, listenOrderSchedule, listenOrderScheduleUnique, listenOrderStop, listenPartialLossAvailable, listenPartialLossAvailableFilter, listenPartialLossAvailableOnce, listenPartialLossAvailableUnique, listenPartialProfitAvailable, listenPartialProfitAvailableFilter, listenPartialProfitAvailableOnce, listenPartialProfitAvailableUnique, listenPause, listenPauseFilter, listenPauseOnce, listenPerformance, listenRisk, listenRiskFilter, listenRiskOnce, listenSchedulePing, listenSchedulePingFilter, listenSchedulePingOnce, listenSchedulePingUnique, listenSignal, listenSignalActive, listenSignalActiveUnique, listenSignalBacktest, listenSignalBacktestActive, listenSignalBacktestActiveUnique, listenSignalBacktestCancelled, listenSignalBacktestCancelledUnique, listenSignalBacktestClosed, listenSignalBacktestClosedUnique, listenSignalBacktestFilter, listenSignalBacktestIdle, listenSignalBacktestOnce, listenSignalBacktestOpened, listenSignalBacktestOpenedUnique, listenSignalBacktestScheduled, listenSignalBacktestScheduledUnique, listenSignalBacktestUnique, listenSignalBacktestWaiting, listenSignalBacktestWaitingUnique, listenSignalCancelled, listenSignalCancelledUnique, listenSignalClosed, listenSignalClosedUnique, listenSignalEvent, listenSignalEventFilter, listenSignalEventOnce, listenSignalEventUnique, listenSignalFilter, listenSignalIdle, listenSignalLive, listenSignalLiveActive, listenSignalLiveActiveUnique, listenSignalLiveCancelled, listenSignalLiveCancelledUnique, listenSignalLiveClosed, listenSignalLiveClosedUnique, listenSignalLiveFilter, listenSignalLiveIdle, listenSignalLiveOnce, listenSignalLiveOpened, listenSignalLiveOpenedUnique, listenSignalLiveScheduled, listenSignalLiveScheduledUnique, listenSignalLiveUnique, listenSignalLiveWaiting, listenSignalLiveWaitingUnique, listenSignalNotify, listenSignalNotifyFilter, listenSignalNotifyOnce, listenSignalNotifyUnique, listenSignalOnce, listenSignalOpened, listenSignalOpenedUnique, listenSignalScheduled, listenSignalScheduledUnique, listenSignalUnique, listenSignalWaiting, listenSignalWaitingUnique, listenStrategyCommit, listenStrategyCommitFilter, listenStrategyCommitOnce, listenStrategyCommitUnique, listenSync, listenValidation, listenWalker, listenWalkerComplete, listenWalkerFilter, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideLauncherSchema, overrideMCPSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideSweepSchema, overrideWalkerSchema, overrideWorkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setStrategyPaused, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };

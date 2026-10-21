@@ -14,6 +14,7 @@ import {
   PersistMeasureAdapter,
   PersistRecentAdapter,
   PersistStateAdapter,
+  PersistBudgetAdapter,
   PersistSessionAdapter,
   PersistStrategyAdapter,
   Report,
@@ -55,6 +56,7 @@ import {
   PersistMeasureAdapter.useDummy();
   PersistRecentAdapter.useDummy();
   PersistStateAdapter.useDummy();
+  PersistBudgetAdapter.useDummy();
   PersistSessionAdapter.useDummy();
   PersistStrategyAdapter.useDummy();
 }
