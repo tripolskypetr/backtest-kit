@@ -33724,6 +33724,11 @@ declare class Budget {
         initialCapital: number;
     });
     /**
+     * Names of the budgets constructed in this process, in construction order.
+     * @returns Budget names
+     */
+    static _getNames: () => BudgetName[];
+    /**
      * Enables budget storage. Uses singleshot so that `disable()` and `clear()`
      * behave like `State`'s; there are no event subscriptions — the record is not
      * bound to a signal and is not cleaned up on its close.

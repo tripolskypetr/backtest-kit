@@ -13,7 +13,7 @@ import {
 } from "react-declarative";
 
 import { Container } from "@mui/material";
-import { DataObject, Description, KeyboardArrowLeft, PictureAsPdf, PictureAsPdfOutlined, Refresh } from "@mui/icons-material";
+import { AccountBalance, DataObject, Description, KeyboardArrowLeft, PictureAsPdf, PictureAsPdfOutlined, Refresh } from "@mui/icons-material";
 import { IHeatmapRow } from "backtest-kit";
 import IconWrapper from "../../../../components/common/IconWrapper";
 import { reloadSubject } from "../../../../config/emitters";
@@ -40,14 +40,15 @@ const options: IBreadcrumbs2Option[] = [
     },
     {
         type: Breadcrumbs2Type.Button,
-        icon: Refresh,
-        action: "update-now",
-        label: t("Refresh"),
+        icon: AccountBalance,
+        action: "show-balance",
+        label: t("Balance"),
     },
     {
         type: Breadcrumbs2Type.Fab,
-        action: "download-pdf",
-        icon: PictureAsPdfOutlined,
+        icon: Refresh,
+        action: "update-now",
+        label: t("Refresh"),
     },
 ];
 
@@ -161,6 +162,9 @@ export const MainView = () => {
     const handleAction = async (action: string) => {
         if (action === "back-action") {
             ioc.routerService.push("/");
+        }
+        if (action === "show-balance") {
+            ioc.routerService.replace("/heat/balance");
         }
         if (action === "update-now") {
             await reloadSubject.next();
