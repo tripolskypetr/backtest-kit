@@ -48,6 +48,11 @@ import { Subject, sleep } from "functools-kit";
  *              the middle of the replay (a DCA top-up on hour 3) would be checked against a journal the
  *              lagging peer has not written to yet. With the hand-off the peer's reserve on hour 2 is in
  *              the journal first and the top-up is REFUSED instead of ending in overdraft
+ *   errors   - the hand-off must never hang: ping listeners that throw, a peer dying in getSignal while
+ *              the replaying symbol is parked in spinLock, a candle fetch failing in the middle of a
+ *              chunked replay, eight symbols with throwing listeners and a dying peer. Every survivor
+ *              reports done within a timeout and a probe backtest launched afterwards finishes too,
+ *              which it cannot do if the lock was left held
  */
 const HOUR_MS = 3_600_000;
 const MIN_MS = 60_000;
@@ -783,4 +788,217 @@ test("LOCKSTEP + BUDGET: a mid-replay budget write sees what the lagging peer wr
     return fail(`the replayed symbol wrote from the future: ${describeRows(overdrafts)}; journal: ${describeRows(history)}`);
   }
   pass(`lockstep on: the top-up on hour 3 was refused against the lagging reserve of hour 2, journal: ${describeRows(history)}`);
+});
+
+// ── Hand-off under errors ────────────────────────────────────────────────────
+
+const ERROR_TIMEOUT_MS = 15_000;
+const PROBE_SYMBOL = "PROBEUSDT";
+
+/**
+ * Exchange + strategy for the error cases: every symbol in `positions` opens a market
+ * long at `at` for `minutes` (Infinity = chunked replay), `fatalTick` makes getSignal
+ * throw on that tick number, `failFetch(symbol, since)` makes getCandles throw.
+ */
+const buildErrorCase = (name, { positions = {}, fatalTick = {}, failFetch = () => false } = {}) => {
+  const exchangeName = `lockstep-error-exchange-${name}`;
+  const strategyName = `lockstep-error-strategy-${name}`;
+  const frameName = `lockstep-error-frame-${name}`;
+  addExchangeSchema({
+    exchangeName,
+    getCandles: async (symbol, interval, since, limit) => {
+      if (interval !== "1m") throw new Error(`lockstep exchange: only 1m bars, got ${interval}`);
+      if (failFetch(symbol, since.getTime())) {
+        throw new Error(`lockstep exchange: fetch failed on purpose for ${symbol} at ${since.toISOString()}`);
+      }
+      const out = [];
+      let timestamp = Math.floor(since.getTime() / MIN_MS) * MIN_MS;
+      while (out.length < limit) {
+        out.push({ timestamp, open: 100, high: 100.5, low: 99.5, close: 100, volume: 1_000 });
+        timestamp += MIN_MS;
+      }
+      return out;
+    },
+    formatPrice: async (_s, p) => p.toFixed(8),
+    formatQuantity: async (_s, q) => q.toFixed(8),
+  });
+  const ticks = {};
+  addStrategySchema({
+    strategyName,
+    interval: "1h",
+    getSignal: async (symbol, when) => {
+      ticks[symbol] = (ticks[symbol] ?? 0) + 1;
+      if (fatalTick[symbol] !== undefined && ticks[symbol] === fatalTick[symbol]) {
+        throw new Error(`lockstep fatal: ${symbol} exploded on tick ${ticks[symbol]}`);
+      }
+      const position = positions[symbol];
+      if (position && when.getTime() === position.at) {
+        return { position: "long", priceStopLoss: 85, priceTakeProfit: 119, cost: 1000, minuteEstimatedTime: position.minutes };
+      }
+      return null;
+    },
+  });
+  addFrameSchema({ frameName, interval: "1h", startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
+  return { exchangeName, strategyName, frameName, ticks };
+};
+
+/**
+ * Launches every symbol in the background and resolves with the symbols that reported done
+ * before the timeout; `waitFor` names the ones expected to finish (a dying peer is launched but not awaited)
+ */
+const runUntilDone = async (schema, symbols, timeoutMs, waitFor = symbols) => {
+  const done = new Set();
+  const allDone = new Subject();
+  const unDone = listenDoneBacktest((event) => {
+    if (event.frameName !== schema.frameName) return;
+    done.add(event.symbol);
+    if (waitFor.every((symbol) => done.has(symbol))) allDone.next();
+  });
+  try {
+    for (const symbol of symbols) {
+      Backtest.background(symbol, schema);
+    }
+    await Promise.race([allDone.toPromise(), sleep(timeoutMs)]);
+  } finally {
+    unDone();
+  }
+  return done;
+};
+
+/** A fatal tick error ends in process.exit(-1): the stub turns it into a throw so the worker survives; console noise is muted */
+const withFatalStub = async (fn) => {
+  const realExit = process.exit;
+  const realError = console.error;
+  const realWarn = console.warn;
+  process.exit = (code) => { throw new Error(`process.exit(${code})`); };
+  console.error = () => void 0;
+  console.warn = () => void 0;
+  try {
+    return await fn();
+  } finally {
+    process.exit = realExit;
+    console.error = realError;
+    console.warn = realWarn;
+  }
+};
+
+/** Fails unless the survivors are done and a probe backtest launched afterwards finishes (the lock is free); returns true on failure */
+const failedSurvivorsOrLock = async (schema, done, survivors, fail) => {
+  const missing = survivors.filter((symbol) => !done.has(symbol));
+  if (missing.length) {
+    fail(`${missing.join(", ")} did not finish within ${ERROR_TIMEOUT_MS} ms: the hand-off hung`);
+    return true;
+  }
+  const probe = await runUntilDone(schema, [PROBE_SYMBOL], ERROR_TIMEOUT_MS);
+  if (!probe.has(PROBE_SYMBOL)) {
+    fail(`the probe backtest did not finish within ${ERROR_TIMEOUT_MS} ms after the scenario: the lock was left held`);
+    return true;
+  }
+  return false;
+};
+
+test("LOCKSTEP ERRORS: active ping listeners that throw on the hand-off candle do not hang the replay or its peer", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  const schema = buildErrorCase("active-throw", { positions: { [JUMP_SYMBOL]: { at: FRAME_START, minutes: 300 } } });
+  let thrown = 0;
+  const unActive = listenActivePing((event) => {
+    if (event.strategyName !== schema.strategyName) return;
+    // the last candle before every hour: exactly where the orchestrator hands the lock off
+    if ((event.timestamp + MIN_MS) % HOUR_MS === 0) {
+      thrown += 1;
+      throw new Error("lockstep error: active ping listener exploded");
+    }
+  });
+  let done;
+  try {
+    done = await withFatalStub(() => runUntilDone(schema, [JUMP_SYMBOL, LAG_SYMBOL], ERROR_TIMEOUT_MS));
+  } finally {
+    unActive();
+  }
+  if (!thrown) return fail("the listener never threw: the scenario did not exercise the hand-off candle");
+  if (await failedSurvivorsOrLock(schema, done, [JUMP_SYMBOL, LAG_SYMBOL], fail)) return;
+  pass(`active ping listener threw ${thrown} time(s) on hand-off candles, both backtests and the probe finished`);
+});
+
+test("LOCKSTEP ERRORS: schedule ping listeners that throw do not hang the scheduled replay or its peer", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  const schema = buildPingOrderCase("schedule-throw");
+  let thrown = 0;
+  const unSchedule = listenSchedulePing((event) => {
+    if (event.strategyName !== schema.strategyName) return;
+    if (thrown < 50 && Math.floor(event.timestamp / MIN_MS) % 3 === 0) {
+      thrown += 1;
+      throw new Error("lockstep error: schedule ping listener exploded");
+    }
+  });
+  let done;
+  try {
+    done = await withFatalStub(() => runUntilDone(schema, [PING_A, PING_B], ERROR_TIMEOUT_MS));
+  } finally {
+    unSchedule();
+  }
+  if (!thrown) return fail("the listener never threw");
+  if (await failedSurvivorsOrLock(schema, done, [PING_A, PING_B], fail)) return;
+  pass(`schedule ping listener threw ${thrown} time(s), both backtests and the probe finished`);
+});
+
+test("LOCKSTEP ERRORS: a peer dying in getSignal while the replaying symbol is parked in spinLock does not hang it", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  const schema = buildErrorCase("peer-fatal", {
+    positions: { [JUMP_SYMBOL]: { at: FRAME_START, minutes: 300 } },
+    fatalTick: { [LAG_SYMBOL]: 2 },
+  });
+  const done = await withFatalStub(() => runUntilDone(schema, [JUMP_SYMBOL, LAG_SYMBOL], ERROR_TIMEOUT_MS, [JUMP_SYMBOL]));
+  if ((schema.ticks[LAG_SYMBOL] ?? 0) < 2) return fail(`the peer never reached its fatal tick, ticks=${schema.ticks[LAG_SYMBOL]}`);
+  if (await failedSurvivorsOrLock(schema, done, [JUMP_SYMBOL], fail)) return;
+  pass("the replaying symbol took the lock back from a dead peer and finished, the probe finished");
+});
+
+test("LOCKSTEP ERRORS: a candle fetch failing in the middle of a chunked replay releases the lock for the peer", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true, CC_MAX_CANDLES_PER_REQUEST: 60 }, true);
+  try {
+    let failedFetches = 0;
+    const schema = buildErrorCase("fetch-fatal", {
+      positions: { [JUMP_SYMBOL]: { at: FRAME_START, minutes: Infinity } },
+      // the third 60-candle chunk of the replay: fetched after two hand-offs already happened
+      failFetch: (symbol, since) => {
+        if (symbol !== JUMP_SYMBOL || since < FRAME_START + 2 * HOUR_MS) return false;
+        failedFetches += 1;
+        return true;
+      },
+    });
+    const done = await withFatalStub(() => runUntilDone(schema, [JUMP_SYMBOL, LAG_SYMBOL], ERROR_TIMEOUT_MS, [LAG_SYMBOL]));
+    if (!failedFetches) return fail("the replaying symbol never hit the failing chunk fetch");
+    if (await failedSurvivorsOrLock(schema, done, [LAG_SYMBOL], fail)) return;
+    pass("the peer finished after the replaying symbol died on a chunk fetch, the probe finished");
+  } finally {
+    setConfig({ CC_MAX_CANDLES_PER_REQUEST: 1000 }, true);
+  }
+});
+
+test("LOCKSTEP ERRORS: eight backtests with throwing listeners and a dying peer all finish and leave the lock free", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  const symbols = Array.from({ length: 8 }, (_, i) => `ERR${i}USDT`);
+  const positions = Object.fromEntries(symbols.filter((_, i) => i % 2 === 0).map((symbol, i) => [symbol, { at: FRAME_START + (i % 2) * HOUR_MS, minutes: 180 }]));
+  const dead = symbols[3];
+  const schema = buildErrorCase("stress", { positions, fatalTick: { [dead]: 3 } });
+  let thrown = 0;
+  const unActive = listenActivePing((event) => {
+    if (event.strategyName !== schema.strategyName) return;
+    if (Math.floor(event.timestamp / MIN_MS) % 7 === 0) {
+      thrown += 1;
+      throw new Error("lockstep error: stress listener exploded");
+    }
+  });
+  const survivors = symbols.filter((symbol) => symbol !== dead);
+  let done;
+  try {
+    done = await withFatalStub(() => runUntilDone(schema, symbols, ERROR_TIMEOUT_MS, survivors));
+  } finally {
+    unActive();
+  }
+  if (!thrown) return fail("the listener never threw");
+  if ((schema.ticks[dead] ?? 0) < 3) return fail(`the dying peer never reached its fatal tick, ticks=${schema.ticks[dead]}`);
+  if (await failedSurvivorsOrLock(schema, done, survivors, fail)) return;
+  pass(`${survivors.length} survivors finished with ${thrown} listener throws and one dead peer, the probe finished`);
 });
