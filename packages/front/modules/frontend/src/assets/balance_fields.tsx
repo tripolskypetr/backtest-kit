@@ -170,7 +170,7 @@ const balance_fields: TypedField<IBalanceMeasure>[] = [
     fieldBottomMargin: "1",
     element: ({ history }) => (
       <BalanceGridWidget
-        sx={{ height: "max(calc((100dvh - 100px) / 2), 450px)" }}
+        sx={{ height: "max(calc((100dvh - 100px) * 0.9), 450px)" }}
         items={history}
       />
     ),

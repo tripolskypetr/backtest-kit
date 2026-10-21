@@ -9,7 +9,7 @@ import {
     useAsyncValue,
     useOnce,
 } from "react-declarative";
-import { Container } from "@mui/material";
+import { Box, Container } from "@mui/material";
 import { DataObject, KeyboardArrowLeft, Refresh } from "@mui/icons-material";
 
 import {
@@ -141,6 +141,7 @@ export const BalanceView = () => {
                 onAction={handleAction}
             />
             {renderInner()}
+            <Box paddingBottom="24px" />
         </Container>
     );
 };

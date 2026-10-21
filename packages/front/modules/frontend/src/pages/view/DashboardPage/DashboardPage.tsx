@@ -22,7 +22,7 @@ import {
 import ITradePerfomance from "../../../model/TradePerfomance.model";
 import IconWrapper from "../../../components/common/IconWrapper";
 import { Download, HourglassTop, KeyboardArrowLeft, LiveTv, Refresh } from "@mui/icons-material";
-import { Container } from "@mui/material";
+import { Box, Container } from "@mui/material";
 import { ISuccessRateWithSymbol } from "../../../model/Measure.model";
 import IRevenueCount from "../../../model/RevenueCount.model";
 import ioc from "../../../lib";
@@ -264,6 +264,7 @@ export const DashboardPage = ({
     <Container>
       <Breadcrumbs2 items={options} actions={actions} payload={mode} onAction={handleAction} />
       {renderInner()}
+      <Box paddingBottom="24px" />
     </Container>
   );
 };
