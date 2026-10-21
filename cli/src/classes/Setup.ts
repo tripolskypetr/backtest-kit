@@ -18,6 +18,9 @@ import {
   State,
   StateLive,
   StateBacktest,
+  Budget,
+  BudgetLive,
+  BudgetBacktest,
   Dictionary,
   DictionaryLive,
   DictionaryBacktest,
@@ -46,6 +49,7 @@ import {
   PersistIntervalAdapter,
   PersistRecentAdapter,
   PersistStateAdapter,
+  PersistBudgetAdapter,
   PersistDictionaryAdapter,
   PersistSessionAdapter,
   PersistStrategyAdapter,
@@ -90,6 +94,11 @@ const SETUP_ADAPTER_FN = () => {
   }
 
   {
+    BudgetLive.usePersist();
+    BudgetBacktest.useLocal();
+  }
+
+  {
     DictionaryLive.usePersist();
     DictionaryBacktest.useLocal();
   }
@@ -125,6 +134,7 @@ export class SetupUtils {
       Report.enable();
       Dump.enable();
       State.enable();
+      Budget.enable();
       Dictionary.enable();
       Memory.enable();
     }
@@ -159,6 +169,7 @@ export class SetupUtils {
       Report.disable();
       Dump.disable();
       State.disable();
+      Budget.disable();
       Dictionary.disable();
       Memory.disable();
     }
@@ -185,6 +196,7 @@ export class SetupUtils {
       PersistMemoryAdapter.clear();
       PersistRecentAdapter.clear();
       PersistStateAdapter.clear();
+      PersistBudgetAdapter.clear();
       PersistDictionaryAdapter.clear();
       PersistSessionAdapter.clear();
       PersistStrategyAdapter.clear();
@@ -209,6 +221,11 @@ export class SetupUtils {
     {
       RecentLive.clear();
       RecentBacktest.clear();
+    }
+
+    {
+      BudgetLive.clear();
+      BudgetBacktest.clear();
     }
 
     {

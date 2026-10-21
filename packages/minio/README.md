@@ -116,6 +116,7 @@ Each adapter covers one persistence slot in backtest-kit. Everything lives in **
 | **Memory** | `memory-items/` | `signalId/bucket/memoryId` |
 | **Recent** | `recent-items/` | `symbol/strategy/exchange/frame/backtest` |
 | **State** | `state-items/` | `signalId/bucket` |
+| **Budget** | `budget-items/` | `strategy/exchange/frame/backtest/name` |
 | **Session** | `session-items/` | `strategy/exchange/frame/symbol/backtest` |
 
 `⟲ts` = inverted timestamp (`MAX_SAFE_INTEGER − ms`, zero-padded): plain lexicographic S3 listing yields **newest first** with no sorting. † = entity also maintained in the Redis time index (see below).
@@ -183,7 +184,7 @@ if (names.length) {
 <details>
 <summary>Look-ahead bias protection in the storage layer</summary>
 
-Adapters whose data influences decisions (Risk, Partial, Breakeven, Recent, State, Session, Memory, Interval) store `when` — the simulation timestamp in ms — alongside the payload, so backtest-kit can verify no read returns data written at a *future* simulation time. **Measure is exempt** because it caches LLM / external-API responses, where look-ahead bias is not meaningful.
+Adapters whose data influences decisions (Risk, Partial, Breakeven, Recent, State, Budget, Session, Memory, Interval) store `when` — the simulation timestamp in ms — alongside the payload, so backtest-kit can verify no read returns data written at a *future* simulation time. **Measure is exempt** because it caches LLM / external-API responses, where look-ahead bias is not meaningful.
 
 </details>
 
@@ -196,7 +197,7 @@ Adapters whose data influences decisions (Risk, Partial, Breakeven, Recent, Stat
 
 **Public surface** — `functions/setup.ts` (`setup`/`install`/`setLogger`), `config/params.ts` (`setConfig`/`getConfig`), `index.ts` re-exports + `getMinio`/`getRedis`/`waitForInit`/`BaseStorage`/`BaseMap`.
 
-**Adapter classes** (`classes/Persist*Instance.ts`) — each implements one backtest-kit `IPersist*Instance` contract and delegates to its domain DataService: `PersistCandleInstance`, `PersistSignalInstance`, `PersistScheduleInstance`, `PersistRiskInstance`, `PersistPartialInstance`, `PersistBreakevenInstance`, `PersistStorageInstance`, `PersistNotificationInstance`, `PersistLogInstance`, `PersistMeasureInstance`, `PersistIntervalInstance`, `PersistMemoryInstance`, `PersistRecentInstance`, `PersistStateInstance`, `PersistSessionInstance`.
+**Adapter classes** (`classes/Persist*Instance.ts`) — each implements one backtest-kit `IPersist*Instance` contract and delegates to its domain DataService: `PersistCandleInstance`, `PersistSignalInstance`, `PersistScheduleInstance`, `PersistRiskInstance`, `PersistPartialInstance`, `PersistBreakevenInstance`, `PersistStorageInstance`, `PersistNotificationInstance`, `PersistLogInstance`, `PersistMeasureInstance`, `PersistIntervalInstance`, `PersistMemoryInstance`, `PersistRecentInstance`, `PersistStateInstance`, `PersistBudgetInstance`, `PersistSessionInstance`.
 
 **Service layer** (`lib/services/`):
 - `base/` — `MinioService` (lazy MinIO client, ensures the bucket on first touch), `RedisService` (lazy ioredis), `LoggerService`.

@@ -164,6 +164,7 @@ const ZERO_PNL: IStrategyPnL = {
   priceClose: 0,
   pnlCost: 0,
   pnlEntries: 0,
+  pnlDividends: 0,
 };
 
 export const main = async () => {

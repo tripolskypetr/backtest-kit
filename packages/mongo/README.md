@@ -100,6 +100,7 @@ Each adapter covers one persistence slot in backtest-kit. The unique index is th
 | **Memory** | `memory-items` | `signalId + bucketName + memoryId` |
 | **Recent** | `recent-items` | `symbol + strategyName + exchangeName + frameName + backtest` |
 | **State** | `state-items` | `signalId + bucketName` |
+| **Budget** | `budget-items` | `strategyName + exchangeName + frameName + backtest + name` |
 | **Session** | `session-items` | `strategyName + exchangeName + frameName` |
 
 <details>
@@ -151,7 +152,7 @@ The filter matches the unique compound index, so MongoDB rejects any concurrent 
 <details>
 <summary>Look-ahead bias protection in the DB layer</summary>
 
-Adapters whose data influences decisions (Risk, Partial, Breakeven, Recent, State, Session, Memory, Interval) store `when: Number` — the simulation timestamp in ms — alongside the payload, so backtest-kit can verify no read returns data written at a *future* simulation time. **Measure is exempt** because it caches LLM / external-API responses, where look-ahead bias is not meaningful.
+Adapters whose data influences decisions (Risk, Partial, Breakeven, Recent, State, Budget, Session, Memory, Interval) store `when: Number` — the simulation timestamp in ms — alongside the payload, so backtest-kit can verify no read returns data written at a *future* simulation time. **Measure is exempt** because it caches LLM / external-API responses, where look-ahead bias is not meaningful.
 
 </details>
 
@@ -164,7 +165,7 @@ Adapters whose data influences decisions (Risk, Partial, Breakeven, Recent, Stat
 
 **Public surface** — `functions/setup.ts` (`setup`/`install`/`setConfig`/`getConfig`/`setLogger`), `index.ts` re-exports + `getMongo`/`getRedis`.
 
-**Adapter classes** (`classes/Persist*Instance.ts`, 16) — each implements one backtest-kit `IPersist*Instance` contract and delegates to its domain DbService: `PersistCandleInstance`, `PersistSignalInstance`, `PersistStrategyInstance`, `PersistScheduleInstance`, `PersistRiskInstance`, `PersistPartialInstance`, `PersistBreakevenInstance`, `PersistStorageInstance`, `PersistNotificationInstance`, `PersistLogInstance`, `PersistMeasureInstance`, `PersistIntervalInstance`, `PersistMemoryInstance`, `PersistRecentInstance`, `PersistStateInstance`, `PersistSessionInstance`.
+**Adapter classes** (`classes/Persist*Instance.ts`, 17) — each implements one backtest-kit `IPersist*Instance` contract and delegates to its domain DbService: `PersistCandleInstance`, `PersistSignalInstance`, `PersistStrategyInstance`, `PersistScheduleInstance`, `PersistRiskInstance`, `PersistPartialInstance`, `PersistBreakevenInstance`, `PersistStorageInstance`, `PersistNotificationInstance`, `PersistLogInstance`, `PersistMeasureInstance`, `PersistIntervalInstance`, `PersistMemoryInstance`, `PersistRecentInstance`, `PersistStateInstance`, `PersistBudgetInstance`, `PersistSessionInstance`.
 
 **Service layer** (`lib/services/`):
 - `base/` — `MongoService` (lazy Mongoose connection), `RedisService` (lazy ioredis), `LoggerService`.

@@ -252,6 +252,8 @@ const PERSIST_BUDGET_UTILS_METHOD_NAME_USE_DUMMY =
   "PersistBudgetUtils.useDummy";
 const PERSIST_BUDGET_UTILS_METHOD_NAME_USE_JSON =
   "PersistBudgetUtils.useJson";
+const PERSIST_BUDGET_UTILS_METHOD_NAME_CLEAR =
+  "PersistBudgetUtils.clear";
 
 const PERSIST_DICTIONARY_UTILS_METHOD_NAME_USE_PERSIST_DICTIONARY_ADAPTER =
   "PersistDictionaryUtils.usePersistDictionaryAdapter";
@@ -5872,6 +5874,15 @@ export class PersistBudgetUtils {
     LOGGER_SERVICE.log(PERSIST_BUDGET_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistBudgetAdapter(PersistBudgetInstance);
   }
+
+  /**
+   * Clears the memoized instance cache.
+   * Call when process.cwd() changes between strategy iterations.
+   */
+  public clear = () => {
+    LOGGER_SERVICE.info(PERSIST_BUDGET_UTILS_METHOD_NAME_CLEAR);
+    this.getBudgetStorage.clear();
+  };
 
   /**
    * Drops the memoized instance for the given context.
