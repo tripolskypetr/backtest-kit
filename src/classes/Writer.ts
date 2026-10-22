@@ -68,6 +68,8 @@ export interface IMarkdownTarget {
   highest_profit: boolean;
   /** Enable max drawdown milestone tracking reports */
   max_drawdown: boolean;
+  /** Enable budget journal reports (reserve / release / reject / deposit / withdraw rows) */
+  budget: boolean;
 }
 
 /** Symbol key for the singleshot waitForInit function on MarkdownFileBase instances. */
@@ -496,6 +498,8 @@ export interface IReportTarget {
   highest_profit: boolean;
   /** Enable max drawdown milestone event logging */
   max_drawdown: boolean;
+  /** Enable budget journal row logging */
+  budget: boolean;
 }
 
 /**

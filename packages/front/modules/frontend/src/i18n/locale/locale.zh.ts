@@ -296,6 +296,7 @@ export const LOCALE: Record<string, string> = {
   "Risk": "风险",
   "Partial": "部分",
   "Highest Profit": "最高盈利",
+  "Budget": "预算",
   "Schedule": "计划",
   "Sync": "同步",
   "Heat": "热力",

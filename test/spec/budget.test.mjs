@@ -9,6 +9,10 @@ import {
   PersistBudgetAdapter,
   ExecutionContextService,
   MethodContextService,
+  ReportWriter,
+  Markdown,
+  listenBudget,
+  getConfig,
 } from "../../build/index.mjs";
 
 // Budget contract (PLAN.md stages 1–2): one journal per
@@ -411,5 +415,75 @@ test("budget: an overdraft healed by an earlier release that arrived later is cl
   if (!rejectRow) return fail(`the refusal made during the shortfall must stay in the journal: ${history.map((r) => r.type).join(",")}`);
   const free = await inContext("BTCUSDT", at(20), () => fund.getFree());
   if (free !== 300) return fail(`current free expected 300, got ${free}`);
+  pass();
+});
+
+// ---------------------------------------------------------------------------
+// Stage 4: budget.jsonl, the budget markdown report, listenBudget
+// ---------------------------------------------------------------------------
+test("budget: every journal row goes to budget.jsonl, the budget markdown report and listenBudget", async ({ pass, fail }) => {
+  Budget.enable();
+  const fund = new Budget({ name: "fund", initialCapital: 1000 });
+
+  // capture everything the report writer is asked to persist (no files)
+  const rows = [];
+  ReportWriter.useReportAdapter(class {
+    constructor(reportName) { this.reportName = reportName; }
+    async waitForInit() {}
+    async write(data, options) { rows.push({ reportName: this.reportName, data, options }); }
+  });
+  const events = [];
+  const unlisten = listenBudget((event) => { events.push(event); });
+
+  try {
+    await inContext("BTCUSDT", at(1), () => fund.reserve({ id: "sig-1", amount: 400, note: "entry" }));
+    await inContext("BTCUSDT", at(3), () => fund.release({ id: "sig-1", pnl: 50 }));
+    const refused = await expectRejected(() => inContext("ETHUSDT", at(4), () => fund.reserve({ id: "sig-2", amount: 2000 })));
+    if (!refused) return fail("the oversized reserve must be refused");
+    await inContext("ETHUSDT", at(5), () => fund.deposit({ asset: "ETH", amount: 2 }));
+    await inContext("ETHUSDT", at(6), () => fund.withdraw({ asset: "ETH", amount: 1 }));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  } finally {
+    unlisten();
+    ReportWriter.useDummy();
+  }
+
+  // budget.jsonl: one flat row per journal row, in insertion order
+  const written = rows.filter((r) => r.reportName === "budget");
+  const types = written.map((r) => r.data.type);
+  if (types.join(",") !== "reserve,release,reject,deposit,withdraw") return fail(`budget.jsonl rows expected reserve,release,reject,deposit,withdraw, got ${types.join(",")} (reports seen: ${[...new Set(rows.map((r) => r.reportName))].join(",")})`);
+  const [reserve, release, reject] = written.map((r) => r.data);
+  if (reserve.name !== "fund" || reserve.strategyName !== METHOD.strategyName || reserve.exchangeName !== METHOD.exchangeName || reserve.frameName !== METHOD.frameName || reserve.backtest !== true) return fail(`the row must carry the record key and the name: ${JSON.stringify(reserve)}`);
+  if (reserve.symbol !== "BTCUSDT" || reserve.timestamp !== at(1).getTime() || reserve.id !== "sig-1" || reserve.amount !== 400 || reserve.note !== "entry" || reserve.seq !== 1) return fail(`reserve row fields wrong: ${JSON.stringify(reserve)}`);
+  if (reserve.balance.free !== 600 || release.balance.capital !== 1050 || release.pnl !== 50) return fail(`balances after the rows wrong: ${JSON.stringify([reserve.balance, release.balance])}`);
+  if (reject.action !== "reserve" || reject.requested !== 2000 || reject.available !== 1050 || reject.asset !== "capital") return fail(`reject row wrong: ${JSON.stringify(reject)}`);
+  const { options } = written[0];
+  if (options.strategyName !== METHOD.strategyName || options.symbol !== "BTCUSDT" || options.signalId !== "" || options.walkerName !== "") return fail(`search keys wrong: ${JSON.stringify(options)}`);
+
+  // listenBudget: the same five events, with the row and a Date
+  if (events.length !== 5) return fail(`listenBudget expected 5 events, got ${events.length}`);
+  if (events[0].row.type !== "reserve" || events[0].name !== "fund" || !(events[0].when instanceof Date) || events[0].when.getTime() !== events[0].timestamp || events[0].timestamp !== at(1).getTime()) return fail(`first event wrong: ${JSON.stringify(events[0])}`);
+  if (events[2].row.type !== "reject" || events[2].symbol !== "ETHUSDT") return fail(`third event wrong: ${JSON.stringify(events[2])}`);
+
+  // markdown report: newest first, totals, the empty state for an unknown budget
+  const context = { ...METHOD, name: "fund" };
+  const data = await Budget.getData(context, true);
+  if (data.totalEvents !== 5 || data.totalRejects !== 1 || data.totalOverdrafts !== 0) return fail(`getData totals wrong: ${JSON.stringify({ totalEvents: data.totalEvents, totalRejects: data.totalRejects, totalOverdrafts: data.totalOverdrafts })}`);
+  if (data.eventList[0].type !== "withdraw" || data.eventList[4].type !== "reserve" || data.eventList[4].name !== "fund") return fail(`eventList must be newest first: ${data.eventList.map((e) => e.type).join(",")}`);
+  const report = await Budget.getReport(context, true);
+  for (const needle of ["# Budget Report: budget-strategy:fund", "| RESERVE |", "| REJECT RESERVE |", "| WITHDRAW |", "1050.00 USD", "ETH: 1.00", "**Total rows:** 5", "**Rejects:** 1", "**Overdrafts:** 0", "| Backtest |"]) {
+    if (!report.includes(needle)) return fail(`report must contain ${JSON.stringify(needle)}:\n${report}`);
+  }
+  const showNote = getConfig().CC_REPORT_SHOW_SIGNAL_NOTE;
+  if (report.includes("| Note |") !== showNote || report.includes("| entry |") !== showNote) return fail(`the note column follows CC_REPORT_SHOW_SIGNAL_NOTE=${showNote}:\n${report}`);
+  const empty = await Budget.getReport({ ...METHOD, name: "other" }, true);
+  if (!empty.includes("No budget rows recorded yet.")) return fail(`unknown budget must give the empty report, got:\n${empty}`);
+  const live = await Budget.getData(context, false);
+  if (live.totalEvents !== 0) return fail(`the live bucket must stay empty, got ${live.totalEvents}`);
+
+  // Markdown.clear({ budget: true }) empties the buckets
+  Markdown.clear({ budget: true });
+  const cleared = await Budget.getData(context, true);
+  if (cleared.totalEvents !== 0) return fail(`after clear expected 0 rows, got ${cleared.totalEvents}`);
   pass();
 });

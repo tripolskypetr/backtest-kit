@@ -296,6 +296,7 @@ export const LOCALE: Record<string, string> = {
   "Risk": "Risk",
   "Partial": "Kısmi",
   "Highest Profit": "En Yüksek Kâr",
+  "Budget": "Bütçe",
   "Schedule": "Zamanlama",
   "Sync": "Senkronizasyon",
   "Heat": "Isı Haritası",

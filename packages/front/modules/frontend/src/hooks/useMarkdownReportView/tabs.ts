@@ -52,6 +52,10 @@ export const tabs: ITabsStep[] = [
         id: "heat",
         label: t("Heat"),
     },
+    {
+        id: "budget",
+        label: t("Budget"),
+    },
 ];
 
 export default tabs;

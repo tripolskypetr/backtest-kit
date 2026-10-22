@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, syncPendingSubject, orderFillSubject, orderRejectSubject, orderContinueSubject, orderStopSubject, highestProfitSubject, maxDrawdownSubject, pauseSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, syncPendingSubject, orderFillSubject, orderRejectSubject, orderContinueSubject, orderStopSubject, highestProfitSubject, maxDrawdownSubject, budgetSubject, pauseSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -30,6 +30,7 @@ import { PauseContract } from "../contract/Pause.contract";
 import { SignalInfoContract } from "../contract/SignalInfo.contract";
 import { BeforeStartContract } from "../contract/BeforeStart.contract";
 import { AfterEndContract } from "../contract/AfterEnd.contract";
+import { BudgetContract } from "../contract/Budget.contract";
 
 const LISTEN_SIGNAL_METHOD_NAME = "event.listenSignal";
 const LISTEN_SIGNAL_ONCE_METHOD_NAME = "event.listenSignalOnce";
@@ -79,6 +80,8 @@ const LISTEN_ORDER_STOP_METHOD_NAME = "event.listenOrderStop";
 const LISTEN_CHECK_METHOD_NAME = "event.listenCheck";
 const LISTEN_HIGHEST_PROFIT_METHOD_NAME = "event.listenHighestProfit";
 const LISTEN_HIGHEST_PROFIT_ONCE_METHOD_NAME = "event.listenHighestProfitOnce";
+const LISTEN_BUDGET_METHOD_NAME = "event.listenBudget";
+const LISTEN_BUDGET_ONCE_METHOD_NAME = "event.listenBudgetOnce";
 const LISTEN_MAX_DRAWDOWN_METHOD_NAME = "event.listenMaxDrawdown";
 const LISTEN_MAX_DRAWDOWN_ONCE_METHOD_NAME = "event.listenMaxDrawdownOnce";
 const LISTEN_PAUSE_METHOD_NAME = "event.listenPause";
@@ -2037,6 +2040,54 @@ export function listenHighestProfitOnce(
   };
 
   return disposeFn = listenHighestProfit(wrappedFn);
+}
+
+/**
+ * Subscribes to budget journal events with queued async processing.
+ * Emits one event per row inserted into a budget record (reserve / release /
+ * reject / deposit / withdraw) by `Budget`, with the record key, the budget
+ * name and the row (balance after it included). No pending-signal gate: a
+ * budget record is not bound to a signal.
+ * Events are processed sequentially in order received, even if callback is async.
+ *
+ * @param fn - Callback function to handle budget events
+ * @return Unsubscribe function to stop listening to events
+ */
+export function listenBudget(fn: (event: BudgetContract) => void) {
+  backtest.loggerService.log(LISTEN_BUDGET_METHOD_NAME);
+
+  const wrappedFn = async (event: BudgetContract) => {
+    await fn(event);
+  };
+
+  return budgetSubject.subscribe(queued(wrappedFn));
+}
+
+/**
+ * Subscribes to filtered budget journal events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+export function listenBudgetOnce(
+  filterFn: (event: BudgetContract) => boolean | Promise<boolean>,
+  fn: (event: BudgetContract) => void
+) {
+  backtest.loggerService.log(LISTEN_BUDGET_ONCE_METHOD_NAME);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: BudgetContract) => {
+    if (await filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenBudget(wrappedFn);
 }
 
 /**

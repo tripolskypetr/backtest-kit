@@ -2454,7 +2454,7 @@ Set with `setConfig(partial)` **before running any strategy**. `getConfig()` ret
 
 ### 26.6 Report row caps
 
-`CC_MAX_*_MARKDOWN_ROWS` cap how many events each report retains (FIFO eviction). All default to **250** except where noted: `CC_MAX_BACKTEST_MARKDOWN_ROWS`, `CC_MAX_BREAKEVEN_MARKDOWN_ROWS`, `CC_MAX_HEATMAP_MARKDOWN_ROWS`, `CC_MAX_HIGHEST_PROFIT_MARKDOWN_ROWS`, `CC_MAX_MAX_DRAWDOWN_MARKDOWN_ROWS`, `CC_MAX_LIVE_MARKDOWN_ROWS`, `CC_MAX_PARTIAL_MARKDOWN_ROWS`, `CC_MAX_RISK_MARKDOWN_ROWS`, `CC_MAX_SCHEDULE_MARKDOWN_ROWS`, `CC_MAX_STRATEGY_MARKDOWN_ROWS`, `CC_MAX_SYNC_MARKDOWN_ROWS`. Larger caps: `CC_MAX_PERFORMANCE_MARKDOWN_ROWS = 10000`, plus storage caps `CC_MAX_NOTIFICATIONS = 500`, `CC_MAX_SIGNALS = 50`, `CC_MAX_LOG_LINES = 1000`, and `CC_WALKER_MARKDOWN_TOP_N = 10`. `CC_REPORT_SHOW_SIGNAL_NOTE = false` toggles the "Note" column across all report tables.
+`CC_MAX_*_MARKDOWN_ROWS` cap how many events each report retains (FIFO eviction). All default to **250** except where noted: `CC_MAX_BACKTEST_MARKDOWN_ROWS`, `CC_MAX_BREAKEVEN_MARKDOWN_ROWS`, `CC_MAX_HEATMAP_MARKDOWN_ROWS`, `CC_MAX_HIGHEST_PROFIT_MARKDOWN_ROWS`, `CC_MAX_MAX_DRAWDOWN_MARKDOWN_ROWS`, `CC_MAX_BUDGET_MARKDOWN_ROWS`, `CC_MAX_LIVE_MARKDOWN_ROWS`, `CC_MAX_PARTIAL_MARKDOWN_ROWS`, `CC_MAX_RISK_MARKDOWN_ROWS`, `CC_MAX_SCHEDULE_MARKDOWN_ROWS`, `CC_MAX_STRATEGY_MARKDOWN_ROWS`, `CC_MAX_SYNC_MARKDOWN_ROWS`. Larger caps: `CC_MAX_PERFORMANCE_MARKDOWN_ROWS = 10000`, plus storage caps `CC_MAX_NOTIFICATIONS = 500`, `CC_MAX_SIGNALS = 50`, `CC_MAX_LOG_LINES = 1000`, and `CC_WALKER_MARKDOWN_TOP_N = 10`. `CC_REPORT_SHOW_SIGNAL_NOTE = false` toggles the "Note" column across all report tables.
 
 ```typescript
 setConfig({
@@ -2647,11 +2647,11 @@ Everything below is exported from the `backtest-kit` package root.
 
 **Control & setup:** `stopStrategy` `shutdown` `waitForReady` `setLogger` `setConfig` `getConfig` `getDefaultConfig` `setColumns` `getColumns` `getDefaultColumns`
 
-**Events:** `listenSignal(+Once/Backtest/Live)` `listenError` `listenExit` `listenDoneLive` `listenDoneBacktest` `listenDoneWalker` `listenBacktestProgress` `listenPerformance` `listenWalker(+Once/Complete/Progress)` `listenValidation` `listenPartialLossAvailable(+Once)` `listenPartialProfitAvailable(+Once)` `listenBreakevenAvailable(+Once)` `listenRisk(+Once)` `listenSchedulePing(+Once)` `listenActivePing(+Once)` `listenIdlePing(+Once)` `listenStrategyCommit(+Once)` `listenSync(+Once)` `listenCheck(+Once)` `listenHighestProfit(+Once)` `listenMaxDrawdown(+Once)` `listenSignalNotify(+Once)` `listenBeforeStart(+Once)` `listenAfterEnd(+Once)` · `emitters`
+**Events:** `listenSignal(+Once/Backtest/Live)` `listenError` `listenExit` `listenDoneLive` `listenDoneBacktest` `listenDoneWalker` `listenBacktestProgress` `listenPerformance` `listenWalker(+Once/Complete/Progress)` `listenValidation` `listenPartialLossAvailable(+Once)` `listenPartialProfitAvailable(+Once)` `listenBreakevenAvailable(+Once)` `listenRisk(+Once)` `listenSchedulePing(+Once)` `listenActivePing(+Once)` `listenIdlePing(+Once)` `listenStrategyCommit(+Once)` `listenSync(+Once)` `listenCheck(+Once)` `listenHighestProfit(+Once)` `listenMaxDrawdown(+Once)` `listenBudget(+Once)` `listenSignalNotify(+Once)` `listenBeforeStart(+Once)` `listenAfterEnd(+Once)` · `emitters`
 
 **Broker / Cron / persistence:** `Broker` `BrokerBase` `IBroker` `TBrokerCtor` + all `Broker*Payload` types · `OrderTransientError` `OrderRejectedError` `OrderDeletedError` (typed gate/check outcomes, [§42](#42-adaptive-broker-three-error-classes-bounded-retries--attempt)) · `IBrokerOrderVerdict` `BROKER_ORDER_VERDICT` (framework-side verdict union + runtime brand) · `Cron` (`CronEntry` `CronHandle` `CronCallback`) · `PersistBase` + the 15-domain `Persist*Adapter` / `IPersist*Instance` / `Persist*Instance` / `*Data` sets · `Session`/`Storage`/`Recent`/`Memory`/`State`/`Notification`/`Dump` utility classes & variants
 
-**Models & types:** `BacktestStatisticsModel` `LiveStatisticsModel` `HeatmapStatisticsModel` `ScheduleStatisticsModel` `PerformanceStatisticsModel` `WalkerStatisticsModel` `PartialStatisticsModel` `HighestProfitStatisticsModel` `MaxDrawdownStatisticsModel` `RiskStatisticsModel` `BreakevenStatisticsModel` `StrategyStatisticsModel` · `NotificationModel` (+ all notification variants) · `MessageModel` · `ColumnModel` · all `I*Schema` / `I*` interfaces and `*Name` aliases listed throughout this document.
+**Models & types:** `BacktestStatisticsModel` `LiveStatisticsModel` `HeatmapStatisticsModel` `ScheduleStatisticsModel` `PerformanceStatisticsModel` `WalkerStatisticsModel` `PartialStatisticsModel` `HighestProfitStatisticsModel` `MaxDrawdownStatisticsModel` `BudgetStatisticsModel` `RiskStatisticsModel` `BreakevenStatisticsModel` `StrategyStatisticsModel` · `NotificationModel` (+ all notification variants) · `MessageModel` · `ColumnModel` · all `I*Schema` / `I*` interfaces and `*Name` aliases listed throughout this document.
 
 **Math & utils:** `percentDiff` `percentValue` `investedCostToPercent` `slPriceToPercentShift` `tpPriceToPercentShift` `slPercentShiftToPrice` `tpPercentShiftToPrice` `percentToCloseCost` · `alignToInterval` `intervalStepMs` `waitForCandle` `roundTicks` `parseArgs` `beginContext` `beginTime` `get` `set` `getBacktestTimeframe` · `validate` `validateSignal` `validateCandles` `validateCommonSignal` `validatePendingSignal` `validateScheduledSignal` · `toProfitLossDto` `toPlainString` `getEffectivePriceOpen` `getTotalClosed` `getPriceScale` · `lib`
 
@@ -3458,6 +3458,7 @@ The framework auto-generates **13 distinct markdown reports**, one per analytics
 | 11 | `# Strategy Report:` | `Strategy` | `./dump/strategy/` | `strategyCommitSubject` (commit events) | `CC_MAX_STRATEGY_MARKDOWN_ROWS` (250) |
 | 12 | `# Signal Sync Report:` | `Sync` | `./dump/sync/` | `syncSubject` (open/close sync) | `CC_MAX_SYNC_MARKDOWN_ROWS` (250) |
 | 13 | `# Performance Report:` | `Performance` | `./dump/performance/` | `performanceEmitter` (timing metrics) | `CC_MAX_PERFORMANCE_MARKDOWN_ROWS` (10000) |
+| 14 | `# Budget Report:` | `Budget` (statics `getData` / `getReport` / `dump`) | `./dump/budget/` | `budgetSubject` (every journal row) | `CC_MAX_BUDGET_MARKDOWN_ROWS` (250) |
 
 Dump filenames embed the context and a timestamp: `{symbol}_{strategyName}_{exchangeName}_{frameName}_backtest-{ts}.md` (backtest) or `{symbol}_{strategyName}_{exchangeName}_live-{ts}.md` (live). Backtest/Live/Heat reports are keyed per `(symbol, strategy, exchange, frame, mode)`; clearing one context (`clear(...)`) does not touch others. The `MarkdownWriter` adapter ([§14.9](#149-lookup--parallel-run-coordination)/persistence) decides the physical sink — separate `.md` files (`useMd`, default), one JSONL stream (`useJsonl`), or silent (`useDummy`).
 
@@ -3487,6 +3488,8 @@ Statistical gates (verified constants): per-trade ratios are `null` below **10**
 **Highest Profit (9)** & **Max Drawdown (10)** — per-signal best favorable / worst adverse excursion events (`HighestProfitEvent` / `MaxDrawdownEvent`: PNL, peak/trough price + timestamp, position) newest-first, with total counts.
 
 **Strategy (11)** — an audit log of every commit (`StrategyEvent`): cancel-scheduled, close-pending, partial profit/loss, trailing stop/take, breakeven, activate-scheduled, average-buy — with price, percent, effective entry, DCA entry count/cost, and a note. `StrategyStatisticsModel` totals each action type.
+
+**Budget (14)** — the journal of a shared budget record (`BudgetEvent` = journal row + record key + budget name: reserve / release / reject / deposit / withdraw with the balance after the row) newest-first, with `totalEvents` / `totalRejects` / `totalOverdrafts`. Keyed by `(strategyName, exchangeName, frameName, backtest, name)` — no symbol, one bucket per budget of the run.
 
 **Sync (12)** — signal open/close synchronization lifecycle (`SyncEvent`: entry/exit prices, TP/SL, PNL, close reason) with `totalEvents`/`openCount`/`closeCount` — the audit trail behind broker order routing ([§19](#19-sync-order-synchronization)).
 
@@ -3531,9 +3534,9 @@ Report.enable({ backtest: true, walker: true, performance: false });
 stop();                                                        // unsubscribe all
 ```
 
-Config keys (all `boolean`, default `true`): `backtest`, `live`, `walker`, `heat`, `schedule`, `partial`, `risk`, `breakeven`, `highest_profit`, `max_drawdown`, `strategy`, `sync`, `performance`. The physical sink is the `ReportWriter` adapter — `useJsonl` (default, appends to `./dump/report/{type}.jsonl`) or `useDummy` (discard, for tests); you can register a custom writer (e.g. the MongoDB adapter, [§25](#25-persistence-adapters)). Every row is written with search keys `{ symbol, strategyName, exchangeName, frameName, signalId, walkerName }`, and `ReportBase`/`MarkdownFileBase` expose a `search(...)` over those keys so the JSONL can be queried by context.
+Config keys (all `boolean`, default `true`): `backtest`, `live`, `walker`, `heat`, `schedule`, `partial`, `risk`, `breakeven`, `highest_profit`, `max_drawdown`, `strategy`, `sync`, `performance`, `budget`. The physical sink is the `ReportWriter` adapter — `useJsonl` (default, appends to `./dump/report/{type}.jsonl`) or `useDummy` (discard, for tests); you can register a custom writer (e.g. the MongoDB adapter, [§25](#25-persistence-adapters)). Every row is written with search keys `{ symbol, strategyName, exchangeName, frameName, signalId, walkerName }`, and `ReportBase`/`MarkdownFileBase` expose a `search(...)` over those keys so the JSONL can be queried by context.
 
-### 38.3 The 13 streams
+### 38.3 The 14 streams
 
 | `reportType` (file) | Fed by | Row = one … |
 | --- | --- | --- |
@@ -3550,6 +3553,7 @@ Config keys (all `boolean`, default `true`): `backtest`, `live`, `walker`, `heat
 | `strategy` → `strategy.jsonl` | `strategyCommitSubject` | commit (cancel/close/partial/trailing/breakeven/activate/average-buy) |
 | `sync` → `sync.jsonl` | `syncSubject` | signal open/close sync event |
 | `performance` → `performance.jsonl` | `performanceEmitter` | timing metric sample |
+| `budget` → `budget.jsonl` | `budgetSubject` | budget journal row (`reserve` / `release` / `reject` / `deposit` / `withdraw`) with the record key, budget `name`, authoring `symbol` and the balance after the row |
 
 ### 38.4 Row shape
 
@@ -3705,7 +3709,7 @@ Default `false` for the three `*_EVERYWHERE` (conservative); the DCA/PPPL/traili
 
 ### 40.6 `COLUMN_CONFIG` — report table columns
 
-`src/config/columns.ts` exports `COLUMN_CONFIG`, mapping each report to a column array imported from `src/assets/*.columns`. There are **14 collections** (Walker has two): `backtest_columns`, `heat_columns`, `live_columns`, `partial_columns`, `breakeven_columns`, `performance_columns`, `risk_columns`, `schedule_columns`, `strategy_columns`, `sync_columns`, `highest_profit_columns`, `max_drawdown_columns`, `walker_pnl_columns`, `walker_strategy_columns`.
+`src/config/columns.ts` exports `COLUMN_CONFIG`, mapping each report to a column array imported from `src/assets/*.columns`. There are **15 collections** (Walker has two): `backtest_columns`, `heat_columns`, `live_columns`, `partial_columns`, `breakeven_columns`, `performance_columns`, `risk_columns`, `schedule_columns`, `strategy_columns`, `sync_columns`, `highest_profit_columns`, `max_drawdown_columns`, `budget_columns`, `walker_pnl_columns`, `walker_strategy_columns`.
 
 Each entry is a `ColumnModel` (`{ key, label, format(row, index) => string, isVisible() => boolean }`) — `format` builds the cell, `isVisible` gates the whole column (e.g. the Note column returns `GLOBAL_CONFIG.CC_REPORT_SHOW_SIGNAL_NOTE`). Override globally with `setColumns({ <collection>: [...] })` or per-call via the `columns` argument to `getReport`/`dump`; both paths run `ColumnValidationService` ([§39.3](#393-global-config--column-validation)) and roll back on failure. Inspect with `getColumns()` / `getDefaultColumns()` (`ColumnConfig` is the exported type). The markdown services iterate visible columns to build the table header + rows ([§37.3](#373-customizing-report-columns)).
 

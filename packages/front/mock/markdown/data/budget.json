@@ -1,0 +1,81 @@
+{
+  "eventList": [
+    {
+      "type": "withdraw",
+      "asset": "ETH",
+      "amount": 1,
+      "timestamp": 1705316760000,
+      "symbol": "ETHUSDT",
+      "seq": 5,
+      "balance": { "capital": 10050, "deployed": 0, "free": 10050, "assets": { "ETH": 1 } },
+      "strategyName": "mock-strategy",
+      "exchangeName": "binance",
+      "frameName": "mock-frame",
+      "backtest": true,
+      "name": "fund"
+    },
+    {
+      "type": "deposit",
+      "asset": "ETH",
+      "amount": 2,
+      "timestamp": 1705316700000,
+      "symbol": "ETHUSDT",
+      "seq": 4,
+      "balance": { "capital": 10050, "deployed": 0, "free": 10050, "assets": { "ETH": 2 } },
+      "strategyName": "mock-strategy",
+      "exchangeName": "binance",
+      "frameName": "mock-frame",
+      "backtest": true,
+      "name": "fund"
+    },
+    {
+      "type": "reject",
+      "action": "reserve",
+      "asset": "capital",
+      "requested": 20000,
+      "available": 10050,
+      "timestamp": 1705316640000,
+      "symbol": "ETHUSDT",
+      "seq": 3,
+      "balance": { "capital": 10050, "deployed": 0, "free": 10050, "assets": {} },
+      "strategyName": "mock-strategy",
+      "exchangeName": "binance",
+      "frameName": "mock-frame",
+      "backtest": true,
+      "name": "fund"
+    },
+    {
+      "type": "release",
+      "id": "abc123",
+      "amount": 4000,
+      "pnl": 50,
+      "timestamp": 1705316580000,
+      "symbol": "BTCUSDT",
+      "seq": 2,
+      "balance": { "capital": 10050, "deployed": 0, "free": 10050, "assets": {} },
+      "strategyName": "mock-strategy",
+      "exchangeName": "binance",
+      "frameName": "mock-frame",
+      "backtest": true,
+      "name": "fund"
+    },
+    {
+      "type": "reserve",
+      "id": "abc123",
+      "amount": 4000,
+      "note": "entry",
+      "timestamp": 1705316460000,
+      "symbol": "BTCUSDT",
+      "seq": 1,
+      "balance": { "capital": 10000, "deployed": 4000, "free": 6000, "assets": {} },
+      "strategyName": "mock-strategy",
+      "exchangeName": "binance",
+      "frameName": "mock-frame",
+      "backtest": true,
+      "name": "fund"
+    }
+  ],
+  "totalEvents": 5,
+  "totalRejects": 1,
+  "totalOverdrafts": 0
+}

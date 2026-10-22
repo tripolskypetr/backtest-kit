@@ -296,6 +296,7 @@ export const LOCALE: Record<string, string> = {
   "Risk": "रिस्क",
   "Partial": "आंशिक",
   "Highest Profit": "उच्चतम लाभ",
+  "Budget": "बजट",
   "Schedule": "शेड्यूल",
   "Sync": "सिंक",
   "Heat": "हीट",

@@ -6,6 +6,8 @@ import { FrameName } from "../interfaces/Frame.interface";
 import { BudgetRejectedError } from "../error/BudgetRejectedError";
 import { BudgetMissingError } from "../error/BudgetMissingError";
 import swarm, { ExecutionContextService, MethodContextService } from "../lib";
+import { budgetSubject } from "../config/emitters";
+import type { Columns } from "../lib/services/markdown/BudgetMarkdownService";
 
 /**
  * Memo key of a budget record instance: the record key plus the budget name.
@@ -49,6 +51,9 @@ const BUDGET_LIVE_ADAPTER_METHOD_NAME_CLEAR = "BudgetLiveAdapter.clear";
 const BUDGET_METHOD_NAME_ENABLE = "Budget.enable";
 const BUDGET_METHOD_NAME_DISABLE = "Budget.disable";
 const BUDGET_METHOD_NAME_STATIC_GET_NAMES = "Budget._getNames";
+const BUDGET_METHOD_NAME_GET_DATA = "Budget.getData";
+const BUDGET_METHOD_NAME_GET_REPORT = "Budget.getReport";
+const BUDGET_METHOD_NAME_DUMP = "Budget.dump";
 const BUDGET_METHOD_NAME_STATIC_GET_BALANCE = "Budget._getBalance";
 const BUDGET_METHOD_NAME_STATIC_GET_FREE = "Budget._getFree";
 const BUDGET_METHOD_NAME_STATIC_GET_HISTORY = "Budget._getHistory";
@@ -570,6 +575,9 @@ export class BudgetLocalInstance implements IBudgetInstance {
     if (typeof row === "symbol") {
       return null;
     }
+    if (row) {
+      await EMIT_ROW_FN(this, row);
+    }
     return row;
   }
 
@@ -750,6 +758,9 @@ export class BudgetPersistInstance implements IBudgetInstance {
     if (typeof row === "symbol") {
       return null;
     }
+    if (row) {
+      await EMIT_ROW_FN(this, row);
+    }
     return row;
   }
 
@@ -765,6 +776,24 @@ export class BudgetPersistInstance implements IBudgetInstance {
     await PersistBudgetAdapter.dispose(this.key, this.name);
   }
 }
+
+/** Every inserted row goes to `budgetSubject` (budget.jsonl, the budget markdown report, `listenBudget`) */
+const EMIT_ROW_FN = async (
+  self: BudgetLocalInstance | BudgetPersistInstance,
+  row: IBudgetHistoryRow,
+): Promise<void> => {
+  await budgetSubject.next({
+    strategyName: self.strategyName,
+    exchangeName: self.exchangeName,
+    frameName: self.frameName,
+    backtest: self.backtest,
+    name: self.name,
+    symbol: row.symbol,
+    timestamp: row.timestamp,
+    when: new Date(row.timestamp),
+    row: structuredClone(row),
+  });
+};
 
 /** I6: an overdraft is never hidden — every row that got one is logged */
 const WARN_OVERDRAFTS_FN = (
@@ -1109,6 +1138,11 @@ const ASSERT_AMOUNT_FN = (method: string, amount: number): void => {
  *   logged, never hidden — `getFree()` goes negative and later reserves are
  *   refused until releases bring it back.
  *
+ * Every inserted row is emitted on `budgetSubject`: `Report.enable()` writes it
+ * to `./dump/report/budget.jsonl`, `Markdown.enable()` accumulates it for the
+ * `# Budget Report:` markdown (`Budget.getData` / `getReport` / `dump`, keyed by
+ * the record key and the budget name), and `listenBudget` hands it to user code.
+ *
  * Requires an explicit `Budget.enable()` call before use, like `State.enable()`.
  *
  * @example
@@ -1193,6 +1227,60 @@ export class Budget {
       return await BudgetBacktest.setState(dispatch, dto);
     }
     return await BudgetLive.setState(dispatch, dto);
+  };
+
+  /**
+   * Rows of the budget markdown report (`BudgetMarkdownService`) accumulated
+   * for a record: every row inserted since `Markdown.enable()`, newest first,
+   * capped by `CC_MAX_BUDGET_MARKDOWN_ROWS`. The record key is taken as given
+   * (no schema validation): a budget needs no schema of its own.
+   *
+   * @param context - Record key (strategy, exchange, frame) and the budget name
+   * @param backtest - Whether to query the backtest record (default: false)
+   * @returns Promise resolving to BudgetStatisticsModel
+   */
+  public static getData = async (
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; name: BudgetName },
+    backtest = false,
+  ) => {
+    swarm.loggerService.info(BUDGET_METHOD_NAME_GET_DATA, { context, backtest });
+    return await swarm.budgetMarkdownService.getData(context.strategyName, context.exchangeName, context.frameName, backtest, context.name);
+  };
+
+  /**
+   * Markdown report of the budget journal rows accumulated for a record
+   * (`# Budget Report: {strategyName}:{name}`).
+   *
+   * @param context - Record key (strategy, exchange, frame) and the budget name
+   * @param backtest - Whether to query the backtest record (default: false)
+   * @param columns - Optional column configuration (default: COLUMN_CONFIG.budget_columns)
+   * @returns Promise resolving to the markdown string
+   */
+  public static getReport = async (
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; name: BudgetName },
+    backtest = false,
+    columns?: Columns[],
+  ): Promise<string> => {
+    swarm.loggerService.info(BUDGET_METHOD_NAME_GET_REPORT, { context, backtest });
+    return await swarm.budgetMarkdownService.getReport(context.strategyName, context.exchangeName, context.frameName, backtest, context.name, columns);
+  };
+
+  /**
+   * Generates the markdown report and saves it to disk via `MarkdownWriter`.
+   *
+   * @param context - Record key (strategy, exchange, frame) and the budget name
+   * @param backtest - Whether to query the backtest record (default: false)
+   * @param path - Output directory path (default: "./dump/budget")
+   * @param columns - Optional column configuration (default: COLUMN_CONFIG.budget_columns)
+   */
+  public static dump = async (
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; name: BudgetName },
+    backtest = false,
+    path?: string,
+    columns?: Columns[],
+  ): Promise<void> => {
+    swarm.loggerService.info(BUDGET_METHOD_NAME_DUMP, { context, backtest, path });
+    await swarm.budgetMarkdownService.dump(context.strategyName, context.exchangeName, context.frameName, backtest, context.name, path, columns);
   };
 
   /**

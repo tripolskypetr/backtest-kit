@@ -21,6 +21,7 @@ const readRisk = makeReader("risk.md");
 const readPartial = makeReader("partial.md");
 const readHighestProfit = makeReader("highest_profit.md");
 const readMaxDrawdown = makeReader("max_drawdown.md");
+const readBudget = makeReader("budget.md");
 const readSchedule = makeReader("schedule.md");
 const readPerformance = makeReader("performance.md");
 const readSync = makeReader("sync.md");
@@ -35,6 +36,7 @@ const readRiskData = makeDataReader("risk.json");
 const readPartialData = makeDataReader("partial.json");
 const readHighestProfitData = makeDataReader("highest_profit.json");
 const readMaxDrawdownData = makeDataReader("max_drawdown.json");
+const readBudgetData = makeDataReader("budget.json");
 const readScheduleData = makeDataReader("schedule.json");
 const readPerformanceData = makeDataReader("performance.json");
 const readSyncData = makeDataReader("sync.json");
@@ -126,6 +128,18 @@ export class MarkdownMockService {
   public getHighestProfitReport = async (symbol: string, strategyName: string, exchangeName: string, frameName: string): Promise<string> => {
     this.loggerService.log("markdownMockService getHighestProfitReport", { symbol, strategyName, exchangeName, frameName });
     return readHighestProfit();
+  };
+
+  // Budget
+
+  public getBudgetData = async (strategyName: string, exchangeName: string, frameName: string) => {
+    this.loggerService.log("markdownMockService getBudgetData", { strategyName, exchangeName, frameName });
+    return readBudgetData();
+  };
+
+  public getBudgetReport = async (strategyName: string, exchangeName: string, frameName: string): Promise<string> => {
+    this.loggerService.log("markdownMockService getBudgetReport", { strategyName, exchangeName, frameName });
+    return readBudget();
   };
 
   // MaxDrawdown

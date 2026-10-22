@@ -362,6 +362,13 @@ export const GLOBAL_CONFIG = {
    */
   CC_MAX_MAX_DRAWDOWN_MARKDOWN_ROWS: 250,
   /**
+   * Maximum number of journal rows to keep in budget markdown report storage.
+   * Older rows are removed (FIFO) when this limit is exceeded.
+   *
+   * Default: 250 rows
+   */
+  CC_MAX_BUDGET_MARKDOWN_ROWS: 250,
+  /**
    * Maximum number of events to keep in live markdown report storage.
    * Older events are removed (FIFO) when this limit is exceeded.
    *
