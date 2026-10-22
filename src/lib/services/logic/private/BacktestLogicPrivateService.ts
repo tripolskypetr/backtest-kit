@@ -16,10 +16,11 @@ import {
   signalEmitter,
 } from "../../../../config/emitters";
 import { GLOBAL_CONFIG } from "../../../../config/params";
-import { and, errorData, getErrorMessage } from "functools-kit";
+import { and, errorData, getErrorMessage, sleep } from "functools-kit";
 import ActionCoreService from "../../core/ActionCoreService";
 import { Candle } from "../../../../classes/Candle";
 import { Lockstep } from "../../../../classes/Lockstep";
+import { Lookup } from "../../../../classes/Lookup";
 import TimeMetaService from "../../meta/TimeMetaService";
 import PriceMetaService from "../../meta/PriceMetaService";
 
@@ -52,10 +53,50 @@ type TLockstepCursor = {
   stepMs: number;
   clock: number;
   parked: { at: number; kind: "start" | "handoff" } | null;
+  /** Still inside the join wait (sleeping on a timer, not on the lock): peers wait for it by the same timer */
+  joining: boolean;
 };
 
 /** Lockstep cursor of every backtest currently inside `run()`, by symbol and context (process-wide, like the lock itself) */
 const LOCKSTEP_CURSORS = new Map<string, TLockstepCursor>();
+
+/** One macrotask between join rounds, the same beat as `Candle.spinLock` */
+const LOCKSTEP_JOIN_DELAY = 50;
+/** Join rounds before a backtest stops waiting for launched peers that still have no cursor */
+const LOCKSTEP_JOIN_ROUNDS = 20;
+
+/**
+ * Lets the peers launched in the same synchronous loop (`Launcher`, several
+ * `Backtest.background` in a row) register before the first iteration runs.
+ *
+ * `Lookup.addActivity` is synchronous in `Backtest.background`, but the
+ * lockstep cursor appears only after the first awaits of the run (the
+ * before-start price fetch, the timeframes), so a symbol whose candles come
+ * back first would see an empty registry and run ahead alone, and its peers
+ * would then join from the past. The first iteration therefore starts after a
+ * macrotask, and the wait repeats every LOCKSTEP_JOIN_DELAY while a launched
+ * backtest activity has no cursor yet: the peers are blocked on I/O, which a
+ * lock spin on microtasks would never let through. Bounded by
+ * LOCKSTEP_JOIN_ROUNDS: a peer that never registers (a start that died before
+ * `run`) is logged and no longer waited for.
+ */
+const JOIN_PEERS_FN = async (self: BacktestLogicPrivateService, symbol: string): Promise<void> => {
+  const pending = () =>
+    Lookup.listActivity()
+      .filter((activity) => activity.backtest)
+      .filter((activity) => !LOCKSTEP_CURSORS.has(CREATE_LOCKSTEP_KEY_FN(activity.symbol, { ...activity.context, frameName: activity.context.frameName ?? "" })));
+  for (let round = 0; round < LOCKSTEP_JOIN_ROUNDS; round++) {
+    await sleep(LOCKSTEP_JOIN_DELAY);
+    if (pending().length === 0) {
+      return;
+    }
+  }
+  const stuck = pending();
+  const message = "backtestLogicPrivateService lockstep join: launched peers still have no cursor, starting without them";
+  const payload = { symbol, waitedMs: LOCKSTEP_JOIN_DELAY * LOCKSTEP_JOIN_ROUNDS, peers: stuck.map((activity) => activity.symbol) };
+  self.loggerService.warn(message, payload);
+  console.warn(message, payload);
+};
 
 /** The finest timeframe step among the running backtests: the grid the hand-off inside a replay follows */
 const LOCKSTEP_STEP_FN = (): number =>
@@ -77,8 +118,11 @@ const LOCKSTEP_STEP_FN = (): number =>
  * One spin gives every peer one iteration and a peer may lag several
  * iterations behind, so the spin repeats; it stops early when a round moved
  * no lagging peer (a peer blocked outside the orchestrator), rather than
- * spinning forever. `spinFirst` forces one spin even when nobody lags: inside
- * a replay that FIFO turn is what keeps the peers interleaved.
+ * spinning forever. A lagging peer that is still joining (sleeping on the
+ * join timer, see JOIN_PEERS_FN) is not blocked, it only holds no lock: such a
+ * round sleeps one join beat instead of giving up, bounded like the join
+ * itself. `spinFirst` forces one spin even when nobody lags: inside a replay
+ * that FIFO turn is what keeps the peers interleaved.
  */
 const WAIT_FOR_PEERS_FN = async (
   cursor: TLockstepCursor,
@@ -100,14 +144,19 @@ const WAIT_FOR_PEERS_FN = async (
     return peer.parked.kind === "handoff" ? peer.parked.at >= at : peer.parked.at > at;
   };
   const lagging = () => Array.from(LOCKSTEP_CURSORS.values()).filter((peer) => peer !== cursor && !caughtUp(peer));
-  const snapshot = () => lagging().map((peer) => `${peer.clock}/${peer.parked ? `${peer.parked.kind}@${peer.parked.at}` : "-"}`).join(",");
+  const snapshot = () => lagging().map((peer) => `${peer.clock}/${peer.parked ? `${peer.parked.kind}@${peer.parked.at}` : "-"}/${peer.joining}`).join(",");
   let before = snapshot();
   let spin = spinFirst;
+  let joinRounds = 0;
   while (spin || lagging().length > 0) {
     spin = false;
     await Lockstep.spinLock(LOCKSTEP_HANDOFF_SOURCE);
     const after = snapshot();
     if (lagging().length > 0 && after === before) {
+      if (lagging().some((peer) => peer.joining) && joinRounds++ < LOCKSTEP_JOIN_ROUNDS) {
+        await sleep(LOCKSTEP_JOIN_DELAY);
+        continue;
+      }
       break;
     }
     before = after;
@@ -913,8 +962,12 @@ export class BacktestLogicPrivateService {
     // Lockstep cursor of this run: the ping hand-off (see handoff) reads it while a replay runs
     const stepMs = totalFrames > 1 ? timeframes[1].getTime() - timeframes[0].getTime() : 60_000;
     const lockstepKey = CREATE_LOCKSTEP_KEY_FN(symbol, this.methodContextService.context);
-    const cursor: TLockstepCursor = { locked: false, nextBoundary: 0, stepMs, clock: timeframes[0].getTime(), parked: null };
+    const cursor: TLockstepCursor = { locked: false, nextBoundary: 0, stepMs, clock: timeframes[0].getTime(), parked: null, joining: true };
     LOCKSTEP_CURSORS.set(lockstepKey, cursor);
+    if (GLOBAL_CONFIG.CC_BACKTEST_LOCKSTEP) {
+      await JOIN_PEERS_FN(this, symbol);
+    }
+    cursor.joining = false;
 
     let i = 0;
 

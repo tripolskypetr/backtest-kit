@@ -121,6 +121,16 @@ import { Subject, sleep } from "functools-kit";
  *              00:00 and a 4h strategy on a 1h frame whose frame starts six hours later. The early one
  *              runs alone until the late frame's start, then they advance within the coarser step;
  *              the strategy interval only throttles getSignal and never moves the iterations
+ *   launch   - the Launcher loop: five Backtest.background in a row, every symbol opens on its first
+ *              tick, capital for two. Every first reserve carries the same logical time, the fold
+ *              includes equal timestamps, so the third symbol onwards is REFUSED and no row ever
+ *              overdrafts, with lockstep on and off alike
+ *   join     - the same Launcher loop, but one symbol's candles come back only after a macrotask
+ *              (a slow exchange, a network fetch): Lookup registers it synchronously while its
+ *              lockstep cursor appears only after that fetch. The fast symbol must not run ahead
+ *              alone in the meantime: the first iteration starts after a macrotask and waits for
+ *              every launched activity to have a cursor, so the slow symbol's scheduled reserve at
+ *              01:46 is in before the fast symbol writes at 02:00
  */
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
@@ -2212,4 +2222,173 @@ test("LOCKSTEP: a 15m strategy on a 15m frame and a 4h strategy on a 1h frame st
   }
   if (maxSpread > HOUR_MS) return fail(`clocks drifted by ${maxSpread / MIN_MS} minutes across a 15m and a 1h frame (expected at most 60)`);
   pass(`mixed timeframes: fine ran alone to ${new Date(fineAhead).toISOString().slice(11, 16)}, coarse joined at 06:00, spread after ${maxSpread / MIN_MS} min, coarse getSignal ${coarseCalls.length}x over ${coarseIterations.length} iterations`);
+});
+
+// ── The Launcher loop: every symbol opens at once ────────────────────────────
+
+const LAUNCH_SYMBOLS = Array.from({ length: 5 }, (_, i) => `LAUNCH${i}USDT`);
+const LAUNCH_CAPITAL = 2_500;
+const LAUNCH_COST = 1_000;
+
+const runLaunchCase = async (name, lockstep) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: lockstep }, true);
+  Budget.enable();
+  const schema = buildErrorCase(name, {
+    positions: Object.fromEntries(LAUNCH_SYMBOLS.map((symbol) => [symbol, { at: FRAME_START, minutes: 180 }])),
+  });
+  const key = { ...schema, backtest: true, name: BUDGET_NAME, initialCapital: LAUNCH_CAPITAL };
+  const contextOf = (symbol, when) => ({ ...key, symbol, when });
+  const reserved = new Set();
+  const rejects = [];
+  const unsubscribe = [
+    listenActivePing(async (event) => {
+      if (event.strategyName !== schema.strategyName || reserved.has(event.data.id)) return;
+      reserved.add(event.data.id);
+      try {
+        await Budget._reserve({ id: event.data.id, amount: LAUNCH_COST, note: event.symbol }, contextOf(event.symbol, event.when));
+      } catch (error) {
+        if (!BudgetRejectedError.isBudgetRejectedError(error)) throw error;
+        rejects.push({ symbol: event.symbol, when: event.when.getTime() });
+      }
+    }),
+    listenSignalBacktest(async (event) => {
+      if (event.strategyName !== schema.strategyName || event.action !== "closed") return;
+      await Budget._release({ id: event.signal.id, pnl: event.pnl.pnlCost }, contextOf(event.symbol, new Date(event.closeTimestamp)));
+    }),
+  ];
+  let done;
+  try {
+    // the Launcher loop: background after background, no await in between
+    done = await runUntilDone(schema, LAUNCH_SYMBOLS, ERROR_TIMEOUT_MS);
+  } finally {
+    unsubscribe.forEach((un) => un());
+  }
+  const history = await Budget._getHistory({ ...key, when: new Date(JOURNAL_END) });
+  return { done, rejects, history };
+};
+
+const checkLaunch = ({ done, rejects, history }, fail) => {
+  if (LAUNCH_SYMBOLS.some((symbol) => !done.has(symbol))) { fail(`every backtest must finish, done=${[...done].join(",")}`); return false; }
+  const firstReserves = history.filter((r) => r.type === "reserve" && r.timestamp === history[0].timestamp);
+  const firstRejects = history.filter((r) => r.type === "reject" && r.timestamp === history[0].timestamp);
+  if (firstReserves.length !== 2 || firstRejects.length !== 3 || rejects.length !== 3) {
+    fail(`capital for two: expected 2 reserves and 3 refusals on the first tick, got ${firstReserves.length}/${firstRejects.length} (thrown ${rejects.length}); ${describeRows(history)}`);
+    return false;
+  }
+  const overdrafts = history.filter((r) => r.type === "reserve" && r.overdraft !== undefined);
+  if (overdrafts.length) { fail(`overdraft on a synchronized start: ${describeRows(overdrafts)}`); return false; }
+  const negativeRow = history.find((r) => r.balance.free < 0);
+  if (negativeRow) { fail(`free went negative at ${describeRows([negativeRow])}`); return false; }
+  return true;
+};
+
+test("LOCKSTEP: five symbols launched in a row all opening on the first tick: two reserves, three refusals, no overdraft (lockstep on)", async ({ pass, fail }) => {
+  const result = await runLaunchCase("launch-on", true);
+  if (!checkLaunch(result, fail)) return;
+  pass(`lockstep on: ${describeRows(result.history.slice(0, 5))}`);
+});
+
+test("LOCKSTEP: the same synchronized launch without lockstep: still refusals, never an overdraft (equal timestamps are in the fold)", async ({ pass, fail }) => {
+  const result = await runLaunchCase("launch-off", false);
+  if (!checkLaunch(result, fail)) return;
+  pass(`lockstep off: ${describeRows(result.history.slice(0, 5))}`);
+});
+
+// ── A peer whose candles arrive after a macrotask ────────────────────────────
+
+const JOIN_FAST_SYMBOL = "JOINFASTUSDT";
+const JOIN_SLOW_SYMBOL = "JOINSLOWUSDT";
+const JOIN_CAPITAL = 1_500;
+const JOIN_COST = 1_000;
+const JOIN_SIGNAL_AT = FRAME_START + 1 * HOUR_MS;
+/** Every candle fetch of the slow symbol waits this long on a timer: its first iteration lags by real macrotasks */
+const JOIN_FETCH_DELAY_MS = 200;
+
+test("LOCKSTEP: a symbol whose candle fetches wait on a macrotask joins before its fast peer runs ahead (no overdraft, the peer's 02:00 reserve is refused)", async ({ pass, fail }) => {
+  // the candle-fetch mutex would queue the fast symbol's fetches behind the slow one's and hide the
+  // window by accident; the join wait must hold without it (cached candles, mutex off)
+  setConfig({ CC_BACKTEST_LOCKSTEP: true, CC_ENABLE_CANDLE_FETCH_MUTEX: false }, true);
+  try {
+  Budget.enable();
+  const exchangeName = "lockstep-join-exchange";
+  const strategyName = "lockstep-join-strategy";
+  const frameName = "lockstep-join-frame";
+  addExchangeSchema({
+    exchangeName,
+    getCandles: async (symbol, interval, since, limit) => {
+      if (interval !== "1m") throw new Error(`lockstep exchange: only 1m bars, got ${interval}`);
+      if (symbol === JOIN_SLOW_SYMBOL) {
+        await sleep(JOIN_FETCH_DELAY_MS);
+      }
+      const out = [];
+      let timestamp = Math.floor(since.getTime() / MIN_MS) * MIN_MS;
+      while (out.length < limit) {
+        const inDip = timestamp >= JOIN_SIGNAL_AT + SLOW_DIP_MINUTE * MIN_MS && timestamp < JOIN_SIGNAL_AT + HOUR_MS;
+        const price = symbol === JOIN_SLOW_SYMBOL && inDip ? 98 : 100;
+        out.push({ timestamp, open: price, high: price + 0.5, low: price - 0.5, close: price, volume: 1_000 });
+        timestamp += MIN_MS;
+      }
+      return out;
+    },
+    formatPrice: async (_s, p) => p.toFixed(8),
+    formatQuantity: async (_s, q) => q.toFixed(8),
+  });
+  addStrategySchema({
+    strategyName,
+    interval: "1h",
+    getSignal: async (symbol, when) => {
+      if (symbol === JOIN_FAST_SYMBOL) {
+        return { position: "long", priceStopLoss: 85, priceTakeProfit: 119, cost: JOIN_COST, minuteEstimatedTime: 30 };
+      }
+      if (when.getTime() === JOIN_SIGNAL_AT) {
+        return { position: "long", priceOpen: 99, priceStopLoss: 85, priceTakeProfit: 119, cost: JOIN_COST, minuteEstimatedTime: 90 };
+      }
+      return null;
+    },
+  });
+  addFrameSchema({ frameName, interval: "1h", startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
+  const schema = { exchangeName, strategyName, frameName };
+  const key = { ...schema, backtest: true, name: BUDGET_NAME, initialCapital: JOIN_CAPITAL };
+  const contextOf = (symbol, when) => ({ ...key, symbol, when });
+
+  const reserved = new Set();
+  const rejects = [];
+  const unsubscribe = [
+    listenActivePing(async (event) => {
+      if (event.strategyName !== strategyName || reserved.has(event.data.id)) return;
+      reserved.add(event.data.id);
+      try {
+        await Budget._reserve({ id: event.data.id, amount: JOIN_COST, note: event.symbol }, contextOf(event.symbol, event.when));
+      } catch (error) {
+        if (!BudgetRejectedError.isBudgetRejectedError(error)) throw error;
+        rejects.push({ symbol: event.symbol, when: event.when.getTime() });
+      }
+    }),
+    listenSignalBacktest(async (event) => {
+      if (event.strategyName !== strategyName || event.action !== "closed") return;
+      await Budget._release({ id: event.signal.id, pnl: event.pnl.pnlCost }, contextOf(event.symbol, new Date(event.closeTimestamp)));
+    }),
+  ];
+  let done;
+  try {
+    // the Launcher loop: the fast symbol first, the slow one right after, no await in between
+    done = await runUntilDone(schema, [JOIN_FAST_SYMBOL, JOIN_SLOW_SYMBOL], ERROR_TIMEOUT_MS);
+  } finally {
+    unsubscribe.forEach((un) => un());
+  }
+  if (!done.has(JOIN_FAST_SYMBOL) || !done.has(JOIN_SLOW_SYMBOL)) return fail(`both backtests must finish, done=${[...done].join(",")}`);
+
+  const history = await Budget._getHistory({ ...key, when: new Date(JOURNAL_END) });
+  const slowReserve = history.find((r) => r.type === "reserve" && r.symbol === JOIN_SLOW_SYMBOL);
+  if (!slowReserve) return fail(`the slow symbol's scheduled reserve is missing: ${describeRows(history)}`);
+  const overdrafts = history.filter((r) => r.type === "reserve" && r.overdraft !== undefined);
+  if (overdrafts.length) return fail(`the fast symbol ran ahead before the slow one joined: ${describeRows(overdrafts)}`);
+  const fastRefused = rejects.find((r) => r.symbol === JOIN_FAST_SYMBOL && r.when === JOIN_SIGNAL_AT + HOUR_MS);
+  if (!fastRefused) return fail(`the fast symbol's 02:00 reserve must be refused against the slow one's 01:46 reserve: rejects=${JSON.stringify(rejects)} journal=${describeRows(history)}`);
+  const negativeRow = history.find((r) => r.balance.free < 0);
+  if (negativeRow) return fail(`free went negative at ${describeRows([negativeRow])}`);
+  pass(`slow peer joined in time: ${rejects.length} refusals, no overdraft, journal: ${describeRows(history.slice(0, 8))}`);
+  } finally {
+    setConfig({ CC_ENABLE_CANDLE_FETCH_MUTEX: true }, true);
+  }
 });

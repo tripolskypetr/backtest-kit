@@ -133,10 +133,13 @@ export class SetupUtils {
       Markdown.enable();
       Report.enable();
       Dump.enable();
+      Memory.enable();
+    }
+
+    {
       State.enable();
       Budget.enable();
       Dictionary.enable();
-      Memory.enable();
     }
     
     if (!cli.configConnectionService.hasConfig("setup.config")) {

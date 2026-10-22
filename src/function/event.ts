@@ -924,7 +924,21 @@ export function listenWalkerComplete(fn: (event: WalkerCompleteContract) => void
  */
 export function listenValidation(fn: (error: Error) => void) {
   backtest.loggerService.log(LISTEN_VALIDATION_METHOD_NAME);
-  return validationSubject.subscribe(queued(async (error) => fn(error)));
+  // Emitted fire-and-forget by ClientRisk when a validation throws: a listener
+  // that throws must not turn that report into an unhandled rejection.
+  return validationSubject.subscribe(queued(async (error) => {
+    try {
+      await fn(error);
+    } catch (listenerError) {
+      const message = "listenValidation listener thrown";
+      const payload = {
+        error: errorData(listenerError),
+        message: getErrorMessage(listenerError),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+    }
+  }));
 }
 
 /**
