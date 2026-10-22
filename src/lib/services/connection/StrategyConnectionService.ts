@@ -517,12 +517,13 @@ const CREATE_COMMIT_SCHEDULE_PING_FN = (self: StrategyConnectionService) => tryc
       await self.priceMetaService.next(symbol, currentPrice, { strategyName, exchangeName, frameName: data.frameName }, backtest);
       await self.timeMetaService.next(symbol, timestamp, { strategyName, exchangeName, frameName: data.frameName }, backtest);
     }
-    await schedulePingSubject.next(event);
-    await self.actionCoreService.pingScheduled(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
-    // CC_BACKTEST_LOCKSTEP: a replayed candle is where a parallel backtest hands the lock off (see BacktestLogicPrivateService.handoff)
+    // CC_BACKTEST_LOCKSTEP: a replayed candle on or past a timeframe boundary is where a parallel
+    // backtest hands the lock off, BEFORE this candle's listeners run (see BacktestLogicPrivateService.handoff)
     if (backtest) {
       await self.backtestLogicPrivateService.handoff(symbol, timestamp, { strategyName, exchangeName, frameName: data.frameName });
     }
+    await schedulePingSubject.next(event);
+    await self.actionCoreService.pingScheduled(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
   },
   {
     fallback: (error) => {
@@ -727,12 +728,13 @@ const CREATE_COMMIT_ACTIVE_PING_FN = (self: StrategyConnectionService) => trycat
       await self.priceMetaService.next(symbol, currentPrice, { strategyName, exchangeName, frameName: data.frameName }, backtest);
       await self.timeMetaService.next(symbol, timestamp, { strategyName, exchangeName, frameName: data.frameName }, backtest);
     }
-    await activePingSubject.next(event);
-    await self.actionCoreService.pingActive(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
-    // CC_BACKTEST_LOCKSTEP: a replayed candle is where a parallel backtest hands the lock off (see BacktestLogicPrivateService.handoff)
+    // CC_BACKTEST_LOCKSTEP: a replayed candle on or past a timeframe boundary is where a parallel
+    // backtest hands the lock off, BEFORE this candle's listeners run (see BacktestLogicPrivateService.handoff)
     if (backtest) {
       await self.backtestLogicPrivateService.handoff(symbol, timestamp, { strategyName, exchangeName, frameName: data.frameName });
     }
+    await activePingSubject.next(event);
+    await self.actionCoreService.pingActive(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
   },
   {
     fallback: (error) => {

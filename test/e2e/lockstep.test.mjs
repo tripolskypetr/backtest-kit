@@ -30,6 +30,7 @@ import {
   listenRisk,
   addRiskSchema,
   addActionSchema,
+  getCandlesSampled,
   ActionBase,
   listenBeforeStart,
   listenAfterEnd,
@@ -111,8 +112,14 @@ import { Subject, sleep } from "functools-kit";
  *              the late one's rows land in the journal BEFORE the early one's already-written rows,
  *              so the early rows written before the join may end in overdraft (shown, never hidden),
  *              while no row written after the join does
+ *   stride   - CC_BACKTEST_STEP_MINUTES = 1 day on an hourly frame (the backtest-kit-template setup:
+ *              daily bars sampled to minutes): a replay evaluates one candle a day and crosses 24
+ *              boundaries between two pings, so the hand-off must derive the boundary from the candle
+ *              and run before the candle's listeners. A's DCA reserve on the day-3 ping (23:59) must see
+ *              B's reserve of 22:59 the same day and be refused
  */
 const HOUR_MS = 3_600_000;
+const DAY_MS = 86_400_000;
 const MIN_MS = 60_000;
 
 const FRAME_START = Date.parse("2024-01-01T00:00:00Z");
@@ -1962,4 +1969,142 @@ test("LOCKSTEP: a Backtest.background joining when its peer is on hour 6 catches
   if (reserves !== releases) return fail(`every reserve must be released: reserves=${reserves} releases=${releases}`);
 
   pass(`late join at ${new Date(joinClock).toISOString().slice(11, 16)}: caught up, spread after ${maxSpreadAfter / HOUR_MS} tf, pre-join overdrafts ${describeRows(overdrafts)}, rejects=${rejects.length}`);
+});
+
+// ── Daily stride on an hourly frame ──────────────────────────────────────────
+
+const STRIDE_A = "STRIDEAUSDT";
+const STRIDE_B = "STRIDEBUSDT";
+const STRIDE_CAPITAL = 2_500;
+const STRIDE_COST = 1_000;
+const STRIDE_DAYS = 20;
+const STRIDE_FRAME_END = FRAME_START + STRIDE_DAYS * DAY_MS;
+/**
+ * B opens on the 23:00 tick of day 2: with a daily stride its first ping (and reserve) lands at
+ * 22:59 of day 3, one hour before A's day-3 ping at 23:59 tops A's position up. A hand-off that
+ * lags by up to 23 hourly iterations does not have B's reserve in by then; one that waits for the
+ * last crossed boundary does.
+ */
+const STRIDE_B_OPEN_AT = FRAME_START + 2 * DAY_MS + 23 * HOUR_MS;
+const STRIDE_A_DCA_AT = FRAME_START + 3 * DAY_MS;
+
+const buildStrideCase = (name) => {
+  const exchangeName = `lockstep-stride-exchange-${name}`;
+  const strategyName = `lockstep-stride-strategy-${name}`;
+  const frameName = `lockstep-stride-frame-${name}`;
+  const seriesStart = FRAME_START - 30 * DAY_MS;
+  // daily bars only, like the template's exchange: a gentle drift keeps every bar valid
+  const getDailyCandles = async (_symbol, interval, since, limit) => {
+    if (interval !== "1d") throw new Error(`stride exchange: only 1d bars, got ${interval}`);
+    const out = [];
+    let dayStart = Math.floor(since / DAY_MS) * DAY_MS;
+    while (out.length < limit) {
+      if (dayStart >= seriesStart) {
+        const dayIndex = Math.round((dayStart - seriesStart) / DAY_MS);
+        const close = 100 * Math.pow(1.001, dayIndex);
+        const prev = dayIndex > 0 ? 100 * Math.pow(1.001, dayIndex - 1) : close;
+        out.push([dayStart, prev, Math.max(prev, close), Math.min(prev, close), close, 1_000]);
+      }
+      dayStart += DAY_MS;
+    }
+    return out;
+  };
+  addExchangeSchema({
+    exchangeName,
+    getCandles: async (symbol, interval, since, limit) => await getCandlesSampled(getDailyCandles, { symbol, interval, since, limit }),
+    formatPrice: async (_s, p) => p.toFixed(8),
+    formatQuantity: async (_s, q) => q.toFixed(8),
+  });
+  addStrategySchema({
+    strategyName,
+    interval: "1h",
+    getSignal: async (symbol, when) => {
+      if (symbol === STRIDE_A && when.getTime() === FRAME_START) {
+        return { position: "long", priceStopLoss: 50, priceTakeProfit: 200, cost: STRIDE_COST, minuteEstimatedTime: 15 * 24 * 60 };
+      }
+      if (symbol === STRIDE_B && when.getTime() === STRIDE_B_OPEN_AT) {
+        return { position: "long", priceStopLoss: 50, priceTakeProfit: 200, cost: STRIDE_COST, minuteEstimatedTime: 10 * 24 * 60 };
+      }
+      return null;
+    },
+  });
+  addFrameSchema({ frameName, interval: "1h", startDate: new Date(FRAME_START), endDate: new Date(STRIDE_FRAME_END) });
+  return { exchangeName, strategyName, frameName };
+};
+
+test("LOCKSTEP: with a daily CC_BACKTEST_STEP_MINUTES on an hourly frame the day-3 ping's reserve sees the peer's reserve of an hour earlier", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true, CC_BACKTEST_STEP_MINUTES: 24 * 60 }, true);
+  try {
+    Budget.enable();
+    const schema = buildStrideCase("daily");
+    const symbols = [STRIDE_A, STRIDE_B];
+    const key = { ...schema, backtest: true, name: BUDGET_NAME, initialCapital: STRIDE_CAPITAL };
+    const contextOf = (symbol, when) => ({ ...key, symbol, when });
+
+    const reserved = new Set();
+    const toppedUp = new Set();
+    const rejects = [];
+    const pings = [];
+    const reserve = async (id, note, event) => {
+      try {
+        await Budget._reserve({ id, amount: STRIDE_COST, note }, contextOf(event.symbol, event.when));
+      } catch (error) {
+        if (!BudgetRejectedError.isBudgetRejectedError(error)) throw error;
+        rejects.push({ symbol: event.symbol, id, when: event.when.getTime() });
+      }
+    };
+    const unsubscribe = [
+      listenActivePing(async (event) => {
+        if (event.strategyName !== schema.strategyName) return;
+        pings.push({ symbol: event.symbol, when: event.timestamp });
+        if (!reserved.has(event.data.id)) {
+          reserved.add(event.data.id);
+          await reserve(event.data.id, "entry", event);
+          return;
+        }
+        if (event.symbol === STRIDE_A && event.when.getTime() >= STRIDE_A_DCA_AT && !toppedUp.has(event.data.id)) {
+          toppedUp.add(event.data.id);
+          await reserve(`${event.data.id}-dca`, "dca", event);
+        }
+      }),
+      listenSignalBacktest(async (event) => {
+        if (event.strategyName !== schema.strategyName || event.action !== "closed") return;
+        const context = contextOf(event.symbol, new Date(event.closeTimestamp));
+        await Budget._release({ id: event.signal.id, pnl: event.pnl.pnlCost }, context);
+        if (toppedUp.has(event.signal.id)) await Budget._release({ id: `${event.signal.id}-dca`, pnl: 0 }, context);
+      }),
+    ];
+    let done;
+    try {
+      done = await runUntilDone(schema, symbols, ERROR_TIMEOUT_MS);
+    } finally {
+      unsubscribe.forEach((un) => un());
+    }
+    if (symbols.some((symbol) => !done.has(symbol))) return fail(`both backtests must finish, done=${[...done].join(",")}`);
+
+    // the stride is real: A pings once a day, not once a minute
+    const aPings = pings.filter((p) => p.symbol === STRIDE_A).map((p) => p.when);
+    const gaps = aPings.slice(1).map((t, i) => t - aPings[i]);
+    if (!gaps.length || gaps.some((gap) => gap < DAY_MS)) return fail(`expected daily pings for A, gaps(min)=${gaps.map((g) => g / MIN_MS).join(",")}`);
+
+    const history = await Budget._getHistory({ ...key, when: new Date(STRIDE_FRAME_END + DAY_MS) });
+    const bReserve = history.find((r) => r.type === "reserve" && r.symbol === STRIDE_B);
+    if (!bReserve || bReserve.timestamp < STRIDE_B_OPEN_AT || bReserve.timestamp >= STRIDE_A_DCA_AT + DAY_MS - HOUR_MS) {
+      return fail(`expected B's reserve between its 23:00 open and A's day-3 ping: ${describeRows(history)}`);
+    }
+    const dcaReject = rejects.find((r) => r.symbol === STRIDE_A && r.id.endsWith("-dca"));
+    if (!dcaReject) return fail(`A's DCA reserve on the day-3 ping must be refused against B's day-3 reserve: rejects=${JSON.stringify(rejects)} journal=${describeRows(history)}`);
+    if (dcaReject.when < STRIDE_A_DCA_AT) return fail(`the DCA attempt landed before day 3: ${new Date(dcaReject.when).toISOString()}`);
+    if (!(bReserve.timestamp < dcaReject.when)) return fail(`B's reserve must precede A's DCA in logical time: ${new Date(bReserve.timestamp).toISOString()} vs ${new Date(dcaReject.when).toISOString()}`);
+    const overdrafts = history.filter((r) => r.type === "reserve" && r.overdraft !== undefined);
+    if (overdrafts.length) return fail(`overdraft with a daily stride: ${describeRows(overdrafts)}`);
+    const negativeRow = history.find((r) => r.balance.free < 0);
+    if (negativeRow) return fail(`free went negative at ${describeRows([negativeRow])}`);
+    const reserves = history.filter((r) => r.type === "reserve").length;
+    const releases = history.filter((r) => r.type === "release").length;
+    if (reserves !== releases) return fail(`every reserve must be released: reserves=${reserves} releases=${releases}; ${describeRows(history)}`);
+    pass(`daily stride: A pings every ${Math.min(...gaps) / HOUR_MS}h, DCA on day 3 refused, journal: ${describeRows(history)}`);
+  } finally {
+    setConfig({ CC_BACKTEST_STEP_MINUTES: 0 }, true);
+  }
 });

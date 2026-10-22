@@ -125,14 +125,19 @@ const WAIT_FOR_PEERS_FN = async (
  * DCA entry, a budget reserve) would then be checked against a journal the
  * peers have not reached yet. ClientStrategy pings on every replayed candle and
  * `StrategyConnectionService` calls `handoff` from its `onSchedulePing` /
- * `onActivePing` system callbacks: on the last candle before the next
- * boundary the replay waits ({@link WAIT_FOR_PEERS_FN}) until every running
- * peer has reached that boundary, so a write on the boundary candle is checked
- * against everything the peers wrote before it. The boundaries follow the
- * finest timeframe step among the running backtests, not this symbol's own:
- * a peer on a 15m frame gets its 01:15 / 01:30 / 01:45 iterations in before
- * this 1h replay writes at 01:46. The same wait runs at the start of every
- * iteration (see `run`), so the replay never starts ahead of a peer either.
+ * `onActivePing` system callbacks BEFORE the candle's listeners run: on the
+ * first candle on or past the next boundary the replay waits
+ * ({@link WAIT_FOR_PEERS_FN}) until every running peer has reached the last
+ * boundary that candle crossed, so a write on that candle is checked against
+ * everything the peers wrote before it. Candles are not necessarily one
+ * minute apart: with `CC_BACKTEST_STEP_MINUTES` a replay evaluates one candle
+ * per stride (a daily stride on an hourly frame crosses 24 boundaries at
+ * once), which is why the boundary is derived from the candle instead of
+ * expecting the candle right before it. The boundaries follow the finest
+ * timeframe step among the running backtests, not this symbol's own: a peer
+ * on a 15m frame gets its 01:15 / 01:30 / 01:45 iterations in before this 1h
+ * replay writes at 01:46. The same wait runs at the start of every iteration
+ * (see `run`), so the replay never starts ahead of a peer either.
  *
  * No-op when lockstep is off, when the symbol is not inside `run()` (a tick
  * driven directly, outside the orchestrator) or when its iteration does not
@@ -151,22 +156,23 @@ const HANDOFF_FN = async (
   if (!cursor || !cursor.locked) {
     return;
   }
-  // the candle right before the boundary: the strategy's write ON the boundary candle
-  // already sees what the peers wrote up to it
-  if (timestamp + 60_000 < cursor.nextBoundary) {
+  // a candle before the next boundary: nothing of the peers is missing yet
+  if (timestamp < cursor.nextBoundary) {
     return;
   }
-  const boundary = cursor.nextBoundary;
+  // the last boundary this candle crossed (a strided replay may cross many at once)
+  const step = LOCKSTEP_STEP_FN();
+  let boundary = cursor.nextBoundary;
+  while (boundary + step <= timestamp) {
+    boundary += step;
+  }
+  cursor.nextBoundary = boundary + step;
   self.loggerService.debug("backtestLogicPrivateService lockstep handoff", {
     symbol,
     timestamp,
     boundary,
   });
   await WAIT_FOR_PEERS_FN(cursor, boundary, "handoff", true);
-  const step = LOCKSTEP_STEP_FN();
-  while (timestamp + 60_000 >= cursor.nextBoundary) {
-    cursor.nextBoundary += step;
-  }
 };
 
 const SYMBOL_FN_ERROR = Symbol("backtest-fn-error");
