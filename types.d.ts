@@ -9450,6 +9450,18 @@ declare const GLOBAL_CONFIG: {
      * - Makes `CC_ENABLE_BACKTEST_PARALLEL_SPIN` redundant: `Candle.spinLock` is skipped while
      *   lockstep is on, the peers are parked on this mutex anyway.
      *
+     * Contract:
+     * - The flag is read when a backtest starts and must not change while backtests run: the lock
+     *   taken under one value is released under the same one.
+     * - Peers launched together through `Backtest.background` (the `Launcher` loop) are waited for
+     *   before the first iteration (`Lookup` lists them synchronously); `Backtest.run` is NOT part
+     *   of that wait and joins the lockstep only once its own run has started, so a `Backtest.run`
+     *   started next to backgrounds may see them ahead of it, which the budget journal shows as
+     *   overdraft on their earlier rows, never as a hang.
+     * - A backtest stopped mid-replay (the dispose function of `Backtest.background`,
+     *   `Backtest.stop`) finishes the open position, leaves the lock on its way out and is no
+     *   longer waited for; a backtest that throws or whose consumer breaks leaves the lock the same way.
+     *
      * Default: true (parallel backtests advance one timeframe at a time)
      */
     CC_BACKTEST_LOCKSTEP: boolean;

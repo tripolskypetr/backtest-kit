@@ -131,6 +131,12 @@ import { Subject, sleep } from "functools-kit";
  *              alone in the meantime: the first iteration starts after a macrotask and waits for
  *              every launched activity to have a cursor, so the slow symbol's scheduled reserve at
  *              01:46 is in before the fast symbol writes at 02:00
+ *   run      - contract: Backtest.run is not part of the join (Lookup does not list it) and joins the
+ *              lockstep only once its run has started; next to backgrounds it must never hang or
+ *              break anything, and from the moment it is in the clocks stay within a timeframe
+ *   stop     - contract: a backtest stopped mid-replay (dispose of Backtest.background, Backtest.stop)
+ *              finishes its position, reports done and leaves the lock; its peers and a probe finish.
+ *              CC_BACKTEST_LOCKSTEP itself is read at launch and never changes while backtests run
  */
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
@@ -2391,4 +2397,119 @@ test("LOCKSTEP: a symbol whose candle fetches wait on a macrotask joins before i
   } finally {
     setConfig({ CC_ENABLE_CANDLE_FETCH_MUTEX: true }, true);
   }
+});
+
+// ── Backtest.run next to backgrounds ─────────────────────────────────────────
+
+const RUN_SYMBOL = "RUNUSDT";
+const RUN_PEER_SYMBOL = "RUNPEERUSDT";
+
+test("LOCKSTEP: a Backtest.run consumer next to a Backtest.background never hangs and keeps step once it is in", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  const schema = buildCase("run-mix", { [RUN_SYMBOL]: SLOW_TICK_MS });
+  const iterations = [];
+  const unProgress = listenBacktestProgress((event) => {
+    if (event.strategyName !== schema.strategyName || event.progress >= 1) return;
+    iterations.push({ symbol: event.symbol, when: event.when.getTime() });
+  });
+  const peerDone = waitForDone(schema, RUN_PEER_SYMBOL, ERROR_TIMEOUT_MS);
+  let consumed = 0;
+  try {
+    Backtest.background(RUN_PEER_SYMBOL, schema);
+    // the consumer: a plain for-await, started in the same tick as the background
+    const consumer = (async () => {
+      for await (const _ of Backtest.run(RUN_SYMBOL, schema)) {
+        consumed += 1;
+      }
+    })();
+    const finished = await Promise.race([consumer.then(() => true), sleep(ERROR_TIMEOUT_MS).then(() => false)]);
+    if (!finished) return fail(`the Backtest.run consumer did not finish within ${ERROR_TIMEOUT_MS} ms next to a background peer`);
+    if (!(await peerDone)) return fail(`the background peer did not finish within ${ERROR_TIMEOUT_MS} ms next to a Backtest.run`);
+  } finally {
+    unProgress();
+  }
+  const runIterations = iterations.filter((e) => e.symbol === RUN_SYMBOL).length;
+  if (runIterations < FRAME_HOURS) return fail(`the Backtest.run symbol must iterate the whole frame, got ${runIterations}`);
+  // from the run's first iteration on, the two never drift apart by more than a timeframe
+  const firstRun = iterations.findIndex((e) => e.symbol === RUN_SYMBOL);
+  const latest = new Map();
+  let maxSpread = 0;
+  for (const { symbol, when } of iterations.slice(firstRun)) {
+    latest.set(symbol, when);
+    if (latest.size === 2) maxSpread = Math.max(maxSpread, Math.abs(latest.get(RUN_SYMBOL) - latest.get(RUN_PEER_SYMBOL)));
+  }
+  if (maxSpread > HOUR_MS) return fail(`after the run joined the clocks drifted by ${maxSpread / HOUR_MS} timeframes`);
+  const probe = await runUntilDone(schema, [PROBE_SYMBOL], ERROR_TIMEOUT_MS);
+  if (!probe.has(PROBE_SYMBOL)) return fail("the probe did not finish: the lock was left held");
+  pass(`Backtest.run consumed ${consumed} results, spread after joining ${maxSpread / HOUR_MS} tf, peer and probe finished`);
+});
+
+// ── Stopping a backtest mid-replay ───────────────────────────────────────────
+
+const STOP_A = "STOPAUSDT";
+const STOP_B = "STOPBUSDT";
+const STOP_C = "STOPCUSDT";
+const STOP_B_AT = FRAME_START + 2 * HOUR_MS;
+const STOP_C_AT = FRAME_START + 5 * HOUR_MS;
+
+test("LOCKSTEP: a backtest stopped mid-replay (dispose) and another stopped idle (Backtest.stop) report done, release the lock and never block their peers", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  const schema = buildErrorCase("stop", {
+    positions: {
+      [STOP_A]: { at: FRAME_START, minutes: 30 },
+      [STOP_B]: { at: FRAME_START + 1 * HOUR_MS, minutes: 300 },
+    },
+  });
+  const closed = [];
+  const unClosed = listenSignalBacktest((event) => {
+    if (event.strategyName !== schema.strategyName || event.action !== "closed") return;
+    closed.push({ symbol: event.symbol, reason: event.closeReason, at: event.closeTimestamp });
+  });
+  let disposeB = null;
+  let disposedAt = null;
+  let stoppedCAt = null;
+  const unPing = listenActivePing(async (event) => {
+    if (event.strategyName !== schema.strategyName) return;
+    // B is five hours into a replay: stop it from inside its own ping
+    if (event.symbol === STOP_B && disposedAt === null && event.timestamp >= STOP_B_AT && disposeB) {
+      disposedAt = event.timestamp;
+      disposeB();
+    }
+  });
+  const unProgress = listenBacktestProgress(async (event) => {
+    if (event.strategyName !== schema.strategyName) return;
+    // C is idle: stop it through the async API once A reports hour 5
+    if (event.symbol === STOP_A && stoppedCAt === null && event.when.getTime() >= STOP_C_AT) {
+      stoppedCAt = event.when.getTime();
+      await Backtest.stop(STOP_C, schema);
+    }
+  });
+
+  const done = new Set();
+  const allDone = new Subject();
+  const unDone = listenDoneBacktest((event) => {
+    if (event.strategyName !== schema.strategyName) return;
+    done.add(event.symbol);
+    if (done.size === 3) allDone.next();
+  });
+  try {
+    Backtest.background(STOP_A, schema);
+    disposeB = Backtest.background(STOP_B, schema);
+    Backtest.background(STOP_C, schema);
+    await Promise.race([allDone.toPromise(), sleep(ERROR_TIMEOUT_MS)]);
+  } finally {
+    unClosed();
+    unPing();
+    unProgress();
+    unDone();
+  }
+  if (disposedAt === null) return fail("B was never disposed mid-replay");
+  if (stoppedCAt === null) return fail("C was never stopped");
+  const missing = [STOP_A, STOP_B, STOP_C].filter((symbol) => !done.has(symbol));
+  if (missing.length) return fail(`${missing.join(", ")} did not report done within ${ERROR_TIMEOUT_MS} ms after the stops`);
+  const bClosed = closed.find((e) => e.symbol === STOP_B);
+  if (!bClosed) return fail(`B's open position must be closed on the way out: closed=${JSON.stringify(closed)}`);
+  const probe = await runUntilDone(schema, [PROBE_SYMBOL], ERROR_TIMEOUT_MS);
+  if (!probe.has(PROBE_SYMBOL)) return fail("the probe did not finish: a stopped backtest left the lock held");
+  pass(`B disposed at ${new Date(disposedAt).toISOString().slice(11, 16)} and closed by ${bClosed.reason} at ${new Date(bClosed.at).toISOString().slice(11, 16)}, C stopped at ${new Date(stoppedCAt).toISOString().slice(11, 16)}, all three done, probe finished`);
 });
