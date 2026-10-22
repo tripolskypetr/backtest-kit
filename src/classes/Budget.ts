@@ -4,6 +4,7 @@ import { StrategyName } from "../interfaces/Strategy.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
 import { BudgetRejectedError } from "../error/BudgetRejectedError";
+import { BudgetMissingError } from "../error/BudgetMissingError";
 import swarm, { ExecutionContextService, MethodContextService } from "../lib";
 
 /**
@@ -97,7 +98,9 @@ export interface IBudgetContext {
   /**
    * Initial capital of the record when this call is the first one to create it
    * (static callers outside the strategy module, e.g. listeners). Ignored once
-   * the record exists. Default: 0.
+   * the record exists. A call that would CREATE the record without it is
+   * refused with BudgetMissingError: a record created with a guessed capital
+   * could never be repaired by a later call.
    */
   initialCapital?: number;
 }
@@ -246,9 +249,14 @@ export interface IBudgetValue {
   journal: IBudgetHistoryRow[];
 }
 
-/** Initial value of a budget record, the counterpart of `initialValue` in `State` */
+/**
+ * Initial value of a budget record, the counterpart of `initialValue` in `State`.
+ * `initialCapital` is undefined for a static call that did not bring one: the
+ * instance then refuses to create the record (BudgetMissingError) and only
+ * serves a record that already exists (persisted, or created by an earlier call).
+ */
 export interface IBudgetInitial {
-  initialCapital: number;
+  initialCapital?: number;
 }
 
 /**
@@ -269,6 +277,18 @@ export type BudgetAction =
  * and the write are atomic within the process, like `setState(prev => ...)`.
  */
 export type BudgetDispatch = (prev: IBudgetValue) => BudgetAction | null | Promise<BudgetAction | null>;
+
+/** The record does not exist and the call brought no capital to create it with */
+const MISSING_ERROR_FN = (
+  strategyName: StrategyName,
+  exchangeName: ExchangeName,
+  frameName: FrameName,
+  backtest: boolean,
+  name: BudgetName,
+): BudgetMissingError =>
+  new BudgetMissingError(
+    `Budget "${name}" for ${strategyName}/${exchangeName}/${frameName || "-"} (${backtest ? "backtest" : "live"}) does not exist yet: pass initialCapital to the call that creates it`,
+  );
 
 /** Balance before any row */
 const INITIAL_BALANCE_FN = (initialCapital: number): IBudgetRowBalance => ({
@@ -476,6 +496,9 @@ export class BudgetLocalInstance implements IBudgetInstance {
    * @returns Promise that resolves immediately
    */
   public waitForInit = singleshot(async (_initial: boolean) => {
+    if (this.initialValue.initialCapital === undefined) {
+      throw MISSING_ERROR_FN(this.strategyName, this.exchangeName, this.frameName, this.backtest, this.name);
+    }
     this._value = { initialCapital: this.initialValue.initialCapital, journal: [] };
     this._seq = 0;
   });
@@ -579,7 +602,7 @@ export class BudgetDummyInstance implements IBudgetInstance {
    * @returns Initial value
    */
   public async getState(_when: Date): Promise<IBudgetValue> {
-    return { initialCapital: this.initialValue.initialCapital, journal: [] };
+    return { initialCapital: this.initialValue.initialCapital ?? 0, journal: [] };
   }
 
   /**
@@ -646,6 +669,9 @@ export class BudgetPersistInstance implements IBudgetInstance {
       this._value = <IBudgetValue>data.data;
       this._seq = MAX_SEQ_FN(this._value.journal);
       return;
+    }
+    if (this.initialValue.initialCapital === undefined) {
+      throw MISSING_ERROR_FN(this.strategyName, this.exchangeName, this.frameName, this.backtest, this.name);
     }
     this._value = { initialCapital: this.initialValue.initialCapital, journal: [] };
     this._seq = 0;
@@ -792,7 +818,16 @@ export class BudgetBacktestAdapter implements TBudgetAdapter {
     const key = CREATE_KEY_FN(dto, dto.name);
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto, dto.name, dto.initialValue);
-    await instance.waitForInit(isInitial);
+    try {
+      await instance.waitForInit(isInitial);
+    } catch (error) {
+      // a creation refused (BudgetMissingError) or failed must not pin a broken instance:
+      // the next call that brings initialCapital creates the record properly
+      if (isInitial) {
+        this.getInstance.clear(key);
+      }
+      throw error;
+    }
     return await instance.getState(dto.when);
   };
 
@@ -812,7 +847,16 @@ export class BudgetBacktestAdapter implements TBudgetAdapter {
     const key = CREATE_KEY_FN(dto, dto.name);
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto, dto.name, dto.initialValue);
-    await instance.waitForInit(isInitial);
+    try {
+      await instance.waitForInit(isInitial);
+    } catch (error) {
+      // a creation refused (BudgetMissingError) or failed must not pin a broken instance:
+      // the next call that brings initialCapital creates the record properly
+      if (isInitial) {
+        this.getInstance.clear(key);
+      }
+      throw error;
+    }
     return await instance.setState(dispatch, dto.when);
   };
 
@@ -896,7 +940,16 @@ export class BudgetLiveAdapter implements TBudgetAdapter {
     const key = CREATE_KEY_FN(dto, dto.name);
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto, dto.name, dto.initialValue);
-    await instance.waitForInit(isInitial);
+    try {
+      await instance.waitForInit(isInitial);
+    } catch (error) {
+      // a creation refused (BudgetMissingError) or failed must not pin a broken instance:
+      // the next call that brings initialCapital creates the record properly
+      if (isInitial) {
+        this.getInstance.clear(key);
+      }
+      throw error;
+    }
     return await instance.getState(dto.when);
   };
 
@@ -916,7 +969,16 @@ export class BudgetLiveAdapter implements TBudgetAdapter {
     const key = CREATE_KEY_FN(dto, dto.name);
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto, dto.name, dto.initialValue);
-    await instance.waitForInit(isInitial);
+    try {
+      await instance.waitForInit(isInitial);
+    } catch (error) {
+      // a creation refused (BudgetMissingError) or failed must not pin a broken instance:
+      // the next call that brings initialCapital creates the record properly
+      if (isInitial) {
+        this.getInstance.clear(key);
+      }
+      throw error;
+    }
     return await instance.setState(dispatch, dto.when);
   };
 
@@ -973,14 +1035,14 @@ const TO_BALANCE_FN = (value: IBudgetValue, name: BudgetName, when: Date): IBudg
   ...BALANCE_OF_FN(value),
 });
 
-/** Adapter dto from a static context (initialCapital defaults to 0 for a record created by a static call) */
+/** Adapter dto from a static context: no capital unless the call brought one, a creation without it is refused by the instance */
 const TO_ADAPTER_DTO_FN = (context: IBudgetContext): TBudgetAdapterDto => ({
   strategyName: context.strategyName,
   exchangeName: context.exchangeName,
   frameName: context.frameName,
   backtest: context.backtest,
   name: context.name,
-  initialValue: { initialCapital: context.initialCapital ?? 0 },
+  initialValue: { initialCapital: context.initialCapital },
   when: context.when,
 });
 

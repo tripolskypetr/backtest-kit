@@ -5,6 +5,7 @@ import {
   BudgetBacktest,
   BudgetLive,
   BudgetRejectedError,
+  BudgetMissingError,
   PersistBudgetAdapter,
   ExecutionContextService,
   MethodContextService,
@@ -270,5 +271,80 @@ test("budget: journal order is deterministic for equal timestamps (symbol, then 
   const order = history.map((row) => `${row.symbol}:${row.type}`).join(",");
   if (order !== "BTCUSDT:reserve,BTCUSDT:deposit,ETHUSDT:reserve") return fail(`order expected BTCUSDT:reserve,BTCUSDT:deposit,ETHUSDT:reserve got ${order}`);
   if (history[2].balance.free !== 800) return fail(`tail balance expected 800, got ${history[2].balance.free}`);
+  pass();
+});
+
+// ---------------------------------------------------------------------------
+// A record is created by the first call: a static call must bring the capital
+// ---------------------------------------------------------------------------
+test("budget: a static call that would create the record without initialCapital is refused and leaves nothing behind", async ({ pass, fail }) => {
+  Budget.enable();
+  const base = { ...METHOD, backtest: true, name: "fund" };
+
+  // a listener touches the account before the strategy did
+  try {
+    await Budget._getFree({ ...base, when: at(1) });
+    return fail("a static read creating the record without initialCapital must throw");
+  } catch (error) {
+    if (!BudgetMissingError.isBudgetMissingError(error)) return fail(`expected BudgetMissingError, got ${error.message}`);
+  }
+  try {
+    await Budget._reserve({ id: "early", amount: 1 }, { ...base, when: at(1), symbol: "BTCUSDT" });
+    return fail("a static write creating the record without initialCapital must throw");
+  } catch (error) {
+    if (!BudgetMissingError.isBudgetMissingError(error)) return fail(`expected BudgetMissingError, got ${error.message}`);
+  }
+
+  // nothing was created with a guessed capital: the next call that brings the capital creates it properly
+  const free = await Budget._getFree({ ...base, when: at(2), initialCapital: 5000 });
+  if (free !== 5000) return fail(`the record must be created with the capital of the first successful call, got ${free}`);
+  const instance = new Budget({ name: "fund", initialCapital: 5000 });
+  const seen = await inContext("BTCUSDT", at(3), () => instance.getFree());
+  if (seen !== 5000) return fail(`the strategy instance must see the same record, got ${seen}`);
+  pass();
+});
+
+test("budget: once the record exists, static calls without initialCapital read and write it", async ({ pass, fail }) => {
+  Budget.enable();
+  const fund = new Budget({ name: "fund", initialCapital: 1000 });
+  await inContext("BTCUSDT", at(1), () => fund.reserve({ id: "a", amount: 300 }));
+
+  const base = { ...METHOD, backtest: true, name: "fund" };
+  const free = await Budget._getFree({ ...base, when: at(2) });
+  if (free !== 700) return fail(`static read without initialCapital expected 700, got ${free}`);
+  const after = await Budget._release({ id: "a", pnl: 10 }, { ...base, when: at(3), symbol: "BTCUSDT" });
+  if (after.capital !== 1010 || after.free !== 1010) return fail(`static write without initialCapital expected 1010/1010, got ${JSON.stringify(after)}`);
+  pass();
+});
+
+test("budget: a persisted record is served to a static call without initialCapital, an unpersisted one is refused", async ({ pass, fail }) => {
+  Budget.enable();
+  const store = new Map();
+  PersistBudgetAdapter.usePersistBudgetAdapter(class {
+    constructor(key, name) { this.storeKey = `${JSON.stringify(key)}|${name}`; }
+    async waitForInit() { void 0; }
+    async readBudgetData() { return store.get(this.storeKey) ?? null; }
+    async writeBudgetData(data) { store.set(this.storeKey, structuredClone(data)); }
+    async dispose() { void 0; }
+  });
+  BudgetBacktest.usePersist();
+  const fund = new Budget({ name: "fund", initialCapital: 2000 });
+  await inContext("BTCUSDT", at(1), () => fund.reserve({ id: "a", amount: 500 }));
+
+  // a restart: no memoized instance, the record comes back from the store without any capital in the call
+  BudgetBacktest.clear();
+  const base = { ...METHOD, backtest: true, name: "fund" };
+  const free = await Budget._getFree({ ...base, when: at(2) });
+  if (free !== 1500) return fail(`the persisted record must be served without initialCapital, got ${free}`);
+
+  // a record that was never persisted is still refused
+  try {
+    await Budget._getFree({ ...base, name: "other", when: at(2) });
+    return fail("an unpersisted record must not be created without initialCapital");
+  } catch (error) {
+    if (!BudgetMissingError.isBudgetMissingError(error)) return fail(`expected BudgetMissingError, got ${error.message}`);
+  }
+  const other = await Budget._getFree({ ...base, name: "other", when: at(3), initialCapital: 7 });
+  if (other !== 7) return fail(`the refused creation must not pin a broken instance, got ${other}`);
   pass();
 });

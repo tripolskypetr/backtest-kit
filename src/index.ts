@@ -924,6 +924,7 @@ export { getCandlesSampled } from "./helpers/getCandlesSampled";
 export { OrderDeletedError } from "./error/OrderDeletedError";
 export { OrderRejectedError } from "./error/OrderRejectedError";
 export { BudgetRejectedError } from "./error/BudgetRejectedError";
+export { BudgetMissingError } from "./error/BudgetMissingError";
 export { OrderTransientError } from "./error/OrderTransientError";
 export { GeneralExpectedError } from "./error/GeneralExpectedError";
 export { GeneralUnexpectedError } from "./error/GeneralUnexpectedError";

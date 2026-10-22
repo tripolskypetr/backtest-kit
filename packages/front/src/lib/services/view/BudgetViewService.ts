@@ -1,7 +1,7 @@
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
-import { Budget } from "backtest-kit";
+import { Budget, BudgetMissingError } from "backtest-kit";
 import BudgetMockService, { IBudgetViewContext, TBudgetBalance, TBudgetContext, TBudgetHistoryRow } from "../mock/BudgetMockService";
 import { getConfig as getParamsConfig } from "../../../config/params";
 
@@ -45,7 +45,15 @@ export class BudgetViewService {
         if (!name) {
             return null;
         }
-        return await Budget._getBalance(TO_BUDGET_CONTEXT_FN(context, name, when));
+        try {
+            return await Budget._getBalance(TO_BUDGET_CONTEXT_FN(context, name, when));
+        } catch (error) {
+            // the strategy constructed the budget but nothing touched the record yet: no journal to show
+            if (BudgetMissingError.isBudgetMissingError(error as object)) {
+                return null;
+            }
+            throw error;
+        }
     }
 
     public getHistory = async (context: IBudgetViewContext, when: number): Promise<TBudgetHistoryRow[]> => {
@@ -60,7 +68,14 @@ export class BudgetViewService {
         if (!name) {
             return [];
         }
-        return await Budget._getHistory(TO_BUDGET_CONTEXT_FN(context, name, when));
+        try {
+            return await Budget._getHistory(TO_BUDGET_CONTEXT_FN(context, name, when));
+        } catch (error) {
+            if (BudgetMissingError.isBudgetMissingError(error as object)) {
+                return [];
+            }
+            throw error;
+        }
     }
 }
 
