@@ -348,3 +348,68 @@ test("budget: a persisted record is served to a static call without initialCapit
   if (other !== 7) return fail(`the refused creation must not pin a broken instance, got ${other}`);
   pass();
 });
+
+// ---------------------------------------------------------------------------
+// Diagnostics: a release ahead of its reserve, a shortfall that stays on record
+// ---------------------------------------------------------------------------
+test("budget: a release dated before its reserve is a no-op that leaves a warning, the same release at a proper when works", async ({ pass, fail }) => {
+  Budget.enable();
+  const fund = new Budget({ name: "fund", initialCapital: 1000 });
+  await inContext("BTCUSDT", at(10), () => fund.reserve({ id: "late", amount: 400 }));
+
+  const warnings = [];
+  const realWarn = console.warn;
+  console.warn = (...args) => { warnings.push(args.map(String).join(" ")); };
+  try {
+    const balance = await inContext("BTCUSDT", at(5), () => fund.release({ id: "late", pnl: 50 }));
+    if (balance.deployed !== 0 || balance.capital !== 1000) return fail(`a read at t=5 must not see the reserve at t=10: ${JSON.stringify(balance)}`);
+    const later = await inContext("BTCUSDT", at(11), () => fund.getBalance());
+    if (later.deployed !== 400) return fail(`the early release must not touch the reserve: deployed=${later.deployed}`);
+  } finally {
+    console.warn = realWarn;
+  }
+  const warning = warnings.find((w) => w.includes('release of "late"') && w.includes("lies ahead"));
+  if (!warning) return fail(`expected a warning about the release ahead of its reserve, got ${JSON.stringify(warnings)}`);
+  if (!warning.includes(at(5).toISOString()) || !warning.includes(at(10).toISOString())) return fail(`the warning must carry both timestamps: ${warning}`);
+
+  // an id that was never reserved stays a silent no-op (the documented repeat-release behaviour)
+  warnings.length = 0;
+  console.warn = (...args) => { warnings.push(args.join(" ")); };
+  try {
+    await inContext("BTCUSDT", at(12), () => fund.release({ id: "never", pnl: 0 }));
+  } finally {
+    console.warn = realWarn;
+  }
+  if (warnings.length) return fail(`an unknown id must not warn: ${JSON.stringify(warnings)}`);
+
+  const after = await inContext("BTCUSDT", at(13), () => fund.release({ id: "late", pnl: 50 }));
+  if (after.deployed !== 0 || after.capital !== 1050) return fail(`the release at a proper when must go through: ${JSON.stringify(after)}`);
+  pass();
+});
+
+test("budget: an overdraft healed by an earlier release that arrived later is cleared, what it refused meanwhile stays on record", async ({ pass, fail }) => {
+  Budget.enable();
+  const fund = new Budget({ name: "fund", initialCapital: 1000 });
+  await inContext("BTCUSDT", at(10), () => fund.reserve({ id: "late", amount: 700 }));
+  await inContext("ETHUSDT", at(5), () => fund.reserve({ id: "early", amount: 500 }));
+  let history = await inContext("BTCUSDT", at(20), () => fund.getHistory());
+  const lateBefore = history.find((r) => r.type === "reserve" && r.id === "late");
+  if (lateBefore.overdraft !== 200 || lateBefore.balance.free !== -200) return fail(`expected overdraft 200 on the late row first, got ${JSON.stringify(lateBefore)}`);
+
+  // while the shortfall stands, a reserve is refused: that refusal is the durable trace
+  const refused = await expectRejected(() => inContext("BTCUSDT", at(12), () => fund.reserve({ id: "meanwhile", amount: 100 })));
+  if (!refused) return fail("a reserve during the shortfall must be refused");
+
+  // an earlier release of "early" (t=7, before the late reserve) arrives later: by logical time the
+  // late reserve never lacked money, the rows only came out of order, so the mark goes away
+  await inContext("ETHUSDT", at(7), () => fund.release({ id: "early", pnl: 0 }));
+  history = await inContext("BTCUSDT", at(20), () => fund.getHistory());
+  const lateAfter = history.find((r) => r.type === "reserve" && r.id === "late");
+  if (lateAfter.balance.free !== 300) return fail(`the late row's balance must be recomputed to free 300, got ${lateAfter.balance.free}`);
+  if (lateAfter.overdraft !== undefined) return fail(`a healed shortfall must not keep its mark (the journal would depend on arrival order), got ${lateAfter.overdraft}`);
+  const rejectRow = history.find((r) => r.type === "reject" && r.timestamp === at(12).getTime());
+  if (!rejectRow) return fail(`the refusal made during the shortfall must stay in the journal: ${history.map((r) => r.type).join(",")}`);
+  const free = await inContext("BTCUSDT", at(20), () => fund.getFree());
+  if (free !== 300) return fail(`current free expected 300, got ${free}`);
+  pass();
+});

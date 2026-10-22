@@ -33489,7 +33489,14 @@ interface IBudgetReserveRow extends IBudgetHistoryRowBase {
     /**
      * Set when a later-inserted earlier row (another symbol whose clock lagged
      * behind this one) made this reserve exceed the free balance: `-free` after
-     * the row. The budget never hides it (see the Budget class notes). Under
+     * the row, as of the journal's CURRENT content. Cleared again when a later
+     * insert brings the balance back (an earlier release that arrived after the
+     * reserve it closes): by logical time such a shortfall never existed, the
+     * rows merely arrived out of order, and keeping the mark would make the
+     * journal depend on the arrival order (I3). What the shortfall DID cause
+     * while it stood is on record for good: the `reject` rows of the reserves
+     * refused in that window, and the warning logged at the recompute. The
+     * budget never hides it (see the Budget class notes). Under
      * `CC_BACKTEST_LOCKSTEP` the clocks of parallel backtests stay within one
      * timeframe, replays included, so this only arises with the flag off or
      * with ties inside one timeframe.
@@ -33557,8 +33564,11 @@ type BudgetAction = Omit<IBudgetReserveRow, "timestamp" | "seq" | "balance" | "o
  * the caller is allowed to see) and returns the action to insert at `when`, or
  * null for a no-op. Runs inside the instance's `queued` section, so the check
  * and the write are atomic within the process, like `setState(prev => ...)`.
+ * The second argument is the WHOLE journal, rows past `when` included: it is
+ * for diagnostics only (a release aimed at a reserve that lies in the caller's
+ * future), never for the decision itself.
  */
-type BudgetDispatch = (prev: IBudgetValue) => BudgetAction | null | Promise<BudgetAction | null>;
+type BudgetDispatch = (prev: IBudgetValue, full: IBudgetValue) => BudgetAction | null | Promise<BudgetAction | null>;
 /**
  * Interface for budget instance implementations.
  * Defines the contract for local, persist, and dummy backends — the same four

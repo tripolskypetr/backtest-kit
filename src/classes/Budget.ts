@@ -188,7 +188,14 @@ export interface IBudgetReserveRow extends IBudgetHistoryRowBase {
   /**
    * Set when a later-inserted earlier row (another symbol whose clock lagged
    * behind this one) made this reserve exceed the free balance: `-free` after
-   * the row. The budget never hides it (see the Budget class notes). Under
+   * the row, as of the journal's CURRENT content. Cleared again when a later
+   * insert brings the balance back (an earlier release that arrived after the
+   * reserve it closes): by logical time such a shortfall never existed, the
+   * rows merely arrived out of order, and keeping the mark would make the
+   * journal depend on the arrival order (I3). What the shortfall DID cause
+   * while it stood is on record for good: the `reject` rows of the reserves
+   * refused in that window, and the warning logged at the recompute. The
+   * budget never hides it (see the Budget class notes). Under
    * `CC_BACKTEST_LOCKSTEP` the clocks of parallel backtests stay within one
    * timeframe, replays included, so this only arises with the flag off or
    * with ties inside one timeframe.
@@ -275,8 +282,11 @@ export type BudgetAction =
  * the caller is allowed to see) and returns the action to insert at `when`, or
  * null for a no-op. Runs inside the instance's `queued` section, so the check
  * and the write are atomic within the process, like `setState(prev => ...)`.
+ * The second argument is the WHOLE journal, rows past `when` included: it is
+ * for diagnostics only (a release aimed at a reserve that lies in the caller's
+ * future), never for the decision itself.
  */
-export type BudgetDispatch = (prev: IBudgetValue) => BudgetAction | null | Promise<BudgetAction | null>;
+export type BudgetDispatch = (prev: IBudgetValue, full: IBudgetValue) => BudgetAction | null | Promise<BudgetAction | null>;
 
 /** The record does not exist and the call brought no capital to create it with */
 const MISSING_ERROR_FN = (
@@ -314,7 +324,8 @@ const COMPARE_ROW_FN = (a: IBudgetHistoryRow, b: IBudgetHistoryRow): number => {
 /**
  * Balance after `row` given the balance before it. The reserve row gets its
  * `overdraft` set (or cleared) here, so a re-computation of the tail after an
- * insertion in the middle reflects the new free balance on every later row.
+ * insertion in the middle reflects the new free balance on every later row:
+ * the mark describes the journal as it is now, not the order its rows arrived in.
  */
 const APPLY_ROW_FN = (prev: IBudgetRowBalance, row: IBudgetHistoryRow): IBudgetRowBalance => {
   const assets = { ...prev.assets };
@@ -533,7 +544,7 @@ export class BudgetLocalInstance implements IBudgetInstance {
       backtest: this.backtest,
       name: this.name,
     });
-    const action = await dispatch(FOLD_FN(this._value, when.getTime()));
+    const action = await dispatch(FOLD_FN(this._value, when.getTime()), { initialCapital: this._value.initialCapital, journal: this._value.journal.slice() });
     if (!action) {
       return null;
     }
@@ -707,7 +718,7 @@ export class BudgetPersistInstance implements IBudgetInstance {
       backtest: this.backtest,
       name: this.name,
     });
-    const action = await dispatch(FOLD_FN(this._value, when.getTime()));
+    const action = await dispatch(FOLD_FN(this._value, when.getTime()), { initialCapital: this._value.initialCapital, journal: this._value.journal.slice() });
     if (!action) {
       return null;
     }
@@ -1304,9 +1315,26 @@ export class Budget {
       throw new Error(`${BUDGET_METHOD_NAME_STATIC_RELEASE}: pnl must be a finite number, got ${pnl}`);
     }
     const symbol = context.symbol ?? null;
-    await Budget._setValue((prev) => {
+    await Budget._setValue((prev, full) => {
       const open = FIND_OPEN_RESERVE_FN(prev, dto.id);
       if (!open) {
+        // the reserve exists but lies past the caller's when: a listener with a wrong
+        // timestamp would otherwise leave the money deployed forever without a trace
+        const ahead = full.journal.find((row) => row.type === "reserve" && row.id === dto.id && row.timestamp > context.when.getTime());
+        if (ahead) {
+          const message = `Budget "${context.name}": release of "${dto.id}" at ${context.when.toISOString()} ignored, its reserve lies ahead at ${new Date(ahead.timestamp).toISOString()}; check the caller's timestamp`;
+          swarm.loggerService.warn(message, {
+            strategyName: context.strategyName,
+            exchangeName: context.exchangeName,
+            frameName: context.frameName,
+            backtest: context.backtest,
+            name: context.name,
+            id: dto.id,
+            when: context.when.getTime(),
+            reserveTimestamp: ahead.timestamp,
+          });
+          console.warn(message);
+        }
         return null;
       }
       return { type: "release", id: dto.id, amount: open.amount, pnl, ...(dto.note !== undefined && { note: dto.note }), symbol };
