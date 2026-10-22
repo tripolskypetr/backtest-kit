@@ -17,6 +17,7 @@ import IntervalDataService from "../services/data/IntervalDataService";
 import MemoryDataService from "../services/data/MemoryDataService";
 import RecentDataService from "../services/data/RecentDataService";
 import StateDataService from "../services/data/StateDataService";
+import BudgetDataService from "../services/data/BudgetDataService";
 import DictionaryDataService from "../services/data/DictionaryDataService";
 import SessionDataService from "../services/data/SessionDataService";
 
@@ -49,6 +50,7 @@ import TYPES from "./types";
     provide(TYPES.memoryDataService, () => new MemoryDataService());
     provide(TYPES.recentDataService, () => new RecentDataService());
     provide(TYPES.stateDataService, () => new StateDataService());
+    provide(TYPES.budgetDataService, () => new BudgetDataService());
     provide(TYPES.dictionaryDataService, () => new DictionaryDataService());
     provide(TYPES.sessionDataService, () => new SessionDataService());
 }

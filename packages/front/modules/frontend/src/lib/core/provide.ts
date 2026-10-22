@@ -22,6 +22,7 @@ import EnvironmentMockService from "../services/mock/EnvironmentMockService";
 import SetupMockService from "../services/mock/SetupMockService";
 import RuntimeMockService from "../services/mock/RuntimeMockService";
 import ControlMockService from "../services/mock/ControlMockService";
+import BudgetMockService from "../services/mock/BudgetMockService";
 import PauseMockService from "../services/mock/PauseMockService";
 
 import ExchangeViewService from "../services/view/ExchangeViewService";
@@ -38,6 +39,7 @@ import EnvironmentViewService from "../services/view/EnvironmentViewService";
 import SetupViewService from "../services/view/SetupViewService";
 import RuntimeViewService from "../services/view/RuntimeViewService";
 import ControlViewService from "../services/view/ControlViewService";
+import BudgetViewService from "../services/view/BudgetViewService";
 import PauseViewService from "../services/view/PauseViewService";
 import SymbolGlobalService from "../services/global/SymbolGlobalService";
 import PriceGlobalService from "../services/global/PriceGlobalService";
@@ -84,6 +86,7 @@ import ExplorerHelperService from "../services/helpers/ExplorerHelperService";
     provide(TYPES.setupMockService, () => new SetupMockService());
     provide(TYPES.runtimeMockService, () => new RuntimeMockService());
     provide(TYPES.controlMockService, () => new ControlMockService());
+    provide(TYPES.budgetMockService, () => new BudgetMockService());
     provide(TYPES.pauseMockService, () => new PauseMockService());
 }
 
@@ -102,5 +105,6 @@ import ExplorerHelperService from "../services/helpers/ExplorerHelperService";
     provide(TYPES.setupViewService, () => new SetupViewService());
     provide(TYPES.runtimeViewService, () => new RuntimeViewService());
     provide(TYPES.controlViewService, () => new ControlViewService());
+    provide(TYPES.budgetViewService, () => new BudgetViewService());
     provide(TYPES.pauseViewService, () => new PauseViewService());
 }

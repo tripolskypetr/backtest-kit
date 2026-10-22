@@ -362,6 +362,13 @@ export const GLOBAL_CONFIG = {
    */
   CC_MAX_MAX_DRAWDOWN_MARKDOWN_ROWS: 250,
   /**
+   * Maximum number of journal rows to keep in budget markdown report storage.
+   * Older rows are removed (FIFO) when this limit is exceeded.
+   *
+   * Default: 250 rows
+   */
+  CC_MAX_BUDGET_MARKDOWN_ROWS: 250,
+  /**
    * Maximum number of events to keep in live markdown report storage.
    * Older events are removed (FIFO) when this limit is exceeded.
    *
@@ -476,6 +483,45 @@ export const GLOBAL_CONFIG = {
    * Default: true (parallel backtests are interleaved on each candle fetch boundary)
    */
   CC_ENABLE_BACKTEST_PARALLEL_SPIN: true,
+
+  /**
+   * Keeps parallel backtests on the same logical time.
+   *
+   * Mechanism (implemented in `Lockstep` and used by `BacktestLogicPrivateService.run`):
+   * - Every timeframe iteration (the tick and, when a signal opens, the candle replay of that
+   *   signal) runs under a process-wide FIFO mutex and releases it before the next timeframe,
+   *   so concurrent `Backtest.run` / `Backtest.background` workloads interleave
+   *   A(t0) B(t0) A(t1) B(t1) … and never drift apart by more than one timeframe.
+   * - Every iteration starts behind a time barrier: it waits until every running peer has
+   *   reached its timeframe (executed up to it, or parked on it with nothing left before it).
+   * - A replay spans many timeframes in one iteration, so inside it `StrategyConnectionService`
+   *   calls the orchestrator from its schedule / active ping callbacks (one per replayed candle)
+   *   and on the last candle before every boundary the replay hands the lock off and waits until
+   *   every peer has executed up to that boundary. The boundaries follow the finest timeframe
+   *   step among the running backtests, so a 1h replay yields to a 15m peer every 15 minutes.
+   * - A strategy that blocks inside `getSignal` or a ping handler (an LLM call, a `sleep`)
+   *   therefore parks its peers at the same `when`; shared state such as `Budget` sees the
+   *   symbols in time order, a write from the middle of a replay included.
+   * - While the lock is held the generator still yields to its consumer, so a consumer that
+   *   waits for ANOTHER backtest's progress inside the `for await` body would deadlock.
+   * - Makes `CC_ENABLE_BACKTEST_PARALLEL_SPIN` redundant: `Candle.spinLock` is skipped while
+   *   lockstep is on, the peers are parked on this mutex anyway.
+   *
+   * Contract:
+   * - The flag is read when a backtest starts and must not change while backtests run: the lock
+   *   taken under one value is released under the same one.
+   * - Peers launched together through `Backtest.background` (the `Launcher` loop) are waited for
+   *   before the first iteration (`Lookup` lists them synchronously); `Backtest.run` is NOT part
+   *   of that wait and joins the lockstep only once its own run has started, so a `Backtest.run`
+   *   started next to backgrounds may see them ahead of it, which the budget journal shows as
+   *   overdraft on their earlier rows, never as a hang.
+   * - A backtest stopped mid-replay (the dispose function of `Backtest.background`,
+   *   `Backtest.stop`) finishes the open position, leaves the lock on its way out and is no
+   *   longer waited for; a backtest that throws or whose consumer breaks leaves the lock the same way.
+   *
+   * Default: true (parallel backtests advance one timeframe at a time)
+   */
+  CC_BACKTEST_LOCKSTEP: true,
 
   /**
    * Enables DCA (Dollar-Cost Averaging) logic even if antirecord is not broken.

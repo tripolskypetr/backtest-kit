@@ -6683,6 +6683,10 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const progressPercent = GET_PROGRESS_PERCENT_FN(currentDistance, tpDistance);
           percentTp = progressPercent;
 
+          // The peak snapshot is updated BEFORE the active ping (the ping carries it) and
+          // the onHighestProfit callback fires AFTER it: the ping is where a parallel backtest
+          // hands the lockstep lock off, so every listener of this candle runs behind it.
+          let peakReached = false;
           if (averagePrice > signal._peak.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             // Пик — только реальный плюс (зеркало live-ветки): реализуемый
@@ -6698,15 +6702,18 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
                   true
                 );
               }
-              await self.params.onHighestProfit(
-                TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
-                averagePrice,
-                currentCandleTimestamp
-              );
+              peakReached = true;
             }
           }
 
           await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
+          if (peakReached) {
+            await self.params.onHighestProfit(
+              TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
+              averagePrice,
+              currentCandleTimestamp
+            );
+          }
 
           await CALL_BREAKEVEN_CHECK_FN(
             self,
@@ -6732,6 +6739,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const slDistance = effectivePriceOpen - effectiveStopLoss;
           const progressPercent = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
           percentSl = progressPercent;
+          // Same as the peak: the fall snapshot before the ping, the callback after it.
+          let fallReached = false;
           if (averagePrice < signal._fall.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
@@ -6744,13 +6753,16 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
                 true
               );
             }
+            fallReached = true;
+          }
+          await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
+          if (fallReached) {
             await self.params.onMaxDrawdown(
               TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
               averagePrice,
               currentCandleTimestamp
             );
           }
-          await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
             self.params.execution.context.symbol,
@@ -6774,6 +6786,10 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const progressPercent = GET_PROGRESS_PERCENT_FN(currentDistance, tpDistance);
           percentTp = progressPercent;
 
+          // The peak snapshot is updated BEFORE the active ping (the ping carries it) and
+          // the onHighestProfit callback fires AFTER it: the ping is where a parallel backtest
+          // hands the lockstep lock off, so every listener of this candle runs behind it.
+          let peakReached = false;
           if (averagePrice < signal._peak.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             // Пик — только реальный плюс (зеркало live-ветки): реализуемый
@@ -6789,15 +6805,18 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
                   true
                 );
               }
-              await self.params.onHighestProfit(
-                TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
-                averagePrice,
-                currentCandleTimestamp
-              );
+              peakReached = true;
             }
           }
 
           await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
+          if (peakReached) {
+            await self.params.onHighestProfit(
+              TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
+              averagePrice,
+              currentCandleTimestamp
+            );
+          }
 
           await CALL_BREAKEVEN_CHECK_FN(
             self,
@@ -6823,6 +6842,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const slDistance = effectiveStopLoss - effectivePriceOpen;
           const progressPercent = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
           percentSl = progressPercent;
+          // Same as the peak: the fall snapshot before the ping, the callback after it.
+          let fallReached = false;
           if (averagePrice > signal._fall.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
@@ -6835,13 +6856,16 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
                 true
               );
             }
+            fallReached = true;
+          }
+          await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
+          if (fallReached) {
             await self.params.onMaxDrawdown(
               TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
               averagePrice,
               currentCandleTimestamp
             );
           }
-          await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
             self.params.execution.context.symbol,

@@ -11,6 +11,7 @@ import PerformanceView from "./view/PerformanceView";
 import SyncView from "./view/SyncView";
 import HeatView from "./view/HeatView";
 import StrategyView from "./view/StrategyView";
+import BudgetView from "./view/BudgetView";
 
 export const routes: IOutletModal[] = [
     {
@@ -72,6 +73,11 @@ export const routes: IOutletModal[] = [
         id: "strategy",
         element: StrategyView,
         isActive: (pathname) => pathname.includes("/markdown_report/strategy"),
+    },
+    {
+        id: "budget",
+        element: BudgetView,
+        isActive: (pathname) => pathname.includes("/markdown_report/budget"),
     },
 ];
 

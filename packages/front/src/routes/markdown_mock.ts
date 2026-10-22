@@ -272,6 +272,34 @@ router.post("/api/v1/markdown_mock/highest_profit_report", async (req, res) => {
   }
 });
 
+router.post("/api/v1/markdown_mock/budget_data", async (req, res) => {
+  try {
+    const request = <MarkdownSymbolStrategyRequest>await micro.json(req);
+    const { requestId, serviceName, strategyName, exchangeName, frameName } = request;
+    const data = await ioc.markdownMockService.getBudgetData(strategyName, exchangeName, frameName);
+    const result = { data, status: "ok", error: "", requestId, serviceName };
+    ioc.loggerService.log("/api/v1/markdown_mock/budget_data ok", { request, result: omit(result, "data") });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/markdown_mock/budget_data error", { error: errorData(error) });
+    return await micro.send(res, 200, { status: "error", error: getErrorMessage(error) });
+  }
+});
+
+router.post("/api/v1/markdown_mock/budget_report", async (req, res) => {
+  try {
+    const request = <MarkdownSymbolStrategyRequest>await micro.json(req);
+    const { requestId, serviceName, strategyName, exchangeName, frameName } = request;
+    const data = await ioc.markdownMockService.getBudgetReport(strategyName, exchangeName, frameName);
+    const result = { data, status: "ok", error: "", requestId, serviceName };
+    ioc.loggerService.log("/api/v1/markdown_mock/budget_report ok", { request, result: omit(result, "data") });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/markdown_mock/budget_report error", { error: errorData(error) });
+    return await micro.send(res, 200, { status: "error", error: getErrorMessage(error) });
+  }
+});
+
 router.post("/api/v1/markdown_mock/max_drawdown_data", async (req, res) => {
   try {
     const request = <MarkdownSymbolStrategyRequest>await micro.json(req);

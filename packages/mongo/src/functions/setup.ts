@@ -16,6 +16,7 @@ import {
   PersistMemoryAdapter,
   PersistRecentAdapter,
   PersistStateAdapter,
+  PersistBudgetAdapter,
   PersistDictionaryAdapter,
   PersistSessionAdapter,
 } from "backtest-kit";
@@ -35,6 +36,7 @@ import PersistIntervalInstance from "../classes/PersistIntervalInstance";
 import PersistMemoryInstance from "../classes/PersistMemoryInstance";
 import PersistRecentInstance from "../classes/PersistRecentInstance";
 import PersistStateInstance from "../classes/PersistStateInstance";
+import PersistBudgetInstance from "../classes/PersistBudgetInstance";
 import PersistDictionaryInstance from "../classes/PersistDictionaryInstance";
 import PersistSessionInstance from "../classes/PersistSessionInstance";
 
@@ -100,6 +102,7 @@ export function setup(config?: Partial<Config>) {
  * - **Memory** — long-term signal memory (`PersistMemoryAdapter`)
  * - **Recent** — latest strategy frame result (`PersistRecentAdapter`)
  * - **State** — signal state (`PersistStateAdapter`)
+ * - **Budget** — shared balance journal per strategy run (`PersistBudgetAdapter`)
  * - **Dictionary** — per-signal dictionary snapshots (`PersistDictionaryAdapter`)
  * - **Session** — strategy session data (`PersistSessionAdapter`)
  *
@@ -123,6 +126,7 @@ export function install() {
     PersistMemoryAdapter.usePersistMemoryAdapter(PersistMemoryInstance);
     PersistRecentAdapter.usePersistRecentAdapter(PersistRecentInstance);
     PersistStateAdapter.usePersistStateAdapter(PersistStateInstance);
+    PersistBudgetAdapter.usePersistBudgetAdapter(PersistBudgetInstance);
     PersistDictionaryAdapter.usePersistDictionaryAdapter(PersistDictionaryInstance);
     PersistSessionAdapter.usePersistSessionAdapter(PersistSessionInstance);
 }

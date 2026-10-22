@@ -14,6 +14,7 @@ import {
   PersistMeasureAdapter,
   PersistRecentAdapter,
   PersistStateAdapter,
+  PersistBudgetAdapter,
   PersistSessionAdapter,
   PersistStrategyAdapter,
   Report,
@@ -55,6 +56,7 @@ import {
   PersistMeasureAdapter.useDummy();
   PersistRecentAdapter.useDummy();
   PersistStateAdapter.useDummy();
+  PersistBudgetAdapter.useDummy();
   PersistSessionAdapter.useDummy();
   PersistStrategyAdapter.useDummy();
 }
@@ -72,6 +74,8 @@ setConfig(
     CC_GET_CANDLES_RETRY_DELAY_MS: 100, // Минимальная задержка между ретраями
 
     CC_REPORT_SHOW_SIGNAL_NOTE: true, // Показываем заметки сигналов в отчете
+
+    CC_BACKTEST_LOCKSTEP: false, // Параллельные бэктесты в тестах независимы; lockstep проверяется отдельно в e2e/lockstep.test.mjs
   },
   true
 );

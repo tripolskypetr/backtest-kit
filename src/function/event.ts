@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, syncPendingSubject, orderFillSubject, orderRejectSubject, orderContinueSubject, orderStopSubject, highestProfitSubject, maxDrawdownSubject, pauseSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, syncPendingSubject, orderFillSubject, orderRejectSubject, orderContinueSubject, orderStopSubject, highestProfitSubject, maxDrawdownSubject, budgetSubject, pauseSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -17,7 +17,7 @@ import { SignalEventContract } from "../contract/SignalEvent.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
 import { IdlePingContract } from "../contract/IdlePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
-import { not, queued, LimitedMap } from "functools-kit";
+import { not, queued, LimitedMap, errorData, getErrorMessage } from "functools-kit";
 import OrderSyncContract from "../contract/OrderSync.contract";
 import OrderFillContract from "../contract/OrderFill.contract";
 import OrderRejectContract from "../contract/OrderReject.contract";
@@ -30,6 +30,7 @@ import { PauseContract } from "../contract/Pause.contract";
 import { SignalInfoContract } from "../contract/SignalInfo.contract";
 import { BeforeStartContract } from "../contract/BeforeStart.contract";
 import { AfterEndContract } from "../contract/AfterEnd.contract";
+import { BudgetContract } from "../contract/Budget.contract";
 
 const LISTEN_SIGNAL_METHOD_NAME = "event.listenSignal";
 const LISTEN_SIGNAL_ONCE_METHOD_NAME = "event.listenSignalOnce";
@@ -79,6 +80,8 @@ const LISTEN_ORDER_STOP_METHOD_NAME = "event.listenOrderStop";
 const LISTEN_CHECK_METHOD_NAME = "event.listenCheck";
 const LISTEN_HIGHEST_PROFIT_METHOD_NAME = "event.listenHighestProfit";
 const LISTEN_HIGHEST_PROFIT_ONCE_METHOD_NAME = "event.listenHighestProfitOnce";
+const LISTEN_BUDGET_METHOD_NAME = "event.listenBudget";
+const LISTEN_BUDGET_ONCE_METHOD_NAME = "event.listenBudgetOnce";
 const LISTEN_MAX_DRAWDOWN_METHOD_NAME = "event.listenMaxDrawdown";
 const LISTEN_MAX_DRAWDOWN_ONCE_METHOD_NAME = "event.listenMaxDrawdownOnce";
 const LISTEN_PAUSE_METHOD_NAME = "event.listenPause";
@@ -373,7 +376,23 @@ export function listenSignalBacktestOnce(
  */
 export function listenError(fn: (error: Error) => void) {
   backtest.loggerService.log(LISTEN_ERROR_METHOD_NAME);
-  return errorEmitter.subscribe(queued(async (error) => fn(error)));
+  // The error channel is fed fire-and-forget from every fallback in the engine
+  // (`errorEmitter.next(error)` without await): a listener that throws would
+  // surface as an unhandled rejection and kill the process. The channel never
+  // throws back; a failing listener is logged and the emission goes on.
+  return errorEmitter.subscribe(queued(async (error) => {
+    try {
+      await fn(error);
+    } catch (listenerError) {
+      const message = "listenError listener thrown";
+      const payload = {
+        error: errorData(listenerError),
+        message: getErrorMessage(listenerError),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+    }
+  }));
 }
 
 /**
@@ -402,7 +421,21 @@ export function listenError(fn: (error: Error) => void) {
  */
 export function listenExit(fn: (error: Error) => void) {
   backtest.loggerService.log(LISTEN_EXIT_METHOD_NAME);
-  return exitEmitter.subscribe(queued(async (error) => fn(error)));
+  // Same as listenError: emitted fire-and-forget on fatal paths, a throwing
+  // listener must not turn the fatal report into an unhandled rejection.
+  return exitEmitter.subscribe(queued(async (error) => {
+    try {
+      await fn(error);
+    } catch (listenerError) {
+      const message = "listenExit listener thrown";
+      const payload = {
+        error: errorData(listenerError),
+        message: getErrorMessage(listenerError),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+    }
+  }));
 }
 
 /**
@@ -894,7 +927,21 @@ export function listenWalkerComplete(fn: (event: WalkerCompleteContract) => void
  */
 export function listenValidation(fn: (error: Error) => void) {
   backtest.loggerService.log(LISTEN_VALIDATION_METHOD_NAME);
-  return validationSubject.subscribe(queued(async (error) => fn(error)));
+  // Emitted fire-and-forget by ClientRisk when a validation throws: a listener
+  // that throws must not turn that report into an unhandled rejection.
+  return validationSubject.subscribe(queued(async (error) => {
+    try {
+      await fn(error);
+    } catch (listenerError) {
+      const message = "listenValidation listener thrown";
+      const payload = {
+        error: errorData(listenerError),
+        message: getErrorMessage(listenerError),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+    }
+  }));
 }
 
 /**
@@ -1993,6 +2040,54 @@ export function listenHighestProfitOnce(
   };
 
   return disposeFn = listenHighestProfit(wrappedFn);
+}
+
+/**
+ * Subscribes to budget journal events with queued async processing.
+ * Emits one event per row inserted into a budget record (reserve / release /
+ * reject / deposit / withdraw) by `Budget`, with the record key, the budget
+ * name and the row (balance after it included). No pending-signal gate: a
+ * budget record is not bound to a signal.
+ * Events are processed sequentially in order received, even if callback is async.
+ *
+ * @param fn - Callback function to handle budget events
+ * @return Unsubscribe function to stop listening to events
+ */
+export function listenBudget(fn: (event: BudgetContract) => void) {
+  backtest.loggerService.log(LISTEN_BUDGET_METHOD_NAME);
+
+  const wrappedFn = async (event: BudgetContract) => {
+    await fn(event);
+  };
+
+  return budgetSubject.subscribe(queued(wrappedFn));
+}
+
+/**
+ * Subscribes to filtered budget journal events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+export function listenBudgetOnce(
+  filterFn: (event: BudgetContract) => boolean | Promise<boolean>,
+  fn: (event: BudgetContract) => void
+) {
+  backtest.loggerService.log(LISTEN_BUDGET_ONCE_METHOD_NAME);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: BudgetContract) => {
+    if (await filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenBudget(wrappedFn);
 }
 
 /**

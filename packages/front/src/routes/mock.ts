@@ -90,6 +90,15 @@ interface StorageListRequest {
   requestId: string;
 }
 
+interface BudgetRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+  context: { strategyName: string; exchangeName: string; frameName: string; backtest: boolean };
+  when: number;
+}
+
 interface LogListRequest {
   clientId: string;
   serviceName: string;
@@ -1218,6 +1227,63 @@ router.post("/api/v1/mock/runtime_info", async (req, res) => {
     return await micro.send(res, 200, result);
   } catch (error) {
     ioc.loggerService.log("/api/v1/mock/runtime_info error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+// BudgetMockService endpoints
+router.post("/api/v1/mock/budget_balance", async (req, res) => {
+  try {
+    const request = <BudgetRequest>await micro.json(req);
+    const { context, when, requestId, serviceName } = request;
+    const data = await ioc.budgetMockService.getBalance(context, when);
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/mock/budget_balance ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/mock/budget_balance error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+router.post("/api/v1/mock/budget_history", async (req, res) => {
+  try {
+    const request = <BudgetRequest>await micro.json(req);
+    const { context, when, requestId, serviceName } = request;
+    const data = await ioc.budgetMockService.getHistory(context, when);
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/mock/budget_history ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/mock/budget_history error", {
       error: errorData(error),
     });
     return await micro.send(res, 200, {

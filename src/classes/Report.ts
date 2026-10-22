@@ -35,6 +35,7 @@ const WILDCARD_TARGET: IReportTarget = {
   sync: true,
   highest_profit: true,
   max_drawdown: true,
+  budget: true,
 };
 
 /**
@@ -86,6 +87,7 @@ export class ReportUtils {
     sync = false,
     highest_profit = false,
     max_drawdown = false,
+    budget = false,
   }: Partial<IReportTarget> = WILDCARD_TARGET) => {
     LOGGER_SERVICE.debug(REPORT_UTILS_METHOD_NAME_ENABLE, {
       backtest: bt,
@@ -139,6 +141,9 @@ export class ReportUtils {
     }
     if (max_drawdown) {
       unList.push(backtest.maxDrawdownReportService.subscribe());
+    }
+    if (budget) {
+      unList.push(backtest.budgetReportService.subscribe());
     }
     {
       unList.push(() => this.enable.clear());
@@ -196,6 +201,7 @@ export class ReportUtils {
     sync = false,
     highest_profit = false,
     max_drawdown = false,
+    budget = false,
   }: Partial<IReportTarget> = WILDCARD_TARGET) => {
     LOGGER_SERVICE.debug(REPORT_UTILS_METHOD_NAME_DISABLE, {
       backtest: bt,
@@ -253,6 +259,9 @@ export class ReportUtils {
     }
     if (max_drawdown) {
       backtest.maxDrawdownReportService.unsubscribe();
+    }
+    if (budget) {
+      backtest.budgetReportService.unsubscribe();
     }
   };
 }

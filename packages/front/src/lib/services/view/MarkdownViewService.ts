@@ -10,6 +10,7 @@ import {
   Partial,
   HighestProfit,
   MaxDrawdown,
+  Budget,
   Schedule,
   Performance,
   Sync,
@@ -18,6 +19,24 @@ import {
 } from "backtest-kit";
 import MarkdownMockService from "../mock/MarkdownMockService";
 import { getConfig } from "../../../config/params";
+
+/** The budget the report shows: the first one the strategy constructed, null when the strategy declared none */
+const GET_BUDGET_NAME_FN = (method: string): string | null => {
+  if (!Budget.enable.hasValue()) {
+    console.warn(`@backtest-kit/ui markdownViewService ${method} budget not enabled`);
+    return null;
+  }
+  const [name] = Budget._getNames();
+  if (!name) {
+    console.warn(`@backtest-kit/ui markdownViewService ${method} no budget constructed`);
+    return null;
+  }
+  return name;
+};
+
+/** What a strategy without a budget reports */
+const EMPTY_BUDGET_DATA = { eventList: [], totalEvents: 0, totalRejects: 0, totalOverdrafts: 0 };
+const EMPTY_BUDGET_REPORT = "# Budget Report\n\nNo budget declared by the strategy.";
 
 export class MarkdownViewService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -147,6 +166,32 @@ export class MarkdownViewService {
       return await this.markdownMockService.getHighestProfitReport(symbol, strategyName, exchangeName, frameName);
     }
     return await HighestProfit.getReport(symbol, { strategyName, exchangeName, frameName }, backtest);
+  };
+
+  // Budget
+
+  public getBudgetData = async (strategyName: string, exchangeName: string, frameName: string, backtest = false) => {
+    this.loggerService.log("markdownViewService getBudgetData", { strategyName, exchangeName, frameName, backtest });
+    if (getConfig().CC_ENABLE_MOCK) {
+      return await this.markdownMockService.getBudgetData(strategyName, exchangeName, frameName);
+    }
+    const name = GET_BUDGET_NAME_FN("getBudgetData");
+    if (!name) {
+      return EMPTY_BUDGET_DATA;
+    }
+    return await Budget.getData({ strategyName, exchangeName, frameName, name }, backtest);
+  };
+
+  public getBudgetReport = async (strategyName: string, exchangeName: string, frameName: string, backtest = false): Promise<string> => {
+    this.loggerService.log("markdownViewService getBudgetReport", { strategyName, exchangeName, frameName, backtest });
+    if (getConfig().CC_ENABLE_MOCK) {
+      return await this.markdownMockService.getBudgetReport(strategyName, exchangeName, frameName);
+    }
+    const name = GET_BUDGET_NAME_FN("getBudgetReport");
+    if (!name) {
+      return EMPTY_BUDGET_REPORT;
+    }
+    return await Budget.getReport({ strategyName, exchangeName, frameName, name }, backtest);
   };
 
   // MaxDrawdown

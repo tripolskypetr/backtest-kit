@@ -189,16 +189,21 @@ const INSTANCE_TASK_FN = async (
     context,
     backtest: true,
   })
-  for await (const _ of self.run(symbol, context)) {
-    if (self._isStopped) {
-      break;
+  try {
+    for await (const _ of self.run(symbol, context)) {
+      if (self._isStopped) {
+        break;
+      }
     }
+  } finally {
+    // a run that throws must not leave a stale activity behind: Lookup.isParallel and the
+    // lockstep join would keep seeing a peer that no longer exists
+    Lookup.removeActivity({
+      symbol,
+      context,
+      backtest: true,
+    })
   }
-  Lookup.removeActivity({
-    symbol,
-    context,
-    backtest: true,
-  })
   if (!self._isDone) {
     await doneBacktestSubject.next({
       exchangeName: context.exchangeName,

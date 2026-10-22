@@ -1,6 +1,6 @@
 import http from 'http';
 import * as backtest_kit from 'backtest-kit';
-import { CandleInterval, NotificationModel, IStorageSignalRow, ILogEntry, IPublicSignalRow, IRuntimeInfo } from 'backtest-kit';
+import { CandleInterval, NotificationModel, IStorageSignalRow, ILogEntry, IPublicSignalRow, IRuntimeInfo, Budget } from 'backtest-kit';
 import * as functools_kit from 'functools-kit';
 
 type CallbackFn = (error?: Error) => void;
@@ -559,6 +559,27 @@ declare class ControlMockService {
     }) => Promise<void>;
 }
 
+/** Context of the budget statics: record key, name and the logical time of the read */
+type TBudgetContext = Parameters<typeof Budget._getBalance>[0];
+/** Balance of a budget as of a logical time */
+type TBudgetBalance = Awaited<ReturnType<typeof Budget._getBalance>>;
+/** One journal row of a budget */
+type TBudgetHistoryRow = Awaited<ReturnType<typeof Budget._getHistory>>[number];
+/** Record key of a budget journal as the dashboard sends it: a strategy run (the budget name is resolved on the backend) */
+type IBudgetViewContext = Pick<TBudgetContext, "strategyName" | "exchangeName" | "frameName" | "backtest">;
+declare class BudgetMockService {
+    private readonly loggerService;
+    getBalance: (context: IBudgetViewContext, when: number) => Promise<TBudgetBalance>;
+    getHistory: (context: IBudgetViewContext, when: number) => Promise<TBudgetHistoryRow[]>;
+}
+
+declare class BudgetViewService {
+    private readonly loggerService;
+    private readonly budgetMockService;
+    getBalance: (context: IBudgetViewContext, when: number) => Promise<TBudgetBalance>;
+    getHistory: (context: IBudgetViewContext, when: number) => Promise<TBudgetHistoryRow[]>;
+}
+
 declare class PauseMockService {
     private readonly loggerService;
     _isPaused: boolean;
@@ -600,6 +621,7 @@ declare const ioc: {
     setupViewService: SetupViewService;
     runtimeViewService: RuntimeViewService;
     controlViewService: ControlViewService;
+    budgetViewService: BudgetViewService;
     pauseViewService: PauseViewService;
     notificationMockService: NotificationMockService;
     storageMockService: StorageMockService;
@@ -615,6 +637,7 @@ declare const ioc: {
     setupMockService: SetupMockService;
     runtimeMockService: RuntimeMockService;
     controlMockService: ControlMockService;
+    budgetMockService: BudgetMockService;
     pauseMockService: PauseMockService;
     liveMetaService: LiveMetaService;
     symbolMetaService: SymbolMetaService;

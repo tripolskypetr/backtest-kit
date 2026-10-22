@@ -1,0 +1,404 @@
+{
+  "backtest": {
+    "balance": {
+      "name": "fund",
+      "when": "2024-12-31T00:00:00.000Z",
+      "capital": 107490,
+      "deployed": 20000,
+      "free": 87490,
+      "assets": {
+        "ETH": 0.30000000000000004
+      }
+    },
+    "history": [
+      {
+        "type": "reserve",
+        "id": "btc-1",
+        "amount": 30000,
+        "note": "BTC long entry",
+        "symbol": "BTCUSDT",
+        "timestamp": 1706778000000,
+        "seq": 1,
+        "balance": {
+          "capital": 100000,
+          "deployed": 30000,
+          "free": 70000,
+          "assets": {}
+        }
+      },
+      {
+        "type": "reserve",
+        "id": "eth-1",
+        "amount": 25000,
+        "note": "ETH long entry",
+        "symbol": "ETHUSDT",
+        "timestamp": 1706875200000,
+        "seq": 2,
+        "balance": {
+          "capital": 100000,
+          "deployed": 55000,
+          "free": 45000,
+          "assets": {}
+        }
+      },
+      {
+        "type": "release",
+        "id": "btc-1",
+        "amount": 30000,
+        "pnl": 1850,
+        "note": "take profit",
+        "symbol": "BTCUSDT",
+        "timestamp": 1707145200000,
+        "seq": 3,
+        "balance": {
+          "capital": 101850,
+          "deployed": 25000,
+          "free": 76850,
+          "assets": {}
+        }
+      },
+      {
+        "type": "deposit",
+        "asset": "ETH",
+        "amount": 0.42,
+        "note": "staking reward",
+        "symbol": "ETHUSDT",
+        "timestamp": 1707264000000,
+        "seq": 4,
+        "balance": {
+          "capital": 101850,
+          "deployed": 25000,
+          "free": 76850,
+          "assets": {
+            "ETH": 0.42
+          }
+        }
+      },
+      {
+        "type": "reserve",
+        "id": "sol-1",
+        "amount": 40000,
+        "note": "SOL long entry",
+        "symbol": "SOLUSDT",
+        "timestamp": 1707386400000,
+        "seq": 5,
+        "balance": {
+          "capital": 101850,
+          "deployed": 65000,
+          "free": 36850,
+          "assets": {
+            "ETH": 0.42
+          }
+        }
+      },
+      {
+        "type": "reject",
+        "action": "reserve",
+        "asset": "capital",
+        "requested": 50000,
+        "available": 36850,
+        "symbol": "BTCUSDT",
+        "timestamp": 1707469200000,
+        "seq": 6,
+        "balance": {
+          "capital": 101850,
+          "deployed": 65000,
+          "free": 36850,
+          "assets": {
+            "ETH": 0.42
+          }
+        }
+      },
+      {
+        "type": "reserve",
+        "id": "eth-2",
+        "amount": 35000,
+        "note": "ETH long entry (lagging clock)",
+        "symbol": "ETHUSDT",
+        "timestamp": 1707552000000,
+        "seq": 13,
+        "balance": {
+          "capital": 101850,
+          "deployed": 100000,
+          "free": 1850,
+          "assets": {
+            "ETH": 0.42
+          }
+        }
+      },
+      {
+        "type": "release",
+        "id": "eth-1",
+        "amount": 25000,
+        "pnl": -1200,
+        "note": "stop loss",
+        "symbol": "ETHUSDT",
+        "timestamp": 1707674400000,
+        "seq": 7,
+        "balance": {
+          "capital": 100650,
+          "deployed": 75000,
+          "free": 25650,
+          "assets": {
+            "ETH": 0.42
+          }
+        }
+      },
+      {
+        "type": "reserve",
+        "id": "btc-2",
+        "amount": 45000,
+        "note": "BTC re-entry",
+        "symbol": "BTCUSDT",
+        "timestamp": 1707728400000,
+        "seq": 8,
+        "balance": {
+          "capital": 100650,
+          "deployed": 120000,
+          "free": -19350,
+          "assets": {
+            "ETH": 0.42
+          }
+        },
+        "overdraft": 19350
+      },
+      {
+        "type": "deposit",
+        "asset": "ETH",
+        "amount": 0.38,
+        "note": "staking reward",
+        "symbol": "ETHUSDT",
+        "timestamp": 1707868800000,
+        "seq": 9,
+        "balance": {
+          "capital": 100650,
+          "deployed": 120000,
+          "free": -19350,
+          "assets": {
+            "ETH": 0.8
+          }
+        }
+      },
+      {
+        "type": "withdraw",
+        "asset": "ETH",
+        "amount": 0.5,
+        "note": "cash out",
+        "symbol": "ETHUSDT",
+        "timestamp": 1707955200000,
+        "seq": 10,
+        "balance": {
+          "capital": 100650,
+          "deployed": 120000,
+          "free": -19350,
+          "assets": {
+            "ETH": 0.30000000000000004
+          }
+        }
+      },
+      {
+        "type": "reject",
+        "action": "withdraw",
+        "asset": "ETH",
+        "requested": 1,
+        "available": 0.30000000000000004,
+        "symbol": "ETHUSDT",
+        "timestamp": 1708041600000,
+        "seq": 11,
+        "balance": {
+          "capital": 100650,
+          "deployed": 120000,
+          "free": -19350,
+          "assets": {
+            "ETH": 0.30000000000000004
+          }
+        }
+      },
+      {
+        "type": "release",
+        "id": "sol-1",
+        "amount": 40000,
+        "pnl": 3900,
+        "note": "take profit",
+        "symbol": "SOLUSDT",
+        "timestamp": 1708264800000,
+        "seq": 12,
+        "balance": {
+          "capital": 104550,
+          "deployed": 80000,
+          "free": 24550,
+          "assets": {
+            "ETH": 0.30000000000000004
+          }
+        }
+      },
+      {
+        "type": "release",
+        "id": "btc-2",
+        "amount": 45000,
+        "pnl": 2300,
+        "note": "take profit",
+        "symbol": "BTCUSDT",
+        "timestamp": 1708599600000,
+        "seq": 14,
+        "balance": {
+          "capital": 106850,
+          "deployed": 35000,
+          "free": 71850,
+          "assets": {
+            "ETH": 0.30000000000000004
+          }
+        }
+      },
+      {
+        "type": "release",
+        "id": "eth-2",
+        "amount": 35000,
+        "pnl": 640,
+        "note": "trailing stop",
+        "symbol": "ETHUSDT",
+        "timestamp": 1708963200000,
+        "seq": 15,
+        "balance": {
+          "capital": 107490,
+          "deployed": 0,
+          "free": 107490,
+          "assets": {
+            "ETH": 0.30000000000000004
+          }
+        }
+      },
+      {
+        "type": "reserve",
+        "id": "sol-2",
+        "amount": 20000,
+        "note": "SOL long entry",
+        "symbol": "SOLUSDT",
+        "timestamp": 1709110800000,
+        "seq": 16,
+        "balance": {
+          "capital": 107490,
+          "deployed": 20000,
+          "free": 87490,
+          "assets": {
+            "ETH": 0.30000000000000004
+          }
+        }
+      }
+    ]
+  },
+  "live": {
+    "balance": {
+      "name": "fund",
+      "when": "2024-12-31T00:00:00.000Z",
+      "capital": 100420,
+      "deployed": 45000,
+      "free": 55420,
+      "assets": {
+        "ETH": 0.11
+      }
+    },
+    "history": [
+      {
+        "type": "reserve",
+        "id": "btc-live-1",
+        "amount": 20000,
+        "note": "BTC long entry",
+        "symbol": "BTCUSDT",
+        "timestamp": 1709283600000,
+        "seq": 1,
+        "balance": {
+          "capital": 100000,
+          "deployed": 20000,
+          "free": 80000,
+          "assets": {}
+        }
+      },
+      {
+        "type": "reserve",
+        "id": "eth-live-1",
+        "amount": 15000,
+        "note": "ETH long entry",
+        "symbol": "ETHUSDT",
+        "timestamp": 1709283900000,
+        "seq": 2,
+        "balance": {
+          "capital": 100000,
+          "deployed": 35000,
+          "free": 65000,
+          "assets": {}
+        }
+      },
+      {
+        "type": "deposit",
+        "asset": "ETH",
+        "amount": 0.11,
+        "note": "staking reward",
+        "symbol": "ETHUSDT",
+        "timestamp": 1709337600000,
+        "seq": 3,
+        "balance": {
+          "capital": 100000,
+          "deployed": 35000,
+          "free": 65000,
+          "assets": {
+            "ETH": 0.11
+          }
+        }
+      },
+      {
+        "type": "release",
+        "id": "btc-live-1",
+        "amount": 20000,
+        "pnl": 420,
+        "note": "take profit",
+        "symbol": "BTCUSDT",
+        "timestamp": 1709470800000,
+        "seq": 4,
+        "balance": {
+          "capital": 100420,
+          "deployed": 15000,
+          "free": 85420,
+          "assets": {
+            "ETH": 0.11
+          }
+        }
+      },
+      {
+        "type": "reject",
+        "action": "reserve",
+        "asset": "capital",
+        "requested": 90000,
+        "available": 85420,
+        "symbol": "SOLUSDT",
+        "timestamp": 1709546400000,
+        "seq": 5,
+        "balance": {
+          "capital": 100420,
+          "deployed": 15000,
+          "free": 85420,
+          "assets": {
+            "ETH": 0.11
+          }
+        }
+      },
+      {
+        "type": "reserve",
+        "id": "sol-live-1",
+        "amount": 30000,
+        "note": "SOL long entry",
+        "symbol": "SOLUSDT",
+        "timestamp": 1709546460000,
+        "seq": 6,
+        "balance": {
+          "capital": 100420,
+          "deployed": 45000,
+          "free": 55420,
+          "assets": {
+            "ETH": 0.11
+          }
+        }
+      }
+    ]
+  }
+}

@@ -168,16 +168,19 @@ const INSTANCE_TASK_FN = async (
     context,
     backtest: false,
   })
-  for await (const signal of self.run(symbol, context)) {
-    if (signal?.action === "closed" && self._isStopped) {
-      break;
+  try {
+    for await (const signal of self.run(symbol, context)) {
+      if (signal?.action === "closed" && self._isStopped) {
+        break;
+      }
     }
+  } finally {
+    Lookup.removeActivity({
+      symbol,
+      context,
+      backtest: false,
+    })
   }
-  Lookup.removeActivity({
-    symbol,
-    context,
-    backtest: false,
-  })
   if (!self._isDone) {
     await doneLiveSubject.next({
       exchangeName: context.exchangeName,

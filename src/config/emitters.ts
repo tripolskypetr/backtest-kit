@@ -29,6 +29,7 @@ import { PauseContract } from "../contract/Pause.contract";
 import { SignalInfoContract } from "../contract/SignalInfo.contract";
 import { BeforeStartContract } from "../contract/BeforeStart.contract";
 import { AfterEndContract } from "../contract/AfterEnd.contract";
+import { BudgetContract } from "../contract/Budget.contract";
 
 /**
  * Exchange signal synchronization emitter.
@@ -289,6 +290,14 @@ export const highestProfitSubject = new Subject<HighestProfitContract>();
  * Allows users to track drawdown levels and implement custom risk management logic based on drawdown thresholds.
  */
 export const maxDrawdownSubject = new Subject<MaxDrawdownContract>();
+
+/**
+ * Budget journal emitter: one event per row inserted into a budget record
+ * (reserve / release / reject / deposit / withdraw) by the Local and Persist
+ * budget instances. Feeds `budget.jsonl` (BudgetReportService) and the budget
+ * markdown report (BudgetMarkdownService); exposed to user code via `listenBudget`.
+ */
+export const budgetSubject = new Subject<BudgetContract>();
 
 /**
  * Pause state emitter for strategy pause/resume tracking.

@@ -51,6 +51,7 @@ const fetchData = ttl(
             sync,
             heat,
             strategy,
+            budget,
         ] = await Promise.all([
             type === "backtest"
                 ? ioc.markdownViewService.getBacktestReport(
@@ -136,6 +137,12 @@ const fetchData = ttl(
                 frameName,
                 type === "backtest",
             ),
+            ioc.markdownViewService.getBudgetReport(
+                strategyName,
+                exchangeName,
+                frameName,
+                type === "backtest",
+            ),
         ]);
 
         return {
@@ -152,6 +159,7 @@ const fetchData = ttl(
             sync,
             heat,
             strategy,
+            budget,
         };
     },
     {
@@ -368,6 +376,21 @@ const handleCopy = async (
         );
         return;
     }
+    if (pathname.includes("/markdown_report/budget")) {
+        onCopy(
+            JSON.stringify(
+                await ioc.markdownViewService.getBudgetData(
+                    strategyName,
+                    exchangeName,
+                    frameName,
+                    backtest,
+                ),
+                null,
+                2,
+            ),
+        );
+        return;
+    }
 };
 
 export const useMarkdownReportView = () => {
@@ -451,6 +474,8 @@ export const useMarkdownReportView = () => {
             jsonData = await ioc.markdownViewService.getHeatData(strategyName, exchangeName, frameName, backtest);
         } else if (tab === "strategy") {
             jsonData = await ioc.markdownViewService.getStrategyData(symbol, strategyName, exchangeName, frameName, backtest);
+        } else if (tab === "budget") {
+            jsonData = await ioc.markdownViewService.getBudgetData(strategyName, exchangeName, frameName, backtest);
         }
 
         if (jsonData !== undefined) {
@@ -530,6 +555,7 @@ export const useMarkdownReportView = () => {
                 sync,
                 heat,
                 strategy,
+                budget,
             },
         ]) => ({
             backtest,
@@ -544,6 +570,7 @@ export const useMarkdownReportView = () => {
             sync,
             heat,
             strategy,
+            budget,
             type,
         }),
         mapPayload: ([{ type }]) => ({ type }),

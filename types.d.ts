@@ -9316,6 +9316,13 @@ declare const GLOBAL_CONFIG: {
      */
     CC_MAX_MAX_DRAWDOWN_MARKDOWN_ROWS: number;
     /**
+     * Maximum number of journal rows to keep in budget markdown report storage.
+     * Older rows are removed (FIFO) when this limit is exceeded.
+     *
+     * Default: 250 rows
+     */
+    CC_MAX_BUDGET_MARKDOWN_ROWS: number;
+    /**
      * Maximum number of events to keep in live markdown report storage.
      * Older events are removed (FIFO) when this limit is exceeded.
      *
@@ -9427,6 +9434,44 @@ declare const GLOBAL_CONFIG: {
      * Default: true (parallel backtests are interleaved on each candle fetch boundary)
      */
     CC_ENABLE_BACKTEST_PARALLEL_SPIN: boolean;
+    /**
+     * Keeps parallel backtests on the same logical time.
+     *
+     * Mechanism (implemented in `Lockstep` and used by `BacktestLogicPrivateService.run`):
+     * - Every timeframe iteration (the tick and, when a signal opens, the candle replay of that
+     *   signal) runs under a process-wide FIFO mutex and releases it before the next timeframe,
+     *   so concurrent `Backtest.run` / `Backtest.background` workloads interleave
+     *   A(t0) B(t0) A(t1) B(t1) … and never drift apart by more than one timeframe.
+     * - Every iteration starts behind a time barrier: it waits until every running peer has
+     *   reached its timeframe (executed up to it, or parked on it with nothing left before it).
+     * - A replay spans many timeframes in one iteration, so inside it `StrategyConnectionService`
+     *   calls the orchestrator from its schedule / active ping callbacks (one per replayed candle)
+     *   and on the last candle before every boundary the replay hands the lock off and waits until
+     *   every peer has executed up to that boundary. The boundaries follow the finest timeframe
+     *   step among the running backtests, so a 1h replay yields to a 15m peer every 15 minutes.
+     * - A strategy that blocks inside `getSignal` or a ping handler (an LLM call, a `sleep`)
+     *   therefore parks its peers at the same `when`; shared state such as `Budget` sees the
+     *   symbols in time order, a write from the middle of a replay included.
+     * - While the lock is held the generator still yields to its consumer, so a consumer that
+     *   waits for ANOTHER backtest's progress inside the `for await` body would deadlock.
+     * - Makes `CC_ENABLE_BACKTEST_PARALLEL_SPIN` redundant: `Candle.spinLock` is skipped while
+     *   lockstep is on, the peers are parked on this mutex anyway.
+     *
+     * Contract:
+     * - The flag is read when a backtest starts and must not change while backtests run: the lock
+     *   taken under one value is released under the same one.
+     * - Peers launched together through `Backtest.background` (the `Launcher` loop) are waited for
+     *   before the first iteration (`Lookup` lists them synchronously); `Backtest.run` is NOT part
+     *   of that wait and joins the lockstep only once its own run has started, so a `Backtest.run`
+     *   started next to backgrounds may see them ahead of it, which the budget journal shows as
+     *   overdraft on their earlier rows, never as a hang.
+     * - A backtest stopped mid-replay (the dispose function of `Backtest.background`,
+     *   `Backtest.stop`) finishes the open position, leaves the lock on its way out and is no
+     *   longer waited for; a backtest that throws or whose consumer breaks leaves the lock the same way.
+     *
+     * Default: true (parallel backtests advance one timeframe at a time)
+     */
+    CC_BACKTEST_LOCKSTEP: boolean;
     /**
      * Enables DCA (Dollar-Cost Averaging) logic even if antirecord is not broken.
      * Allows to commitAverageBuy if currentPrice is not the lowest price since entry, but still lower than priceOpen.
@@ -9614,8 +9659,10 @@ declare const COLUMN_CONFIG: {
     highest_profit_columns: ColumnModel<HighestProfitEvent>[];
     /** Columns for max drawdown milestone tracking events */
     max_drawdown_columns: ColumnModel<MaxDrawdownEvent>[];
+    /** Columns for budget journal rows (reserve / release / reject / deposit / withdraw) */
+    budget_columns: ColumnModel<BudgetEvent>[];
     /** Walker: PnL summary columns */
-    walker_pnl_columns: ColumnModel<SignalData$1>[];
+    walker_pnl_columns: ColumnModel<SignalData>[];
     /** Walker: strategy-level summary columns */
     walker_strategy_columns: ColumnModel<IStrategyResult>[];
 };
@@ -9701,6 +9748,7 @@ declare function getConfig(): {
     CC_MAX_HEATMAP_MARKDOWN_ROWS: number;
     CC_MAX_HIGHEST_PROFIT_MARKDOWN_ROWS: number;
     CC_MAX_MAX_DRAWDOWN_MARKDOWN_ROWS: number;
+    CC_MAX_BUDGET_MARKDOWN_ROWS: number;
     CC_MAX_LIVE_MARKDOWN_ROWS: number;
     CC_MAX_PARTIAL_MARKDOWN_ROWS: number;
     CC_MAX_RISK_MARKDOWN_ROWS: number;
@@ -9715,6 +9763,7 @@ declare function getConfig(): {
     CC_MAX_LOG_LINES: number;
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
     CC_ENABLE_BACKTEST_PARALLEL_SPIN: boolean;
+    CC_BACKTEST_LOCKSTEP: boolean;
     CC_ENABLE_DCA_EVERYWHERE: boolean;
     CC_ENABLE_PPPL_EVERYWHERE: boolean;
     CC_ENABLE_LONG_SIGNAL: boolean;
@@ -9775,6 +9824,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_MAX_HEATMAP_MARKDOWN_ROWS: number;
     CC_MAX_HIGHEST_PROFIT_MARKDOWN_ROWS: number;
     CC_MAX_MAX_DRAWDOWN_MARKDOWN_ROWS: number;
+    CC_MAX_BUDGET_MARKDOWN_ROWS: number;
     CC_MAX_LIVE_MARKDOWN_ROWS: number;
     CC_MAX_PARTIAL_MARKDOWN_ROWS: number;
     CC_MAX_RISK_MARKDOWN_ROWS: number;
@@ -9789,6 +9839,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_MAX_LOG_LINES: number;
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
     CC_ENABLE_BACKTEST_PARALLEL_SPIN: boolean;
+    CC_BACKTEST_LOCKSTEP: boolean;
     CC_ENABLE_DCA_EVERYWHERE: boolean;
     CC_ENABLE_PPPL_EVERYWHERE: boolean;
     CC_ENABLE_LONG_SIGNAL: boolean;
@@ -9856,7 +9907,8 @@ declare function getColumns(): {
     sync_columns: ColumnModel<SyncEvent>[];
     highest_profit_columns: ColumnModel<HighestProfitEvent>[];
     max_drawdown_columns: ColumnModel<MaxDrawdownEvent>[];
-    walker_pnl_columns: ColumnModel<SignalData$1>[];
+    budget_columns: ColumnModel<BudgetEvent>[];
+    walker_pnl_columns: ColumnModel<SignalData>[];
     walker_strategy_columns: ColumnModel<IStrategyResult>[];
 };
 /**
@@ -9886,7 +9938,8 @@ declare function getDefaultColumns(): Readonly<{
     sync_columns: ColumnModel<SyncEvent>[];
     highest_profit_columns: ColumnModel<HighestProfitEvent>[];
     max_drawdown_columns: ColumnModel<MaxDrawdownEvent>[];
-    walker_pnl_columns: ColumnModel<SignalData$1>[];
+    budget_columns: ColumnModel<BudgetEvent>[];
+    walker_pnl_columns: ColumnModel<SignalData>[];
     walker_strategy_columns: ColumnModel<IStrategyResult>[];
 }>;
 
@@ -11962,3600 +12015,6 @@ interface AfterEndContract {
      * writing to a log).
      */
     timestamp: number;
-}
-
-/**
- * Subscribes to all signal events with queued async processing.
- *
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle signal events (idle, opened, active, closed)
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenSignal } from "./function/event";
- *
- * const unsubscribe = listenSignal((event) => {
- *   if (event.action === "opened") {
- *     console.log("New signal opened:", event.signal);
- *   } else if (event.action === "closed") {
- *     console.log("Signal closed with PNL:", event.pnl.pnlPercentage);
- *   }
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenSignal(fn: (event: IStrategyTickResult) => void): () => void;
-/**
- * Subscribes to filtered signal events with one-time execution.
- *
- * Listens for events matching the filter predicate, then executes callback once
- * and automatically unsubscribes. Useful for waiting for specific signal conditions.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @returns Unsubscribe function to cancel the listener before it fires
- *
- * @example
- * ```typescript
- * import { listenSignalOnce } from "./function/event";
- *
- * // Wait for first take profit hit
- * listenSignalOnce(
- *   (event) => event.action === "closed" && event.closeReason === "take_profit",
- *   (event) => {
- *     console.log("Take profit hit! PNL:", event.pnl.pnlPercentage);
- *   }
- * );
- *
- * // Wait for any signal to close on BTCUSDT
- * const cancel = listenSignalOnce(
- *   (event) => event.action === "closed" && event.signal.symbol === "BTCUSDT",
- *   (event) => console.log("BTCUSDT signal closed")
- * );
- *
- * // Cancel if needed before event fires
- * cancel();
- * ```
- */
-declare function listenSignalOnce(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
-/**
- * Subscribes to live trading signal events with queued async processing.
- *
- * Only receives events from Live.run() execution.
- * Events are processed sequentially in order received.
- *
- * @param fn - Callback function to handle live signal events
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenSignalLive } from "./function/event";
- *
- * const unsubscribe = listenSignalLive((event) => {
- *   if (event.action === "closed") {
- *     console.log("Live signal closed:", event.pnl.pnlPercentage);
- *   }
- * });
- * ```
- */
-declare function listenSignalLive(fn: (event: IStrategyTickResult) => void): () => void;
-/**
- * Subscribes to filtered live signal events with one-time execution.
- *
- * Only receives events from Live.run() execution.
- * Executes callback once and automatically unsubscribes.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @returns Unsubscribe function to cancel the listener before it fires
- *
- * @example
- * ```typescript
- * import { listenSignalLiveOnce } from "./function/event";
- *
- * // Wait for first live take profit hit
- * listenSignalLiveOnce(
- *   (event) => event.action === "closed" && event.closeReason === "take_profit",
- *   (event) => console.log("Live take profit:", event.pnl.pnlPercentage)
- * );
- * ```
- */
-declare function listenSignalLiveOnce(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
-/**
- * Subscribes to backtest signal events with queued async processing.
- *
- * Only receives events from Backtest.run() execution.
- * Events are processed sequentially in order received.
- *
- * @param fn - Callback function to handle backtest signal events
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenSignalBacktest } from "./function/event";
- *
- * const unsubscribe = listenSignalBacktest((event) => {
- *   if (event.action === "closed") {
- *     console.log("Backtest signal closed:", event.pnl.pnlPercentage);
- *   }
- * });
- * ```
- */
-declare function listenSignalBacktest(fn: (event: IStrategyTickResult) => void): () => void;
-/**
- * Subscribes to filtered backtest signal events with one-time execution.
- *
- * Only receives events from Backtest.run() execution.
- * Executes callback once and automatically unsubscribes.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @returns Unsubscribe function to cancel the listener before it fires
- *
- * @example
- * ```typescript
- * import { listenSignalBacktestOnce } from "./function/event";
- *
- * // Wait for first backtest stop loss hit
- * listenSignalBacktestOnce(
- *   (event) => event.action === "closed" && event.closeReason === "stop_loss",
- *   (event) => console.log("Backtest stop loss:", event.pnl.pnlPercentage)
- * );
- * ```
- */
-declare function listenSignalBacktestOnce(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
-/**
- * Subscribes to recoverable execution errors with queued async processing.
- *
- * Listens to recoverable errors during strategy execution (e.g., failed API calls).
- * These errors are caught and handled gracefully - execution continues.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle error events
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenError } from "./function/event";
- *
- * const unsubscribe = listenError((error) => {
- *   console.error("Recoverable error (execution continues):", error.message);
- *   // Log to monitoring service, send alerts, etc.
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenError(fn: (error: Error) => void): () => void;
-/**
- * Subscribes to fatal execution errors with queued async processing.
- *
- * Listens to critical errors that terminate execution (Live.background, Backtest.background, Walker.background).
- * Unlike listenError (recoverable errors), these errors stop the current process.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle fatal error events
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenExit } from "./function/event";
- *
- * const unsubscribe = listenExit((error) => {
- *   console.error("Fatal error (execution terminated):", error.message);
- *   // Log to monitoring, send alerts, restart process, etc.
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenExit(fn: (error: Error) => void): () => void;
-/**
- * Subscribes to live background execution completion events with queued async processing.
- *
- * Emits when Live.background() completes execution.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle completion events
- * @returns Unsubscribe function to stop listening to events
- *
- * @example
- * ```typescript
- * import { listenDoneLive, Live } from "backtest-kit";
- *
- * const unsubscribe = listenDoneLive((event) => {
- *   console.log("Live completed:", event.strategyName, event.exchangeName, event.symbol);
- * });
- *
- * Live.background("BTCUSDT", {
- *   strategyName: "my-strategy",
- *   exchangeName: "binance"
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenDoneLive(fn: (event: DoneContract) => void): () => void;
-/**
- * Subscribes to filtered live background execution completion events with one-time execution.
- *
- * Emits when Live.background() completes execution.
- * Executes callback once and automatically unsubscribes.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @returns Unsubscribe function to cancel the listener before it fires
- *
- * @example
- * ```typescript
- * import { listenDoneLiveOnce, Live } from "backtest-kit";
- *
- * // Wait for first live completion
- * listenDoneLiveOnce(
- *   (event) => event.symbol === "BTCUSDT",
- *   (event) => console.log("BTCUSDT live completed:", event.strategyName)
- * );
- *
- * Live.background("BTCUSDT", {
- *   strategyName: "my-strategy",
- *   exchangeName: "binance"
- * });
- * ```
- */
-declare function listenDoneLiveOnce(filterFn: (event: DoneContract) => boolean | Promise<boolean>, fn: (event: DoneContract) => void): () => void;
-/**
- * Subscribes to backtest background execution completion events with queued async processing.
- *
- * Emits when Backtest.background() completes execution.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle completion events
- * @returns Unsubscribe function to stop listening to events
- *
- * @example
- * ```typescript
- * import { listenDoneBacktest, Backtest } from "backtest-kit";
- *
- * const unsubscribe = listenDoneBacktest((event) => {
- *   console.log("Backtest completed:", event.strategyName, event.exchangeName, event.symbol);
- * });
- *
- * Backtest.background("BTCUSDT", {
- *   strategyName: "my-strategy",
- *   exchangeName: "binance",
- *   frameName: "1d-backtest"
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenDoneBacktest(fn: (event: DoneContract) => void): () => void;
-/**
- * Subscribes to filtered backtest background execution completion events with one-time execution.
- *
- * Emits when Backtest.background() completes execution.
- * Executes callback once and automatically unsubscribes.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @returns Unsubscribe function to cancel the listener before it fires
- *
- * @example
- * ```typescript
- * import { listenDoneBacktestOnce, Backtest } from "backtest-kit";
- *
- * // Wait for first backtest completion
- * listenDoneBacktestOnce(
- *   (event) => event.symbol === "BTCUSDT",
- *   (event) => console.log("BTCUSDT backtest completed:", event.strategyName)
- * );
- *
- * Backtest.background("BTCUSDT", {
- *   strategyName: "my-strategy",
- *   exchangeName: "binance",
- *   frameName: "1d-backtest"
- * });
- * ```
- */
-declare function listenDoneBacktestOnce(filterFn: (event: DoneContract) => boolean | Promise<boolean>, fn: (event: DoneContract) => void): () => void;
-/**
- * Subscribes to walker background execution completion events with queued async processing.
- *
- * Emits when Walker.background() completes execution.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle completion events
- * @returns Unsubscribe function to stop listening to events
- *
- * @example
- * ```typescript
- * import { listenDoneWalker, Walker } from "backtest-kit";
- *
- * const unsubscribe = listenDoneWalker((event) => {
- *   console.log("Walker completed:", event.strategyName, event.exchangeName, event.symbol);
- * });
- *
- * Walker.background("BTCUSDT", {
- *   walkerName: "my-walker"
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenDoneWalker(fn: (event: DoneContract) => void): () => void;
-/**
- * Subscribes to filtered walker background execution completion events with one-time execution.
- *
- * Emits when Walker.background() completes execution.
- * Executes callback once and automatically unsubscribes.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @returns Unsubscribe function to cancel the listener before it fires
- *
- * @example
- * ```typescript
- * import { listenDoneWalkerOnce, Walker } from "backtest-kit";
- *
- * // Wait for first walker completion
- * listenDoneWalkerOnce(
- *   (event) => event.symbol === "BTCUSDT",
- *   (event) => console.log("BTCUSDT walker completed:", event.strategyName)
- * );
- *
- * Walker.background("BTCUSDT", {
- *   walkerName: "my-walker"
- * });
- * ```
- */
-declare function listenDoneWalkerOnce(filterFn: (event: DoneContract) => boolean | Promise<boolean>, fn: (event: DoneContract) => void): () => void;
-/**
- * Subscribes to backtest progress events with queued async processing.
- *
- * Emits during Backtest.background() execution to track progress.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle progress events
- * @returns Unsubscribe function to stop listening to events
- *
- * @example
- * ```typescript
- * import { listenBacktestProgress, Backtest } from "backtest-kit";
- *
- * const unsubscribe = listenBacktestProgress((event) => {
- *   console.log(`Progress: ${(event.progress * 100).toFixed(2)}%`);
- *   console.log(`${event.processedFrames} / ${event.totalFrames} frames`);
- *   console.log(`Strategy: ${event.strategyName}, Symbol: ${event.symbol}`);
- * });
- *
- * Backtest.background("BTCUSDT", {
- *   strategyName: "my-strategy",
- *   exchangeName: "binance",
- *   frameName: "1d-backtest"
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenBacktestProgress(fn: (event: ProgressBacktestContract) => void): () => void;
-/**
- * Subscribes to walker progress events with queued async processing.
- *
- * Emits during Walker.run() execution after each strategy completes.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle walker progress events
- * @returns Unsubscribe function to stop listening to events
- *
- * @example
- * ```typescript
- * import { listenWalkerProgress, Walker } from "backtest-kit";
- *
- * const unsubscribe = listenWalkerProgress((event) => {
- *   console.log(`Progress: ${(event.progress * 100).toFixed(2)}%`);
- *   console.log(`${event.processedStrategies} / ${event.totalStrategies} strategies`);
- *   console.log(`Walker: ${event.walkerName}, Symbol: ${event.symbol}`);
- * });
- *
- * Walker.run("BTCUSDT", {
- *   walkerName: "my-walker",
- *   exchangeName: "binance",
- *   frameName: "1d-backtest"
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenWalkerProgress(fn: (event: ProgressWalkerContract) => void): () => void;
-/**
- * Subscribes to performance metric events with queued async processing.
- *
- * Emits during strategy execution to track timing metrics for operations.
- * Useful for profiling and identifying performance bottlenecks.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle performance events
- * @returns Unsubscribe function to stop listening to events
- *
- * @example
- * ```typescript
- * import { listenPerformance, Backtest } from "backtest-kit";
- *
- * const unsubscribe = listenPerformance((event) => {
- *   console.log(`${event.metricType}: ${event.duration.toFixed(2)}ms`);
- *   if (event.duration > 100) {
- *     console.warn("Slow operation detected:", event.metricType);
- *   }
- * });
- *
- * Backtest.background("BTCUSDT", {
- *   strategyName: "my-strategy",
- *   exchangeName: "binance",
- *   frameName: "1d-backtest"
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenPerformance(fn: (event: PerformanceContract) => void): () => void;
-/**
- * Subscribes to walker progress events with queued async processing.
- *
- * Emits during Walker.run() execution after each strategy completes.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle walker progress events
- * @returns Unsubscribe function to stop listening to events
- *
- * @example
- * ```typescript
- * import { listenWalker, Walker } from "backtest-kit";
- *
- * const unsubscribe = listenWalker((event) => {
- *   console.log(`Progress: ${event.strategiesTested} / ${event.totalStrategies}`);
- *   console.log(`Best strategy: ${event.bestStrategy} (${event.bestMetric})`);
- *   console.log(`Current strategy: ${event.strategyName} (${event.metricValue})`);
- * });
- *
- * Walker.run("BTCUSDT", {
- *   walkerName: "my-walker",
- *   exchangeName: "binance",
- *   frameName: "1d-backtest"
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenWalker(fn: (event: WalkerContract) => void): () => void;
-/**
- * Subscribes to filtered walker progress events with one-time execution.
- *
- * Listens for events matching the filter predicate, then executes callback once
- * and automatically unsubscribes. Useful for waiting for specific walker conditions.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @returns Unsubscribe function to cancel the listener before it fires
- *
- * @example
- * ```typescript
- * import { listenWalkerOnce, Walker } from "backtest-kit";
- *
- * // Wait for walker to complete all strategies
- * listenWalkerOnce(
- *   (event) => event.strategiesTested === event.totalStrategies,
- *   (event) => {
- *     console.log("Walker completed!");
- *     console.log("Best strategy:", event.bestStrategy, event.bestMetric);
- *   }
- * );
- *
- * // Wait for specific strategy to be tested
- * const cancel = listenWalkerOnce(
- *   (event) => event.strategyName === "my-strategy-v2",
- *   (event) => console.log("Strategy v2 tested:", event.metricValue)
- * );
- *
- * Walker.run("BTCUSDT", {
- *   walkerName: "my-walker",
- *   exchangeName: "binance",
- *   frameName: "1d-backtest"
- * });
- *
- * // Cancel if needed before event fires
- * cancel();
- * ```
- */
-declare function listenWalkerOnce(filterFn: (event: WalkerContract) => boolean | Promise<boolean>, fn: (event: WalkerContract) => void): () => void;
-/**
- * Subscribes to walker completion events with queued async processing.
- *
- * Emits when Walker.run() completes testing all strategies.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle walker completion event
- * @returns Unsubscribe function to stop listening to events
- *
- * @example
- * ```typescript
- * import { listenWalkerComplete, Walker } from "backtest-kit";
- *
- * const unsubscribe = listenWalkerComplete((results) => {
- *   console.log(`Walker ${results.walkerName} completed!`);
- *   console.log(`Best strategy: ${results.bestStrategy}`);
- *   console.log(`Best ${results.metric}: ${results.bestMetric}`);
- *   console.log(`Tested ${results.totalStrategies} strategies`);
- * });
- *
- * Walker.run("BTCUSDT", {
- *   walkerName: "my-walker",
- *   exchangeName: "binance",
- *   frameName: "1d-backtest"
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenWalkerComplete(fn: (event: WalkerCompleteContract) => void): () => void;
-/**
- * Subscribes to risk validation errors with queued async processing.
- *
- * Emits when risk validation functions throw errors during signal checking.
- * Useful for debugging and monitoring risk validation failures.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle validation errors
- * @returns Unsubscribe function to stop listening to events
- *
- * @example
- * ```typescript
- * import { listenValidation } from "./function/event";
- *
- * const unsubscribe = listenValidation((error) => {
- *   console.error("Risk validation error:", error.message);
- *   // Log to monitoring service for debugging
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenValidation(fn: (error: Error) => void): () => void;
-/**
- * Subscribes to partial profit level events with queued async processing.
- *
- * Emits when a signal reaches a profit level milestone (10%, 20%, 30%, etc).
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle partial profit events
- * @returns Unsubscribe function to stop listening to events
- *
- * @example
- * ```typescript
- * import { listenPartialProfitAvailable } from "./function/event";
- *
- * const unsubscribe = listenPartialProfitAvailable((event) => {
- *   console.log(`Signal ${event.data.id} reached ${event.level}% profit`);
- *   console.log(`Symbol: ${event.symbol}, Price: ${event.currentPrice}`);
- *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenPartialProfitAvailable(fn: (event: PartialProfitContract) => void): () => void;
-/**
- * Subscribes to filtered partial profit level events with one-time execution.
- *
- * Listens for events matching the filter predicate, then executes callback once
- * and automatically unsubscribes. Useful for waiting for specific profit conditions.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @returns Unsubscribe function to cancel the listener before it fires
- *
- * @example
- * ```typescript
- * import { listenPartialProfitOnce } from "./function/event";
- *
- * // Wait for first 50% profit level on any signal
- * listenPartialProfitOnce(
- *   (event) => event.level === 50,
- *   (event) => console.log("50% profit reached:", event.data.id)
- * );
- *
- * // Wait for 30% profit on BTCUSDT
- * const cancel = listenPartialProfitOnce(
- *   (event) => event.symbol === "BTCUSDT" && event.level === 30,
- *   (event) => console.log("BTCUSDT hit 30% profit")
- * );
- *
- * // Cancel if needed before event fires
- * cancel();
- * ```
- */
-declare function listenPartialProfitAvailableOnce(filterFn: (event: PartialProfitContract) => boolean | Promise<boolean>, fn: (event: PartialProfitContract) => void): () => void;
-/**
- * Subscribes to partial loss level events with queued async processing.
- *
- * Emits when a signal reaches a loss level milestone (10%, 20%, 30%, etc).
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle partial loss events
- * @returns Unsubscribe function to stop listening to events
- *
- * @example
- * ```typescript
- * import { listenPartialLossAvailable } from "./function/event";
- *
- * const unsubscribe = listenPartialLossAvailable((event) => {
- *   console.log(`Signal ${event.data.id} reached ${event.level}% loss`);
- *   console.log(`Symbol: ${event.symbol}, Price: ${event.currentPrice}`);
- *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenPartialLossAvailable(fn: (event: PartialLossContract) => void): () => void;
-/**
- * Subscribes to filtered partial loss level events with one-time execution.
- *
- * Listens for events matching the filter predicate, then executes callback once
- * and automatically unsubscribes. Useful for waiting for specific loss conditions.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @returns Unsubscribe function to cancel the listener before it fires
- *
- * @example
- * ```typescript
- * import { listenPartialLossOnce } from "./function/event";
- *
- * // Wait for first 20% loss level on any signal
- * listenPartialLossOnce(
- *   (event) => event.level === 20,
- *   (event) => console.log("20% loss reached:", event.data.id)
- * );
- *
- * // Wait for 10% loss on ETHUSDT in live mode
- * const cancel = listenPartialLossOnce(
- *   (event) => event.symbol === "ETHUSDT" && event.level === 10 && !event.backtest,
- *   (event) => console.log("ETHUSDT hit 10% loss in live mode")
- * );
- *
- * // Cancel if needed before event fires
- * cancel();
- * ```
- */
-declare function listenPartialLossAvailableOnce(filterFn: (event: PartialLossContract) => boolean | Promise<boolean>, fn: (event: PartialLossContract) => void): () => void;
-/**
- * Subscribes to breakeven protection events with queued async processing.
- *
- * Emits when a signal's stop-loss is moved to breakeven (entry price).
- * This happens when price moves far enough in profit direction to cover transaction costs.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle breakeven events
- * @returns Unsubscribe function to stop listening to events
- *
- * @example
- * ```typescript
- * import { listenBreakevenAvailable } from "./function/event";
- *
- * const unsubscribe = listenBreakevenAvailable((event) => {
- *   console.log(`Signal ${event.data.id} reached breakeven`);
- *   console.log(`Symbol: ${event.symbol}, Position: ${event.data.position}`);
- *   console.log(`Entry: ${event.data.priceOpen}, Current: ${event.currentPrice}`);
- *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenBreakevenAvailable(fn: (event: BreakevenContract) => void): () => void;
-/**
- * Subscribes to filtered breakeven protection events with one-time execution.
- *
- * Listens for events matching the filter predicate, then executes callback once
- * and automatically unsubscribes. Useful for waiting for specific breakeven conditions.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @returns Unsubscribe function to cancel the listener before it fires
- *
- * @example
- * ```typescript
- * import { listenBreakevenOnce } from "./function/event";
- *
- * // Wait for first breakeven on any signal
- * listenBreakevenOnce(
- *   (event) => true,
- *   (event) => console.log("First breakeven reached:", event.data.id)
- * );
- *
- * // Wait for breakeven on BTCUSDT LONG position
- * const cancel = listenBreakevenOnce(
- *   (event) => event.symbol === "BTCUSDT" && event.data.position === "long",
- *   (event) => console.log("BTCUSDT LONG reached breakeven at", event.currentPrice)
- * );
- *
- * // Cancel if needed before event fires
- * cancel();
- * ```
- */
-declare function listenBreakevenAvailableOnce(filterFn: (event: BreakevenContract) => boolean | Promise<boolean>, fn: (event: BreakevenContract) => void): () => void;
-/**
- * Subscribes to risk rejection events with queued async processing.
- *
- * Emits ONLY when a signal is rejected due to risk validation failure.
- * Does not emit for allowed signals (prevents spam).
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle risk rejection events
- * @returns Unsubscribe function to stop listening to events
- *
- * @example
- * ```typescript
- * import { listenRisk } from "./function/event";
- *
- * const unsubscribe = listenRisk((event) => {
- *   console.log(`[RISK REJECTED] Signal for ${event.symbol}`);
- *   console.log(`Strategy: ${event.strategyName}`);
- *   console.log(`Position: ${event.pendingSignal.position}`);
- *   console.log(`Active positions: ${event.activePositionCount}`);
- *   console.log(`Reason: ${event.comment}`);
- *   console.log(`Price: ${event.currentPrice}`);
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenRisk(fn: (event: RiskContract) => void): () => void;
-/**
- * Subscribes to filtered risk rejection events with one-time execution.
- *
- * Listens for events matching the filter predicate, then executes callback once
- * and automatically unsubscribes. Useful for waiting for specific risk rejection conditions.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @returns Unsubscribe function to cancel the listener before it fires
- *
- * @example
- * ```typescript
- * import { listenRiskOnce } from "./function/event";
- *
- * // Wait for first risk rejection on BTCUSDT
- * listenRiskOnce(
- *   (event) => event.symbol === "BTCUSDT",
- *   (event) => {
- *     console.log("BTCUSDT signal rejected!");
- *     console.log("Reason:", event.comment);
- *   }
- * );
- *
- * // Wait for rejection due to position limit
- * const cancel = listenRiskOnce(
- *   (event) => event.comment.includes("Max") && event.activePositionCount >= 3,
- *   (event) => console.log("Position limit reached:", event.activePositionCount)
- * );
- *
- * // Cancel if needed before event fires
- * cancel();
- * ```
- */
-declare function listenRiskOnce(filterFn: (event: RiskContract) => boolean | Promise<boolean>, fn: (event: RiskContract) => void): () => void;
-/**
- * Subscribes to ping events during scheduled signal monitoring with queued async processing.
- *
- * Events are emitted every minute when a scheduled signal is being monitored (waiting for activation).
- * Allows tracking of scheduled signal lifecycle and custom monitoring logic.
- *
- * @param fn - Callback function to handle ping events
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenPing } from "./function/event";
- *
- * const unsubscribe = listenPing((event) => {
- *   console.log(`Ping for ${event.symbol} at ${new Date(event.timestamp).toISOString()}`);
- *   console.log(`Strategy: ${event.strategyName}, Exchange: ${event.exchangeName}`);
- *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenSchedulePing(fn: (event: SchedulePingContract) => void): () => void;
-/**
- * Subscribes to filtered ping events with one-time execution.
- *
- * Listens for events matching the filter predicate, then executes callback once
- * and automatically unsubscribes. Useful for waiting for specific ping conditions.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @returns Unsubscribe function to cancel the listener before it fires
- *
- * @example
- * ```typescript
- * import { listenPingOnce } from "./function/event";
- *
- * // Wait for first ping on BTCUSDT
- * listenPingOnce(
- *   (event) => event.symbol === "BTCUSDT",
- *   (event) => console.log("First BTCUSDT ping received")
- * );
- *
- * // Wait for ping in backtest mode
- * const cancel = listenPingOnce(
- *   (event) => event.backtest === true,
- *   (event) => console.log("Backtest ping received at", new Date(event.timestamp))
- * );
- *
- * // Cancel if needed before event fires
- * cancel();
- * ```
- */
-declare function listenSchedulePingOnce(filterFn: (event: SchedulePingContract) => boolean | Promise<boolean>, fn: (event: SchedulePingContract) => void): () => void;
-/**
- * Subscribes to resting-entry (scheduled order) lifecycle events with queued async processing.
- *
- * Emitted when a scheduled signal is created (action "scheduled") - the strategy asked for an
- * entry at a specific price and the engine now waits for the market to reach it - or when that
- * entry is dropped before activating (action "cancelled" with reason "timeout" / "price_reject" /
- * "user"). Fires in both live and backtest.
- *
- * IMPORTANT: The scheduled -> active transition (activation) is NOT reported here. Activation
- * produces an "opened" event on the regular signal emitters (listenSignal) instead.
- *
- * SYSTEM CHANNEL. This is the same stream the framework itself consumes: Broker subscribes to it
- * and fans each event out to the registered adapter as `onSignalScheduleOpen` (action "scheduled",
- * payload BrokerScheduleOpenPayload) or `onSignalScheduleCancelled` (action "cancelled", payload
- * BrokerScheduleCancelledPayload, carrying `reason`). Because it is systemic it is NOT gated on
- * "is a scheduled signal still live" - every emission is delivered, including the cancellation that
- * reports the entry is already gone.
- *
- * For exchange integration prefer Broker.useBrokerAdapter with those two hooks; this listener is
- * for observation - logging, notifications, audit.
- *
- * Events are processed sequentially in order received, even if callback is async.
- *
- * @param fn - Callback function to handle scheduled lifecycle events
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenOrderSchedule } from "./function/event";
- *
- * const unsubscribe = listenOrderSchedule((event) => {
- *   if (event.action === "scheduled") {
- *     console.log(`Scheduled ${event.symbol} @ ${event.data.priceOpen}`);
- *   } else {
- *     console.log(`Cancelled ${event.symbol} (reason: ${event.reason})`);
- *   }
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenOrderSchedule(fn: (event: ScheduleEventContract) => void): () => void;
-/**
- * Subscribes to pending signal lifecycle events (open and close) with queued async processing.
- *
- * Emitted when a pending position is opened (action "opened": new signal / immediate / scheduled
- * or user activation) or closed (action "closed" with closeReason "take_profit" / "stop_loss" /
- * "time_expired" / "closed"), in both live and backtest.
- *
- * Events are processed sequentially in order received, even if callback is async.
- *
- * @param fn - Callback function to handle pending lifecycle events
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenSignalEvent } from "./function/event";
- *
- * const unsubscribe = listenSignalEvent((event) => {
- *   if (event.action === "opened") {
- *     console.log(`Opened ${event.symbol} @ ${event.data.priceOpen}`);
- *   } else {
- *     console.log(`Closed ${event.symbol} (reason: ${event.closeReason})`);
- *   }
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenSignalEvent(fn: (event: SignalEventContract) => void): () => void;
-/**
- * Subscribes to filtered pending lifecycle events with one-time execution.
- *
- * Listens for events matching the filter predicate, then executes callback once
- * and automatically unsubscribes. Useful for waiting for a specific open or close.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @returns Unsubscribe function to cancel the listener before it fires
- *
- * @example
- * ```typescript
- * import { listenSignalEventOnce } from "./function/event";
- *
- * // Wait for the first close on BTCUSDT
- * listenSignalEventOnce(
- *   (event) => event.symbol === "BTCUSDT" && event.action === "closed",
- *   (event) => console.log("BTCUSDT closed:", event.closeReason)
- * );
- * ```
- */
-declare function listenSignalEventOnce(filterFn: (event: SignalEventContract) => boolean | Promise<boolean>, fn: (event: SignalEventContract) => void): () => void;
-/**
- * Subscribes to active ping events with queued async processing.
- *
- * Listens for active pending signal monitoring events emitted every minute.
- * Useful for tracking active signal lifecycle and implementing dynamic management logic.
- *
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle active ping events
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenActivePing } from "./function/event";
- *
- * const unsubscribe = listenActivePing((event) => {
- *   console.log(`[${event.backtest ? "Backtest" : "Live"}] Active Ping`);
- *   console.log(`Symbol: ${event.symbol}, Strategy: ${event.strategyName}`);
- *   console.log(`Signal ID: ${event.data.id}, Position: ${event.data.position}`);
- *   console.log(`Timestamp: ${new Date(event.timestamp).toISOString()}`);
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenActivePing(fn: (event: ActivePingContract) => void): () => void;
-/**
- * Subscribes to filtered active ping events with one-time execution.
- *
- * Listens for events matching the filter predicate, then executes callback once
- * and automatically unsubscribes. Useful for waiting for specific active ping conditions.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @returns Unsubscribe function to cancel the listener before it fires
- *
- * @example
- * ```typescript
- * import { listenActivePingOnce } from "./function/event";
- *
- * // Wait for first active ping on BTCUSDT
- * listenActivePingOnce(
- *   (event) => event.symbol === "BTCUSDT",
- *   (event) => console.log("First BTCUSDT active ping received")
- * );
- *
- * // Wait for active ping in backtest mode
- * const cancel = listenActivePingOnce(
- *   (event) => event.backtest === true,
- *   (event) => console.log("Backtest active ping received at", new Date(event.timestamp))
- * );
- *
- * // Cancel if needed before event fires
- * cancel();
- * ```
- */
-declare function listenActivePingOnce(filterFn: (event: ActivePingContract) => boolean | Promise<boolean>, fn: (event: ActivePingContract) => void): () => void;
-/**
- * Subscribes to idle ping events with queued async processing.
- *
- * Emits every tick when there is no pending or scheduled signal being monitored.
- *
- * @param fn - Callback function to handle idle ping events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenIdlePing(fn: (event: IdlePingContract) => void): () => void;
-/**
- * Subscribes to filtered idle ping events with one-time execution.
- *
- * @param filterFn - Predicate to filter events
- * @param fn - Callback function to handle the matching event
- * @returns Unsubscribe function to cancel the listener before it fires
- */
-declare function listenIdlePingOnce(filterFn: (event: IdlePingContract) => boolean | Promise<boolean>, fn: (event: IdlePingContract) => void): () => void;
-/**
- * Subscribes to strategy management events with queued async processing.
- *
- * Emits when strategy management actions are executed:
- * - cancel-scheduled: Scheduled signal cancelled
- * - close-pending: Pending signal closed
- * - partial-profit: Partial close at profit level
- * - partial-loss: Partial close at loss level
- * - trailing-stop: Stop-loss adjusted
- * - trailing-take: Take-profit adjusted
- * - breakeven: Stop-loss moved to entry price
- *
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle strategy commit events
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenStrategyCommit } from "./function/event";
- *
- * const unsubscribe = listenStrategyCommit((event) => {
- *   console.log(`[${event.action}] ${event.symbol}`);
- *   console.log(`Strategy: ${event.strategyName}, Exchange: ${event.exchangeName}`);
- *   if (event.action === "partial-profit") {
- *     console.log(`Closed ${event.percentToClose}% at ${event.currentPrice}`);
- *   }
- * });
- *
- * // Later: stop listening
- * unsubscribe();
- * ```
- */
-declare function listenStrategyCommit(fn: (event: StrategyCommitContract) => void): () => void;
-/**
- * Subscribes to filtered strategy management events with one-time execution.
- *
- * Listens for events matching the filter predicate, then executes callback once
- * and automatically unsubscribes. Useful for waiting for specific strategy actions.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @returns Unsubscribe function to cancel the listener before it fires
- *
- * @example
- * ```typescript
- * import { listenStrategyCommitOnce } from "./function/event";
- *
- * // Wait for first trailing stop adjustment
- * listenStrategyCommitOnce(
- *   (event) => event.action === "trailing-stop",
- *   (event) => console.log("Trailing stop adjusted:", event.symbol)
- * );
- *
- * // Wait for breakeven on BTCUSDT
- * const cancel = listenStrategyCommitOnce(
- *   (event) => event.action === "breakeven" && event.symbol === "BTCUSDT",
- *   (event) => console.log("BTCUSDT moved to breakeven at", event.currentPrice)
- * );
- *
- * // Cancel if needed before event fires
- * cancel();
- * ```
- */
-declare function listenStrategyCommitOnce(filterFn: (event: StrategyCommitContract) => boolean | Promise<boolean>, fn: (event: StrategyCommitContract) => void): () => void;
-/**
- * Subscribes to signal synchronization events with queued async processing.
- * This is an order GATE: a throw from the listener rejects the open/close.
- *
- * Emits when signals are being synchronized (e.g. pending signal being opened/closed).
- *
- * Throw semantics (resolved into IBrokerOrderVerdict, identical to the Broker
- * `onOrderOpenCommit` / `onOrderCloseCommit` channel):
- * - plain Error or OrderTransientError → "transient": the open retries
- *   identity-stably (same signalId, `event.attempt` increments) up to
- *   CC_ORDER_OPEN_RETRY_ATTEMPTS; the close retries up to
- *   CC_ORDER_CLOSE_RETRY_ATTEMPTS, then the engine FORCE-CLOSES its state with the
- *   original closeReason. Exhaustion of either signals a fatal exit (exitEmitter).
- * - OrderRejectedError → "rejected", TERMINAL at once: the open is dropped
- *   without arming the retry; the close is force-closed immediately. No exit signal
- *   (business outcome).
- * - OrderDeletedError here is a userspace protocol violation (it belongs to
- *   the CHECK channel) and intentionally degrades to "transient".
- *
- * @param fn - Callback function to handle sync events. If the function returns a promise, signal processing will wait until it resolves.
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSync(fn: (event: OrderSyncContract) => void): () => void;
-/**
- * Subscribes to broker-CONFIRMED order fill events with queued async processing.
- *
- * Post-verdict mirror of the order-sync gate: fires ONLY after that gate
- * resolved into the "confirmed" IBrokerOrderVerdict — the broker adapter acknowledged
- * the order really executed/placed on the exchange. A transient or terminal
- * (OrderRejectedError) gate rejection does NOT fire here, and neither does a
- * FORCE-close performed without broker confirmation.
- *
- * Discriminated exactly like OrderSyncContract:
- * - action "signal-open", type "active" — the position order FILLED;
- * - action "signal-open", type "schedule" — the resting entry order was PLACED;
- * - action "signal-close" — the exit order executed.
- *
- * Live-only: backtest gates short-circuit to "confirmed" without an exchange, so
- * nothing is emitted there.
- *
- * Unlike listenSync this is a NOTIFICATION channel, not a gate: a throw from the
- * listener is swallowed at the emission site (logged + errorEmitter) and cannot
- * affect the already-resolved verdict. Safe for telegram/webhook/audit consumers.
- *
- * @param fn - Callback function to handle confirmed fill events. If the function returns a promise, processing is queued sequentially.
- * @returns Unsubscribe function to stop listening
- */
-declare function listenOrderFill(fn: (event: OrderFillContract) => void): () => void;
-/**
- * Subscribes to TERMINAL order rejection events with queued async processing.
- *
- * Post-verdict mirror of the rejection branch: fires ONLY when the onOrderSync gate
- * resolved into the "rejected" verdict — the broker adapter threw OrderRejectedError
- * ("the exchange definitively refused this order, retrying is pointless"). Exactly
- * once per dropped order attempt: an open consumes its signalId (the whipsaw guard
- * blocks re-emission of the same id), a close force-closes with the original
- * closeReason. Transient failures never fire here — they retry silently within the
- * bounded budgets.
- *
- * Live-only: backtest gates short-circuit to "confirmed" without an exchange.
- *
- * Like the fill channel this is a NOTIFICATION channel, not a gate: a throw
- * from the listener is swallowed at the emission site (logged + errorEmitter) and
- * cannot affect the already-resolved verdict. Safe for telegram/webhook/audit
- * consumers.
- *
- * @param fn - Callback function to handle terminal rejection events. If the function returns a promise, processing is queued sequentially.
- * @returns Unsubscribe function to stop listening
- */
-declare function listenOrderReject(fn: (event: OrderRejectContract) => void): () => void;
-/**
- * Subscribes to post-verdict order-check CONTINUE events with queued async processing.
- *
- * Paired with the order-stop channel: the pre-verdict check channel fires the
- * ping REQUEST before the broker adapter answers; this channel carries the resolved
- * NON-terminal decision — the order is confirmed still open (`event.attempt` 0) or a
- * transient check failure was tolerated (`event.attempt` > 0) and monitoring
- * continues. Emitted on every live tick while the monitored signal survives the
- * check, for both states (`event.type` "active"/"schedule").
- *
- * Live-only: backtest never runs order checks. NOTIFICATION channel, not a gate:
- * a throw from the listener is swallowed at the emission site (logged + errorEmitter)
- * and cannot affect the already-made monitoring decision.
- *
- * @param fn - Callback function to handle continue events. If the function returns a promise, processing is queued sequentially.
- * @returns Unsubscribe function to stop listening
- */
-declare function listenOrderContinue(fn: (event: OrderContinueContract) => void): () => void;
-/**
- * Subscribes to post-verdict order-check STOP events with queued async processing.
- *
- * Paired with the order-continue channel: fires exactly once per monitored signal
- * when the check resolved TERMINALLY — `event.reason` "deleted" (OrderDeletedError:
- * confirmed order-not-found, bypassing the tolerance counter) or "exhausted"
- * (CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive transient failures spent, or the
- * legacy config 0). Emitted right BEFORE the teardown: close "closed" for
- * `event.type` "active", cancel "user" for "schedule". `event.attempt` carries the
- * final failure streak.
- *
- * Live-only: backtest never runs order checks. NOTIFICATION channel, not a gate:
- * a throw from the listener is swallowed at the emission site (logged + errorEmitter)
- * and cannot affect the already-made terminal decision.
- *
- * @param fn - Callback function to handle stop events. If the function returns a promise, processing is queued sequentially.
- * @returns Unsubscribe function to stop listening
- */
-declare function listenOrderStop(fn: (event: OrderStopContract) => void): () => void;
-/**
- * Subscribes to order-check ping events with queued async processing.
- * This is the order CHECK channel: it decides whether the order behind the monitored
- * signal is still open on the exchange.
- *
- * Emits on every live tick while a signal is monitored, BEFORE completion evaluation,
- * discriminated by `event.type`: "active" — pending signal (open position), "schedule" —
- * scheduled signal (resting entry order). Backtest never emits this event.
- *
- * Throw semantics (resolved into IBrokerOrderVerdict, identical to the Broker
- * `onOrderActiveCheck` / `onOrderScheduleCheck` channel):
- * - plain Error or OrderTransientError → "transient": the failed check is
- *   TOLERATED (order assumed still open, monitoring continues, `event.attempt`
- *   increments) up to CC_ORDER_CHECK_RETRY_ATTEMPTS CONSECUTIVE failures — a network
- *   blip no longer kills a live position; a successful check resets the streak.
- *   Exhaustion acts terminally (close "closed" / cancel "user") and signals a fatal
- *   exit (exitEmitter).
- * - OrderDeletedError → "deleted", TERMINAL at once, bypassing the tolerance:
- *   the CONFIRMED "order not found by `event.signalId`". A FILLED resting order is
- *   NOT a deleted order — confirm fills via commitActivateScheduled /
- *   commitCreateTakeProfit / commitCreateStopLoss instead.
- * - OrderRejectedError here is a userspace protocol violation (it belongs to
- *   the GATE channel) and intentionally degrades to "transient".
- *
- * @param fn - Callback function to handle check events. If the function returns a promise, signal processing will wait until it resolves.
- * @returns Unsubscribe function to stop listening
- */
-declare function listenCheck(fn: (event: OrderCheckContract) => void): () => void;
-/**
- * Subscribes to highest profit events with queued async processing.
- * Emits when a signal reaches a new highest profit level during its lifecycle.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- * Useful for tracking profit milestones and implementing dynamic management logic.
- *
- * @param fn - Callback function to handle highest profit events
- * @return Unsubscribe function to stop listening to events
- */
-declare function listenHighestProfit(fn: (event: HighestProfitContract) => void): () => void;
-/**
- * Subscribes to filtered highest profit events with one-time execution.
- * Listens for events matching the filter predicate, then executes callback once
- * and automatically unsubscribes. Useful for waiting for specific profit conditions.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @returns Unsubscribe function to cancel the listener before it fires
- */
-declare function listenHighestProfitOnce(filterFn: (event: HighestProfitContract) => boolean | Promise<boolean>, fn: (event: HighestProfitContract) => void): () => void;
-/**
- * Subscribes to max drawdown events with queued async processing.
- * Emits when a signal reaches a new maximum drawdown level during its lifecycle.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- * Useful for tracking drawdown milestones and implementing dynamic risk management logic.
- * @param fn - Callback function to handle max drawdown events
- * @return Unsubscribe function to stop listening to events
- */
-declare function listenMaxDrawdown(fn: (event: MaxDrawdownContract) => void): () => void;
-/**
- * Subscribes to filtered max drawdown events with one-time execution.
- * Listens for events matching the filter predicate, then executes callback once
- * and automatically unsubscribes. Useful for waiting for specific drawdown conditions.
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @return Unsubscribe function to cancel the listener before it fires
- */
-declare function listenMaxDrawdownOnce(filterFn: (event: MaxDrawdownContract) => boolean | Promise<boolean>, fn: (event: MaxDrawdownContract) => void): () => void;
-/**
- * Subscribes to signal info events with queued async processing.
- * Emits when a strategy calls commitSignalInfo() to broadcast a user-defined note for an open position.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- * @param fn - Callback function to handle signal info events
- * @return Unsubscribe function to stop listening to events
- */
-declare function listenSignalNotify(fn: (event: SignalInfoContract) => void): () => void;
-/**
- * Subscribes to strategy pause state changes with queued async processing.
- * Emits when setPaused actually flips the pause flag of a strategy (new position
- * opening suspended/resumed; existing signals keep closing normally).
- * Use this to generate user-facing notifications about pause/resume.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- *
- * @param fn - Callback function to handle pause state change events
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * const unsubscribe = listenPause((event) => {
- *   console.log(`${event.symbol} ${event.strategyName}: ${event.paused ? "paused" : "resumed"}`);
- * });
- * ```
- */
-declare function listenPause(fn: (event: PauseContract) => void): () => void;
-/**
- * Subscribes to filtered pause state change events with one-time execution.
- * Listens for events matching the filter predicate, then executes callback once
- * and automatically unsubscribes.
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @return Unsubscribe function to cancel the listener before it fires
- */
-declare function listenPauseOnce(filterFn: (event: PauseContract) => boolean | Promise<boolean>, fn: (event: PauseContract) => void): () => void;
-/**
- * Subscribes to filtered signal info events with one-time execution.
- * Listens for events matching the filter predicate, then executes callback once
- * and automatically unsubscribes.
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @return Unsubscribe function to cancel the listener before it fires
- */
-declare function listenSignalNotifyOnce(filterFn: (event: SignalInfoContract) => boolean | Promise<boolean>, fn: (event: SignalInfoContract) => void): () => void;
-/**
- * Subscribes to before start events with queued async processing.
- * Emits when the engine is about to start a new strategy execution for a symbol.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- * @param fn - Callback function to handle before start events
- * @return Unsubscribe function to stop listening to events
- */
-declare function listenBeforeStart(fn: (event: BeforeStartContract) => void): () => void;
-/**
- * Subscribes to filtered before start events with one-time execution.
- * Listens for events matching the filter predicate, then executes callback once
- * and automatically unsubscribes.
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @return Unsubscribe function to cancel the listener before it fires
- */
-declare function listenBeforeStartOnce(filterFn: (event: BeforeStartContract) => boolean | Promise<boolean>, fn: (event: BeforeStartContract) => void): () => void;
-/**
- * Subscribes to after end events with queued async processing.
- * Emits when the engine has completed processing a strategy execution for a symbol.
- * Events are processed sequentially in order received, even if callback is async.
- * Uses queued wrapper to prevent concurrent execution of the callback.
- * @param fn - Callback function to handle after end events
- * @return Unsubscribe function to stop listening to events
- */
-declare function listenAfterEnd(fn: (event: AfterEndContract) => void): () => void;
-/**
- * Subscribes to filtered after end events with one-time execution.
- * Listens for events matching the filter predicate, then executes callback once
- * and automatically unsubscribes.
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle the filtered event (called only once)
- * @return Unsubscribe function to cancel the listener before it fires
- */
-declare function listenAfterEndOnce(filterFn: (event: AfterEndContract) => boolean | Promise<boolean>, fn: (event: AfterEndContract) => void): () => void;
-/**
- * ============================================================================
- * PER-SIGNAL LISTENERS
- * ============================================================================
- *
- * Every channel below carries a signal identifier, so it can be collapsed to
- * "fire the callback once per NEW signal that satisfies the condition".
- *
- * Each of these wraps the matching plain `listenX` listener rather than building a
- * private observer chain, exactly like the `listenXOnce` forms do:
- *
- *   listenX(async (event) => {
- *     if (!(await filterFn(event))) return;   // 1. the condition
- *     if (alreadySeen(event)) return; // 2. collapse repeats
- *     await fn(event);                // 3. deliver
- *   })
- *
- * WHY DELEGATE. The plain listener owns the single `queued()` wrapper, so all three
- * steps run INSIDE that queue, one event at a time. A private
- * `.filter().connect(queued())` chain would put the dedup check OUTSIDE the queue,
- * where it is evaluated at emit time: three events emitted back-to-back would have
- * all three dedup decisions made before the first callback even started, advancing
- * the remembered id before the subscriber had been handed the event it stands for.
- *
- * THE DEDUP STATE IS PER-EXECUTION, NOT GLOBAL. Each subscription owns a
- * `LimitedMap` mapping an execution identity to the last signal id delivered for
- * it:
- *
- *   strategyName:exchangeName[:frameName]:backtest|live:symbol  ->  signalId
- *
- * (frameName is omitted when empty, exactly like the Cache key helper.) An event
- * passes only when the stored id for its own key differs from the incoming one.
- *
- * This is deliberately NOT `Operator.distinct`, which keeps a single "previous
- * compare value" for the whole stream. These subjects are process-global: several
- * strategies, symbols and modes push through them at once and their events
- * interleave. Under `distinct`, execution B's event becomes the baseline and lets
- * execution A's next repeat through as new. A per-key map gives every execution
- * independent state, so interleaving cannot resurrect an already-reported signal.
- *
- * WHAT "ONCE PER SIGNAL" MEANS. One callback per (execution, signal id) pair, for
- * as long as that identity stays in the map. A strategy monitors one signal at a
- * time, so in practice this is exactly one callback per signal - regardless of what
- * other strategies emit in between. The map holds SEEN_MAP_LIMIT identities and
- * evicts oldest-first; an evicted identity reports its current signal once more.
- * Use the plain `listenX` variants when every emission matters, and `listenXOnce`
- * when the subscription should tear itself down after the first hit.
- *
- * Because they delegate, whatever the plain listener checks before delivery applies
- * here too: the partial-profit, partial-loss, breakeven, ping and notify channels
- * still confirm the position is live via `hasPendingSignal` first.
- */
-/**
- * Subscribes to signal events, delivering the callback once per new signal id.
- *
- * Filters by the predicate first, then collapses repeats sharing the same execution
- * identity and `event.signal.id`. Idle events carry `signal: null` and are skipped,
- * so the callback always receives an event with a signal attached.
- *
- * @param filterFn - Predicate selecting which events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenSignalUnique } from "backtest-kit";
- *
- * // Notify once per signal that closed in profit, no matter how many
- * // closed events the channel replays for it
- * const unsubscribe = listenSignalUnique(
- *   (event) => event.action === "closed" && event.pnl.pnlPercentage > 0,
- *   (event) => console.log("Profitable close:", event.signal.id)
- * );
- *
- * unsubscribe();
- * ```
- */
-declare function listenSignalUnique(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
-/**
- * Subscribes to live signal events, delivering the callback once per new signal id.
- *
- * Only receives events from Live.run() execution. Idle events (`signal: null`)
- * are skipped. See the per-signal section header for the dedup semantics.
- *
- * @param filterFn - Predicate selecting which events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalLiveUnique(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
-/**
- * Subscribes to backtest signal events, delivering the callback once per new signal id.
- *
- * Only receives events from Backtest.run() execution. Idle events (`signal: null`)
- * are skipped. See the per-signal section header for the dedup semantics.
- *
- * @param filterFn - Predicate selecting which events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalBacktestUnique(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
-/**
- * Subscribes to pending lifecycle events, delivering the callback once per new signal id.
- *
- * Deduplicates on `event.data.id`. Note that a single signal legitimately produces
- * both an "opened" and a "closed" event: filter by `action` if only one of the two
- * transitions should reach the callback.
- *
- * @param filterFn - Predicate selecting which events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenSignalEventUnique } from "backtest-kit";
- *
- * listenSignalEventUnique(
- *   (event) => event.action === "opened",
- *   (event) => console.log("New position:", event.data.id, event.data.priceOpen)
- * );
- * ```
- */
-declare function listenSignalEventUnique(filterFn: (event: SignalEventContract) => boolean | Promise<boolean>, fn: (event: SignalEventContract) => void): () => void;
-/**
- * Subscribes to scheduled lifecycle events, delivering the callback once per new signal id.
- *
- * Deduplicates on `event.data.id`. A scheduled signal may emit both "scheduled"
- * and "cancelled": filter by `action` to isolate one transition.
- *
- * @param filterFn - Predicate selecting which events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- */
-declare function listenOrderScheduleUnique(filterFn: (event: ScheduleEventContract) => boolean | Promise<boolean>, fn: (event: ScheduleEventContract) => void): () => void;
-/**
- * Subscribes to active ping events, delivering the callback once per new signal id.
- *
- * Active pings fire on every tick of a monitored position, so this is the
- * canonical use of the per-signal form: react the first tick a position meets a
- * condition, then stay silent for the rest of its life.
- *
- * @param filterFn - Predicate selecting which events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenActivePingUnique } from "backtest-kit";
- *
- * // Alert once per position when it first crosses 5% unrealized profit
- * listenActivePingUnique(
- *   (event) => event.data.position === "long" && event.currentPrice > event.data.priceOpen * 1.05,
- *   (event) => console.log("Position up 5%:", event.data.id)
- * );
- * ```
- */
-declare function listenActivePingUnique(filterFn: (event: ActivePingContract) => boolean | Promise<boolean>, fn: (event: ActivePingContract) => void): () => void;
-/**
- * Subscribes to schedule ping events, delivering the callback once per new signal id.
- *
- * Schedule pings fire every tick while a resting entry waits for activation;
- * this collapses them to one callback per scheduled signal.
- *
- * @param filterFn - Predicate selecting which events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSchedulePingUnique(filterFn: (event: SchedulePingContract) => boolean | Promise<boolean>, fn: (event: SchedulePingContract) => void): () => void;
-/**
- * Subscribes to partial profit level events, delivering the callback once per new signal id.
- *
- * Deduplicates on `event.data.id`, so only the FIRST matching profit level of a
- * signal is reported. To react to each distinct level of the same signal, key on
- * the level instead by using the plain `listenPartialProfitAvailable` form with
- * your own bookkeeping, or narrow `filterFn` to a single level.
- *
- * @param filterFn - Predicate selecting which events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- */
-declare function listenPartialProfitAvailableUnique(filterFn: (event: PartialProfitContract) => boolean | Promise<boolean>, fn: (event: PartialProfitContract) => void): () => void;
-/**
- * Subscribes to partial loss level events, delivering the callback once per new signal id.
- *
- * Deduplicates on `event.data.id` — only the first matching loss level of a
- * signal reaches the callback. The same per-level caveat as the partial-profit
- * form applies: narrow `filterFn` to a single level if you need each one.
- *
- * @param filterFn - Predicate selecting which events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- */
-declare function listenPartialLossAvailableUnique(filterFn: (event: PartialLossContract) => boolean | Promise<boolean>, fn: (event: PartialLossContract) => void): () => void;
-/**
- * Subscribes to breakeven events, delivering the callback once per new signal id.
- *
- * @param filterFn - Predicate selecting which events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- */
-declare function listenBreakevenAvailableUnique(filterFn: (event: BreakevenContract) => boolean | Promise<boolean>, fn: (event: BreakevenContract) => void): () => void;
-/**
- * Subscribes to highest profit events, delivering the callback once per new signal id.
- *
- * Deduplicates on `event.signal.id`. Since this channel re-emits on every new
- * profit peak, the per-signal form reports the first peak that satisfies the
- * predicate and then goes quiet for that signal.
- *
- * @param filterFn - Predicate selecting which events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- */
-declare function listenHighestProfitUnique(filterFn: (event: HighestProfitContract) => boolean | Promise<boolean>, fn: (event: HighestProfitContract) => void): () => void;
-/**
- * Subscribes to max drawdown events, delivering the callback once per new signal id.
- *
- * Deduplicates on `event.signal.id` — the first drawdown matching the predicate
- * is reported, later deeper drawdowns of the same signal are suppressed.
- *
- * @param filterFn - Predicate selecting which events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- */
-declare function listenMaxDrawdownUnique(filterFn: (event: MaxDrawdownContract) => boolean | Promise<boolean>, fn: (event: MaxDrawdownContract) => void): () => void;
-/**
- * Subscribes to signal info events, delivering the callback once per new signal id.
- *
- * Deduplicates on `event.data.id`, so a strategy spamming commitSignalInfo() for
- * the same position notifies the subscriber only once.
- *
- * @param filterFn - Predicate selecting which events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalNotifyUnique(filterFn: (event: SignalInfoContract) => boolean | Promise<boolean>, fn: (event: SignalInfoContract) => void): () => void;
-/**
- * Subscribes to strategy management events, delivering the callback once per new signal id.
- *
- * Deduplicates on `event.signalId`. Trailing commits repeat many times per
- * position, so this reports the first commit matching the predicate per signal.
- *
- * @param filterFn - Predicate selecting which events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenStrategyCommitUnique } from "backtest-kit";
- *
- * // Report the first trailing-stop adjustment of each position
- * listenStrategyCommitUnique(
- *   (event) => event.action === "trailing-stop",
- *   (event) => console.log("First trailing stop for", event.signalId)
- * );
- * ```
- */
-declare function listenStrategyCommitUnique(filterFn: (event: StrategyCommitContract) => boolean | Promise<boolean>, fn: (event: StrategyCommitContract) => void): () => void;
-/**
- * ============================================================================
- * FILTER LISTENERS
- * ============================================================================
- *
- * Persistent filtered forms of the `listenXOnce` pairs: the same
- * `(filterFn, fn)` signature, but the subscription STAYS ATTACHED after a
- * match — every event satisfying the predicate is delivered, not just the
- * first one. Use `listenXOnce` when the subscription should tear itself down
- * after the first hit, and `listenXUnique` when repeats of the same signal id
- * should collapse to one delivery.
- *
- * Each wraps the matching plain `listenX` listener exactly like the Once forms
- * do, so the predicate runs INSIDE that listener's queued() wrapper, one event
- * at a time, and whatever the plain listener checks before delivery applies
- * here too: the partial-profit, partial-loss, breakeven, ping and notify
- * channels still confirm the position is live via `hasPendingSignal` first.
- *
- * Every function returns an unsubscribe function.
- */
-/**
- * Subscribes to signal events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenSignal}: like {@link listenSignalOnce} only
- * events passing `filterFn` reach the callback, but the listener stays attached
- * and delivers every matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenSignalFilter } from "backtest-kit";
- *
- * // Log EVERY closed tick, unlike listenSignalOnce which stops after the first
- * const unsubscribe = listenSignalFilter(
- *   (event) => event.action === "closed",
- *   (event) => console.log("Closed:", event.signal.id, event.pnl.pnlPercentage)
- * );
- * ```
- */
-declare function listenSignalFilter(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
-/**
- * Subscribes to live signal events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenSignalLive}: only events passing `filterFn`
- * reach the callback, and the listener keeps delivering every matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalLiveFilter(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
-/**
- * Subscribes to backtest signal events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenSignalBacktest}: only events passing
- * `filterFn` reach the callback, and the listener keeps delivering every
- * matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalBacktestFilter(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
-/**
- * Subscribes to live completion events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenDoneLive}: only events passing `filterFn`
- * reach the callback, and the listener keeps delivering every matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenDoneLiveFilter(filterFn: (event: DoneContract) => boolean | Promise<boolean>, fn: (event: DoneContract) => void): () => void;
-/**
- * Subscribes to backtest completion events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenDoneBacktest}: only events passing
- * `filterFn` reach the callback, and the listener keeps delivering every
- * matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenDoneBacktestFilter(filterFn: (event: DoneContract) => boolean | Promise<boolean>, fn: (event: DoneContract) => void): () => void;
-/**
- * Subscribes to walker completion events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenDoneWalker}: only events passing `filterFn`
- * reach the callback, and the listener keeps delivering every matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenDoneWalkerFilter(filterFn: (event: DoneContract) => boolean | Promise<boolean>, fn: (event: DoneContract) => void): () => void;
-/**
- * Subscribes to walker progress events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenWalker}: only events passing `filterFn`
- * reach the callback, and the listener keeps delivering every matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenWalkerFilter(filterFn: (event: WalkerContract) => boolean | Promise<boolean>, fn: (event: WalkerContract) => void): () => void;
-/**
- * Subscribes to partial profit level events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenPartialProfitAvailable}: only events passing
- * `filterFn` reach the callback, and the listener keeps delivering every
- * matching event (each new level of the same signal included).
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenPartialProfitAvailableFilter(filterFn: (event: PartialProfitContract) => boolean | Promise<boolean>, fn: (event: PartialProfitContract) => void): () => void;
-/**
- * Subscribes to partial loss level events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenPartialLossAvailable}: only events passing
- * `filterFn` reach the callback, and the listener keeps delivering every
- * matching event (each new level of the same signal included).
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenPartialLossAvailableFilter(filterFn: (event: PartialLossContract) => boolean | Promise<boolean>, fn: (event: PartialLossContract) => void): () => void;
-/**
- * Subscribes to breakeven events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenBreakevenAvailable}: only events passing
- * `filterFn` reach the callback, and the listener keeps delivering every
- * matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenBreakevenAvailableFilter(filterFn: (event: BreakevenContract) => boolean | Promise<boolean>, fn: (event: BreakevenContract) => void): () => void;
-/**
- * Subscribes to risk rejection events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenRisk}: only events passing `filterFn` reach
- * the callback, and the listener keeps delivering every matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenRiskFilter(filterFn: (event: RiskContract) => boolean | Promise<boolean>, fn: (event: RiskContract) => void): () => void;
-/**
- * Subscribes to schedule ping events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenSchedulePing}: only events passing
- * `filterFn` reach the callback, and the listener keeps delivering every
- * matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSchedulePingFilter(filterFn: (event: SchedulePingContract) => boolean | Promise<boolean>, fn: (event: SchedulePingContract) => void): () => void;
-/**
- * Subscribes to pending lifecycle events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenSignalEvent}: only events passing `filterFn`
- * reach the callback, and the listener keeps delivering every matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalEventFilter(filterFn: (event: SignalEventContract) => boolean | Promise<boolean>, fn: (event: SignalEventContract) => void): () => void;
-/**
- * Subscribes to active ping events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenActivePing}: only events passing `filterFn`
- * reach the callback, and the listener keeps delivering every matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenActivePingFilter(filterFn: (event: ActivePingContract) => boolean | Promise<boolean>, fn: (event: ActivePingContract) => void): () => void;
-/**
- * Subscribes to idle ping events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenIdlePing}: only events passing `filterFn`
- * reach the callback, and the listener keeps delivering every matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenIdlePingFilter(filterFn: (event: IdlePingContract) => boolean | Promise<boolean>, fn: (event: IdlePingContract) => void): () => void;
-/**
- * Subscribes to strategy management events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenStrategyCommit}: only events passing
- * `filterFn` reach the callback, and the listener keeps delivering every
- * matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenStrategyCommitFilter(filterFn: (event: StrategyCommitContract) => boolean | Promise<boolean>, fn: (event: StrategyCommitContract) => void): () => void;
-/**
- * Subscribes to highest profit events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenHighestProfit}: only events passing
- * `filterFn` reach the callback, and the listener keeps delivering every
- * matching event (each new peak of the same signal included).
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenHighestProfitFilter(filterFn: (event: HighestProfitContract) => boolean | Promise<boolean>, fn: (event: HighestProfitContract) => void): () => void;
-/**
- * Subscribes to max drawdown events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenMaxDrawdown}: only events passing `filterFn`
- * reach the callback, and the listener keeps delivering every matching event
- * (each deeper drawdown of the same signal included).
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenMaxDrawdownFilter(filterFn: (event: MaxDrawdownContract) => boolean | Promise<boolean>, fn: (event: MaxDrawdownContract) => void): () => void;
-/**
- * Subscribes to pause state change events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenPause}: only events passing `filterFn` reach
- * the callback, and the listener keeps delivering every matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenPauseFilter(filterFn: (event: PauseContract) => boolean | Promise<boolean>, fn: (event: PauseContract) => void): () => void;
-/**
- * Subscribes to signal info events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenSignalNotify}: only events passing
- * `filterFn` reach the callback, and the listener keeps delivering every
- * matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalNotifyFilter(filterFn: (event: SignalInfoContract) => boolean | Promise<boolean>, fn: (event: SignalInfoContract) => void): () => void;
-/**
- * Subscribes to before start events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenBeforeStart}: only events passing `filterFn`
- * reach the callback, and the listener keeps delivering every matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenBeforeStartFilter(filterFn: (event: BeforeStartContract) => boolean | Promise<boolean>, fn: (event: BeforeStartContract) => void): () => void;
-/**
- * Subscribes to after end events matching the predicate, keeping the subscription.
- *
- * Filtered variant of {@link listenAfterEnd}: only events passing `filterFn`
- * reach the callback, and the listener keeps delivering every matching event.
- *
- * @param filterFn - Predicate to filter which events trigger the callback
- * @param fn - Callback function to handle each matching event
- * @returns Unsubscribe function to stop listening
- */
-declare function listenAfterEndFilter(filterFn: (event: AfterEndContract) => boolean | Promise<boolean>, fn: (event: AfterEndContract) => void): () => void;
-
-/**
- * Subscribes to idle tick results (live + backtest).
- *
- * Fires on every tick where the strategy holds no signal at all. `event.signal` is
- * always `null` here — there is no position to inspect, only `currentPrice` and the
- * strategy/exchange/frame identity.
- *
- * @param fn - Callback receiving idle events
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenSignalIdle } from "backtest-kit";
- *
- * const unsubscribe = listenSignalIdle((event) => {
- *   console.log(`${event.symbol} idle at ${event.currentPrice}`);
- * });
- * ```
- */
-declare function listenSignalIdle(fn: (event: IStrategyTickResultIdle) => void): () => void;
-/**
- * Subscribes to scheduled tick results (live + backtest).
- *
- * Fires once when a scheduled signal is created — a resting entry waiting for price
- * to reach `signal.priceOpen`. Subsequent monitoring ticks arrive as "waiting".
- *
- * @param fn - Callback receiving scheduled events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalScheduled(fn: (event: IStrategyTickResultScheduled) => void): () => void;
-/**
- * Subscribes to waiting tick results (live + backtest).
- *
- * Fires on every tick while a scheduled signal has not yet activated. High volume:
- * one event per tick per waiting signal. Use the `listenSignalWaitingUnique`
- * form to collapse that down to one callback per signal.
- *
- * @param fn - Callback receiving waiting events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalWaiting(fn: (event: IStrategyTickResultWaiting) => void): () => void;
-/**
- * Subscribes to opened tick results (live + backtest).
- *
- * Fires when a position is opened — either directly or by activation of a scheduled
- * signal.
- *
- * @param fn - Callback receiving opened events
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenSignalOpened } from "backtest-kit";
- *
- * listenSignalOpened((event) => {
- *   // no action guard needed: signal is always present
- *   console.log("Opened", event.signal.id, "at", event.signal.priceOpen);
- * });
- * ```
- */
-declare function listenSignalOpened(fn: (event: IStrategyTickResultOpened) => void): () => void;
-/**
- * Subscribes to active tick results (live + backtest).
- *
- * Fires on every tick while a position is open, carrying live `pnl`, `percentTp` and
- * `percentSl`. High volume: one event per tick per open position. Use the
- * `listenSignalActiveUnique` form to collapse that down to one callback per
- * position.
- *
- * @param fn - Callback receiving active events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalActive(fn: (event: IStrategyTickResultActive) => void): () => void;
-/**
- * Subscribes to closed tick results (live + backtest).
- *
- * Fires when a position closes. `pnl`, `closeReason` and `closeTimestamp` are
- * guaranteed present on the narrowed type.
- *
- * @param fn - Callback receiving closed events
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenSignalClosed } from "backtest-kit";
- *
- * listenSignalClosed((event) => {
- *   console.log(`${event.closeReason}: ${event.pnl.pnlPercentage}%`);
- * });
- * ```
- */
-declare function listenSignalClosed(fn: (event: IStrategyTickResultClosed) => void): () => void;
-/**
- * Subscribes to cancelled tick results (live + backtest).
- *
- * Fires when a scheduled signal is dropped before ever opening a position.
- * `reason` carries the cancellation cause.
- *
- * @param fn - Callback receiving cancelled events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalCancelled(fn: (event: IStrategyTickResultCancelled) => void): () => void;
-/**
- * Subscribes to idle tick results from live executions only.
- *
- * Fires on every tick where the strategy holds no position and nothing scheduled.
- * `event.signal` is always `null` here, so there is nothing to inspect beyond
- * `currentPrice`, `symbol` and the strategy/exchange/frame identity. Useful for
- * heartbeat logging or for noticing that a strategy has gone quiet.
- *
- * Receives events from Live.run() only. Backtest replays never reach this callback,
- * which is what makes it safe for anything with real-world side effects - order
- * placement mirrors, alerting, notifications.
- *
- * Because the emitter is already split by action, the callback receives the
- * narrowed variant directly - no `if (event.action === ...)` guard is needed
- * before reading the fields described above.
- *
- * @param fn - Callback receiving idle events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalLiveIdle(fn: (event: IStrategyTickResultIdle) => void): () => void;
-/**
- * Subscribes to scheduled tick results from live executions only.
- *
- * Fires once, at the moment a scheduled signal is created: the strategy asked for
- * an entry at a specific price and the engine is now waiting for the market to
- * reach it. No position exists yet. Every later tick of that same waiting entry
- * arrives as a "waiting" event instead, so this action marks the start of the
- * wait, not the wait itself.
- *
- * Receives events from Live.run() only. Backtest replays never reach this callback,
- * which is what makes it safe for anything with real-world side effects - order
- * placement mirrors, alerting, notifications.
- *
- * Because the emitter is already split by action, the callback receives the
- * narrowed variant directly - no `if (event.action === ...)` guard is needed
- * before reading the fields described above.
- *
- * @param fn - Callback receiving scheduled events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalLiveScheduled(fn: (event: IStrategyTickResultScheduled) => void): () => void;
-/**
- * Subscribes to waiting tick results from live executions only.
- *
- * Fires on every tick while a scheduled signal has not activated yet. `event.signal`
- * describes the resting entry and `pnl` is theoretical - the position is not open,
- * so nothing is at risk. This is a high-volume channel: one event per tick per
- * waiting signal for as long as the entry rests.
- *
- * Receives events from Live.run() only. Backtest replays never reach this callback,
- * which is what makes it safe for anything with real-world side effects - order
- * placement mirrors, alerting, notifications.
- *
- * Because the emitter is already split by action, the callback receives the
- * narrowed variant directly - no `if (event.action === ...)` guard is needed
- * before reading the fields described above.
- *
- * @param fn - Callback receiving waiting events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalLiveWaiting(fn: (event: IStrategyTickResultWaiting) => void): () => void;
-/**
- * Subscribes to opened tick results from live executions only.
- *
- * Fires when a position actually opens, either because the strategy returned an
- * immediate signal or because a scheduled entry finally activated. `event.signal`
- * carries the stored row with its generated id, entry price and TP/SL levels. This
- * is the point from which the position starts costing money.
- *
- * Receives events from Live.run() only. Backtest replays never reach this callback,
- * which is what makes it safe for anything with real-world side effects - order
- * placement mirrors, alerting, notifications.
- *
- * Because the emitter is already split by action, the callback receives the
- * narrowed variant directly - no `if (event.action === ...)` guard is needed
- * before reading the fields described above.
- *
- * @param fn - Callback receiving opened events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalLiveOpened(fn: (event: IStrategyTickResultOpened) => void): () => void;
-/**
- * Subscribes to active tick results from live executions only.
- *
- * Fires on every tick while a position is open, carrying the live `pnl` plus
- * `percentTp` / `percentSl` - how far price has travelled toward take-profit or
- * stop-loss. This is a high-volume channel: one event per tick per open position,
- * for the whole life of the position.
- *
- * Receives events from Live.run() only. Backtest replays never reach this callback,
- * which is what makes it safe for anything with real-world side effects - order
- * placement mirrors, alerting, notifications.
- *
- * Because the emitter is already split by action, the callback receives the
- * narrowed variant directly - no `if (event.action === ...)` guard is needed
- * before reading the fields described above.
- *
- * @param fn - Callback receiving active events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalLiveActive(fn: (event: IStrategyTickResultActive) => void): () => void;
-/**
- * Subscribes to closed tick results from live executions only.
- *
- * Fires when a position closes, for any reason. `closeReason` says which
- * ("take_profit", "stop_loss", "time_expired" or "closed" for a user-initiated
- * close), `closeTimestamp` says when, and `pnl` holds the realised result with fees
- * and slippage already applied. Terminal for that signal - no further events for
- * it will arrive on this channel.
- *
- * Receives events from Live.run() only. Backtest replays never reach this callback,
- * which is what makes it safe for anything with real-world side effects - order
- * placement mirrors, alerting, notifications.
- *
- * Because the emitter is already split by action, the callback receives the
- * narrowed variant directly - no `if (event.action === ...)` guard is needed
- * before reading the fields described above.
- *
- * @param fn - Callback receiving closed events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalLiveClosed(fn: (event: IStrategyTickResultClosed) => void): () => void;
-/**
- * Subscribes to cancelled tick results from live executions only.
- *
- * Fires when a scheduled signal is dropped before it ever became a position, so no
- * money was ever at risk. `reason` explains why (the wait timed out, price moved
- * through the entry in the wrong direction, or a user cancelled it) and `cancelId`
- * is set for user-initiated cancellations. Terminal for that signal.
- *
- * Receives events from Live.run() only. Backtest replays never reach this callback,
- * which is what makes it safe for anything with real-world side effects - order
- * placement mirrors, alerting, notifications.
- *
- * Because the emitter is already split by action, the callback receives the
- * narrowed variant directly - no `if (event.action === ...)` guard is needed
- * before reading the fields described above.
- *
- * @param fn - Callback receiving cancelled events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalLiveCancelled(fn: (event: IStrategyTickResultCancelled) => void): () => void;
-/**
- * Subscribes to idle tick results from backtest executions only.
- *
- * Fires on every tick where the strategy holds no position and nothing scheduled.
- * `event.signal` is always `null` here, so there is nothing to inspect beyond
- * `currentPrice`, `symbol` and the strategy/exchange/frame identity. Useful for
- * heartbeat logging or for noticing that a strategy has gone quiet.
- *
- * Receives events from Backtest.run() only. Live trading never reaches this
- * callback, so it is the right channel for replay analysis and reporting that must
- * not be polluted by production traffic.
- *
- * Because the emitter is already split by action, the callback receives the
- * narrowed variant directly - no `if (event.action === ...)` guard is needed
- * before reading the fields described above.
- *
- * @param fn - Callback receiving idle events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalBacktestIdle(fn: (event: IStrategyTickResultIdle) => void): () => void;
-/**
- * Subscribes to scheduled tick results from backtest executions only.
- *
- * Fires once, at the moment a scheduled signal is created: the strategy asked for
- * an entry at a specific price and the engine is now waiting for the market to
- * reach it. No position exists yet. Every later tick of that same waiting entry
- * arrives as a "waiting" event instead, so this action marks the start of the
- * wait, not the wait itself.
- *
- * Receives events from Backtest.run() only. Live trading never reaches this
- * callback, so it is the right channel for replay analysis and reporting that must
- * not be polluted by production traffic.
- *
- * Because the emitter is already split by action, the callback receives the
- * narrowed variant directly - no `if (event.action === ...)` guard is needed
- * before reading the fields described above.
- *
- * @param fn - Callback receiving scheduled events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalBacktestScheduled(fn: (event: IStrategyTickResultScheduled) => void): () => void;
-/**
- * Subscribes to waiting tick results from backtest executions only.
- *
- * Fires on every tick while a scheduled signal has not activated yet. `event.signal`
- * describes the resting entry and `pnl` is theoretical - the position is not open,
- * so nothing is at risk. This is a high-volume channel: one event per tick per
- * waiting signal for as long as the entry rests.
- *
- * Receives events from Backtest.run() only. Live trading never reaches this
- * callback, so it is the right channel for replay analysis and reporting that must
- * not be polluted by production traffic.
- *
- * Because the emitter is already split by action, the callback receives the
- * narrowed variant directly - no `if (event.action === ...)` guard is needed
- * before reading the fields described above.
- *
- * @param fn - Callback receiving waiting events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalBacktestWaiting(fn: (event: IStrategyTickResultWaiting) => void): () => void;
-/**
- * Subscribes to opened tick results from backtest executions only.
- *
- * Fires when a position actually opens, either because the strategy returned an
- * immediate signal or because a scheduled entry finally activated. `event.signal`
- * carries the stored row with its generated id, entry price and TP/SL levels. This
- * is the point from which the position starts costing money.
- *
- * Receives events from Backtest.run() only. Live trading never reaches this
- * callback, so it is the right channel for replay analysis and reporting that must
- * not be polluted by production traffic.
- *
- * Because the emitter is already split by action, the callback receives the
- * narrowed variant directly - no `if (event.action === ...)` guard is needed
- * before reading the fields described above.
- *
- * @param fn - Callback receiving opened events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalBacktestOpened(fn: (event: IStrategyTickResultOpened) => void): () => void;
-/**
- * Subscribes to active tick results from backtest executions only.
- *
- * Fires on every tick while a position is open, carrying the live `pnl` plus
- * `percentTp` / `percentSl` - how far price has travelled toward take-profit or
- * stop-loss. This is a high-volume channel: one event per tick per open position,
- * for the whole life of the position.
- *
- * Receives events from Backtest.run() only. Live trading never reaches this
- * callback, so it is the right channel for replay analysis and reporting that must
- * not be polluted by production traffic.
- *
- * Because the emitter is already split by action, the callback receives the
- * narrowed variant directly - no `if (event.action === ...)` guard is needed
- * before reading the fields described above.
- *
- * @param fn - Callback receiving active events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalBacktestActive(fn: (event: IStrategyTickResultActive) => void): () => void;
-/**
- * Subscribes to closed tick results from backtest executions only.
- *
- * Fires when a position closes, for any reason. `closeReason` says which
- * ("take_profit", "stop_loss", "time_expired" or "closed" for a user-initiated
- * close), `closeTimestamp` says when, and `pnl` holds the realised result with fees
- * and slippage already applied. Terminal for that signal - no further events for
- * it will arrive on this channel.
- *
- * Receives events from Backtest.run() only. Live trading never reaches this
- * callback, so it is the right channel for replay analysis and reporting that must
- * not be polluted by production traffic.
- *
- * Because the emitter is already split by action, the callback receives the
- * narrowed variant directly - no `if (event.action === ...)` guard is needed
- * before reading the fields described above.
- *
- * @param fn - Callback receiving closed events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalBacktestClosed(fn: (event: IStrategyTickResultClosed) => void): () => void;
-/**
- * Subscribes to cancelled tick results from backtest executions only.
- *
- * Fires when a scheduled signal is dropped before it ever became a position, so no
- * money was ever at risk. `reason` explains why (the wait timed out, price moved
- * through the entry in the wrong direction, or a user cancelled it) and `cancelId`
- * is set for user-initiated cancellations. Terminal for that signal.
- *
- * Receives events from Backtest.run() only. Live trading never reaches this
- * callback, so it is the right channel for replay analysis and reporting that must
- * not be polluted by production traffic.
- *
- * Because the emitter is already split by action, the callback receives the
- * narrowed variant directly - no `if (event.action === ...)` guard is needed
- * before reading the fields described above.
- *
- * @param fn - Callback receiving cancelled events
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalBacktestCancelled(fn: (event: IStrategyTickResultCancelled) => void): () => void;
-/**
- * Subscribes to scheduled tick results, once per new signal id (live + backtest).
- *
- * @param filterFn - Predicate selecting which scheduled events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalScheduledUnique(filterFn: (event: IStrategyTickResultScheduled) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultScheduled) => void): () => void;
-/**
- * Subscribes to waiting tick results, once per new signal id (live + backtest).
- *
- * The canonical use: "waiting" repeats every tick, so this reports the first tick a
- * resting entry satisfies the predicate and then stays quiet for that signal.
- *
- * @param filterFn - Predicate selecting which waiting events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalWaitingUnique(filterFn: (event: IStrategyTickResultWaiting) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultWaiting) => void): () => void;
-/**
- * Subscribes to opened tick results, once per new signal id (live + backtest).
- *
- * @param filterFn - Predicate selecting which opened events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalOpenedUnique(filterFn: (event: IStrategyTickResultOpened) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultOpened) => void): () => void;
-/**
- * Subscribes to active tick results, once per new signal id (live + backtest).
- *
- * Active ticks repeat for the whole life of a position, so this fires the first tick
- * the position meets the condition and then goes silent for it.
- *
- * @param filterFn - Predicate selecting which active events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- *
- * @example
- * ```typescript
- * import { listenSignalActiveUnique } from "backtest-kit";
- *
- * // Alert once per position when it first crosses 5% unrealized profit
- * listenSignalActiveUnique(
- *   (event) => event.pnl.pnlPercentage > 5,
- *   (event) => console.log("Up 5%:", event.signal.id)
- * );
- * ```
- */
-declare function listenSignalActiveUnique(filterFn: (event: IStrategyTickResultActive) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultActive) => void): () => void;
-/**
- * Subscribes to closed tick results, once per new signal id (live + backtest).
- *
- * @param filterFn - Predicate selecting which closed events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalClosedUnique(filterFn: (event: IStrategyTickResultClosed) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultClosed) => void): () => void;
-/**
- * Subscribes to cancelled tick results, once per new signal id (live + backtest).
- *
- * @param filterFn - Predicate selecting which cancelled events are considered
- * @param fn - Callback invoked once per new signal id
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalCancelledUnique(filterFn: (event: IStrategyTickResultCancelled) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultCancelled) => void): () => void;
-/**
- * Subscribes to scheduled tick results from live executions only,
- * delivering the callback at most once per signal.
- *
- * Fires once per resting entry that satisfies the predicate, at the moment it is
- * created. Since "scheduled" already fires only once per signal, the dedup here is
- * mainly a safety net against a repeated emission.
- *
- * Receives events from Live.run() only, so backtest replays can never trigger it.
- *
- * Deduplication is per execution identity - strategy, exchange, frame, mode and
- * symbol - so parallel strategies never suppress one another. Within one execution
- * the listener remembers the last signal id it delivered and drops any repeat of
- * it; a new signal id reports again.
- *
- * The predicate runs BEFORE the dedup, so events the predicate rejects are never
- * remembered and cannot hide a later matching event.
- *
- * @param filterFn - Predicate selecting which scheduled events are considered
- * @param fn - Callback invoked at most once per signal
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalLiveScheduledUnique(filterFn: (event: IStrategyTickResultScheduled) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultScheduled) => void): () => void;
-/**
- * Subscribes to waiting tick results from live executions only,
- * delivering the callback at most once per signal.
- *
- * "Waiting" repeats on every tick for as long as a resting entry has not activated,
- * so this is where the dedup earns its keep: the callback runs on the FIRST tick
- * where the entry satisfies the predicate and then stays silent for that entry, no
- * matter how long it keeps waiting.
- *
- * Receives events from Live.run() only, so backtest replays can never trigger it.
- *
- * Deduplication is per execution identity - strategy, exchange, frame, mode and
- * symbol - so parallel strategies never suppress one another. Within one execution
- * the listener remembers the last signal id it delivered and drops any repeat of
- * it; a new signal id reports again.
- *
- * The predicate runs BEFORE the dedup, so events the predicate rejects are never
- * remembered and cannot hide a later matching event.
- *
- * @param filterFn - Predicate selecting which waiting events are considered
- * @param fn - Callback invoked at most once per signal
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalLiveWaitingUnique(filterFn: (event: IStrategyTickResultWaiting) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultWaiting) => void): () => void;
-/**
- * Subscribes to opened tick results from live executions only,
- * delivering the callback at most once per signal.
- *
- * Fires once per position that satisfies the predicate, at the moment it opens.
- * Since "opened" already fires only once per signal, the dedup here is mainly a
- * safety net against a repeated emission.
- *
- * Receives events from Live.run() only, so backtest replays can never trigger it.
- *
- * Deduplication is per execution identity - strategy, exchange, frame, mode and
- * symbol - so parallel strategies never suppress one another. Within one execution
- * the listener remembers the last signal id it delivered and drops any repeat of
- * it; a new signal id reports again.
- *
- * The predicate runs BEFORE the dedup, so events the predicate rejects are never
- * remembered and cannot hide a later matching event.
- *
- * @param filterFn - Predicate selecting which opened events are considered
- * @param fn - Callback invoked at most once per signal
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalLiveOpenedUnique(filterFn: (event: IStrategyTickResultOpened) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultOpened) => void): () => void;
-/**
- * Subscribes to active tick results from live executions only,
- * delivering the callback at most once per signal.
- *
- * "Active" repeats on every tick for the whole life of a position, so this is the
- * canonical use of the per-signal form: the callback runs on the FIRST tick where
- * the position satisfies the predicate and then stays silent for that position.
- * Ideal for one-shot alerts such as "this trade crossed 5% profit".
- *
- * Receives events from Live.run() only, so backtest replays can never trigger it.
- *
- * Deduplication is per execution identity - strategy, exchange, frame, mode and
- * symbol - so parallel strategies never suppress one another. Within one execution
- * the listener remembers the last signal id it delivered and drops any repeat of
- * it; a new signal id reports again.
- *
- * The predicate runs BEFORE the dedup, so events the predicate rejects are never
- * remembered and cannot hide a later matching event.
- *
- * @param filterFn - Predicate selecting which active events are considered
- * @param fn - Callback invoked at most once per signal
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalLiveActiveUnique(filterFn: (event: IStrategyTickResultActive) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultActive) => void): () => void;
-/**
- * Subscribes to closed tick results from live executions only,
- * delivering the callback at most once per signal.
- *
- * Fires once per closed position that satisfies the predicate. Since "closed" is
- * terminal and already fires once per signal, the dedup here is mainly a safety net
- * against a repeated emission.
- *
- * Receives events from Live.run() only, so backtest replays can never trigger it.
- *
- * Deduplication is per execution identity - strategy, exchange, frame, mode and
- * symbol - so parallel strategies never suppress one another. Within one execution
- * the listener remembers the last signal id it delivered and drops any repeat of
- * it; a new signal id reports again.
- *
- * The predicate runs BEFORE the dedup, so events the predicate rejects are never
- * remembered and cannot hide a later matching event.
- *
- * @param filterFn - Predicate selecting which closed events are considered
- * @param fn - Callback invoked at most once per signal
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalLiveClosedUnique(filterFn: (event: IStrategyTickResultClosed) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultClosed) => void): () => void;
-/**
- * Subscribes to cancelled tick results from live executions only,
- * delivering the callback at most once per signal.
- *
- * Fires once per dropped resting entry that satisfies the predicate. Since
- * "cancelled" is terminal and already fires once per signal, the dedup here is
- * mainly a safety net against a repeated emission.
- *
- * Receives events from Live.run() only, so backtest replays can never trigger it.
- *
- * Deduplication is per execution identity - strategy, exchange, frame, mode and
- * symbol - so parallel strategies never suppress one another. Within one execution
- * the listener remembers the last signal id it delivered and drops any repeat of
- * it; a new signal id reports again.
- *
- * The predicate runs BEFORE the dedup, so events the predicate rejects are never
- * remembered and cannot hide a later matching event.
- *
- * @param filterFn - Predicate selecting which cancelled events are considered
- * @param fn - Callback invoked at most once per signal
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalLiveCancelledUnique(filterFn: (event: IStrategyTickResultCancelled) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultCancelled) => void): () => void;
-/**
- * Subscribes to scheduled tick results from backtest executions only,
- * delivering the callback at most once per signal.
- *
- * Fires once per resting entry that satisfies the predicate, at the moment it is
- * created. Since "scheduled" already fires only once per signal, the dedup here is
- * mainly a safety net against a repeated emission.
- *
- * Receives events from Backtest.run() only, so live trading can never trigger it.
- *
- * Deduplication is per execution identity - strategy, exchange, frame, mode and
- * symbol - so parallel strategies never suppress one another. Within one execution
- * the listener remembers the last signal id it delivered and drops any repeat of
- * it; a new signal id reports again.
- *
- * The predicate runs BEFORE the dedup, so events the predicate rejects are never
- * remembered and cannot hide a later matching event.
- *
- * @param filterFn - Predicate selecting which scheduled events are considered
- * @param fn - Callback invoked at most once per signal
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalBacktestScheduledUnique(filterFn: (event: IStrategyTickResultScheduled) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultScheduled) => void): () => void;
-/**
- * Subscribes to waiting tick results from backtest executions only,
- * delivering the callback at most once per signal.
- *
- * "Waiting" repeats on every tick for as long as a resting entry has not activated,
- * so this is where the dedup earns its keep: the callback runs on the FIRST tick
- * where the entry satisfies the predicate and then stays silent for that entry, no
- * matter how long it keeps waiting.
- *
- * Receives events from Backtest.run() only, so live trading can never trigger it.
- *
- * Deduplication is per execution identity - strategy, exchange, frame, mode and
- * symbol - so parallel strategies never suppress one another. Within one execution
- * the listener remembers the last signal id it delivered and drops any repeat of
- * it; a new signal id reports again.
- *
- * The predicate runs BEFORE the dedup, so events the predicate rejects are never
- * remembered and cannot hide a later matching event.
- *
- * @param filterFn - Predicate selecting which waiting events are considered
- * @param fn - Callback invoked at most once per signal
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalBacktestWaitingUnique(filterFn: (event: IStrategyTickResultWaiting) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultWaiting) => void): () => void;
-/**
- * Subscribes to opened tick results from backtest executions only,
- * delivering the callback at most once per signal.
- *
- * Fires once per position that satisfies the predicate, at the moment it opens.
- * Since "opened" already fires only once per signal, the dedup here is mainly a
- * safety net against a repeated emission.
- *
- * Receives events from Backtest.run() only, so live trading can never trigger it.
- *
- * Deduplication is per execution identity - strategy, exchange, frame, mode and
- * symbol - so parallel strategies never suppress one another. Within one execution
- * the listener remembers the last signal id it delivered and drops any repeat of
- * it; a new signal id reports again.
- *
- * The predicate runs BEFORE the dedup, so events the predicate rejects are never
- * remembered and cannot hide a later matching event.
- *
- * @param filterFn - Predicate selecting which opened events are considered
- * @param fn - Callback invoked at most once per signal
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalBacktestOpenedUnique(filterFn: (event: IStrategyTickResultOpened) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultOpened) => void): () => void;
-/**
- * Subscribes to active tick results from backtest executions only,
- * delivering the callback at most once per signal.
- *
- * "Active" repeats on every tick for the whole life of a position, so this is the
- * canonical use of the per-signal form: the callback runs on the FIRST tick where
- * the position satisfies the predicate and then stays silent for that position.
- * Ideal for one-shot alerts such as "this trade crossed 5% profit".
- *
- * Receives events from Backtest.run() only, so live trading can never trigger it.
- *
- * Deduplication is per execution identity - strategy, exchange, frame, mode and
- * symbol - so parallel strategies never suppress one another. Within one execution
- * the listener remembers the last signal id it delivered and drops any repeat of
- * it; a new signal id reports again.
- *
- * The predicate runs BEFORE the dedup, so events the predicate rejects are never
- * remembered and cannot hide a later matching event.
- *
- * @param filterFn - Predicate selecting which active events are considered
- * @param fn - Callback invoked at most once per signal
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalBacktestActiveUnique(filterFn: (event: IStrategyTickResultActive) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultActive) => void): () => void;
-/**
- * Subscribes to closed tick results from backtest executions only, delivering the
- * callback at most once per signal.
- *
- * Fires once per closed position that satisfies the predicate. Since "closed" is
- * terminal and already fires once per signal, the dedup here is mainly a safety net
- * against a repeated emission.
- *
- * Receives events from Backtest.run() only, so live trading can never trigger it.
- *
- * Deduplication is per execution identity - strategy, exchange, frame, mode and
- * symbol - so parallel strategies never suppress one another. Within one execution
- * the listener remembers the last signal id it delivered and drops any repeat of
- * it; a new signal id reports again.
- *
- * The predicate runs BEFORE the dedup, so events the predicate rejects are never
- * remembered and cannot hide a later matching event.
- *
- * @param filterFn - Predicate selecting which closed events are considered
- * @param fn - Callback invoked at most once per signal
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalBacktestClosedUnique(filterFn: (event: IStrategyTickResultClosed) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultClosed) => void): () => void;
-/**
- * Subscribes to cancelled tick results from backtest executions only,
- * delivering the callback at most once per signal.
- *
- * Fires once per dropped resting entry that satisfies the predicate. Since
- * "cancelled" is terminal and already fires once per signal, the dedup here is
- * mainly a safety net against a repeated emission.
- *
- * Receives events from Backtest.run() only, so live trading can never trigger it.
- *
- * Deduplication is per execution identity - strategy, exchange, frame, mode and
- * symbol - so parallel strategies never suppress one another. Within one execution
- * the listener remembers the last signal id it delivered and drops any repeat of
- * it; a new signal id reports again.
- *
- * The predicate runs BEFORE the dedup, so events the predicate rejects are never
- * remembered and cannot hide a later matching event.
- *
- * @param filterFn - Predicate selecting which cancelled events are considered
- * @param fn - Callback invoked at most once per signal
- * @returns Unsubscribe function to stop listening
- */
-declare function listenSignalBacktestCancelledUnique(filterFn: (event: IStrategyTickResultCancelled) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultCancelled) => void): () => void;
-
-/**
- * Checks if trade context is active (execution and method contexts).
- *
- * Returns true when both contexts are active, which is required for calling
- * exchange functions like getCandles, getAveragePrice, formatPrice, formatQuantity,
- * getDate, and getMode.
- *
- * @returns true if trade context is active, false otherwise
- *
- * @example
- * ```typescript
- * import { hasTradeContext, getCandles } from "backtest-kit";
- *
- * if (hasTradeContext()) {
- *   const candles = await getCandles("BTCUSDT", "1m", 100);
- * } else {
- *   console.log("Trade context not active");
- * }
- * ```
- */
-declare function hasTradeContext(): boolean;
-/**
- * Fetches historical candle data from the registered exchange.
- *
- * Candles are fetched backwards from the current execution context time.
- * Uses the exchange's getCandles implementation.
- *
- * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
- * @param limit - Number of candles to fetch
- * @returns Promise resolving to array of candle data
- *
- * @example
- * ```typescript
- * const candles = await getCandles("BTCUSDT", "1m", 100);
- * console.log(candles[0]); // { timestamp, open, high, low, close, volume }
- * ```
- */
-declare function getCandles(symbol: string, interval: CandleInterval, limit: number): Promise<ICandleData[]>;
-/**
- * Calculates VWAP (Volume Weighted Average Price) for a symbol.
- *
- * Uses the last 5 1-minute candles to calculate:
- * - Typical Price = (high + low + close) / 3
- * - VWAP = sum(typical_price * volume) / sum(volume)
- *
- * If volume is zero, returns simple average of close prices.
- *
- * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @returns Promise resolving to VWAP price
- *
- * @example
- * ```typescript
- * const vwap = await getAveragePrice("BTCUSDT");
- * console.log(vwap); // 50125.43
- * ```
- */
-declare function getAveragePrice(symbol: string): Promise<number>;
-/**
- * Returns the close price of the last completed candle for the given interval.
- *
- * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
- * @returns Promise resolving to close price of the last candle
- *
- * @example
- * ```typescript
- * const close = await getClosePrice("BTCUSDT", "1h");
- * console.log(close); // 50125.43
- * ```
- */
-declare function getClosePrice(symbol: string, interval: CandleInterval): Promise<number>;
-/**
- * Formats a price value according to exchange rules.
- *
- * Uses the exchange's formatPrice implementation for proper decimal places.
- *
- * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @param price - Raw price value
- * @returns Promise resolving to formatted price string
- *
- * @example
- * ```typescript
- * const formatted = await formatPrice("BTCUSDT", 50000.123456);
- * console.log(formatted); // "50000.12"
- * ```
- */
-declare function formatPrice(symbol: string, price: number): Promise<string>;
-/**
- * Formats a quantity value according to exchange rules.
- *
- * Uses the exchange's formatQuantity implementation for proper decimal places.
- *
- * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @param quantity - Raw quantity value
- * @returns Promise resolving to formatted quantity string
- *
- * @example
- * ```typescript
- * const formatted = await formatQuantity("BTCUSDT", 0.123456789);
- * console.log(formatted); // "0.12345678"
- * ```
- */
-declare function formatQuantity(symbol: string, quantity: number): Promise<string>;
-/**
- * Fetches order book for a trading pair from the registered exchange.
- *
- * Uses current execution context to determine timing. The underlying exchange
- * implementation receives time range parameters but may use them (backtest)
- * or ignore them (live trading).
- *
- * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
- * @returns Promise resolving to order book data
- * @throws Error if execution or method context is missing
- *
- * @example
- * ```typescript
- * const orderBook = await getOrderBook("BTCUSDT");
- * console.log(orderBook.bids); // [{ price: "50000.00", quantity: "0.5" }, ...]
- * console.log(orderBook.asks); // [{ price: "50001.00", quantity: "0.3" }, ...]
- *
- * // Fetch deeper order book
- * const deepBook = await getOrderBook("BTCUSDT", 100);
- * ```
- */
-declare function getOrderBook(symbol: string, depth?: number): Promise<IOrderBookData>;
-/**
- * Fetches raw candles with flexible date/limit parameters.
- *
- * All modes respect execution context and prevent look-ahead bias.
- *
- * Parameter combinations:
- * 1. sDate + eDate + limit: fetches with explicit parameters, validates eDate <= when
- * 2. sDate + eDate: calculates limit from date range, validates eDate <= when
- * 3. eDate + limit: calculates sDate backward, validates eDate <= when
- * 4. sDate + limit: fetches forward, validates calculated endTimestamp <= when
- * 5. Only limit: uses execution.context.when as reference (backward)
- *
- * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
- * @param limit - Optional number of candles to fetch
- * @param sDate - Optional start date in milliseconds
- * @param eDate - Optional end date in milliseconds
- * @returns Promise resolving to array of candle data
- *
- * @example
- * ```typescript
- * // Fetch 100 candles backward from current context time
- * const candles = await getRawCandles("BTCUSDT", "1m", 100);
- *
- * // Fetch candles for specific date range
- * const rangeCandles = await getRawCandles("BTCUSDT", "1h", undefined, startMs, endMs);
- *
- * // Fetch with all parameters specified
- * const exactCandles = await getRawCandles("BTCUSDT", "1m", 100, startMs, endMs);
- * ```
- */
-declare function getRawCandles(symbol: string, interval: CandleInterval, limit?: number, sDate?: number, eDate?: number): Promise<ICandleData[]>;
-/**
- * Fetches the set of candles after current time based on execution context.
- *
- * Uses the exchange's getNextCandles implementation to retrieve candles
- * that occur after the current context time.
- * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
- * @param limit - Number of candles to fetch
- * @returns Promise resolving to array of candle data
- */
-declare function getNextCandles(symbol: string, interval: CandleInterval, limit: number): Promise<ICandleData[]>;
-/**
- * Fetches aggregated trades for a trading pair from the registered exchange.
- *
- * Trades are fetched backwards from the current execution context time.
- * If limit is not specified, returns all trades within one CC_AGGREGATED_TRADES_MAX_MINUTES window.
- * If limit is specified, paginates backwards until at least limit trades are collected.
- *
- * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
- * @param limit - Optional maximum number of trades to fetch
- * @returns Promise resolving to array of aggregated trade data
- * @throws Error if execution or method context is missing
- *
- * @example
- * ```typescript
- * // Fetch last hour of trades
- * const trades = await getAggregatedTrades("BTCUSDT");
- *
- * // Fetch last 500 trades
- * const lastTrades = await getAggregatedTrades("BTCUSDT", 500);
- * console.log(lastTrades[0]); // { id, price, qty, timestamp, isBuyerMaker }
- * ```
- */
-declare function getAggregatedTrades(symbol: string, limit?: number): Promise<IAggregatedTradeData[]>;
-
-/**
- * Interface for runtime information and range used in backtesting and strategy execution.
- * The interface defines the time range for the backtest while executing a strategy in backtest mode
- */
-interface IRuntimeRange {
-    /** Start date of the runtime range */
-    from: Date;
-    /** End date of the runtime range */
-    to: Date;
-}
-/**
- * Interface for runtime information returned by the RuntimeMetaService.
- * This includes the symbol being traded, the time range of the backtest, any additional info defined by the strategy,
- * and contextual information about the exchange, strategy, and frame being used.
- */
-interface IRuntimeInfo<Data extends RuntimeData = RuntimeData> {
-    /** Trading pair symbol (e.g., "BTCUSDT") */
-    symbol: string;
-    /** Time range for the backtest, null if running in live mode */
-    range: IRuntimeRange | null;
-    /** Additional runtime information defined by the strategy, can be used for custom monitoring or reporting */
-    info: Data | null;
-    /** Contextual information about the current execution environment */
-    context: {
-        exchangeName: ExchangeName;
-        strategyName: StrategyName;
-        frameName: FrameName;
-    };
-    /** Timestamp of the current candle or tick */
-    when: Date;
-    /** Current market price for the symbol at the time of execution */
-    currentPrice: number;
-    /** Whether the strategy is running in backtest mode */
-    backtest: boolean;
-}
-
-/**
- * Gets the current date from execution context.
- *
- * In backtest mode: returns the current timeframe date being processed
- * In live mode: returns current real-time date
- *
- * @returns Promise resolving to current execution context date
- *
- * @example
- * ```typescript
- * const date = await getDate();
- * console.log(date); // 2024-01-01T12:00:00.000Z
- * ```
- */
-declare function getDate(): Promise<Date>;
-/**
- * Gets the current timestamp from execution context.
- *
- * In backtest mode: returns the current timeframe timestamp being processed
- * In live mode: returns current real-time timestamp
- *
- * @returns Promise resolving to current execution context timestamp in milliseconds
- * @example
- * ```typescript
- * const timestamp = await getTimestamp();
- * console.log(timestamp); // 1700000000000
- * ```
- */
-declare function getTimestamp(): Promise<number>;
-/**
- * Gets the current execution mode.
- *
- * @returns Promise resolving to "backtest" or "live"
- *
- * @example
- * ```typescript
- * const mode = await getMode();
- * if (mode === "backtest") {
- *   console.log("Running in backtest mode");
- * } else {
- *   console.log("Running in live mode");
- * }
- * ```
- */
-declare function getMode(): Promise<"backtest" | "live">;
-/**
- * Gets the current trading symbol from execution context.
- *
- * @returns Promise resolving to the current trading symbol (e.g., "BTCUSDT")
- * @throws Error if execution context is not active
- *
- * @example
- * ```typescript
- * const symbol = await getSymbol();
- * console.log(symbol); // "BTCUSDT"
- * ```
- */
-declare function getSymbol(): Promise<string>;
-/**
- * Gets the current method context.
- *
- * Returns the context object from the method context service, which contains
- * information about the current method execution environment.
- *
- * @returns Promise resolving to the current method context object
- * @throws Error if method context is not active
- *
- * @example
- * ```typescript
- * const context = await getContext();
- * console.log(context); // { ...method context data... }
- * ```
- */
-declare function getContext(): Promise<IMethodContext>;
-/**
- * Gets runtime information about the current execution environment.
- *
- * This includes details such as the current symbol, exchange, timeframe, strategy, and whether it's a backtest or live run.
- *
- * @returns Promise resolving to an object containing runtime information
- * @throws Error if method context or execution context is not active
- *
- * @example
- * ```typescript
- * const runtimeInfo = await getRuntimeInfo();
- * console.log(runtimeInfo);
- * // {
- * //   symbol: "BTCUSDT",
- * //   context: {,
- * //     exchangeName: "Binance",
- * //     frameName: "1m",
- * //     strategyName: "MyStrategy",
- * //   },
- * //   backtest: false
- * // }
- * ```
- */
-declare function getRuntimeInfo<Data extends RuntimeData = RuntimeData>(): Promise<IRuntimeInfo<Data>>;
-
-/**
- * Returns the latest signal (pending or closed) for the current strategy context.
- *
- * Does not distinguish between active and closed signals — returns whichever
- * was recorded last. Useful for cooldown logic: e.g. skip opening a new position
- * for 4 hours after a stop-loss by checking the timestamp of the latest signal
- * regardless of its outcome.
- *
- * Searches backtest storage first, then live storage.
- * Throws if no signal exists at all.
- *
- * Automatically detects backtest/live mode from execution context.
- *
- * @param symbol - Trading pair symbol
- * @returns Promise resolving to the latest signal or null
- *
- * @example
- * ```typescript
- * import { getLatestSignal } from "backtest-kit";
- *
- * const latest = await getLatestSignal("BTCUSDT");
- * if (latest && Date.now() - latest.closedAt < 4 * 60 * 60 * 1000) {
- *   return; // cooldown after SL — skip new signal for 4 hours
- * }
- * ```
- */
-declare function getLatestSignal(symbol: string): Promise<IPublicSignalRow | null>;
-/**
- * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
- *
- * Does not distinguish between active and closed signals — measures time since
- * whichever signal was recorded last. Useful for cooldown logic after a stop-loss.
- *
- * Searches backtest storage first, then live storage.
- * Throws if no signal exists at all.
- *
- * Automatically detects backtest/live mode from execution context.
- *
- * @param symbol - Trading pair symbol
- * @param timestamp - Current timestamp in milliseconds
- * @returns Promise resolving to whole minutes since the latest signal was created
- *
- * @example
- * ```typescript
- * import { getMinutesSinceLatestSignalCreated } from "backtest-kit";
- *
- * const minutes = await getMinutesSinceLatestSignalCreated("BTCUSDT");
- * if (minutes !== null && minutes < 24 * 60) {
- *   return; // cooldown — skip new signal for 24 hours after last signal
- * }
- * ```
- */
-declare function getMinutesSinceLatestSignalCreated(symbol: string): Promise<number>;
-
-/**
- * Reads the session value scoped to the current (symbol, strategy, exchange, frame) context.
- *
- * Session data persists across candles within a single run and can survive process
- * restarts in live mode — useful for caching LLM inference results, intermediate
- * indicator state, or any cross-candle accumulator that is not tied to a specific signal.
- *
- * Automatically detects backtest/live mode from execution context.
- *
- * @param symbol - Trading pair symbol
- * @returns Promise resolving to current session value, or null if not set
- *
- * @example
- * ```typescript
- * import { getSession } from "backtest-kit";
- *
- * const session = await getSession<{ lastLlmSignal: string }>("BTCUSDT");
- * if (session?.lastLlmSignal === "buy") {
- *   // reuse cached LLM result instead of calling the model again
- * }
- * ```
- */
-declare function getSessionData<Value extends object = object>(symbol: string): Promise<Value | null>;
-/**
- * Writes a session value scoped to the current (symbol, strategy, exchange, frame) context.
- *
- * Session data persists across candles within a single run and can survive process
- * restarts in live mode — useful for caching LLM inference results, intermediate
- * indicator state, or any cross-candle accumulator that is not tied to a specific signal.
- *
- * Pass null to clear the session.
- *
- * Automatically detects backtest/live mode from execution context.
- *
- * @param symbol - Trading pair symbol
- * @param value - New value or null to clear
- * @returns Promise that resolves when the session has been written
- *
- * @example
- * ```typescript
- * import { setSession } from "backtest-kit";
- *
- * await setSession("BTCUSDT", { lastLlmSignal: "buy" });
- * ```
- */
-declare function setSessionData<Value extends object = object>(symbol: string, value: Value | null): Promise<void>;
-
-/**
- * Writes a value to memory scoped to the current signal.
- *
- * Resolves the active pending or scheduled signal automatically from execution context.
- * Automatically detects backtest/live mode from execution context.
- *
- * @param dto.bucketName - Memory bucket name
- * @param dto.memoryId - Unique memory entry identifier
- * @param dto.value - Value to store
- * @param dto.description - BM25 index string for contextual search
- * @returns Promise that resolves when write is complete
- *
- * @example
- * ```typescript
- * import { writeMemory } from "backtest-kit";
- *
- * await writeMemory({ bucketName: "my-strategy", memoryId: "context", value: { trend: "up", confidence: 0.9 }, description: "Signal context at entry" });
- * ```
- */
-declare function writeMemory<T extends object = object>(dto: {
-    bucketName: string;
-    memoryId: string;
-    value: T;
-    description: string;
-}): Promise<void>;
-/**
- * Reads a value from memory scoped to the current signal.
- *
- * Resolves the active pending or scheduled signal automatically from execution context.
- * Automatically detects backtest/live mode from execution context.
- *
- * @param dto.bucketName - Memory bucket name
- * @param dto.memoryId - Unique memory entry identifier
- * @returns Promise resolving to stored value
- * @throws Error if no pending or scheduled signal exists, or if entry not found
- *
- * @example
- * ```typescript
- * import { readMemory } from "backtest-kit";
- *
- * const ctx = await readMemory<{ trend: string }>({ bucketName: "my-strategy", memoryId: "context" });
- * ```
- */
-declare function readMemory<T extends object = object>(dto: {
-    bucketName: string;
-    memoryId: string;
-}): Promise<T>;
-/**
- * Searches memory entries for the current signal using BM25 full-text scoring.
- *
- * Resolves the active pending or scheduled signal automatically from execution context.
- * Automatically detects backtest/live mode from execution context.
- *
- * @param dto.bucketName - Memory bucket name
- * @param dto.query - Search query string
- * @returns Promise resolving to matching entries sorted by relevance
- * @throws Error if no pending or scheduled signal exists
- *
- * @example
- * ```typescript
- * import { searchMemory } from "backtest-kit";
- *
- * const results = await searchMemory({ bucketName: "my-strategy", query: "bullish trend" });
- * ```
- */
-declare function searchMemory<T extends object = object>(dto: {
-    bucketName: string;
-    query: string;
-}): Promise<Array<{
-    memoryId: string;
-    score: number;
-    content: T;
-}>>;
-/**
- * Lists all memory entries for the current signal.
- *
- * Resolves the active pending or scheduled signal automatically from execution context.
- * Automatically detects backtest/live mode from execution context.
- *
- * @param dto.bucketName - Memory bucket name
- * @returns Promise resolving to all stored entries
- * @throws Error if no pending or scheduled signal exists
- *
- * @example
- * ```typescript
- * import { listMemory } from "backtest-kit";
- *
- * const entries = await listMemory({ bucketName: "my-strategy" });
- * ```
- */
-declare function listMemory<T extends object = object>(dto: {
-    bucketName: string;
-}): Promise<Array<{
-    memoryId: string;
-    content: T;
-}>>;
-/**
- * Removes a memory entry for the current signal.
- *
- * Resolves the active pending or scheduled signal automatically from execution context.
- * Automatically detects backtest/live mode from execution context.
- *
- * @param dto.bucketName - Memory bucket name
- * @param dto.memoryId - Unique memory entry identifier
- * @returns Promise that resolves when removal is complete
- * @throws Error if no pending or scheduled signal exists
- *
- * @example
- * ```typescript
- * import { removeMemory } from "backtest-kit";
- *
- * await removeMemory({ bucketName: "my-strategy", memoryId: "context" });
- * ```
- */
-declare function removeMemory(dto: {
-    bucketName: string;
-    memoryId: string;
-}): Promise<void>;
-
-/** Role of the message sender in an LLM chat history. */
-type MessageRole = "assistant" | "system" | "tool" | "user";
-/**
- * A tool call requested by the assistant.
- * Represents a single function invocation emitted in an assistant message.
- */
-type MessageToolCall = {
-    /** Unique identifier for this tool call, referenced by the tool result message via tool_call_id. */
-    id: string;
-    /** Always "function" — the only supported tool call type. */
-    type: "function";
-    /** The function to invoke. */
-    function: {
-        /** Name of the function to call. */
-        name: string;
-        /** Arguments passed to the function, keyed by parameter name. */
-        arguments: {
-            [key: string]: any;
-        };
-    };
-};
-/**
- * A single message in an LLM chat history.
- * Covers all roles: system instructions, user input, assistant responses, and tool results.
- */
-interface MessageModel<Role extends MessageRole = MessageRole> {
-    /** Sender role — determines how the message is interpreted by the model. */
-    role: Role;
-    /** Text content of the message. Empty string for assistant messages that only contain tool_calls. */
-    content: string;
-    /** Chain-of-thought / reasoning exposed by some providers (e.g. DeepSeek). */
-    reasoning_content?: string | null;
-    /** Tool calls emitted by the assistant. Present only on assistant messages. */
-    tool_calls?: MessageToolCall[];
-    /** Images attached to the message. Supported as Blob, raw bytes, or base64 strings. */
-    images?: Blob[] | Uint8Array[] | string[];
-    /** ID of the tool call this message is responding to. Present only on tool messages. */
-    tool_call_id?: string;
-}
-
-/**
- * Dumps an MCP (Model Context Protocol) status snapshot scoped to the current signal.
- *
- * Resolves the active pending or scheduled signal automatically from execution context.
- * Automatically detects backtest/live mode from execution context.
- *
- * With the default markdown backend, image messages are decoded from base64
- * and written to ./dump/image/{message.id}.png; the whole message list is
- * rendered into a single ./dump/mcp/{dumpId}.md - text messages inlined
- * in order, images embedded via ![{id}](../image/{id}.png) relative links.
- * The snapshot follows the swappable Dump backend: useDummy() silences it,
- * useMemory() keeps a searchable text-only projection.
- *
- * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
- * @param dto.dumpId - Unique identifier for this dump entry
- * @param dto.messages - Status messages as returned by MCP.getStatus
- * @param dto.description - Human-readable label describing the snapshot; included in the BM25 index for Memory search
- * @returns Promise that resolves when the dump is complete
- * @throws Error if no pending or scheduled signal exists
- *
- * @example
- * ```typescript
- * import { MCP, dumpMCPStatus } from "backtest-kit";
- *
- * const messages = await MCP.getStatus("my-mcp");
- * await dumpMCPStatus({ bucketName: "my-agent", dumpId: String(Date.now()), messages, description: "Portfolio snapshot before rebalance" });
- * ```
- */
-declare function dumpMCPStatus(dto: {
-    bucketName: string;
-    dumpId: string;
-    messages: IMCPMessage[];
-    description: string;
-}): Promise<void>;
-/**
- * Dumps the full agent message history scoped to the current signal.
- *
- * Resolves the active pending or scheduled signal automatically from execution context.
- * Automatically detects backtest/live mode from execution context.
- *
- * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
- * @param dto.dumpId - Unique identifier for this agent invocation
- * @param dto.messages - Full chat history (system, user, assistant, tool)
- * @param dto.description - Human-readable label describing the agent invocation context; included in the BM25 index for Memory search
- * @returns Promise that resolves when the dump is complete
- * @throws Error if no pending or scheduled signal exists
- *
- * @example
- * ```typescript
- * import { dumpAgentAnswer } from "backtest-kit";
- *
- * await dumpAgentAnswer({ bucketName: "my-strategy", dumpId: "reasoning-1", messages, description: "BTC long signal reasoning" });
- * ```
- */
-declare function dumpAgentAnswer(dto: {
-    bucketName: string;
-    dumpId: string;
-    messages: MessageModel[];
-    description: string;
-}): Promise<void>;
-/**
- * Dumps a flat key-value record scoped to the current signal.
- *
- * Resolves the active pending or scheduled signal automatically from execution context.
- * Automatically detects backtest/live mode from execution context.
- *
- * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
- * @param dto.dumpId - Unique identifier for this dump entry
- * @param dto.record - Arbitrary flat object to persist
- * @param dto.description - Human-readable label describing the record contents; included in the BM25 index for Memory search
- * @returns Promise that resolves when the dump is complete
- * @throws Error if no pending or scheduled signal exists
- *
- * @example
- * ```typescript
- * import { dumpRecord } from "backtest-kit";
- *
- * await dumpRecord({ bucketName: "my-strategy", dumpId: "context", record: { price: 42000, signal: "long" }, description: "Signal context at entry" });
- * ```
- */
-declare function dumpRecord(dto: {
-    bucketName: string;
-    dumpId: string;
-    record: Record<string, unknown>;
-    description: string;
-}): Promise<void>;
-/**
- * Dumps an array of objects as a table scoped to the current signal.
- *
- * Resolves the active pending or scheduled signal automatically from execution context.
- * Automatically detects backtest/live mode from execution context.
- *
- * Column headers are derived from the union of all keys across all rows.
- *
- * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
- * @param dto.dumpId - Unique identifier for this dump entry
- * @param dto.rows - Array of arbitrary objects to render as a table
- * @param dto.description - Human-readable label describing the table contents; included in the BM25 index for Memory search
- * @returns Promise that resolves when the dump is complete
- * @throws Error if no pending or scheduled signal exists
- *
- * @example
- * ```typescript
- * import { dumpTable } from "backtest-kit";
- *
- * await dumpTable({ bucketName: "my-strategy", dumpId: "candles", rows: [{ time: 1234, close: 42000 }], description: "Recent candle history" });
- * ```
- */
-declare function dumpTable(dto: {
-    bucketName: string;
-    dumpId: string;
-    rows: Record<string, unknown>[];
-    description: string;
-}): Promise<void>;
-/**
- * Dumps raw text content scoped to the current signal.
- *
- * Resolves the active pending or scheduled signal automatically from execution context.
- * Automatically detects backtest/live mode from execution context.
- *
- * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
- * @param dto.dumpId - Unique identifier for this dump entry
- * @param dto.content - Arbitrary text content to persist
- * @param dto.description - Human-readable label describing the content; included in the BM25 index for Memory search
- * @returns Promise that resolves when the dump is complete
- * @throws Error if no pending or scheduled signal exists
- *
- * @example
- * ```typescript
- * import { dumpText } from "backtest-kit";
- *
- * await dumpText({ bucketName: "my-strategy", dumpId: "summary", content: "Agent concluded: bullish", description: "Agent final summary" });
- * ```
- */
-declare function dumpText(dto: {
-    bucketName: string;
-    dumpId: string;
-    content: string;
-    description: string;
-}): Promise<void>;
-/**
- * Dumps an error description scoped to the current signal.
- *
- * Resolves the active pending or scheduled signal automatically from execution context.
- * Automatically detects backtest/live mode from execution context.
- *
- * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
- * @param dto.dumpId - Unique identifier for this dump entry
- * @param dto.content - Error message or description to persist
- * @param dto.description - Human-readable label describing the error context; included in the BM25 index for Memory search
- * @returns Promise that resolves when the dump is complete
- * @throws Error if no pending or scheduled signal exists
- *
- * @example
- * ```typescript
- * import { dumpError } from "backtest-kit";
- *
- * await dumpError({ bucketName: "my-strategy", dumpId: "error-1", content: "Tool call failed: timeout", description: "Tool execution error" });
- * ```
- */
-declare function dumpError(dto: {
-    bucketName: string;
-    dumpId: string;
-    content: string;
-    description: string;
-}): Promise<void>;
-/**
- * Dumps an arbitrary nested object as a fenced JSON block scoped to the current signal.
- *
- * Resolves the active pending or scheduled signal automatically from execution context.
- * Automatically detects backtest/live mode from execution context.
- *
- * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
- * @param dto.dumpId - Unique identifier for this dump entry
- * @param dto.json - Arbitrary nested object to serialize with JSON.stringify
- * @param dto.description - Human-readable label describing the object contents; included in the BM25 index for Memory search
- * @returns Promise that resolves when the dump is complete
- * @throws Error if no pending or scheduled signal exists
- *
- * @deprecated Prefer dumpRecord — flat key-value structure maps naturally to markdown tables and SQL storage
- *
- * @example
- * ```typescript
- * import { dumpJson } from "backtest-kit";
- *
- * await dumpJson({ bucketName: "my-strategy", dumpId: "signal-state", json: { entries: [], partials: [] }, description: "Signal state snapshot" });
- * ```
- */
-declare function dumpJson(dto: {
-    bucketName: string;
-    dumpId: string;
-    json: object;
-    description: string;
-}): Promise<void>;
-
-/**
- * Full context required to run a function inside both method and execution scopes.
- *
- * Combines `IMethodContext` (schema routing: exchange, strategy, frame names) with
- * `IExecutionContext` (runtime state: symbol, timestamp, backtest flag).
- *
- * Passed as a single object to `runInContextInternal`, which splits and distributes
- * the fields between `MethodContextService` and `ExecutionContextService`.
- */
-interface IRunContext extends IMethodContext, IExecutionContext {
-}
-/**
- * A zero-argument function that may be synchronous or asynchronous.
- *
- * @template T - Return type of the function.
- */
-type Function$3<T extends unknown = any> = () => T | Promise<T>;
-/**
- * Runs a function inside a mock method and execution context.
- *
- * Useful in tests and scripts that need to call context-dependent services
- * (e.g. `getBacktestTimeframe`) without a real backtest runner.
- *
- * All context fields are optional; the defaults produce a minimal live-mode
- * environment pointing at placeholder schema names:
- * - `exchangeName` → `"mock-exchange"`
- * - `strategyName` → `"mock-strategy"`
- * - `frameName`    → `"mock-frame"`
- * - `symbol`       → `"BTCUSDT"`
- * - `backtest`     → `false` (live mode)
- * - `when`         → current minute boundary (`alignToInterval(new Date(), "1m")`)
- *
- * @param run - Zero-argument function to execute within the context.
- * @param context - Partial `IRunContext`; any omitted field falls back to its default.
- * @returns Promise resolving to the return value of `run`.
- *
- * @example
- * ```typescript
- * const price = await runInMockContext(
- *   () => getEffectivePrice("BTCUSDT"),
- *   { exchangeName: "binance", strategyName: "my-strategy", frameName: "1d" },
- * );
- * ```
- */
-declare function runInMockContext<T extends unknown = any>(run: Function$3<T>, { exchangeName, frameName, strategyName, symbol, backtest: isBacktest, when, }: Partial<IRunContext>): Promise<T>;
-
-/**
- * Portfolio heatmap statistics for a single symbol.
- * Aggregated metrics across all strategies for one trading pair.
- */
-interface IHeatmapRow {
-    /** Trading pair symbol (e.g., "BTCUSDT") */
-    symbol: string;
-    /** Total profit/loss percentage across all closed trades */
-    totalPnl: number | null;
-    /** Risk-adjusted return per trade (Sharpe Ratio = avgPnl / stdDev) */
-    sharpeRatio: number | null;
-    /** Maximum drawdown percentage (largest peak-to-trough decline) */
-    maxDrawdown: number | null;
-    /** Total number of closed trades */
-    totalTrades: number;
-    /** Number of winning trades */
-    winCount: number;
-    /** Number of losing trades */
-    lossCount: number;
-    /** Win rate percentage */
-    winRate: number | null;
-    /** Average PNL per trade */
-    avgPnl: number | null;
-    /** Standard deviation of PNL */
-    stdDev: number | null;
-    /** Profit factor: sum of wins / sum of losses */
-    profitFactor: number | null;
-    /** Average profit percentage on winning trades */
-    avgWin: number | null;
-    /** Average loss percentage on losing trades */
-    avgLoss: number | null;
-    /** Maximum consecutive winning trades */
-    maxWinStreak: number;
-    /** Maximum consecutive losing trades */
-    maxLossStreak: number;
-    /** Expectancy: (winRate * avgWin) - (lossRate * avgLoss) */
-    expectancy: number | null;
-    /** Average peak PNL percentage across all trades (_peak.pnlPercentage). Higher is better. */
-    avgPeakPnl: number | null;
-    /** Average fall PNL percentage across all trades (_fall.pnlPercentage). Closer to 0 is better. */
-    avgFallPnl: number | null;
-    /** Maximum peak PNL percentage observed across all trades (best best-case). Higher is better. */
-    peakProfitPnl: number | null;
-    /** Minimum fall PNL percentage observed across all trades (worst worst-case). Closer to 0 is better. */
-    maxDrawdownPnl: number | null;
-    /** Average trade duration in minutes ((closeTimestamp - pendingAt) / 60_000). */
-    avgDuration: number | null;
-    /** Median pnlPercentage — robust to outliers; reveals distribution skew when paired with avgPnl. */
-    medianPnl: number | null;
-    /** Average sum of pnlPercentage across consecutive winning streaks. Null if no win streak. */
-    avgConsecutiveWinPnl: number | null;
-    /** Average sum of pnlPercentage across consecutive losing streaks. Null if no loss streak. Closer to 0 is better. */
-    avgConsecutiveLossPnl: number | null;
-    /** Average duration in minutes of winning trades. */
-    avgWinDuration: number | null;
-    /** Average duration in minutes of losing trades. */
-    avgLossDuration: number | null;
-    /** Sortino Ratio (avgPnl / downside deviation — RMS of losing trades only). Higher is better. */
-    sortinoRatio: number | null;
-    /** Calmar Ratio (totalPnl / maxDrawdown). Higher is better. */
-    calmarRatio: number | null;
-    /** Recovery Factor (totalPnl / maxDrawdown). Higher is better. */
-    recoveryFactor: number | null;
-    /** Annualized Sharpe Ratio (sharpeRatio × √tradesPerYear). Higher is better. */
-    annualizedSharpeRatio: number | null;
-    /** Certainty Ratio (avgWin / |avgLoss|). Higher is better. */
-    certaintyRatio: number | null;
-    /** Expected yearly returns (geometric, capped at ±MAX_EXPECTED_YEARLY_RETURNS). Higher is better. */
-    expectedYearlyReturns: number | null;
-    /** Observed trade frequency extrapolated to one year (signals × 365 / calendarSpanDays). */
-    tradesPerYear: number | null;
-    /** Median |close[i] - close[i-1]| / close[i-1] across trade closes, in %. Robust to outliers. */
-    medianStepSize: number | null;
-    /** Fraction of up-moves among decisive close-to-close moves. 0..1. Higher = buyers more frequent. */
-    buyerPressure: number | null;
-    /** Fraction of down-moves among decisive moves. 0..1. Equals 1 - buyerPressure. */
-    sellerPressure: number | null;
-    /** Share of upward absolute movement in total close-to-close movement. 0..1. */
-    buyerStrength: number | null;
-    /** Share of downward absolute movement in total close-to-close movement. 0..1. */
-    sellerStrength: number | null;
-    /** buyerStrength - sellerStrength ∈ [-1, 1]. Positive = bullish bias on magnitude. */
-    pressureImbalance: number | null;
-    /** Bivariate trend classification (slope × R²). */
-    trend: "bullish" | "bearish" | "sideways" | "neutral" | null;
-    /** Log-price regression slope, in %/day. */
-    trendStrength: number | null;
-    /** R² of the log-price regression, in [0, 1]. */
-    trendConfidence: number | null;
-}
-
-/**
- * Column configuration for markdown table generation.
- * Generic interface that defines how to extract and format data from any data type.
- *
- * @template T - The data type that this column will format
- *
- * @example
- * ```typescript
- * // Column for formatting signal data
- * const signalColumn: ColumnModel<IStrategyTickResultClosed> = {
- *   key: "pnl",
- *   label: "PNL",
- *   format: (signal) => `${signal.pnl.pnlPercentage.toFixed(2)}%`,
- *   isVisible: () => true
- * };
- *
- * // Column for formatting heatmap rows
- * const heatmapColumn: ColumnModel<IHeatmapRow> = {
- *   key: "symbol",
- *   label: "Symbol",
- *   format: (row) => row.symbol,
- *   isVisible: () => true
- * };
- * ```
- */
-interface ColumnModel<T extends object = any> {
-    /** Unique column identifier */
-    key: string;
-    /** Display label for column header */
-    label: string;
-    /** Formatting function to convert data to string */
-    format: (data: T, index: number) => string | Promise<string>;
-    /** Function to determine if column should be visible */
-    isVisible: () => boolean | Promise<boolean>;
 }
 
 /**
@@ -18556,937 +15015,13 @@ interface SignalInfoNotification {
  */
 type NotificationModel = SignalOpenedNotification | SignalClosedNotification | PartialProfitAvailableNotification | PartialLossAvailableNotification | BreakevenAvailableNotification | PartialProfitCommitNotification | PartialLossCommitNotification | BreakevenCommitNotification | AverageBuyCommitNotification | DividendCommitNotification | ActivateScheduledCommitNotification | TrailingStopCommitNotification | TrailingTakeCommitNotification | CancelScheduledCommitNotification | ClosePendingCommitNotification | OrderSyncOpenNotification | OrderSyncCloseNotification | OrderSyncCheckNotification | OrderContinueCheckNotification | OrderStopCheckNotification | OrderFillOpenNotification | OrderFillCloseNotification | OrderRejectOpenNotification | OrderRejectCloseNotification | RiskRejectionNotification | SignalScheduledNotification | SignalCancelledNotification | InfoErrorNotification | CriticalErrorNotification | ValidationErrorNotification | StrategyPauseNotification | SignalInfoNotification;
 
-/**
- * Unified tick event data for report generation.
- * Contains all information about a tick event regardless of action type.
- */
-interface TickEvent {
-    /** Event timestamp in milliseconds (scheduledAt for scheduled events, pendingAt for opened/closed events) */
-    timestamp: number;
-    /** Event action type */
-    action: "idle" | "scheduled" | "waiting" | "opened" | "active" | "closed" | "cancelled";
-    /** Trading pair symbol (only for non-idle events) */
-    symbol?: string;
-    /** Signal ID (only for scheduled/waiting/opened/active/closed/cancelled) */
-    signalId?: string;
-    /** Position type (only for scheduled/waiting/opened/active/closed/cancelled) */
-    position?: string;
-    /** Signal note (only for scheduled/waiting/opened/active/closed/cancelled) */
-    note?: string;
-    /** Current price */
-    currentPrice: number;
-    /** Open price (only for scheduled/waiting/opened/active/closed/cancelled) */
-    priceOpen?: number;
-    /** Take profit price (only for scheduled/waiting/opened/active/closed/cancelled) */
-    priceTakeProfit?: number;
-    /** Stop loss price (only for scheduled/waiting/opened/active/closed/cancelled) */
-    priceStopLoss?: number;
-    /** Original take profit price before modifications (only for scheduled/waiting/opened/active/closed/cancelled) */
-    originalPriceTakeProfit?: number;
-    /** Original stop loss price before modifications (only for scheduled/waiting/opened/active/closed/cancelled) */
-    originalPriceStopLoss?: number;
-    /** Original entry price at signal creation (unchanged by DCA averaging) */
-    originalPriceOpen?: number;
-    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
-    totalEntries?: number;
-    /** Total number of partial closes executed (_partial.length) */
-    totalPartials?: number;
-    /** Total executed percentage from partial closes (only for scheduled/waiting/opened/active/closed/cancelled) */
-    partialExecuted?: number;
-    /** PNL multiplier (leverage) applied to pnlPercentage (only for scheduled/waiting/opened/active/closed/cancelled) */
-    multiplier?: number;
-    /** Isolated-margin mode: force-close at -100% leveraged PNL (only for scheduled/waiting/opened/active/closed/cancelled) */
-    isolated?: boolean;
-    /** Absolute profit/loss in USD (for active/waiting: unrealized, for closed: realized) */
-    pnlCost?: number;
-    /** USD value of the dividend / staking accruals folded into pnlCost (only for rows carrying a PNL) */
-    pnlDividends?: number;
-    /** DCA entry history of the position (IPublicSignalRow.entries; only for rows carrying a signal) */
-    entries?: ISignalEntry[];
-    /** Partial close history of the position (IPublicSignalRow.partials) */
-    partials?: ISignalPartial[];
-    /** Dividend / staking accruals of the position (IPublicSignalRow.accruals) */
-    accruals?: ISignalAccrual[];
-    /** Total invested capital in USD */
-    pnlEntries?: number;
-    /** Percentage progress towards take profit (only for active/waiting) */
-    percentTp?: number;
-    /** Percentage progress towards stop loss (only for active/waiting) */
-    percentSl?: number;
-    /** PNL percentage (for active/waiting: unrealized, for closed: realized) */
-    pnl?: number;
-    /** Close reason (only for closed) */
-    closeReason?: string;
-    /** Cancel reason (only for cancelled) */
-    cancelReason?: string;
-    /** Duration in minutes (only for closed) */
-    duration?: number;
-    /** Timestamp when position became active (only for opened/active/closed) */
-    pendingAt?: number;
-    /** Timestamp when signal was created/scheduled (only for scheduled/waiting/opened/active/closed/cancelled) */
-    scheduledAt?: number;
-    /** Peak PNL percentage at best price during position (_peak.pnlPercentage, only for closed) */
-    peakPnl?: number;
-    /** Fall PNL percentage at worst price during position (_fall.pnlPercentage, only for closed) */
-    fallPnl?: number;
-}
-/**
- * Statistical data calculated from live trading results.
- *
- * All numeric values are null if calculation is unsafe (NaN, Infinity, etc).
- * Provides comprehensive metrics for live trading performance analysis.
- *
- * @example
- * ```typescript
- * const stats = await Live.getData("my-strategy");
- *
- * console.log(`Total events: ${stats.totalEvents}`);
- * console.log(`Closed signals: ${stats.totalClosed}`);
- * console.log(`Win rate: ${stats.winRate}%`);
- * console.log(`Sharpe Ratio: ${stats.sharpeRatio}`);
- *
- * // Access raw event data (includes idle, opened, active, closed)
- * stats.eventList.forEach(event => {
- *   if (event.action === "closed") {
- *     console.log(`Closed signal: ${event.pnl}%`);
- *   }
- * });
- * ```
- */
-interface LiveStatisticsModel {
-    /** Array of all events (idle, opened, active, closed) with full details */
-    eventList: TickEvent[];
-    /** Total number of all events (includes idle, opened, active, closed) */
-    totalEvents: number;
-    /** Total number of closed signals only */
-    totalClosed: number;
-    /** Number of winning closed signals (PNL > 0) */
-    winCount: number;
-    /** Number of losing closed signals (PNL < 0) */
-    lossCount: number;
-    /** Win rate as percentage (0-100) based on closed signals, null if unsafe. Higher is better. */
-    winRate: number | null;
-    /** Average PNL per closed signal as percentage, null if unsafe. Higher is better. */
-    avgPnl: number | null;
-    /** Cumulative PNL across all closed signals as percentage, null if unsafe. Higher is better. */
-    totalPnl: number | null;
-    /** Standard deviation of returns (volatility metric), null if unsafe. Lower is better. */
-    stdDev: number | null;
-    /** Sharpe Ratio (risk-adjusted return = avgPnl / stdDev), null if unsafe. Higher is better. */
-    sharpeRatio: number | null;
-    /** Annualized Sharpe Ratio (sharpeRatio × √tradesPerYear), null if unsafe. Higher is better. */
-    annualizedSharpeRatio: number | null;
-    /** Certainty Ratio (avgWin / |avgLoss|), null if unsafe. Higher is better. */
-    certaintyRatio: number | null;
-    /** Expected yearly returns based on average trade duration and PNL, null if unsafe. Higher is better. */
-    expectedYearlyReturns: number | null;
-    /** Average peak PNL percentage across all closed signals (_peak.pnlPercentage), null if unsafe. Higher is better. */
-    avgPeakPnl: number | null;
-    /** Average fall PNL percentage across all closed signals (_fall.pnlPercentage), null if unsafe. Closer to 0 is better. */
-    avgFallPnl: number | null;
-    /** Sortino Ratio (avgPnl / downside deviation — RMS of losing trades only), null if unsafe. Higher is better. */
-    sortinoRatio: number | null;
-    /** Calmar Ratio (annualized expected return / max drawdown), null if unsafe. Higher is better. */
-    calmarRatio: number | null;
-    /** Recovery Factor (totalPnl / max drawdown), null if unsafe. Higher is better. */
-    recoveryFactor: number | null;
-    /** Per-trade Expectancy (winProb*avgWin + lossProb*avgLoss), null if unsafe. Higher is better. */
-    expectancy: number | null;
-    /** Average trade duration in minutes ((timestamp - pendingAt) / 60_000), null if unsafe. */
-    avgDuration: number | null;
-    /** Median pnl — robust to outliers; reveals distribution skew when paired with avgPnl. */
-    medianPnl: number | null;
-    /** Average sum of pnl across consecutive winning streaks. Null if no win streak. */
-    avgConsecutiveWinPnl: number | null;
-    /** Average sum of pnl across consecutive losing streaks. Null if no loss streak. Closer to 0 is better. */
-    avgConsecutiveLossPnl: number | null;
-    /** Average duration in minutes of winning trades. */
-    avgWinDuration: number | null;
-    /** Average duration in minutes of losing trades. */
-    avgLossDuration: number | null;
-    /** Median |close[i] - close[i-1]| / close[i-1] across trade closes, in %. Robust to outliers. */
-    medianStepSize: number | null;
-    /** Fraction of up-moves among decisive close-to-close moves. 0..1. Higher = buyers more frequent. */
-    buyerPressure: number | null;
-    /** Fraction of down-moves among decisive moves. 0..1. Equals 1 - buyerPressure. */
-    sellerPressure: number | null;
-    /** Share of upward absolute movement in total close-to-close movement. 0..1. */
-    buyerStrength: number | null;
-    /** Share of downward absolute movement in total close-to-close movement. 0..1. */
-    sellerStrength: number | null;
-    /** buyerStrength - sellerStrength ∈ [-1, 1]. Positive = bullish bias on magnitude. */
-    pressureImbalance: number | null;
-    /** Bivariate trend classification (slope × R²). */
-    trend: "bullish" | "bearish" | "sideways" | "neutral" | null;
-    /** Log-price regression slope, in %/day. */
-    trendStrength: number | null;
-    /** R² of the log-price regression, in [0, 1]. */
-    trendConfidence: number | null;
-}
-
-/**
- * Portfolio heatmap statistics structure.
- * Contains aggregated data for all symbols in the portfolio.
- */
-interface HeatmapStatisticsModel {
-    /** Array of symbol statistics */
-    symbols: IHeatmapRow[];
-    /** Total number of symbols tracked */
-    totalSymbols: number;
-    /** Portfolio-wide total PNL */
-    portfolioTotalPnl: number | null;
-    /** Portfolio-wide Sharpe Ratio */
-    portfolioSharpeRatio: number | null;
-    /** Portfolio-wide total trades */
-    portfolioTotalTrades: number;
-    /** Trade-count-weighted average peak PNL across all symbols. Higher is better. */
-    portfolioAvgPeakPnl: number | null;
-    /** Trade-count-weighted average fall PNL across all symbols. Closer to 0 is better. */
-    portfolioAvgFallPnl: number | null;
-    /** Maximum peak PNL across all trades of all symbols (best best-case). Higher is better. */
-    portfolioPeakProfitPnl: number | null;
-    /** Minimum fall PNL across all trades of all symbols (worst worst-case). Closer to 0 is better. */
-    portfolioMaxDrawdownPnl: number | null;
-    /** Pooled average trade duration in minutes across all trades of all symbols. */
-    portfolioAvgDuration: number | null;
-    /** Pooled median pnlPercentage across all trades of all symbols. */
-    portfolioMedianPnl: number | null;
-    /** Trade-count-weighted mean of per-symbol avgConsecutiveWinPnl. Null if no symbol has a win streak. */
-    portfolioAvgConsecutiveWinPnl: number | null;
-    /** Trade-count-weighted mean of per-symbol avgConsecutiveLossPnl. Null if no symbol has a loss streak. */
-    portfolioAvgConsecutiveLossPnl: number | null;
-    /** Pooled average duration in minutes of winning trades. */
-    portfolioAvgWinDuration: number | null;
-    /** Pooled average duration in minutes of losing trades. */
-    portfolioAvgLossDuration: number | null;
-    /** Pooled sample standard deviation of returns across all symbols. */
-    portfolioStdDev: number | null;
-    /** Pooled Sortino Ratio over all trades. Same canonical formula as per-symbol. */
-    portfolioSortinoRatio: number | null;
-    /** Pooled Calmar Ratio: pooled compound annual / equity drawdown. Capped at ±MAX_CALMAR_RATIO. */
-    portfolioCalmarRatio: number | null;
-    /** Pooled Recovery Factor: (equityFinal-1)*100 / equityMaxDrawdown. Capped at ±MAX_CALMAR_RATIO. */
-    portfolioRecoveryFactor: number | null;
-    /** Pooled Expectancy: winProb*avgWin + lossProb*avgLoss (per-trade expected %). */
-    portfolioExpectancy: number | null;
-    /** Pooled Annualized Sharpe Ratio (portfolioSharpeRatio × √portfolioTradesPerYear). Higher is better. */
-    portfolioAnnualizedSharpeRatio: number | null;
-    /** Pooled Certainty Ratio (pooledAvgWin / |pooledAvgLoss|). Higher is better. */
-    portfolioCertaintyRatio: number | null;
-    /** Pooled expected yearly returns (geometric annualization of pooled equity, capped at ±MAX_EXPECTED_YEARLY_RETURNS). */
-    portfolioExpectedYearlyReturns: number | null;
-    /** Pooled observed trade frequency extrapolated to one year. */
-    portfolioTradesPerYear: number | null;
-}
-
-/**
- * Unified scheduled signal event data for report generation.
- * Contains all information about scheduled, opened and cancelled events.
- */
-interface ScheduledEvent {
-    /** Event timestamp in milliseconds (scheduledAt for scheduled/cancelled events) */
-    timestamp: number;
-    /** Event action type */
-    action: "scheduled" | "opened" | "cancelled";
-    /** Trading pair symbol */
-    symbol: string;
-    /** Signal ID */
-    signalId: string;
-    /** Position type */
-    position: string;
-    /** Signal note */
-    note?: string;
-    /** Current market price */
-    currentPrice: number;
-    /** Scheduled entry price */
-    priceOpen: number;
-    /** Take profit price */
-    priceTakeProfit: number;
-    /** Stop loss price */
-    priceStopLoss: number;
-    /** Original take profit price before modifications */
-    originalPriceTakeProfit?: number;
-    /** Original stop loss price before modifications */
-    originalPriceStopLoss?: number;
-    /** Total number of DCA entries (present when averageBuy was applied) */
-    totalEntries?: number;
-    /** Total number of partial closes executed (_partial.length) */
-    totalPartials?: number;
-    /** Original entry price before DCA averaging (present when averageBuy was applied) */
-    originalPriceOpen?: number;
-    /** Total executed percentage from partial closes */
-    partialExecuted?: number;
-    /** Unrealized PNL at the moment of this event */
-    pnl?: IStrategyPnL;
-    /** Close timestamp (only for cancelled) */
-    closeTimestamp?: number;
-    /** Duration in minutes (only for cancelled/opened) */
-    duration?: number;
-    /** Cancellation reason (only for cancelled events) */
-    cancelReason?: "timeout" | "price_reject" | "user";
-    /** Cancellation ID (only for user-initiated cancellations) */
-    cancelId?: string;
-    /** Timestamp when position became active (only for opened events) */
-    pendingAt?: number;
-    /** Timestamp when signal was created/scheduled (for all events) */
-    scheduledAt?: number;
-}
-/**
- * Statistical data calculated from scheduled signals.
- *
- * Provides metrics for scheduled signal tracking, activation and cancellation analysis.
- *
- * @example
- * ```typescript
- * const stats = await Schedule.getData("my-strategy");
- *
- * console.log(`Total events: ${stats.totalEvents}`);
- * console.log(`Scheduled signals: ${stats.totalScheduled}`);
- * console.log(`Opened signals: ${stats.totalOpened}`);
- * console.log(`Cancelled signals: ${stats.totalCancelled}`);
- * console.log(`Cancellation rate: ${stats.cancellationRate}%`);
- *
- * // Access raw event data (includes scheduled, opened, cancelled)
- * stats.eventList.forEach(event => {
- *   if (event.action === "cancelled") {
- *     console.log(`Cancelled signal: ${event.signalId}`);
- *   }
- * });
- * ```
- */
-interface ScheduleStatisticsModel {
-    /** Array of all scheduled/opened/cancelled events with full details */
-    eventList: ScheduledEvent[];
-    /** Total number of all events (includes scheduled, opened, cancelled) */
-    totalEvents: number;
-    /** Total number of scheduled signals */
-    totalScheduled: number;
-    /** Total number of opened signals (activated from scheduled) */
-    totalOpened: number;
-    /** Total number of cancelled signals */
-    totalCancelled: number;
-    /** Cancellation rate as percentage (0-100), null if no scheduled signals. Lower is better. */
-    cancellationRate: number | null;
-    /** Activation rate as percentage (0-100), null if no scheduled signals. Higher is better. */
-    activationRate: number | null;
-    /** Average waiting time for cancelled signals in minutes, null if no cancelled signals */
-    avgWaitTime: number | null;
-    /** Average waiting time for opened signals in minutes, null if no opened signals */
-    avgActivationTime: number | null;
-}
-
-/**
- * Aggregated statistics for a specific metric type.
- */
-interface MetricStats {
-    /** Type of metric */
-    metricType: PerformanceMetricType;
-    /** Number of recorded samples */
-    count: number;
-    /** Total duration across all samples (ms) */
-    totalDuration: number;
-    /** Average duration (ms) */
-    avgDuration: number;
-    /** Minimum duration (ms) */
-    minDuration: number;
-    /** Maximum duration (ms) */
-    maxDuration: number;
-    /** Standard deviation of duration (ms) */
-    stdDev: number;
-    /** Median duration (ms) */
-    median: number;
-    /** 95th percentile duration (ms) */
-    p95: number;
-    /** 99th percentile duration (ms) */
-    p99: number;
-    /** Average wait time between events (ms) */
-    avgWaitTime: number;
-    /** Minimum wait time between events (ms) */
-    minWaitTime: number;
-    /** Maximum wait time between events (ms) */
-    maxWaitTime: number;
-}
-/**
- * Performance statistics aggregated by strategy.
- */
-interface PerformanceStatisticsModel {
-    /** Strategy name */
-    strategyName: StrategyName;
-    /** Total number of performance events recorded */
-    totalEvents: number;
-    /** Total execution time across all metrics (ms) */
-    totalDuration: number;
-    /** Statistics grouped by metric type */
-    metricStats: Record<string, MetricStats>;
-    /** All raw performance events */
-    events: PerformanceContract[];
-}
-
-/**
- * Signal data for PNL table.
- * Represents a single closed signal with essential trading information.
- */
-interface SignalData$1 {
-    /** Strategy that generated this signal */
-    strategyName: StrategyName;
-    /** Unique signal identifier */
-    signalId: string;
-    /** Trading pair symbol */
-    symbol: string;
-    /** Position type (long/short) */
-    position: string;
-    /** PNL as percentage */
-    pnl: number;
-    /** Reason why signal was closed */
-    closeReason: string;
-    /** Timestamp when signal opened */
-    openTime: number;
-    /** Timestamp when signal closed */
-    closeTime: number;
-}
-/**
- * Strategy result entry for comparison table.
- * Contains strategy name, full statistics, and metric value for ranking.
- */
-interface IStrategyResult {
-    /** Strategy name */
-    strategyName: StrategyName;
-    /** Complete backtest statistics for this strategy */
-    stats: BacktestStatisticsModel;
-    /** Value of the optimization metric (null if invalid) */
-    metricValue: number | null;
-    /** Timestamp of the first signal event (pendingAt of earliest signal), null if no signals */
-    firstEventTime: number | null;
-    /** Timestamp of the last signal event (closeTimestamp of latest signal), null if no signals */
-    lastEventTime: number | null;
-}
-/**
- * Alias for walker statistics result interface.
- * Used for clarity in markdown service context.
- *
- * Extends IWalkerResults with additional strategy comparison data.
- */
-interface WalkerStatisticsModel extends WalkerCompleteContract {
-    /** Array of all strategy results for comparison and analysis */
-    strategyResults: IStrategyResult[];
-}
-
-/**
- * Unified partial profit/loss event data for report generation.
- * Contains all information about profit and loss level milestones.
- */
-interface PartialEvent {
-    /** Event timestamp in milliseconds */
-    timestamp: number;
-    /** Event action type (profit or loss) */
-    action: "profit" | "loss";
-    /** Trading pair symbol */
-    symbol: string;
-    /** Strategy name */
-    strategyName: StrategyName;
-    /** Signal ID */
-    signalId: string;
-    /** Position type */
-    position: string;
-    /** Current market price */
-    currentPrice: number;
-    /** Profit/loss level reached (10, 20, 30, etc) */
-    level: PartialLevel;
-    /** Entry price for the position */
-    priceOpen?: number;
-    /** Take profit target price */
-    priceTakeProfit?: number;
-    /** Stop loss exit price */
-    priceStopLoss?: number;
-    /** Original take profit price set at signal creation */
-    originalPriceTakeProfit?: number;
-    /** Original stop loss price set at signal creation */
-    originalPriceStopLoss?: number;
-    /** Total number of DCA entries (present when averageBuy was applied) */
-    totalEntries?: number;
-    /** Total number of partial closes executed (_partial.length) */
-    totalPartials?: number;
-    /** Original entry price before DCA averaging (present when averageBuy was applied) */
-    originalPriceOpen?: number;
-    /** Total executed percentage from partial closes */
-    partialExecuted?: number;
-    /** Unrealized PNL at the moment this level was reached */
-    pnl?: IStrategyPnL;
-    /** Human-readable description of signal reason */
-    note?: string;
-    /** Timestamp when position became active (ms) */
-    pendingAt?: number;
-    /** Timestamp when signal was created/scheduled (ms) */
-    scheduledAt?: number;
-    /** True if backtest mode, false if live mode */
-    backtest: boolean;
-}
-/**
- * Statistical data calculated from partial profit/loss events.
- *
- * Provides metrics for partial profit/loss milestone tracking.
- *
- * @example
- * ```typescript
- * const stats = await Partial.getData("BTCUSDT", "my-strategy");
- *
- * console.log(`Total events: ${stats.totalEvents}`);
- * console.log(`Profit events: ${stats.totalProfit}`);
- * console.log(`Loss events: ${stats.totalLoss}`);
- * ```
- */
-interface PartialStatisticsModel {
-    /** Array of all profit/loss events with full details */
-    eventList: PartialEvent[];
-    /** Total number of all events (includes profit, loss) */
-    totalEvents: number;
-    /** Total number of profit events */
-    totalProfit: number;
-    /** Total number of loss events */
-    totalLoss: number;
-}
-
-/**
- * Single highest profit event recorded for a position.
- */
-interface HighestProfitEvent {
-    /** Unix timestamp in milliseconds when the record was set */
-    timestamp: number;
-    /** Trading pair symbol */
-    symbol: string;
-    /** Strategy name */
-    strategyName: string;
-    /** Signal unique identifier */
-    signalId: string;
-    /** Position direction */
-    position: IPublicSignalRow["position"];
-    /** Total PNL of the closed position (including all entries and partials) */
-    pnl: IStrategyPnL;
-    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
-    peakProfit: IStrategyPnL;
-    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
-    maxDrawdown: IStrategyPnL;
-    /** Record price reached in the profit direction */
-    currentPrice: number;
-    /** Effective entry price at the time of the update */
-    priceOpen: number;
-    /** Take profit price */
-    priceTakeProfit: number;
-    /** Stop loss price */
-    priceStopLoss: number;
-    /** Whether the event occurred in backtest mode */
-    backtest: boolean;
-}
-/**
- * Aggregated statistics model for highest profit events.
- */
-interface HighestProfitStatisticsModel {
-    /** Full list of recorded events (newest first) */
-    eventList: HighestProfitEvent[];
-    /** Total number of recorded events */
-    totalEvents: number;
-}
-
-/**
- * Single max drawdown event recorded for a position.
- */
-interface MaxDrawdownEvent {
-    /** Unix timestamp in milliseconds when the record was set */
-    timestamp: number;
-    /** Trading pair symbol */
-    symbol: string;
-    /** Strategy name */
-    strategyName: string;
-    /** Signal unique identifier */
-    signalId: string;
-    /** Position direction */
-    position: IPublicSignalRow["position"];
-    /** Total PNL of the closed position (including all entries and partials) */
-    pnl: IStrategyPnL;
-    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
-    peakProfit: IStrategyPnL;
-    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
-    maxDrawdown: IStrategyPnL;
-    /** Record price reached in the loss direction */
-    currentPrice: number;
-    /** Effective entry price at the time of the update */
-    priceOpen: number;
-    /** Take profit price */
-    priceTakeProfit: number;
-    /** Stop loss price */
-    priceStopLoss: number;
-    /** Whether the event occurred in backtest mode */
-    backtest: boolean;
-}
-/**
- * Aggregated statistics model for max drawdown events.
- */
-interface MaxDrawdownStatisticsModel {
-    /** Full list of recorded events (newest first) */
-    eventList: MaxDrawdownEvent[];
-    /** Total number of recorded events */
-    totalEvents: number;
-}
-
-/**
- * Risk rejection event data for report generation.
- * Contains all information about rejected signals due to risk limits.
- */
-interface RiskEvent {
-    /** Event timestamp in milliseconds */
-    timestamp: number;
-    /** Trading pair symbol */
-    symbol: string;
-    /** Pending signal details */
-    currentSignal: IRiskSignalRow;
-    /** Strategy name */
-    strategyName: StrategyName;
-    /** Exchange name */
-    exchangeName: ExchangeName;
-    /** Time frame name */
-    frameName: FrameName;
-    /** Current market price */
-    currentPrice: number;
-    /** Number of active positions at rejection time */
-    activePositionCount: number;
-    /** Unique identifier for this rejection instance (null if validation threw exception without custom ID) */
-    rejectionId: string | null;
-    /** Rejection reason from validation note */
-    rejectionNote: string;
-    /** Whether this event is from backtest mode (true) or live mode (false) */
-    backtest: boolean;
-}
-/**
- * Statistical data calculated from risk rejection events.
- *
- * Provides metrics for risk management tracking.
- *
- * @example
- * ```typescript
- * const stats = await Risk.getData("BTCUSDT", "my-strategy");
- *
- * console.log(`Total rejections: ${stats.totalRejections}`);
- * console.log(`Rejections by symbol:`, stats.bySymbol);
- * ```
- */
-interface RiskStatisticsModel {
-    /** Array of all risk rejection events with full details */
-    eventList: RiskEvent[];
-    /** Total number of risk rejections */
-    totalRejections: number;
-    /** Rejections grouped by symbol */
-    bySymbol: Record<string, number>;
-    /** Rejections grouped by strategy */
-    byStrategy: Record<string, number>;
-}
-
-/**
- * Unified breakeven event data for report generation.
- * Contains all information about when signals reached breakeven.
- */
-interface BreakevenEvent {
-    /** Event timestamp in milliseconds */
-    timestamp: number;
-    /** Trading pair symbol */
-    symbol: string;
-    /** Strategy name */
-    strategyName: StrategyName;
-    /** Signal ID */
-    signalId: string;
-    /** Position type */
-    position: string;
-    /** Current market price when breakeven was reached */
-    currentPrice: number;
-    /** Entry price (breakeven level) */
-    priceOpen: number;
-    /** Take profit target price */
-    priceTakeProfit?: number;
-    /** Stop loss exit price */
-    priceStopLoss?: number;
-    /** Original take profit price set at signal creation */
-    originalPriceTakeProfit?: number;
-    /** Original stop loss price set at signal creation */
-    originalPriceStopLoss?: number;
-    /** Total number of DCA entries (present when averageBuy was applied) */
-    totalEntries?: number;
-    /** Total number of partial closes executed (_partial.length) */
-    totalPartials?: number;
-    /** Original entry price before DCA averaging (present when averageBuy was applied) */
-    originalPriceOpen?: number;
-    /** Total executed percentage from partial closes */
-    partialExecuted?: number;
-    /** Unrealized PNL at the moment breakeven was reached */
-    pnl?: IStrategyPnL;
-    /** Human-readable description of signal reason */
-    note?: string;
-    /** Timestamp when position became active (ms) */
-    pendingAt?: number;
-    /** Timestamp when signal was created/scheduled (ms) */
-    scheduledAt?: number;
-    /** True if backtest mode, false if live mode */
-    backtest: boolean;
-}
-/**
- * Statistical data calculated from breakeven events.
- *
- * Provides metrics for breakeven milestone tracking.
- *
- * @example
- * ```typescript
- * const stats = await Breakeven.getData("BTCUSDT", "my-strategy");
- *
- * console.log(`Total breakeven events: ${stats.totalEvents}`);
- * console.log(`Average threshold: ${stats.averageThreshold}%`);
- * ```
- */
-interface BreakevenStatisticsModel {
-    /** Array of all breakeven events with full details */
-    eventList: BreakevenEvent[];
-    /** Total number of breakeven events */
-    totalEvents: number;
-}
-
-/**
- * Action types for strategy events.
- * Represents all possible strategy management actions.
- */
-type StrategyActionType = "cancel-scheduled" | "close-pending" | "partial-profit" | "partial-loss" | "trailing-stop" | "trailing-take" | "breakeven" | "activate-scheduled" | "average-buy" | "dividend";
-/**
- * Unified strategy event data for markdown report generation.
- * Contains all information about strategy management actions.
- */
-interface StrategyEvent {
-    /** Event timestamp in milliseconds */
-    timestamp: number;
-    /** Trading pair symbol */
-    symbol: string;
-    /** Strategy name */
-    strategyName: StrategyName;
-    /** Exchange name */
-    exchangeName: ExchangeName;
-    /** Frame name (empty for live) */
-    frameName: FrameName;
-    /** Signal ID */
-    signalId: string;
-    /** Action type */
-    action: StrategyActionType;
-    /** Current market price when action was executed */
-    currentPrice?: number;
-    /** Percent to close for partial profit/loss */
-    percentToClose?: number;
-    /** Percent shift for trailing stop/take */
-    percentShift?: number;
-    /** Cancel ID for cancel-scheduled action */
-    cancelId?: string;
-    /** Close ID for close-pending action */
-    closeId?: string;
-    /** Activate ID for activate-scheduled action */
-    activateId?: string;
-    /** ISO timestamp string when action was created */
-    createdAt: string;
-    /** True if backtest mode, false if live mode */
-    backtest: boolean;
-    /** Trade direction: "long" (buy) or "short" (sell) */
-    position?: "long" | "short";
-    /** Entry price for the position */
-    priceOpen?: number;
-    /** Effective take profit price (with trailing if set) */
-    priceTakeProfit?: number;
-    /** Effective stop loss price (with trailing if set) */
-    priceStopLoss?: number;
-    /** Original take profit price before any trailing adjustments */
-    originalPriceTakeProfit?: number;
-    /** Original stop loss price before any trailing adjustments */
-    originalPriceStopLoss?: number;
-    /** Original entry price at signal creation (unchanged by DCA averaging) */
-    originalPriceOpen?: number;
-    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
-    scheduledAt?: number;
-    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
-    pendingAt?: number;
-    /** Averaged entry price after DCA addition (average-buy action only) */
-    effectivePriceOpen?: number;
-    /** Total number of DCA entries after this addition (average-buy action only) */
-    totalEntries?: number;
-    /** Total number of partial closes executed (_partial.length) */
-    totalPartials?: number;
-    /** DCA entry history of the position at the event (IPublicSignalRow.entries) */
-    entries?: ISignalEntry[];
-    /** Partial close history of the position at the event (IPublicSignalRow.partials) */
-    partials?: ISignalPartial[];
-    /** Dividend / staking accruals of the position at the event (IPublicSignalRow.accruals) */
-    accruals?: ISignalAccrual[];
-    /** PNL at the moment of this action */
-    pnl?: IStrategyPnL;
-    /** Cost of this entry in USD (average-buy action only) */
-    cost?: number;
-    /** Accrual kind: "cash" or "asset" (dividend action only) */
-    accrualType?: AccrualType;
-    /** Accrual amount: USD for "cash", asset units for "asset" (dividend action only) */
-    amount?: number;
-    /** USD value of all accruals of the position after the event (dividend action only) */
-    pnlDividends?: number;
-    /** Total number of accruals on the position after the event (dividend action only) */
-    totalAccruals?: number;
-    /** Optional note from commit payload */
-    note?: string;
-}
-/**
- * Statistical data calculated from strategy events.
- *
- * Provides metrics for strategy action tracking.
- *
- * @example
- * ```typescript
- * const stats = await Strategy.getData("BTCUSDT", "my-strategy");
- *
- * console.log(`Total events: ${stats.totalEvents}`);
- * console.log(`Cancel scheduled: ${stats.cancelScheduledCount}`);
- * ```
- */
-interface StrategyStatisticsModel {
-    /** Array of all strategy events with full details */
-    eventList: StrategyEvent[];
-    /** Total number of strategy events */
-    totalEvents: number;
-    /** Count of cancel-scheduled events */
-    cancelScheduledCount: number;
-    /** Count of close-pending events */
-    closePendingCount: number;
-    /** Count of partial-profit events */
-    partialProfitCount: number;
-    /** Count of partial-loss events */
-    partialLossCount: number;
-    /** Count of trailing-stop events */
-    trailingStopCount: number;
-    /** Count of trailing-take events */
-    trailingTakeCount: number;
-    /** Count of breakeven events */
-    breakevenCount: number;
-    /** Count of activate-scheduled events */
-    activateScheduledCount: number;
-    /** Count of average-buy (DCA) events */
-    averageBuyCount: number;
-    /** Count of dividend (accrual recorded, credit or charge) events */
-    dividendCount: number;
-}
-
-/**
- * Base fields shared by both variants of the initial-dispatch payload.
- * Carries the resolved execution context of the state access.
- */
-interface InitialDispatchContractBase {
-    /**
-     * Trading pair symbol (e.g., "BTCUSDT").
-     */
-    symbol: string;
-    /**
-     * Strategy name owning the signal.
-     */
-    strategyName: StrategyName;
-    /**
-     * Exchange name where this strategy is running.
-     */
-    exchangeName: ExchangeName;
-    /**
-     * Frame name (if backtest)
-     */
-    frameName: FrameName;
-    /**
-     * Current market price of the symbol at the moment of state init.
-     */
-    currentPrice: number;
-    /**
-     * Execution mode flag.
-     * - true: Event from backtest execution (historical candle data)
-     * - false: Event from live trading (real-time tick)
-     */
-    backtest: boolean;
-    /**
-     * Event timestamp in milliseconds since Unix epoch.
-     *
-     * Timing semantics:
-     * - Live mode: when.getTime() at the moment of state init
-     * - Backtest mode: candle.timestamp of the candle being processed
-     */
-    timestamp: number;
-    /**
-     * Event time as a `Date` instance.
-     *
-     * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
-     *   being processed (not wall-clock time).
-     * - Live mode: wall-clock time at the moment of state init.
-     *
-     * Always equal to `new Date(timestamp)`.
-     */
-    when: Date;
-}
-/**
- * Initial-dispatch payload for an OPEN position: the state access resolved a
- * pending signal — the order is filled and the position is being monitored.
- */
-interface InitialDispatchActiveContract extends InitialDispatchContractBase {
-    /**
-     * Discriminator: "active" — open position order.
-     */
-    type: "active";
-    /**
-     * Complete public signal row of the open position at the moment of state init.
-     */
-    signal: IPublicSignalRow;
-}
-/**
- * Initial-dispatch payload for a RESTING entry: the state access resolved a
- * scheduled signal — the entry order is waiting for price to reach priceOpen.
- */
-interface InitialDispatchScheduleContract extends InitialDispatchContractBase {
-    /**
-     * Discriminator: "schedule" — resting entry order.
-     */
-    type: "schedule";
-    /**
-     * Complete scheduled signal row of the resting entry at the moment of state init.
-     */
-    signal: IScheduledSignalRow;
-}
-/**
- * Contract for lazy per-signal state initialization.
- *
- * Passed as the first argument to the `initialData` factory of `new State({ name, initialData })`
- * when the factory form is used: the factory runs on every state access for the signal
- * that has no persisted value yet, and this payload carries the full resolved context of
- * that moment — so the initial state can be DERIVED from the live signal instead of being
- * a static constant.
- *
- * Discriminated union on `type`: "active" carries the pending `IPublicSignalRow` of an
- * open position, "schedule" carries the `IScheduledSignalRow` of a resting entry — use
- * `payload.type === "active"` for type-safe access to the variant-specific signal shape.
- *
- * Typical use: seed per-trade metrics from the actual entry — e.g. start `peakPercent`
- * from the current unrealized PnL, anchor thresholds to `signal.priceOpen` / TP / SL
- * distances, or branch the defaults for a resting entry versus an open position.
- *
- * The payload is assembled by the State facade right after the active signal is resolved
- * from the async_hooks execution context: `signal` is the pending or scheduled row,
- * `currentPrice` is the VWAP used for that resolution, and `when`/`timestamp` carry the
- * LOGICAL time of the access (candle time in backtest, wall-clock in live) — the same
- * timestamp that powers the look-ahead guard, so a factory deriving values from it can
- * never peek ahead of the tick being processed.
- *
- * The returned object becomes `initialValue`: it is what reads yield while nothing was
- * written (or while the stored record is in the future relative to `when`), and what the
- * `setState` dispatch updater receives as `prev` on the first update. A fresh payload is
- * built per access, so the factory result is never shared by reference between calls.
- */
-type InitialDispatchContract = InitialDispatchActiveContract | InitialDispatchScheduleContract;
-
 /** Symbol key for the singleshot waitForInit function on PersistBase instances. */
 declare const BASE_WAIT_FOR_INIT_SYMBOL: unique symbol;
 /**
  * Signal data stored in persistence layer.
  * Contains nullable signal for atomic updates.
  */
-type SignalData = ISignalRow | null;
+type SignalData$1 = ISignalRow | null;
 /**
  * Cache.file data type stored in persistence layer.
  */
@@ -22512,6 +18047,203 @@ declare class PersistStateUtils {
  */
 declare const PersistStateAdapter: PersistStateUtils;
 /**
+ * Type for persisted budget entry data.
+ * Wraps the whole budget record (initial capital + ordered journal) with a
+ * unique id; `when` is the logical timestamp of the last write.
+ */
+type BudgetData = {
+    id: string;
+    data: object;
+    when: number;
+};
+/**
+ * Record key of a budget: one record per strategy run
+ * (strategyName, exchangeName, frameName, backtest) — shared by every symbol of
+ * that run, never branched by signalId.
+ */
+type BudgetRecordKey = {
+    strategyName: string;
+    exchangeName: string;
+    frameName: string;
+    backtest: boolean;
+};
+/**
+ * Per-context budget persistence instance interface.
+ * Scoped to a budget record key and a budget name (bucket inside the record).
+ *
+ * Used by BudgetPersistInstance for crash-safe budget journal storage.
+ * Custom adapters should implement this interface to override the default
+ * file-based budget behavior.
+ */
+interface IPersistBudgetInstance {
+    /**
+     * Initialize storage for this budget context.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
+    waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read the persisted budget record for this context.
+     *
+     * @returns Promise resolving to budget data or null if none persisted
+     */
+    readBudgetData(): Promise<BudgetData | null>;
+    /**
+     * Write the budget record for this context.
+     *
+     * @param data - Budget data to persist (already carries `data.when`)
+     * @param when - Logical timestamp this value belongs to (duplicates `data.when` for API consistency)
+     * @returns Promise that resolves when write is complete
+     */
+    writeBudgetData(data: BudgetData, when: Date): Promise<void>;
+    /**
+     * Release any resources held by this instance.
+     * Default implementations may treat this as a no-op.
+     */
+    dispose(): void;
+}
+/**
+ * Default file-based implementation of IPersistBudgetInstance.
+ *
+ * Features:
+ * - Wraps PersistBase for atomic JSON writes
+ * - Uses the budget name as entity ID within a per-record PersistBase
+ * - dispose is a no-op (memo cache is managed by PersistBudgetUtils)
+ *
+ * Storage layout: ./dump/budget/<strategyName>:<exchangeName>:<frameName>:<backtest|live>/<name>.json
+ * — no signalId anywhere in the path: the record is shared by every symbol of the run.
+ */
+declare class PersistBudgetInstance implements IPersistBudgetInstance {
+    readonly key: BudgetRecordKey;
+    readonly name: string;
+    /** Underlying file-based storage scoped to this context */
+    private readonly _storage;
+    /**
+     * Creates new budget persistence instance.
+     *
+     * @param key - Budget record key (folder name under budget/)
+     * @param name - Budget name (file name)
+     */
+    constructor(key: BudgetRecordKey, name: string);
+    /**
+     * Initializes the underlying PersistBase storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
+    waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads the persisted budget record using `name` as the entity key.
+     *
+     * @returns Promise resolving to budget data or null if not found
+     */
+    readBudgetData(): Promise<BudgetData | null>;
+    /**
+     * Writes the budget record using `name` as the entity key.
+     *
+     * @param data - Budget data to persist
+     * @returns Promise that resolves when write is complete
+     */
+    writeBudgetData(data: BudgetData, _when: Date): Promise<void>;
+    /**
+     * No-op for the default file-based implementation.
+     * Resource cleanup (memo cache invalidation) is handled by PersistBudgetUtils.dispose().
+     */
+    dispose(): void;
+}
+/**
+ * Constructor type for IPersistBudgetInstance.
+ * Used by PersistBudgetUtils.usePersistBudgetAdapter() to register custom adapters.
+ */
+type TPersistBudgetInstanceCtor = new (key: BudgetRecordKey, name: string) => IPersistBudgetInstance;
+/**
+ * Utility class for managing budget persistence.
+ *
+ * Features:
+ * - Memoized storage instances per (record key, name) pair
+ * - Custom adapter support
+ * - Atomic read/write operations
+ *
+ * Storage layout: ./dump/budget/<strategyName>:<exchangeName>:<frameName>:<backtest|live>/<name>.json
+ *
+ * Used by BudgetPersistInstance for crash-safe budget journal persistence.
+ */
+declare class PersistBudgetUtils {
+    /**
+     * Constructor used to create per-context budget instances.
+     * Replaceable via usePersistBudgetAdapter() / useJson() / useDummy().
+     */
+    private PersistBudgetInstanceCtor;
+    /**
+     * Memoized factory creating one IPersistBudgetInstance per (record key, name) pair.
+     */
+    private getBudgetStorage;
+    /**
+     * Registers a custom IPersistBudgetInstance constructor.
+     * Clears the memoization cache so subsequent calls use the new adapter.
+     *
+     * @param Ctor - Custom IPersistBudgetInstance constructor
+     */
+    usePersistBudgetAdapter(Ctor: TPersistBudgetInstanceCtor): void;
+    /**
+     * Initializes the budget storage for the given context.
+     * Skips initialization when `initial` is false (used to gate first-time setup).
+     *
+     * @param key - Budget record key
+     * @param name - Budget name
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
+    waitForInit: (key: BudgetRecordKey, name: string, initial: boolean) => Promise<void>;
+    /**
+     * Reads the persisted budget record for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param key - Budget record key
+     * @param name - Budget name
+     * @returns Promise resolving to budget data or null if none persisted
+     */
+    readBudgetData: (key: BudgetRecordKey, name: string) => Promise<BudgetData | null>;
+    /**
+     * Writes the budget record for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param data - Budget data to persist (already carries `data.when`)
+     * @param key - Budget record key
+     * @param name - Budget name
+     * @param when - Logical timestamp this value belongs to (duplicates `data.when` for API consistency)
+     * @returns Promise that resolves when write is complete
+     */
+    writeBudgetData: (data: BudgetData, key: BudgetRecordKey, name: string, when: Date) => Promise<void>;
+    /**
+     * Switches to PersistBudgetDummyInstance (all operations are no-ops).
+     */
+    useDummy: () => void;
+    /**
+     * Switches to the default file-based PersistBudgetInstance.
+     */
+    useJson: () => void;
+    /**
+     * Clears the memoized instance cache.
+     * Call when process.cwd() changes between strategy iterations.
+     */
+    clear: () => void;
+    /**
+     * Drops the memoized instance for the given context.
+     * Call when a budget record is cleared to clean up its associated storage entry.
+     *
+     * @param key - Budget record key
+     * @param name - Budget name
+     */
+    dispose: (key: BudgetRecordKey, name: string) => void;
+}
+/**
+ * Global singleton instance of PersistBudgetUtils.
+ * Used by BudgetPersistInstance for crash-safe budget journal persistence.
+ */
+declare const PersistBudgetAdapter: PersistBudgetUtils;
+/**
  * Type for persisted dictionary entry data.
  * Wraps the whole dictionary as a single snapshot: `data` maps entry keys to
  * `{ value, when }` records (per-entry look-ahead timestamps), the top-level
@@ -22921,6 +18653,5345 @@ declare class PersistSessionUtils {
 declare const PersistSessionAdapter: PersistSessionUtils;
 
 /**
+ * Single budget journal row recorded by the markdown report, with the record
+ * key it belongs to. The row is the journal entry as it was at insertion
+ * (type, amount, ids, balance after the row); a later insert at an earlier
+ * logical time recomputes balances in the journal, not in this event list.
+ */
+type BudgetEvent = IBudgetHistoryRow & {
+    /** Strategy name of the run */
+    strategyName: string;
+    /** Exchange name of the run */
+    exchangeName: string;
+    /** Frame name of the run (empty string in live mode) */
+    frameName: string;
+    /** Whether the row was written in backtest mode */
+    backtest: boolean;
+    /** Budget name */
+    name: BudgetName;
+};
+/**
+ * Aggregated statistics model for budget journal events.
+ */
+interface BudgetStatisticsModel {
+    /** Full list of recorded rows (newest first by arrival) */
+    eventList: BudgetEvent[];
+    /** Total number of recorded rows */
+    totalEvents: number;
+    /** Number of `reject` rows (refused reserves / withdrawals) */
+    totalRejects: number;
+    /** Number of `reserve` rows that carried an overdraft mark when inserted */
+    totalOverdrafts: number;
+}
+
+/**
+ * Column configuration for markdown table generation.
+ * Generic interface that defines how to extract and format data from any data type.
+ *
+ * @template T - The data type that this column will format
+ *
+ * @example
+ * ```typescript
+ * // Column for formatting signal data
+ * const signalColumn: ColumnModel<IStrategyTickResultClosed> = {
+ *   key: "pnl",
+ *   label: "PNL",
+ *   format: (signal) => `${signal.pnl.pnlPercentage.toFixed(2)}%`,
+ *   isVisible: () => true
+ * };
+ *
+ * // Column for formatting heatmap rows
+ * const heatmapColumn: ColumnModel<IHeatmapRow> = {
+ *   key: "symbol",
+ *   label: "Symbol",
+ *   format: (row) => row.symbol,
+ *   isVisible: () => true
+ * };
+ * ```
+ */
+interface ColumnModel<T extends object = any> {
+    /** Unique column identifier */
+    key: string;
+    /** Display label for column header */
+    label: string;
+    /** Formatting function to convert data to string */
+    format: (data: T, index: number) => string | Promise<string>;
+    /** Function to determine if column should be visible */
+    isVisible: () => boolean | Promise<boolean>;
+}
+
+/**
+ * Type alias for column configuration used in budget markdown reports.
+ */
+type Columns$c = ColumnModel<BudgetEvent>;
+/**
+ * Service for generating and saving budget markdown reports.
+ *
+ * Listens to budgetSubject and accumulates journal rows per
+ * strategy-exchange-frame-backtest-name combination (one bucket per budget
+ * record, shared by every symbol of the run). Provides getData(),
+ * getReport(), and dump() methods matching the HighestProfit pattern.
+ */
+declare class BudgetMarkdownService {
+    private readonly loggerService;
+    private getStorage;
+    /**
+     * Subscribes to `budgetSubject` to start receiving `BudgetContract`
+     * events. Protected against multiple subscriptions via `singleshot` — subsequent
+     * calls return the same unsubscribe function without re-subscribing.
+     *
+     * The returned unsubscribe function clears the `singleshot` state, evicts all
+     * memoized `ReportStorage` instances, and detaches from `budgetSubject`.
+     *
+     * @returns Unsubscribe function; calling it tears down the subscription and
+     *   clears all accumulated data
+     *
+     * @example
+     * ```typescript
+     * const service = new BudgetMarkdownService();
+     * const unsubscribe = service.subscribe();
+     * // ... later
+     * unsubscribe();
+     * ```
+     */
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
+    /**
+     * Detaches from `budgetSubject` and clears all accumulated data.
+     *
+     * Calls the unsubscribe closure returned by `subscribe()`.
+     * If `subscribe()` was never called, does nothing.
+     *
+     * @example
+     * ```typescript
+     * const service = new BudgetMarkdownService();
+     * service.subscribe();
+     * // ... later
+     * await service.unsubscribe();
+     * ```
+     */
+    unsubscribe: () => Promise<void>;
+    /**
+     * Handles a single `BudgetContract` event emitted by `budgetSubject`.
+     *
+     * Routes the payload to the appropriate `ReportStorage` bucket via
+     * `getStorage(strategyName, exchangeName, frameName, backtest, name)` and
+     * delegates event construction to `ReportStorage.addEvent`.
+     *
+     * @param data - `BudgetContract` payload
+     */
+    private tick;
+    /**
+     * Returns accumulated budget statistics for the given record.
+     *
+     * Delegates to the `ReportStorage` bucket identified by
+     * `(strategyName, exchangeName, frameName, backtest, name)`.
+     * If no rows have been recorded yet for that combination, the returned
+     * model has an empty `eventList` and zero totals.
+     *
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+     * @param frameName - Backtest frame identifier; empty string for live mode
+     * @param backtest - `true` for backtest mode, `false` for live mode
+     * @param name - Budget name
+     * @returns Promise resolving to `BudgetStatisticsModel`
+     * @throws {Error} If `subscribe()` has not been called before this method
+     */
+    getData: (strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, name: BudgetName) => Promise<BudgetStatisticsModel>;
+    /**
+     * Generates a markdown budget report for the given record.
+     *
+     * Delegates to `ReportStorage.getReport`. The resulting string includes a
+     * markdown table (newest rows first) followed by the totals.
+     *
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+     * @param frameName - Backtest frame identifier; empty string for live mode
+     * @param backtest - `true` for backtest mode, `false` for live mode
+     * @param name - Budget name
+     * @param columns - Column definitions controlling the table layout;
+     *   defaults to `COLUMN_CONFIG.budget_columns`
+     * @returns Promise resolving to the full markdown string
+     * @throws {Error} If `subscribe()` has not been called before this method
+     */
+    getReport: (strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, name: BudgetName, columns?: Columns$c[]) => Promise<string>;
+    /**
+     * Generates the budget report and writes it to disk.
+     *
+     * Delegates to `ReportStorage.dump`. The filename follows the pattern:
+     * - Backtest: `{strategyName}_{exchangeName}_{frameName}_backtest_{name}-{timestamp}.md`
+     * - Live:     `{strategyName}_{exchangeName}_live_{name}-{timestamp}.md`
+     *
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+     * @param frameName - Backtest frame identifier; empty string for live mode
+     * @param backtest - `true` for backtest mode, `false` for live mode
+     * @param name - Budget name
+     * @param path - Directory to write the file into; defaults to `"./dump/budget"`
+     * @param columns - Column definitions for table formatting;
+     *   defaults to `COLUMN_CONFIG.budget_columns`
+     * @throws {Error} If `subscribe()` has not been called before this method
+     */
+    dump: (strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, name: BudgetName, path?: string, columns?: Columns$c[]) => Promise<void>;
+    /**
+     * Evicts memoized `ReportStorage` instances, releasing all accumulated rows.
+     *
+     * - With `payload` — clears only the storage bucket identified by
+     *   `(strategyName, exchangeName, frameName, backtest, name)`;
+     *   subsequent calls for that combination start from an empty state.
+     * - Without `payload` — clears **all** storage buckets.
+     *
+     * Also called internally by the unsubscribe closure returned from `subscribe()`.
+     *
+     * @param payload - Optional scope to restrict which bucket is cleared;
+     *   omit to clear everything
+     */
+    clear: (payload?: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+        backtest: boolean;
+        name: BudgetName;
+    }) => Promise<void>;
+}
+
+/**
+ * Logical name of a budget inside a strategy run, e.g. "fund" — the bucket of
+ * the record, like `BucketName` for `State`. Two budgets of one run with
+ * different names are two independent journals.
+ */
+type BudgetName = string;
+/**
+ * Context of a static (context-free) budget call: the record key, the budget
+ * name, the logical time of the action and the symbol that authored it.
+ * Mirrors the dto of `State._getState` / `State._setState` with the record key
+ * in place of `signalId`.
+ */
+interface IBudgetContext {
+    /** Strategy name of the run (part of the record key) */
+    strategyName: StrategyName;
+    /** Exchange name of the run (part of the record key) */
+    exchangeName: ExchangeName;
+    /** Frame name of the run (part of the record key; empty string in live mode) */
+    frameName: FrameName;
+    /** Backtest or live record (part of the record key) */
+    backtest: boolean;
+    /** Budget name — the bucket inside the record */
+    name: BudgetName;
+    /** Logical time of the read / the action's `timestamp` */
+    when: Date;
+    /** Symbol that authors the history row (null for a call without a symbol) */
+    symbol?: string;
+    /**
+     * Initial capital of the record when this call is the first one to create it
+     * (static callers outside the strategy module, e.g. listeners). Ignored once
+     * the record exists. A call that would CREATE the record without it is
+     * refused with BudgetMissingError: a record created with a guessed capital
+     * could never be repaired by a later call.
+     */
+    initialCapital?: number;
+}
+/** Balance of a budget at a logical time: the fold of the journal up to `when` */
+interface IBudgetBalance {
+    /** Budget name */
+    name: BudgetName;
+    /** Logical time the balance is taken at */
+    when: Date;
+    /** Capital: initialCapital plus every realized pnl of released reserves */
+    capital: number;
+    /** Sum of open reserves */
+    deployed: number;
+    /** capital − deployed (negative only after an overdraft, see IBudgetReserveRow) */
+    free: number;
+    /** Units held per asset (deposits − withdrawals) */
+    assets: Record<string, number>;
+}
+/** `reserve`: move `amount` from free to deployed under the key `id` */
+interface IBudgetReserveDto {
+    /** Reserve identifier (typically the signal id); must not be open already */
+    id: string;
+    /** Amount to reserve in quote currency (> 0) */
+    amount: number;
+    /** Optional human-readable note stored on the row */
+    note?: string;
+}
+/** `release`: give the reserve `id` back to free and book its pnl on capital */
+interface IBudgetReleaseDto {
+    /** Reserve identifier passed to `reserve` */
+    id: string;
+    /** Realized pnl of the position in quote currency (added to capital). Default: 0 */
+    pnl?: number;
+    /** Optional human-readable note stored on the row */
+    note?: string;
+}
+/** `deposit`: add `amount` units of `asset` (dividends in shares, staking rewards) */
+interface IBudgetDepositDto {
+    /** Asset label, e.g. "ETH" */
+    asset: string;
+    /** Units to add (> 0) */
+    amount: number;
+    /** Optional human-readable note stored on the row */
+    note?: string;
+}
+/** `withdraw`: remove `amount` units of `asset`; more than held is rejected */
+interface IBudgetWithdrawDto {
+    /** Asset label, e.g. "ETH" */
+    asset: string;
+    /** Units to remove (> 0) */
+    amount: number;
+    /** Optional human-readable note stored on the row */
+    note?: string;
+}
+/** Balance part stored on every history row: the balance AFTER the row */
+type IBudgetRowBalance = Pick<IBudgetBalance, "capital" | "deployed" | "free" | "assets">;
+/**
+ * Fields shared by every journal row. strategyName, exchangeName, frameName and
+ * backtest are the record key and are not repeated on rows.
+ */
+interface IBudgetHistoryRowBase {
+    /** Logical time of the action (`when` of the call that produced it) */
+    timestamp: number;
+    /** Symbol that authored the row, null when the call had no symbol */
+    symbol: string | null;
+    /** Insertion order — the last tie-break of the journal order (timestamp, symbol, seq) */
+    seq: number;
+    /** Balance after this row */
+    balance: IBudgetRowBalance;
+}
+/** A reserve took `amount` from free */
+interface IBudgetReserveRow extends IBudgetHistoryRowBase {
+    type: "reserve";
+    id: string;
+    amount: number;
+    note?: string;
+    /**
+     * Set when a later-inserted earlier row (another symbol whose clock lagged
+     * behind this one) made this reserve exceed the free balance: `-free` after
+     * the row, as of the journal's CURRENT content. Cleared again when a later
+     * insert brings the balance back (an earlier release that arrived after the
+     * reserve it closes): by logical time such a shortfall never existed, the
+     * rows merely arrived out of order, and keeping the mark would make the
+     * journal depend on the arrival order (I3). What the shortfall DID cause
+     * while it stood is on record for good: the `reject` rows of the reserves
+     * refused in that window, and the warning logged at the recompute. The
+     * budget never hides it (see the Budget class notes). Under
+     * `CC_BACKTEST_LOCKSTEP` the clocks of parallel backtests stay within one
+     * timeframe, replays included, so this only arises with the flag off or
+     * with ties inside one timeframe.
+     */
+    overdraft?: number;
+}
+/** A reserve went back to free; `pnl` was booked on capital */
+interface IBudgetReleaseRow extends IBudgetHistoryRowBase {
+    type: "release";
+    id: string;
+    amount: number;
+    pnl: number;
+    note?: string;
+}
+/** A `reserve` / `withdraw` was refused; the balance is unchanged */
+interface IBudgetRejectRow extends IBudgetHistoryRowBase {
+    type: "reject";
+    action: "reserve" | "withdraw";
+    /** "capital" for reserve, the asset label for withdraw */
+    asset: string;
+    requested: number;
+    available: number;
+}
+/** Units of `asset` added */
+interface IBudgetDepositRow extends IBudgetHistoryRowBase {
+    type: "deposit";
+    asset: string;
+    amount: number;
+    note?: string;
+}
+/** Units of `asset` removed */
+interface IBudgetWithdrawRow extends IBudgetHistoryRowBase {
+    type: "withdraw";
+    asset: string;
+    amount: number;
+    note?: string;
+}
+/** Journal row of a budget record, ordered by (timestamp, symbol, seq) */
+type IBudgetHistoryRow = IBudgetReserveRow | IBudgetReleaseRow | IBudgetRejectRow | IBudgetDepositRow | IBudgetWithdrawRow;
+/**
+ * Value of a budget record: the initial capital and the ordered journal.
+ * `getState(when)` returns the fold of it up to `when` (rows with
+ * `timestamp <= when`), never the rows written by a symbol that is ahead.
+ */
+interface IBudgetValue {
+    initialCapital: number;
+    journal: IBudgetHistoryRow[];
+}
+/**
+ * Initial value of a budget record, the counterpart of `initialValue` in `State`.
+ * `initialCapital` is undefined for a static call that did not bring one: the
+ * instance then refuses to create the record (BudgetMissingError) and only
+ * serves a record that already exists (persisted, or created by an earlier call).
+ */
+interface IBudgetInitial {
+    initialCapital?: number;
+}
+/**
+ * An action to insert into the journal: a history row minus the fields the
+ * instance computes (`timestamp`, `seq`, `balance`). Returned by a dispatch.
+ */
+type BudgetAction = Omit<IBudgetReserveRow, "timestamp" | "seq" | "balance" | "overdraft"> | Omit<IBudgetReleaseRow, "timestamp" | "seq" | "balance"> | Omit<IBudgetRejectRow, "timestamp" | "seq" | "balance"> | Omit<IBudgetDepositRow, "timestamp" | "seq" | "balance"> | Omit<IBudgetWithdrawRow, "timestamp" | "seq" | "balance">;
+/**
+ * Updater of `setState` — receives the fold of the journal up to `when` (what
+ * the caller is allowed to see) and returns the action to insert at `when`, or
+ * null for a no-op. Runs inside the instance's `queued` section, so the check
+ * and the write are atomic within the process, like `setState(prev => ...)`.
+ * The second argument is the WHOLE journal, rows past `when` included: it is
+ * for diagnostics only (a release aimed at a reserve that lies in the caller's
+ * future), never for the decision itself.
+ */
+type BudgetDispatch = (prev: IBudgetValue, full: IBudgetValue) => BudgetAction | null | Promise<BudgetAction | null>;
+/**
+ * Interface for budget instance implementations.
+ * Defines the contract for local, persist, and dummy backends — the same four
+ * methods as `IStateInstance`, with the record value being an ordered journal
+ * instead of a single `(_value, _when)` pair:
+ *
+ * - `getState(when)` returns the fold of the journal up to `when` (I1: a read
+ *   sees only the past, including rows written by symbols that are ahead only
+ *   up to the reader's own time);
+ * - `setState(dispatch, when)` inserts the action returned by `dispatch` at its
+ *   `timestamp = when` and recomputes the balances after it (I2: a row from the
+ *   past shifts later balances instead of overwriting them).
+ */
+interface IBudgetInstance {
+    /**
+     * Initialize the budget instance.
+     * @param initial - Whether this is the first initialization
+     */
+    waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read the fold of the journal up to `when` inclusive.
+     * @param when - Logical timestamp at which the read is happening
+     * @returns Initial capital and the visible rows (a copy)
+     */
+    getState(when: Date): Promise<IBudgetValue>;
+    /**
+     * Insert the action returned by `dispatch` at `when`.
+     * The dispatch receives the fold up to `when`; the check it does and the
+     * insertion are atomic within the process (`queued`).
+     * @param dispatch - Updater returning the action to insert, or null for a no-op
+     * @param when - Logical timestamp of the action
+     * @returns The inserted row (a copy) or null when the dispatch returned null
+     */
+    setState(dispatch: BudgetDispatch, when: Date): Promise<IBudgetHistoryRow | null>;
+    /**
+     * Releases any resources held by this instance.
+     */
+    dispose(): Promise<void>;
+}
+/**
+ * Constructor type for budget instance implementations.
+ * Used for swapping backends via BudgetBacktestAdapter / BudgetLiveAdapter.
+ */
+type TBudgetInstanceCtor = new (initialValue: IBudgetInitial, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, name: BudgetName) => IBudgetInstance;
+/**
+ * Public surface of BudgetBacktestAdapter / BudgetLiveAdapter — IBudgetInstance minus waitForInit and dispose.
+ * waitForInit and dispose are managed internally by the adapter.
+ */
+type TBudgetAdapter = {
+    [key in Exclude<keyof IBudgetInstance, "waitForInit" | "dispose">]: any;
+};
+/** Dto of the adapter methods: the record key, the budget name, the initial value and the logical time */
+type TBudgetAdapterDto = BudgetRecordKey & {
+    name: BudgetName;
+    initialValue: IBudgetInitial;
+    when: Date;
+};
+/**
+ * Backtest budget adapter with pluggable storage backend.
+ *
+ * Features:
+ * - Adapter pattern for swappable budget instance implementations
+ * - Default backend: BudgetLocalInstance (in-memory, no disk persistence)
+ * - Alternative backends: BudgetPersistInstance, BudgetDummyInstance
+ * - Convenience methods: useLocal(), usePersist(), useDummy(), useBudgetAdapter()
+ * - Memoized instances per (record key, name) pair; the record lives until clear()
+ *   (no per-signal disposal: it is not bound to a signal)
+ */
+declare class BudgetBacktestAdapter implements TBudgetAdapter {
+    private BudgetFactory;
+    private getInstance;
+    /**
+     * Read the fold of the journal up to `dto.when`.
+     * @param dto - Record key, budget name, initial value and logical time
+     * @returns Initial capital and the visible rows
+     */
+    getState: (dto: TBudgetAdapterDto) => Promise<IBudgetValue>;
+    /**
+     * Insert the action returned by `dispatch` at `dto.when`.
+     * @param dispatch - Updater returning the action to insert, or null for a no-op
+     * @param dto - Record key, budget name, initial value and logical time
+     * @returns The inserted row or null
+     */
+    setState: (dispatch: BudgetDispatch, dto: TBudgetAdapterDto) => Promise<IBudgetHistoryRow | null>;
+    /**
+     * Switches to in-memory adapter (default).
+     * All data lives in process memory only.
+     */
+    useLocal: () => void;
+    /**
+     * Switches to file-system backed adapter.
+     * Data is persisted to disk via PersistBudgetAdapter.
+     */
+    usePersist: () => void;
+    /**
+     * Switches to dummy adapter that discards all writes.
+     */
+    useDummy: () => void;
+    /**
+     * Switches to a custom budget adapter implementation.
+     * @param Ctor - Constructor for the custom budget instance
+     */
+    useBudgetAdapter: (Ctor: TBudgetInstanceCtor) => void;
+    /**
+     * Clears the memoized instance cache.
+     * Call this before a new run (or when process.cwd() changes between strategy
+     * iterations) so new instances start from a fresh journal / the updated base path.
+     */
+    clear: () => void;
+}
+/**
+ * Live trading budget adapter with pluggable storage backend.
+ *
+ * Features:
+ * - Adapter pattern for swappable budget instance implementations
+ * - Default backend: BudgetPersistInstance (file-system backed, survives restarts)
+ * - Alternative backends: BudgetLocalInstance, BudgetDummyInstance
+ * - Convenience methods: useLocal(), usePersist(), useDummy(), useBudgetAdapter()
+ * - Memoized instances per (record key, name) pair; the record lives until clear()
+ */
+declare class BudgetLiveAdapter implements TBudgetAdapter {
+    private BudgetFactory;
+    private getInstance;
+    /**
+     * Read the fold of the journal up to `dto.when`.
+     * @param dto - Record key, budget name, initial value and logical time
+     * @returns Initial capital and the visible rows
+     */
+    getState: (dto: TBudgetAdapterDto) => Promise<IBudgetValue>;
+    /**
+     * Insert the action returned by `dispatch` at `dto.when`.
+     * @param dispatch - Updater returning the action to insert, or null for a no-op
+     * @param dto - Record key, budget name, initial value and logical time
+     * @returns The inserted row or null
+     */
+    setState: (dispatch: BudgetDispatch, dto: TBudgetAdapterDto) => Promise<IBudgetHistoryRow | null>;
+    /**
+     * Switches to in-memory adapter.
+     * All data lives in process memory only.
+     */
+    useLocal: () => void;
+    /**
+     * Switches to file-system backed adapter (default).
+     * Data is persisted to disk via PersistBudgetAdapter.
+     */
+    usePersist: () => void;
+    /**
+     * Switches to dummy adapter that discards all writes.
+     */
+    useDummy: () => void;
+    /**
+     * Switches to a custom budget adapter implementation.
+     * @param Ctor - Constructor for the custom budget instance
+     */
+    useBudgetAdapter: (Ctor: TBudgetInstanceCtor) => void;
+    /**
+     * Clears the memoized instance cache.
+     * Call this when process.cwd() changes between strategy iterations
+     * so new instances are created with the updated base path.
+     */
+    clear: () => void;
+}
+/**
+ * Shared balance of a strategy run — one record for every symbol of the run,
+ * kept as a journal of actions and read at the caller's logical time.
+ *
+ * Works like `State`: an instance in the strategy module, no schemas, every
+ * instance method resolves the mode, the logical time and the symbol itself
+ * from `backtest.executionContextService` / `backtest.methodContextService`.
+ * Unlike `State`, the record is NOT bound to a signal: its key is
+ * `(strategyName, exchangeName, frameName, backtest)` plus the budget `name`,
+ * so every symbol of the run reads and writes the same journal, and no signal
+ * lookup happens (the methods work from `getSignal` as well as from callbacks).
+ *
+ * Invariants:
+ * - a read at `when` sees only rows with `timestamp <= when` (a symbol that is
+ *   ahead in logical time does not leak its future into a lagging one);
+ * - an action is inserted at its `timestamp`, never overwriting what came
+ *   after; the balances after it are recomputed;
+ * - the journal order is `(timestamp, symbol, seq)` — the same run yields the
+ *   same journal whatever order Node interleaved the symbols in;
+ * - the budget itself never waits for another symbol and holds no lock of its
+ *   own; the clocks of parallel backtests are kept together by the engine's
+ *   `CC_BACKTEST_LOCKSTEP` (`Lockstep` in `BacktestLogicPrivateService.run`):
+ *   every timeframe iteration runs under a process-wide FIFO mutex, and a
+ *   candle replay hands it off at every timeframe boundary, so the symbols
+ *   are at most one timeframe apart even while one of them replays a long
+ *   position; with the flag off (the test config) the symbols drift freely;
+ * - an overdraft (two symbols took the same money because one clock lagged
+ *   behind the other) is recorded on the reserve row as `overdraft` and
+ *   logged, never hidden — `getFree()` goes negative and later reserves are
+ *   refused until releases bring it back.
+ *
+ * Requires an explicit `Budget.enable()` call before use, like `State.enable()`.
+ *
+ * @example
+ * ```typescript
+ * Budget.enable();
+ * const fund = new Budget({ name: "fund", initialCapital: 10_000_000 });
+ *
+ * // inside getSignal / any lifecycle callback:
+ * const free = await fund.getFree();
+ * try {
+ *   await fund.reserve({ id, amount: cost });
+ * } catch (error) {
+ *   if (BudgetRejectedError.isBudgetRejectedError(error)) return null;
+ *   throw error;
+ * }
+ *
+ * // outside the execution context (a listener): the context travels as the last argument
+ * listenSignalBacktestClosed(({ data, pnl, timestamp }) =>
+ *   Budget._release({ id: data.id, pnl: pnl.pnlCost }, { ...keyOf(data), name: "fund", when: new Date(timestamp), symbol: data.symbol }));
+ * ```
+ */
+declare class Budget {
+    private readonly params;
+    constructor(params: {
+        name: BudgetName;
+        initialCapital: number;
+    });
+    /**
+     * Names of the budgets constructed in this process, in construction order.
+     * @returns Budget names
+     */
+    static _getNames: () => BudgetName[];
+    /**
+     * Enables budget storage. Uses singleshot so that `disable()` and `clear()`
+     * behave like `State`'s; there are no event subscriptions — the record is not
+     * bound to a signal and is not cleaned up on its close.
+     *
+     * @returns Cleanup function
+     */
+    static enable: (() => (...args: any[]) => any) & functools_kit.ISingleshotClearable<() => (...args: any[]) => any>;
+    /**
+     * Disables budget storage.
+     * Safe to call multiple times.
+     */
+    static disable: () => void;
+    /** Fold of the record up to `context.when`, routed to BudgetBacktest / BudgetLive by `context.backtest` */
+    private static _getValue;
+    /** Insert an action at `context.when`, routed to BudgetBacktest / BudgetLive by `context.backtest` */
+    private static _setValue;
+    /**
+     * Rows of the budget markdown report (`BudgetMarkdownService`) accumulated
+     * for a record: every row inserted since `Markdown.enable()`, newest first,
+     * capped by `CC_MAX_BUDGET_MARKDOWN_ROWS`. The record key is taken as given
+     * (no schema validation): a budget needs no schema of its own.
+     *
+     * @param context - Record key (strategy, exchange, frame) and the budget name
+     * @param backtest - Whether to query the backtest record (default: false)
+     * @returns Promise resolving to BudgetStatisticsModel
+     */
+    static getData: (context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+        name: BudgetName;
+    }, backtest?: boolean) => Promise<BudgetStatisticsModel>;
+    /**
+     * Markdown report of the budget journal rows accumulated for a record
+     * (`# Budget Report: {strategyName}:{name}`).
+     *
+     * @param context - Record key (strategy, exchange, frame) and the budget name
+     * @param backtest - Whether to query the backtest record (default: false)
+     * @param columns - Optional column configuration (default: COLUMN_CONFIG.budget_columns)
+     * @returns Promise resolving to the markdown string
+     */
+    static getReport: (context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+        name: BudgetName;
+    }, backtest?: boolean, columns?: Columns$c[]) => Promise<string>;
+    /**
+     * Generates the markdown report and saves it to disk via `MarkdownWriter`.
+     *
+     * @param context - Record key (strategy, exchange, frame) and the budget name
+     * @param backtest - Whether to query the backtest record (default: false)
+     * @param path - Output directory path (default: "./dump/budget")
+     * @param columns - Optional column configuration (default: COLUMN_CONFIG.budget_columns)
+     */
+    static dump: (context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+        name: BudgetName;
+    }, backtest?: boolean, path?: string, columns?: Columns$c[]) => Promise<void>;
+    /**
+     * Context-free balance at `context.when`.
+     * @param context - Record key, budget name, logical time and symbol
+     * @returns Capital, deployed, free and assets as of `when`
+     * @throws Error if Budget is not enabled
+     */
+    static _getBalance: (context: IBudgetContext) => Promise<IBudgetBalance>;
+    /**
+     * Context-free free balance (capital − deployed) at `context.when`.
+     * @param context - Record key, budget name, logical time and symbol
+     * @returns Free balance (negative only after an overdraft)
+     * @throws Error if Budget is not enabled
+     */
+    static _getFree: (context: IBudgetContext) => Promise<number>;
+    /**
+     * Context-free journal up to `context.when`, ascending.
+     * @param context - Record key, budget name, logical time and symbol
+     * @returns Visible rows (a copy)
+     * @throws Error if Budget is not enabled
+     */
+    static _getHistory: (context: IBudgetContext) => Promise<IBudgetHistoryRow[]>;
+    /**
+     * Context-free reserve: free → deployed under `dto.id` at `context.when`.
+     * Refused (a `reject` row, then BudgetRejectedError) when `dto.amount` exceeds
+     * the free balance as of `when`.
+     * @param dto - Reserve id, amount and optional note
+     * @param context - Record key, budget name, logical time and symbol
+     * @returns Balance after the reserve
+     * @throws BudgetRejectedError when the free balance is insufficient
+     * @throws Error if Budget is not enabled, the amount is invalid or the id is already open
+     */
+    static _reserve: (dto: IBudgetReserveDto, context: IBudgetContext) => Promise<IBudgetBalance>;
+    /**
+     * Context-free release: deployed → free for `dto.id`, `dto.pnl` booked on capital.
+     * A second release of the same id (or of an id never reserved) is a no-op.
+     * @param dto - Reserve id, optional realized pnl and note
+     * @param context - Record key, budget name, logical time and symbol
+     * @returns Balance after the release
+     * @throws Error if Budget is not enabled
+     */
+    static _release: (dto: IBudgetReleaseDto, context: IBudgetContext) => Promise<IBudgetBalance>;
+    /**
+     * Context-free deposit of `dto.amount` units of `dto.asset` at `context.when`.
+     * @param dto - Asset, units and optional note
+     * @param context - Record key, budget name, logical time and symbol
+     * @returns Balance after the deposit
+     * @throws Error if Budget is not enabled or the amount is invalid
+     */
+    static _deposit: (dto: IBudgetDepositDto, context: IBudgetContext) => Promise<IBudgetBalance>;
+    /**
+     * Context-free withdrawal of `dto.amount` units of `dto.asset` at `context.when`.
+     * Refused (a `reject` row, then BudgetRejectedError) when more than held as of `when`.
+     * @param dto - Asset, units and optional note
+     * @param context - Record key, budget name, logical time and symbol
+     * @returns Balance after the withdrawal
+     * @throws BudgetRejectedError when the held amount is insufficient
+     * @throws Error if Budget is not enabled or the amount is invalid
+     */
+    static _withdraw: (dto: IBudgetWithdrawDto, context: IBudgetContext) => Promise<IBudgetBalance>;
+    /** Context of the instance methods: record key, logical time and symbol from the execution / method context */
+    private getContext;
+    /**
+     * Balance at the logical time of the current execution context.
+     * @returns Capital, deployed, free and assets as of `when`
+     * @throws Error if no execution/method context
+     */
+    getBalance: () => Promise<IBudgetBalance>;
+    /**
+     * Free balance (capital − deployed) at the logical time of the current execution context.
+     * @returns Free balance (negative only after an overdraft)
+     * @throws Error if no execution/method context
+     */
+    getFree: () => Promise<number>;
+    /**
+     * Journal up to the logical time of the current execution context, ascending.
+     * @returns Visible rows (a copy)
+     * @throws Error if no execution/method context
+     */
+    getHistory: () => Promise<IBudgetHistoryRow[]>;
+    /**
+     * Reserve: free → deployed under `dto.id` at the current logical time.
+     * @param dto - Reserve id, amount and optional note
+     * @returns Balance after the reserve
+     * @throws BudgetRejectedError when the free balance is insufficient
+     * @throws Error if no execution/method context
+     */
+    reserve: (dto: IBudgetReserveDto) => Promise<IBudgetBalance>;
+    /**
+     * Release: deployed → free for `dto.id`, `dto.pnl` booked on capital, at the current logical time.
+     * @param dto - Reserve id, optional realized pnl and note
+     * @returns Balance after the release
+     * @throws Error if no execution/method context
+     */
+    release: (dto: IBudgetReleaseDto) => Promise<IBudgetBalance>;
+    /**
+     * Deposit `dto.amount` units of `dto.asset` at the current logical time.
+     * @param dto - Asset, units and optional note
+     * @returns Balance after the deposit
+     * @throws Error if no execution/method context
+     */
+    deposit: (dto: IBudgetDepositDto) => Promise<IBudgetBalance>;
+    /**
+     * Withdraw `dto.amount` units of `dto.asset` at the current logical time.
+     * @param dto - Asset, units and optional note
+     * @returns Balance after the withdrawal
+     * @throws BudgetRejectedError when the held amount is insufficient
+     * @throws Error if no execution/method context
+     */
+    withdraw: (dto: IBudgetWithdrawDto) => Promise<IBudgetBalance>;
+}
+/**
+ * Global singleton instance of BudgetLiveAdapter.
+ * Provides live trading budget storage with pluggable backends.
+ */
+declare const BudgetLive: BudgetLiveAdapter;
+/**
+ * Global singleton instance of BudgetBacktestAdapter.
+ * Provides backtest budget storage with pluggable backends.
+ */
+declare const BudgetBacktest: BudgetBacktestAdapter;
+
+/**
+ * Contract for budget journal rows emitted by the framework.
+ * One event per row inserted into a budget journal (`reserve`, `release`,
+ * `reject`, `deposit`, `withdraw`) by `BudgetLocalInstance` / `BudgetPersistInstance`.
+ * The record key (strategy, exchange, frame, backtest) plus the budget name
+ * identify the journal; the row carries the balance AFTER it at insertion time.
+ * Fed into `budget.jsonl` (`BudgetReportService`) and the `budget` markdown
+ * report (`BudgetMarkdownService`); user code can listen via `listenBudget`.
+ */
+interface BudgetContract {
+    /** Strategy name of the run (part of the record key) */
+    strategyName: StrategyName;
+    /** Exchange name of the run (part of the record key) */
+    exchangeName: ExchangeName;
+    /** Frame name of the run (part of the record key; empty string in live mode) */
+    frameName: FrameName;
+    /** Backtest or live record (part of the record key) */
+    backtest: boolean;
+    /** Budget name — the bucket inside the record */
+    name: BudgetName;
+    /** Symbol that authored the row, null when the call had no symbol */
+    symbol: string | null;
+    /** Logical time of the action (the row's `timestamp`, milliseconds since epoch) */
+    timestamp: number;
+    /**
+     * Logical time as a `Date` instance. Backtest mode: virtual execution time;
+     * live mode: wall-clock time of the call. Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
+    /** The inserted journal row (a copy) with the balance after it */
+    row: IBudgetHistoryRow;
+}
+
+/**
+ * Subscribes to all signal events with queued async processing.
+ *
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle signal events (idle, opened, active, closed)
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenSignal } from "./function/event";
+ *
+ * const unsubscribe = listenSignal((event) => {
+ *   if (event.action === "opened") {
+ *     console.log("New signal opened:", event.signal);
+ *   } else if (event.action === "closed") {
+ *     console.log("Signal closed with PNL:", event.pnl.pnlPercentage);
+ *   }
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenSignal(fn: (event: IStrategyTickResult) => void): () => void;
+/**
+ * Subscribes to filtered signal events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific signal conditions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalOnce } from "./function/event";
+ *
+ * // Wait for first take profit hit
+ * listenSignalOnce(
+ *   (event) => event.action === "closed" && event.closeReason === "take_profit",
+ *   (event) => {
+ *     console.log("Take profit hit! PNL:", event.pnl.pnlPercentage);
+ *   }
+ * );
+ *
+ * // Wait for any signal to close on BTCUSDT
+ * const cancel = listenSignalOnce(
+ *   (event) => event.action === "closed" && event.signal.symbol === "BTCUSDT",
+ *   (event) => console.log("BTCUSDT signal closed")
+ * );
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+declare function listenSignalOnce(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
+/**
+ * Subscribes to live trading signal events with queued async processing.
+ *
+ * Only receives events from Live.run() execution.
+ * Events are processed sequentially in order received.
+ *
+ * @param fn - Callback function to handle live signal events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalLive } from "./function/event";
+ *
+ * const unsubscribe = listenSignalLive((event) => {
+ *   if (event.action === "closed") {
+ *     console.log("Live signal closed:", event.pnl.pnlPercentage);
+ *   }
+ * });
+ * ```
+ */
+declare function listenSignalLive(fn: (event: IStrategyTickResult) => void): () => void;
+/**
+ * Subscribes to filtered live signal events with one-time execution.
+ *
+ * Only receives events from Live.run() execution.
+ * Executes callback once and automatically unsubscribes.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalLiveOnce } from "./function/event";
+ *
+ * // Wait for first live take profit hit
+ * listenSignalLiveOnce(
+ *   (event) => event.action === "closed" && event.closeReason === "take_profit",
+ *   (event) => console.log("Live take profit:", event.pnl.pnlPercentage)
+ * );
+ * ```
+ */
+declare function listenSignalLiveOnce(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
+/**
+ * Subscribes to backtest signal events with queued async processing.
+ *
+ * Only receives events from Backtest.run() execution.
+ * Events are processed sequentially in order received.
+ *
+ * @param fn - Callback function to handle backtest signal events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalBacktest } from "./function/event";
+ *
+ * const unsubscribe = listenSignalBacktest((event) => {
+ *   if (event.action === "closed") {
+ *     console.log("Backtest signal closed:", event.pnl.pnlPercentage);
+ *   }
+ * });
+ * ```
+ */
+declare function listenSignalBacktest(fn: (event: IStrategyTickResult) => void): () => void;
+/**
+ * Subscribes to filtered backtest signal events with one-time execution.
+ *
+ * Only receives events from Backtest.run() execution.
+ * Executes callback once and automatically unsubscribes.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalBacktestOnce } from "./function/event";
+ *
+ * // Wait for first backtest stop loss hit
+ * listenSignalBacktestOnce(
+ *   (event) => event.action === "closed" && event.closeReason === "stop_loss",
+ *   (event) => console.log("Backtest stop loss:", event.pnl.pnlPercentage)
+ * );
+ * ```
+ */
+declare function listenSignalBacktestOnce(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
+/**
+ * Subscribes to recoverable execution errors with queued async processing.
+ *
+ * Listens to recoverable errors during strategy execution (e.g., failed API calls).
+ * These errors are caught and handled gracefully - execution continues.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle error events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenError } from "./function/event";
+ *
+ * const unsubscribe = listenError((error) => {
+ *   console.error("Recoverable error (execution continues):", error.message);
+ *   // Log to monitoring service, send alerts, etc.
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenError(fn: (error: Error) => void): () => void;
+/**
+ * Subscribes to fatal execution errors with queued async processing.
+ *
+ * Listens to critical errors that terminate execution (Live.background, Backtest.background, Walker.background).
+ * Unlike listenError (recoverable errors), these errors stop the current process.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle fatal error events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenExit } from "./function/event";
+ *
+ * const unsubscribe = listenExit((error) => {
+ *   console.error("Fatal error (execution terminated):", error.message);
+ *   // Log to monitoring, send alerts, restart process, etc.
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenExit(fn: (error: Error) => void): () => void;
+/**
+ * Subscribes to live background execution completion events with queued async processing.
+ *
+ * Emits when Live.background() completes execution.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle completion events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenDoneLive, Live } from "backtest-kit";
+ *
+ * const unsubscribe = listenDoneLive((event) => {
+ *   console.log("Live completed:", event.strategyName, event.exchangeName, event.symbol);
+ * });
+ *
+ * Live.background("BTCUSDT", {
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance"
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenDoneLive(fn: (event: DoneContract) => void): () => void;
+/**
+ * Subscribes to filtered live background execution completion events with one-time execution.
+ *
+ * Emits when Live.background() completes execution.
+ * Executes callback once and automatically unsubscribes.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenDoneLiveOnce, Live } from "backtest-kit";
+ *
+ * // Wait for first live completion
+ * listenDoneLiveOnce(
+ *   (event) => event.symbol === "BTCUSDT",
+ *   (event) => console.log("BTCUSDT live completed:", event.strategyName)
+ * );
+ *
+ * Live.background("BTCUSDT", {
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance"
+ * });
+ * ```
+ */
+declare function listenDoneLiveOnce(filterFn: (event: DoneContract) => boolean | Promise<boolean>, fn: (event: DoneContract) => void): () => void;
+/**
+ * Subscribes to backtest background execution completion events with queued async processing.
+ *
+ * Emits when Backtest.background() completes execution.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle completion events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenDoneBacktest, Backtest } from "backtest-kit";
+ *
+ * const unsubscribe = listenDoneBacktest((event) => {
+ *   console.log("Backtest completed:", event.strategyName, event.exchangeName, event.symbol);
+ * });
+ *
+ * Backtest.background("BTCUSDT", {
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest"
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenDoneBacktest(fn: (event: DoneContract) => void): () => void;
+/**
+ * Subscribes to filtered backtest background execution completion events with one-time execution.
+ *
+ * Emits when Backtest.background() completes execution.
+ * Executes callback once and automatically unsubscribes.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenDoneBacktestOnce, Backtest } from "backtest-kit";
+ *
+ * // Wait for first backtest completion
+ * listenDoneBacktestOnce(
+ *   (event) => event.symbol === "BTCUSDT",
+ *   (event) => console.log("BTCUSDT backtest completed:", event.strategyName)
+ * );
+ *
+ * Backtest.background("BTCUSDT", {
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest"
+ * });
+ * ```
+ */
+declare function listenDoneBacktestOnce(filterFn: (event: DoneContract) => boolean | Promise<boolean>, fn: (event: DoneContract) => void): () => void;
+/**
+ * Subscribes to walker background execution completion events with queued async processing.
+ *
+ * Emits when Walker.background() completes execution.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle completion events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenDoneWalker, Walker } from "backtest-kit";
+ *
+ * const unsubscribe = listenDoneWalker((event) => {
+ *   console.log("Walker completed:", event.strategyName, event.exchangeName, event.symbol);
+ * });
+ *
+ * Walker.background("BTCUSDT", {
+ *   walkerName: "my-walker"
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenDoneWalker(fn: (event: DoneContract) => void): () => void;
+/**
+ * Subscribes to filtered walker background execution completion events with one-time execution.
+ *
+ * Emits when Walker.background() completes execution.
+ * Executes callback once and automatically unsubscribes.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenDoneWalkerOnce, Walker } from "backtest-kit";
+ *
+ * // Wait for first walker completion
+ * listenDoneWalkerOnce(
+ *   (event) => event.symbol === "BTCUSDT",
+ *   (event) => console.log("BTCUSDT walker completed:", event.strategyName)
+ * );
+ *
+ * Walker.background("BTCUSDT", {
+ *   walkerName: "my-walker"
+ * });
+ * ```
+ */
+declare function listenDoneWalkerOnce(filterFn: (event: DoneContract) => boolean | Promise<boolean>, fn: (event: DoneContract) => void): () => void;
+/**
+ * Subscribes to backtest progress events with queued async processing.
+ *
+ * Emits during Backtest.background() execution to track progress.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle progress events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenBacktestProgress, Backtest } from "backtest-kit";
+ *
+ * const unsubscribe = listenBacktestProgress((event) => {
+ *   console.log(`Progress: ${(event.progress * 100).toFixed(2)}%`);
+ *   console.log(`${event.processedFrames} / ${event.totalFrames} frames`);
+ *   console.log(`Strategy: ${event.strategyName}, Symbol: ${event.symbol}`);
+ * });
+ *
+ * Backtest.background("BTCUSDT", {
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest"
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenBacktestProgress(fn: (event: ProgressBacktestContract) => void): () => void;
+/**
+ * Subscribes to walker progress events with queued async processing.
+ *
+ * Emits during Walker.run() execution after each strategy completes.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle walker progress events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenWalkerProgress, Walker } from "backtest-kit";
+ *
+ * const unsubscribe = listenWalkerProgress((event) => {
+ *   console.log(`Progress: ${(event.progress * 100).toFixed(2)}%`);
+ *   console.log(`${event.processedStrategies} / ${event.totalStrategies} strategies`);
+ *   console.log(`Walker: ${event.walkerName}, Symbol: ${event.symbol}`);
+ * });
+ *
+ * Walker.run("BTCUSDT", {
+ *   walkerName: "my-walker",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest"
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenWalkerProgress(fn: (event: ProgressWalkerContract) => void): () => void;
+/**
+ * Subscribes to performance metric events with queued async processing.
+ *
+ * Emits during strategy execution to track timing metrics for operations.
+ * Useful for profiling and identifying performance bottlenecks.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle performance events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenPerformance, Backtest } from "backtest-kit";
+ *
+ * const unsubscribe = listenPerformance((event) => {
+ *   console.log(`${event.metricType}: ${event.duration.toFixed(2)}ms`);
+ *   if (event.duration > 100) {
+ *     console.warn("Slow operation detected:", event.metricType);
+ *   }
+ * });
+ *
+ * Backtest.background("BTCUSDT", {
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest"
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenPerformance(fn: (event: PerformanceContract) => void): () => void;
+/**
+ * Subscribes to walker progress events with queued async processing.
+ *
+ * Emits during Walker.run() execution after each strategy completes.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle walker progress events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenWalker, Walker } from "backtest-kit";
+ *
+ * const unsubscribe = listenWalker((event) => {
+ *   console.log(`Progress: ${event.strategiesTested} / ${event.totalStrategies}`);
+ *   console.log(`Best strategy: ${event.bestStrategy} (${event.bestMetric})`);
+ *   console.log(`Current strategy: ${event.strategyName} (${event.metricValue})`);
+ * });
+ *
+ * Walker.run("BTCUSDT", {
+ *   walkerName: "my-walker",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest"
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenWalker(fn: (event: WalkerContract) => void): () => void;
+/**
+ * Subscribes to filtered walker progress events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific walker conditions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenWalkerOnce, Walker } from "backtest-kit";
+ *
+ * // Wait for walker to complete all strategies
+ * listenWalkerOnce(
+ *   (event) => event.strategiesTested === event.totalStrategies,
+ *   (event) => {
+ *     console.log("Walker completed!");
+ *     console.log("Best strategy:", event.bestStrategy, event.bestMetric);
+ *   }
+ * );
+ *
+ * // Wait for specific strategy to be tested
+ * const cancel = listenWalkerOnce(
+ *   (event) => event.strategyName === "my-strategy-v2",
+ *   (event) => console.log("Strategy v2 tested:", event.metricValue)
+ * );
+ *
+ * Walker.run("BTCUSDT", {
+ *   walkerName: "my-walker",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest"
+ * });
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+declare function listenWalkerOnce(filterFn: (event: WalkerContract) => boolean | Promise<boolean>, fn: (event: WalkerContract) => void): () => void;
+/**
+ * Subscribes to walker completion events with queued async processing.
+ *
+ * Emits when Walker.run() completes testing all strategies.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle walker completion event
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenWalkerComplete, Walker } from "backtest-kit";
+ *
+ * const unsubscribe = listenWalkerComplete((results) => {
+ *   console.log(`Walker ${results.walkerName} completed!`);
+ *   console.log(`Best strategy: ${results.bestStrategy}`);
+ *   console.log(`Best ${results.metric}: ${results.bestMetric}`);
+ *   console.log(`Tested ${results.totalStrategies} strategies`);
+ * });
+ *
+ * Walker.run("BTCUSDT", {
+ *   walkerName: "my-walker",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest"
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenWalkerComplete(fn: (event: WalkerCompleteContract) => void): () => void;
+/**
+ * Subscribes to risk validation errors with queued async processing.
+ *
+ * Emits when risk validation functions throw errors during signal checking.
+ * Useful for debugging and monitoring risk validation failures.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle validation errors
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenValidation } from "./function/event";
+ *
+ * const unsubscribe = listenValidation((error) => {
+ *   console.error("Risk validation error:", error.message);
+ *   // Log to monitoring service for debugging
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenValidation(fn: (error: Error) => void): () => void;
+/**
+ * Subscribes to partial profit level events with queued async processing.
+ *
+ * Emits when a signal reaches a profit level milestone (10%, 20%, 30%, etc).
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle partial profit events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenPartialProfitAvailable } from "./function/event";
+ *
+ * const unsubscribe = listenPartialProfitAvailable((event) => {
+ *   console.log(`Signal ${event.data.id} reached ${event.level}% profit`);
+ *   console.log(`Symbol: ${event.symbol}, Price: ${event.currentPrice}`);
+ *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenPartialProfitAvailable(fn: (event: PartialProfitContract) => void): () => void;
+/**
+ * Subscribes to filtered partial profit level events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific profit conditions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenPartialProfitOnce } from "./function/event";
+ *
+ * // Wait for first 50% profit level on any signal
+ * listenPartialProfitOnce(
+ *   (event) => event.level === 50,
+ *   (event) => console.log("50% profit reached:", event.data.id)
+ * );
+ *
+ * // Wait for 30% profit on BTCUSDT
+ * const cancel = listenPartialProfitOnce(
+ *   (event) => event.symbol === "BTCUSDT" && event.level === 30,
+ *   (event) => console.log("BTCUSDT hit 30% profit")
+ * );
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+declare function listenPartialProfitAvailableOnce(filterFn: (event: PartialProfitContract) => boolean | Promise<boolean>, fn: (event: PartialProfitContract) => void): () => void;
+/**
+ * Subscribes to partial loss level events with queued async processing.
+ *
+ * Emits when a signal reaches a loss level milestone (10%, 20%, 30%, etc).
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle partial loss events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenPartialLossAvailable } from "./function/event";
+ *
+ * const unsubscribe = listenPartialLossAvailable((event) => {
+ *   console.log(`Signal ${event.data.id} reached ${event.level}% loss`);
+ *   console.log(`Symbol: ${event.symbol}, Price: ${event.currentPrice}`);
+ *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenPartialLossAvailable(fn: (event: PartialLossContract) => void): () => void;
+/**
+ * Subscribes to filtered partial loss level events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific loss conditions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenPartialLossOnce } from "./function/event";
+ *
+ * // Wait for first 20% loss level on any signal
+ * listenPartialLossOnce(
+ *   (event) => event.level === 20,
+ *   (event) => console.log("20% loss reached:", event.data.id)
+ * );
+ *
+ * // Wait for 10% loss on ETHUSDT in live mode
+ * const cancel = listenPartialLossOnce(
+ *   (event) => event.symbol === "ETHUSDT" && event.level === 10 && !event.backtest,
+ *   (event) => console.log("ETHUSDT hit 10% loss in live mode")
+ * );
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+declare function listenPartialLossAvailableOnce(filterFn: (event: PartialLossContract) => boolean | Promise<boolean>, fn: (event: PartialLossContract) => void): () => void;
+/**
+ * Subscribes to breakeven protection events with queued async processing.
+ *
+ * Emits when a signal's stop-loss is moved to breakeven (entry price).
+ * This happens when price moves far enough in profit direction to cover transaction costs.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle breakeven events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenBreakevenAvailable } from "./function/event";
+ *
+ * const unsubscribe = listenBreakevenAvailable((event) => {
+ *   console.log(`Signal ${event.data.id} reached breakeven`);
+ *   console.log(`Symbol: ${event.symbol}, Position: ${event.data.position}`);
+ *   console.log(`Entry: ${event.data.priceOpen}, Current: ${event.currentPrice}`);
+ *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenBreakevenAvailable(fn: (event: BreakevenContract) => void): () => void;
+/**
+ * Subscribes to filtered breakeven protection events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific breakeven conditions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenBreakevenOnce } from "./function/event";
+ *
+ * // Wait for first breakeven on any signal
+ * listenBreakevenOnce(
+ *   (event) => true,
+ *   (event) => console.log("First breakeven reached:", event.data.id)
+ * );
+ *
+ * // Wait for breakeven on BTCUSDT LONG position
+ * const cancel = listenBreakevenOnce(
+ *   (event) => event.symbol === "BTCUSDT" && event.data.position === "long",
+ *   (event) => console.log("BTCUSDT LONG reached breakeven at", event.currentPrice)
+ * );
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+declare function listenBreakevenAvailableOnce(filterFn: (event: BreakevenContract) => boolean | Promise<boolean>, fn: (event: BreakevenContract) => void): () => void;
+/**
+ * Subscribes to risk rejection events with queued async processing.
+ *
+ * Emits ONLY when a signal is rejected due to risk validation failure.
+ * Does not emit for allowed signals (prevents spam).
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle risk rejection events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenRisk } from "./function/event";
+ *
+ * const unsubscribe = listenRisk((event) => {
+ *   console.log(`[RISK REJECTED] Signal for ${event.symbol}`);
+ *   console.log(`Strategy: ${event.strategyName}`);
+ *   console.log(`Position: ${event.pendingSignal.position}`);
+ *   console.log(`Active positions: ${event.activePositionCount}`);
+ *   console.log(`Reason: ${event.comment}`);
+ *   console.log(`Price: ${event.currentPrice}`);
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenRisk(fn: (event: RiskContract) => void): () => void;
+/**
+ * Subscribes to filtered risk rejection events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific risk rejection conditions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenRiskOnce } from "./function/event";
+ *
+ * // Wait for first risk rejection on BTCUSDT
+ * listenRiskOnce(
+ *   (event) => event.symbol === "BTCUSDT",
+ *   (event) => {
+ *     console.log("BTCUSDT signal rejected!");
+ *     console.log("Reason:", event.comment);
+ *   }
+ * );
+ *
+ * // Wait for rejection due to position limit
+ * const cancel = listenRiskOnce(
+ *   (event) => event.comment.includes("Max") && event.activePositionCount >= 3,
+ *   (event) => console.log("Position limit reached:", event.activePositionCount)
+ * );
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+declare function listenRiskOnce(filterFn: (event: RiskContract) => boolean | Promise<boolean>, fn: (event: RiskContract) => void): () => void;
+/**
+ * Subscribes to ping events during scheduled signal monitoring with queued async processing.
+ *
+ * Events are emitted every minute when a scheduled signal is being monitored (waiting for activation).
+ * Allows tracking of scheduled signal lifecycle and custom monitoring logic.
+ *
+ * @param fn - Callback function to handle ping events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenPing } from "./function/event";
+ *
+ * const unsubscribe = listenPing((event) => {
+ *   console.log(`Ping for ${event.symbol} at ${new Date(event.timestamp).toISOString()}`);
+ *   console.log(`Strategy: ${event.strategyName}, Exchange: ${event.exchangeName}`);
+ *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenSchedulePing(fn: (event: SchedulePingContract) => void): () => void;
+/**
+ * Subscribes to filtered ping events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific ping conditions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenPingOnce } from "./function/event";
+ *
+ * // Wait for first ping on BTCUSDT
+ * listenPingOnce(
+ *   (event) => event.symbol === "BTCUSDT",
+ *   (event) => console.log("First BTCUSDT ping received")
+ * );
+ *
+ * // Wait for ping in backtest mode
+ * const cancel = listenPingOnce(
+ *   (event) => event.backtest === true,
+ *   (event) => console.log("Backtest ping received at", new Date(event.timestamp))
+ * );
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+declare function listenSchedulePingOnce(filterFn: (event: SchedulePingContract) => boolean | Promise<boolean>, fn: (event: SchedulePingContract) => void): () => void;
+/**
+ * Subscribes to resting-entry (scheduled order) lifecycle events with queued async processing.
+ *
+ * Emitted when a scheduled signal is created (action "scheduled") - the strategy asked for an
+ * entry at a specific price and the engine now waits for the market to reach it - or when that
+ * entry is dropped before activating (action "cancelled" with reason "timeout" / "price_reject" /
+ * "user"). Fires in both live and backtest.
+ *
+ * IMPORTANT: The scheduled -> active transition (activation) is NOT reported here. Activation
+ * produces an "opened" event on the regular signal emitters (listenSignal) instead.
+ *
+ * SYSTEM CHANNEL. This is the same stream the framework itself consumes: Broker subscribes to it
+ * and fans each event out to the registered adapter as `onSignalScheduleOpen` (action "scheduled",
+ * payload BrokerScheduleOpenPayload) or `onSignalScheduleCancelled` (action "cancelled", payload
+ * BrokerScheduleCancelledPayload, carrying `reason`). Because it is systemic it is NOT gated on
+ * "is a scheduled signal still live" - every emission is delivered, including the cancellation that
+ * reports the entry is already gone.
+ *
+ * For exchange integration prefer Broker.useBrokerAdapter with those two hooks; this listener is
+ * for observation - logging, notifications, audit.
+ *
+ * Events are processed sequentially in order received, even if callback is async.
+ *
+ * @param fn - Callback function to handle scheduled lifecycle events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenOrderSchedule } from "./function/event";
+ *
+ * const unsubscribe = listenOrderSchedule((event) => {
+ *   if (event.action === "scheduled") {
+ *     console.log(`Scheduled ${event.symbol} @ ${event.data.priceOpen}`);
+ *   } else {
+ *     console.log(`Cancelled ${event.symbol} (reason: ${event.reason})`);
+ *   }
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenOrderSchedule(fn: (event: ScheduleEventContract) => void): () => void;
+/**
+ * Subscribes to pending signal lifecycle events (open and close) with queued async processing.
+ *
+ * Emitted when a pending position is opened (action "opened": new signal / immediate / scheduled
+ * or user activation) or closed (action "closed" with closeReason "take_profit" / "stop_loss" /
+ * "time_expired" / "closed"), in both live and backtest.
+ *
+ * Events are processed sequentially in order received, even if callback is async.
+ *
+ * @param fn - Callback function to handle pending lifecycle events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalEvent } from "./function/event";
+ *
+ * const unsubscribe = listenSignalEvent((event) => {
+ *   if (event.action === "opened") {
+ *     console.log(`Opened ${event.symbol} @ ${event.data.priceOpen}`);
+ *   } else {
+ *     console.log(`Closed ${event.symbol} (reason: ${event.closeReason})`);
+ *   }
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenSignalEvent(fn: (event: SignalEventContract) => void): () => void;
+/**
+ * Subscribes to filtered pending lifecycle events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for a specific open or close.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalEventOnce } from "./function/event";
+ *
+ * // Wait for the first close on BTCUSDT
+ * listenSignalEventOnce(
+ *   (event) => event.symbol === "BTCUSDT" && event.action === "closed",
+ *   (event) => console.log("BTCUSDT closed:", event.closeReason)
+ * );
+ * ```
+ */
+declare function listenSignalEventOnce(filterFn: (event: SignalEventContract) => boolean | Promise<boolean>, fn: (event: SignalEventContract) => void): () => void;
+/**
+ * Subscribes to active ping events with queued async processing.
+ *
+ * Listens for active pending signal monitoring events emitted every minute.
+ * Useful for tracking active signal lifecycle and implementing dynamic management logic.
+ *
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle active ping events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenActivePing } from "./function/event";
+ *
+ * const unsubscribe = listenActivePing((event) => {
+ *   console.log(`[${event.backtest ? "Backtest" : "Live"}] Active Ping`);
+ *   console.log(`Symbol: ${event.symbol}, Strategy: ${event.strategyName}`);
+ *   console.log(`Signal ID: ${event.data.id}, Position: ${event.data.position}`);
+ *   console.log(`Timestamp: ${new Date(event.timestamp).toISOString()}`);
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenActivePing(fn: (event: ActivePingContract) => void): () => void;
+/**
+ * Subscribes to filtered active ping events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific active ping conditions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenActivePingOnce } from "./function/event";
+ *
+ * // Wait for first active ping on BTCUSDT
+ * listenActivePingOnce(
+ *   (event) => event.symbol === "BTCUSDT",
+ *   (event) => console.log("First BTCUSDT active ping received")
+ * );
+ *
+ * // Wait for active ping in backtest mode
+ * const cancel = listenActivePingOnce(
+ *   (event) => event.backtest === true,
+ *   (event) => console.log("Backtest active ping received at", new Date(event.timestamp))
+ * );
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+declare function listenActivePingOnce(filterFn: (event: ActivePingContract) => boolean | Promise<boolean>, fn: (event: ActivePingContract) => void): () => void;
+/**
+ * Subscribes to idle ping events with queued async processing.
+ *
+ * Emits every tick when there is no pending or scheduled signal being monitored.
+ *
+ * @param fn - Callback function to handle idle ping events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenIdlePing(fn: (event: IdlePingContract) => void): () => void;
+/**
+ * Subscribes to filtered idle ping events with one-time execution.
+ *
+ * @param filterFn - Predicate to filter events
+ * @param fn - Callback function to handle the matching event
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+declare function listenIdlePingOnce(filterFn: (event: IdlePingContract) => boolean | Promise<boolean>, fn: (event: IdlePingContract) => void): () => void;
+/**
+ * Subscribes to strategy management events with queued async processing.
+ *
+ * Emits when strategy management actions are executed:
+ * - cancel-scheduled: Scheduled signal cancelled
+ * - close-pending: Pending signal closed
+ * - partial-profit: Partial close at profit level
+ * - partial-loss: Partial close at loss level
+ * - trailing-stop: Stop-loss adjusted
+ * - trailing-take: Take-profit adjusted
+ * - breakeven: Stop-loss moved to entry price
+ *
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle strategy commit events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenStrategyCommit } from "./function/event";
+ *
+ * const unsubscribe = listenStrategyCommit((event) => {
+ *   console.log(`[${event.action}] ${event.symbol}`);
+ *   console.log(`Strategy: ${event.strategyName}, Exchange: ${event.exchangeName}`);
+ *   if (event.action === "partial-profit") {
+ *     console.log(`Closed ${event.percentToClose}% at ${event.currentPrice}`);
+ *   }
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenStrategyCommit(fn: (event: StrategyCommitContract) => void): () => void;
+/**
+ * Subscribes to filtered strategy management events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific strategy actions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenStrategyCommitOnce } from "./function/event";
+ *
+ * // Wait for first trailing stop adjustment
+ * listenStrategyCommitOnce(
+ *   (event) => event.action === "trailing-stop",
+ *   (event) => console.log("Trailing stop adjusted:", event.symbol)
+ * );
+ *
+ * // Wait for breakeven on BTCUSDT
+ * const cancel = listenStrategyCommitOnce(
+ *   (event) => event.action === "breakeven" && event.symbol === "BTCUSDT",
+ *   (event) => console.log("BTCUSDT moved to breakeven at", event.currentPrice)
+ * );
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+declare function listenStrategyCommitOnce(filterFn: (event: StrategyCommitContract) => boolean | Promise<boolean>, fn: (event: StrategyCommitContract) => void): () => void;
+/**
+ * Subscribes to signal synchronization events with queued async processing.
+ * This is an order GATE: a throw from the listener rejects the open/close.
+ *
+ * Emits when signals are being synchronized (e.g. pending signal being opened/closed).
+ *
+ * Throw semantics (resolved into IBrokerOrderVerdict, identical to the Broker
+ * `onOrderOpenCommit` / `onOrderCloseCommit` channel):
+ * - plain Error or OrderTransientError → "transient": the open retries
+ *   identity-stably (same signalId, `event.attempt` increments) up to
+ *   CC_ORDER_OPEN_RETRY_ATTEMPTS; the close retries up to
+ *   CC_ORDER_CLOSE_RETRY_ATTEMPTS, then the engine FORCE-CLOSES its state with the
+ *   original closeReason. Exhaustion of either signals a fatal exit (exitEmitter).
+ * - OrderRejectedError → "rejected", TERMINAL at once: the open is dropped
+ *   without arming the retry; the close is force-closed immediately. No exit signal
+ *   (business outcome).
+ * - OrderDeletedError here is a userspace protocol violation (it belongs to
+ *   the CHECK channel) and intentionally degrades to "transient".
+ *
+ * @param fn - Callback function to handle sync events. If the function returns a promise, signal processing will wait until it resolves.
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSync(fn: (event: OrderSyncContract) => void): () => void;
+/**
+ * Subscribes to broker-CONFIRMED order fill events with queued async processing.
+ *
+ * Post-verdict mirror of the order-sync gate: fires ONLY after that gate
+ * resolved into the "confirmed" IBrokerOrderVerdict — the broker adapter acknowledged
+ * the order really executed/placed on the exchange. A transient or terminal
+ * (OrderRejectedError) gate rejection does NOT fire here, and neither does a
+ * FORCE-close performed without broker confirmation.
+ *
+ * Discriminated exactly like OrderSyncContract:
+ * - action "signal-open", type "active" — the position order FILLED;
+ * - action "signal-open", type "schedule" — the resting entry order was PLACED;
+ * - action "signal-close" — the exit order executed.
+ *
+ * Live-only: backtest gates short-circuit to "confirmed" without an exchange, so
+ * nothing is emitted there.
+ *
+ * Unlike listenSync this is a NOTIFICATION channel, not a gate: a throw from the
+ * listener is swallowed at the emission site (logged + errorEmitter) and cannot
+ * affect the already-resolved verdict. Safe for telegram/webhook/audit consumers.
+ *
+ * @param fn - Callback function to handle confirmed fill events. If the function returns a promise, processing is queued sequentially.
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenOrderFill(fn: (event: OrderFillContract) => void): () => void;
+/**
+ * Subscribes to TERMINAL order rejection events with queued async processing.
+ *
+ * Post-verdict mirror of the rejection branch: fires ONLY when the onOrderSync gate
+ * resolved into the "rejected" verdict — the broker adapter threw OrderRejectedError
+ * ("the exchange definitively refused this order, retrying is pointless"). Exactly
+ * once per dropped order attempt: an open consumes its signalId (the whipsaw guard
+ * blocks re-emission of the same id), a close force-closes with the original
+ * closeReason. Transient failures never fire here — they retry silently within the
+ * bounded budgets.
+ *
+ * Live-only: backtest gates short-circuit to "confirmed" without an exchange.
+ *
+ * Like the fill channel this is a NOTIFICATION channel, not a gate: a throw
+ * from the listener is swallowed at the emission site (logged + errorEmitter) and
+ * cannot affect the already-resolved verdict. Safe for telegram/webhook/audit
+ * consumers.
+ *
+ * @param fn - Callback function to handle terminal rejection events. If the function returns a promise, processing is queued sequentially.
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenOrderReject(fn: (event: OrderRejectContract) => void): () => void;
+/**
+ * Subscribes to post-verdict order-check CONTINUE events with queued async processing.
+ *
+ * Paired with the order-stop channel: the pre-verdict check channel fires the
+ * ping REQUEST before the broker adapter answers; this channel carries the resolved
+ * NON-terminal decision — the order is confirmed still open (`event.attempt` 0) or a
+ * transient check failure was tolerated (`event.attempt` > 0) and monitoring
+ * continues. Emitted on every live tick while the monitored signal survives the
+ * check, for both states (`event.type` "active"/"schedule").
+ *
+ * Live-only: backtest never runs order checks. NOTIFICATION channel, not a gate:
+ * a throw from the listener is swallowed at the emission site (logged + errorEmitter)
+ * and cannot affect the already-made monitoring decision.
+ *
+ * @param fn - Callback function to handle continue events. If the function returns a promise, processing is queued sequentially.
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenOrderContinue(fn: (event: OrderContinueContract) => void): () => void;
+/**
+ * Subscribes to post-verdict order-check STOP events with queued async processing.
+ *
+ * Paired with the order-continue channel: fires exactly once per monitored signal
+ * when the check resolved TERMINALLY — `event.reason` "deleted" (OrderDeletedError:
+ * confirmed order-not-found, bypassing the tolerance counter) or "exhausted"
+ * (CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive transient failures spent, or the
+ * legacy config 0). Emitted right BEFORE the teardown: close "closed" for
+ * `event.type` "active", cancel "user" for "schedule". `event.attempt` carries the
+ * final failure streak.
+ *
+ * Live-only: backtest never runs order checks. NOTIFICATION channel, not a gate:
+ * a throw from the listener is swallowed at the emission site (logged + errorEmitter)
+ * and cannot affect the already-made terminal decision.
+ *
+ * @param fn - Callback function to handle stop events. If the function returns a promise, processing is queued sequentially.
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenOrderStop(fn: (event: OrderStopContract) => void): () => void;
+/**
+ * Subscribes to order-check ping events with queued async processing.
+ * This is the order CHECK channel: it decides whether the order behind the monitored
+ * signal is still open on the exchange.
+ *
+ * Emits on every live tick while a signal is monitored, BEFORE completion evaluation,
+ * discriminated by `event.type`: "active" — pending signal (open position), "schedule" —
+ * scheduled signal (resting entry order). Backtest never emits this event.
+ *
+ * Throw semantics (resolved into IBrokerOrderVerdict, identical to the Broker
+ * `onOrderActiveCheck` / `onOrderScheduleCheck` channel):
+ * - plain Error or OrderTransientError → "transient": the failed check is
+ *   TOLERATED (order assumed still open, monitoring continues, `event.attempt`
+ *   increments) up to CC_ORDER_CHECK_RETRY_ATTEMPTS CONSECUTIVE failures — a network
+ *   blip no longer kills a live position; a successful check resets the streak.
+ *   Exhaustion acts terminally (close "closed" / cancel "user") and signals a fatal
+ *   exit (exitEmitter).
+ * - OrderDeletedError → "deleted", TERMINAL at once, bypassing the tolerance:
+ *   the CONFIRMED "order not found by `event.signalId`". A FILLED resting order is
+ *   NOT a deleted order — confirm fills via commitActivateScheduled /
+ *   commitCreateTakeProfit / commitCreateStopLoss instead.
+ * - OrderRejectedError here is a userspace protocol violation (it belongs to
+ *   the GATE channel) and intentionally degrades to "transient".
+ *
+ * @param fn - Callback function to handle check events. If the function returns a promise, signal processing will wait until it resolves.
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenCheck(fn: (event: OrderCheckContract) => void): () => void;
+/**
+ * Subscribes to highest profit events with queued async processing.
+ * Emits when a signal reaches a new highest profit level during its lifecycle.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ * Useful for tracking profit milestones and implementing dynamic management logic.
+ *
+ * @param fn - Callback function to handle highest profit events
+ * @return Unsubscribe function to stop listening to events
+ */
+declare function listenHighestProfit(fn: (event: HighestProfitContract) => void): () => void;
+/**
+ * Subscribes to filtered highest profit events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific profit conditions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+declare function listenHighestProfitOnce(filterFn: (event: HighestProfitContract) => boolean | Promise<boolean>, fn: (event: HighestProfitContract) => void): () => void;
+/**
+ * Subscribes to budget journal events with queued async processing.
+ * Emits one event per row inserted into a budget record (reserve / release /
+ * reject / deposit / withdraw) by `Budget`, with the record key, the budget
+ * name and the row (balance after it included). No pending-signal gate: a
+ * budget record is not bound to a signal.
+ * Events are processed sequentially in order received, even if callback is async.
+ *
+ * @param fn - Callback function to handle budget events
+ * @return Unsubscribe function to stop listening to events
+ */
+declare function listenBudget(fn: (event: BudgetContract) => void): () => void;
+/**
+ * Subscribes to filtered budget journal events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+declare function listenBudgetOnce(filterFn: (event: BudgetContract) => boolean | Promise<boolean>, fn: (event: BudgetContract) => void): () => void;
+/**
+ * Subscribes to max drawdown events with queued async processing.
+ * Emits when a signal reaches a new maximum drawdown level during its lifecycle.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ * Useful for tracking drawdown milestones and implementing dynamic risk management logic.
+ * @param fn - Callback function to handle max drawdown events
+ * @return Unsubscribe function to stop listening to events
+ */
+declare function listenMaxDrawdown(fn: (event: MaxDrawdownContract) => void): () => void;
+/**
+ * Subscribes to filtered max drawdown events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific drawdown conditions.
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @return Unsubscribe function to cancel the listener before it fires
+ */
+declare function listenMaxDrawdownOnce(filterFn: (event: MaxDrawdownContract) => boolean | Promise<boolean>, fn: (event: MaxDrawdownContract) => void): () => void;
+/**
+ * Subscribes to signal info events with queued async processing.
+ * Emits when a strategy calls commitSignalInfo() to broadcast a user-defined note for an open position.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ * @param fn - Callback function to handle signal info events
+ * @return Unsubscribe function to stop listening to events
+ */
+declare function listenSignalNotify(fn: (event: SignalInfoContract) => void): () => void;
+/**
+ * Subscribes to strategy pause state changes with queued async processing.
+ * Emits when setPaused actually flips the pause flag of a strategy (new position
+ * opening suspended/resumed; existing signals keep closing normally).
+ * Use this to generate user-facing notifications about pause/resume.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle pause state change events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * const unsubscribe = listenPause((event) => {
+ *   console.log(`${event.symbol} ${event.strategyName}: ${event.paused ? "paused" : "resumed"}`);
+ * });
+ * ```
+ */
+declare function listenPause(fn: (event: PauseContract) => void): () => void;
+/**
+ * Subscribes to filtered pause state change events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes.
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @return Unsubscribe function to cancel the listener before it fires
+ */
+declare function listenPauseOnce(filterFn: (event: PauseContract) => boolean | Promise<boolean>, fn: (event: PauseContract) => void): () => void;
+/**
+ * Subscribes to filtered signal info events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes.
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @return Unsubscribe function to cancel the listener before it fires
+ */
+declare function listenSignalNotifyOnce(filterFn: (event: SignalInfoContract) => boolean | Promise<boolean>, fn: (event: SignalInfoContract) => void): () => void;
+/**
+ * Subscribes to before start events with queued async processing.
+ * Emits when the engine is about to start a new strategy execution for a symbol.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ * @param fn - Callback function to handle before start events
+ * @return Unsubscribe function to stop listening to events
+ */
+declare function listenBeforeStart(fn: (event: BeforeStartContract) => void): () => void;
+/**
+ * Subscribes to filtered before start events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes.
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @return Unsubscribe function to cancel the listener before it fires
+ */
+declare function listenBeforeStartOnce(filterFn: (event: BeforeStartContract) => boolean | Promise<boolean>, fn: (event: BeforeStartContract) => void): () => void;
+/**
+ * Subscribes to after end events with queued async processing.
+ * Emits when the engine has completed processing a strategy execution for a symbol.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ * @param fn - Callback function to handle after end events
+ * @return Unsubscribe function to stop listening to events
+ */
+declare function listenAfterEnd(fn: (event: AfterEndContract) => void): () => void;
+/**
+ * Subscribes to filtered after end events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes.
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @return Unsubscribe function to cancel the listener before it fires
+ */
+declare function listenAfterEndOnce(filterFn: (event: AfterEndContract) => boolean | Promise<boolean>, fn: (event: AfterEndContract) => void): () => void;
+/**
+ * ============================================================================
+ * PER-SIGNAL LISTENERS
+ * ============================================================================
+ *
+ * Every channel below carries a signal identifier, so it can be collapsed to
+ * "fire the callback once per NEW signal that satisfies the condition".
+ *
+ * Each of these wraps the matching plain `listenX` listener rather than building a
+ * private observer chain, exactly like the `listenXOnce` forms do:
+ *
+ *   listenX(async (event) => {
+ *     if (!(await filterFn(event))) return;   // 1. the condition
+ *     if (alreadySeen(event)) return; // 2. collapse repeats
+ *     await fn(event);                // 3. deliver
+ *   })
+ *
+ * WHY DELEGATE. The plain listener owns the single `queued()` wrapper, so all three
+ * steps run INSIDE that queue, one event at a time. A private
+ * `.filter().connect(queued())` chain would put the dedup check OUTSIDE the queue,
+ * where it is evaluated at emit time: three events emitted back-to-back would have
+ * all three dedup decisions made before the first callback even started, advancing
+ * the remembered id before the subscriber had been handed the event it stands for.
+ *
+ * THE DEDUP STATE IS PER-EXECUTION, NOT GLOBAL. Each subscription owns a
+ * `LimitedMap` mapping an execution identity to the last signal id delivered for
+ * it:
+ *
+ *   strategyName:exchangeName[:frameName]:backtest|live:symbol  ->  signalId
+ *
+ * (frameName is omitted when empty, exactly like the Cache key helper.) An event
+ * passes only when the stored id for its own key differs from the incoming one.
+ *
+ * This is deliberately NOT `Operator.distinct`, which keeps a single "previous
+ * compare value" for the whole stream. These subjects are process-global: several
+ * strategies, symbols and modes push through them at once and their events
+ * interleave. Under `distinct`, execution B's event becomes the baseline and lets
+ * execution A's next repeat through as new. A per-key map gives every execution
+ * independent state, so interleaving cannot resurrect an already-reported signal.
+ *
+ * WHAT "ONCE PER SIGNAL" MEANS. One callback per (execution, signal id) pair, for
+ * as long as that identity stays in the map. A strategy monitors one signal at a
+ * time, so in practice this is exactly one callback per signal - regardless of what
+ * other strategies emit in between. The map holds SEEN_MAP_LIMIT identities and
+ * evicts oldest-first; an evicted identity reports its current signal once more.
+ * Use the plain `listenX` variants when every emission matters, and `listenXOnce`
+ * when the subscription should tear itself down after the first hit.
+ *
+ * Because they delegate, whatever the plain listener checks before delivery applies
+ * here too: the partial-profit, partial-loss, breakeven, ping and notify channels
+ * still confirm the position is live via `hasPendingSignal` first.
+ */
+/**
+ * Subscribes to signal events, delivering the callback once per new signal id.
+ *
+ * Filters by the predicate first, then collapses repeats sharing the same execution
+ * identity and `event.signal.id`. Idle events carry `signal: null` and are skipped,
+ * so the callback always receives an event with a signal attached.
+ *
+ * @param filterFn - Predicate selecting which events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalUnique } from "backtest-kit";
+ *
+ * // Notify once per signal that closed in profit, no matter how many
+ * // closed events the channel replays for it
+ * const unsubscribe = listenSignalUnique(
+ *   (event) => event.action === "closed" && event.pnl.pnlPercentage > 0,
+ *   (event) => console.log("Profitable close:", event.signal.id)
+ * );
+ *
+ * unsubscribe();
+ * ```
+ */
+declare function listenSignalUnique(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
+/**
+ * Subscribes to live signal events, delivering the callback once per new signal id.
+ *
+ * Only receives events from Live.run() execution. Idle events (`signal: null`)
+ * are skipped. See the per-signal section header for the dedup semantics.
+ *
+ * @param filterFn - Predicate selecting which events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalLiveUnique(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
+/**
+ * Subscribes to backtest signal events, delivering the callback once per new signal id.
+ *
+ * Only receives events from Backtest.run() execution. Idle events (`signal: null`)
+ * are skipped. See the per-signal section header for the dedup semantics.
+ *
+ * @param filterFn - Predicate selecting which events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalBacktestUnique(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
+/**
+ * Subscribes to pending lifecycle events, delivering the callback once per new signal id.
+ *
+ * Deduplicates on `event.data.id`. Note that a single signal legitimately produces
+ * both an "opened" and a "closed" event: filter by `action` if only one of the two
+ * transitions should reach the callback.
+ *
+ * @param filterFn - Predicate selecting which events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalEventUnique } from "backtest-kit";
+ *
+ * listenSignalEventUnique(
+ *   (event) => event.action === "opened",
+ *   (event) => console.log("New position:", event.data.id, event.data.priceOpen)
+ * );
+ * ```
+ */
+declare function listenSignalEventUnique(filterFn: (event: SignalEventContract) => boolean | Promise<boolean>, fn: (event: SignalEventContract) => void): () => void;
+/**
+ * Subscribes to scheduled lifecycle events, delivering the callback once per new signal id.
+ *
+ * Deduplicates on `event.data.id`. A scheduled signal may emit both "scheduled"
+ * and "cancelled": filter by `action` to isolate one transition.
+ *
+ * @param filterFn - Predicate selecting which events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenOrderScheduleUnique(filterFn: (event: ScheduleEventContract) => boolean | Promise<boolean>, fn: (event: ScheduleEventContract) => void): () => void;
+/**
+ * Subscribes to active ping events, delivering the callback once per new signal id.
+ *
+ * Active pings fire on every tick of a monitored position, so this is the
+ * canonical use of the per-signal form: react the first tick a position meets a
+ * condition, then stay silent for the rest of its life.
+ *
+ * @param filterFn - Predicate selecting which events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenActivePingUnique } from "backtest-kit";
+ *
+ * // Alert once per position when it first crosses 5% unrealized profit
+ * listenActivePingUnique(
+ *   (event) => event.data.position === "long" && event.currentPrice > event.data.priceOpen * 1.05,
+ *   (event) => console.log("Position up 5%:", event.data.id)
+ * );
+ * ```
+ */
+declare function listenActivePingUnique(filterFn: (event: ActivePingContract) => boolean | Promise<boolean>, fn: (event: ActivePingContract) => void): () => void;
+/**
+ * Subscribes to schedule ping events, delivering the callback once per new signal id.
+ *
+ * Schedule pings fire every tick while a resting entry waits for activation;
+ * this collapses them to one callback per scheduled signal.
+ *
+ * @param filterFn - Predicate selecting which events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSchedulePingUnique(filterFn: (event: SchedulePingContract) => boolean | Promise<boolean>, fn: (event: SchedulePingContract) => void): () => void;
+/**
+ * Subscribes to partial profit level events, delivering the callback once per new signal id.
+ *
+ * Deduplicates on `event.data.id`, so only the FIRST matching profit level of a
+ * signal is reported. To react to each distinct level of the same signal, key on
+ * the level instead by using the plain `listenPartialProfitAvailable` form with
+ * your own bookkeeping, or narrow `filterFn` to a single level.
+ *
+ * @param filterFn - Predicate selecting which events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenPartialProfitAvailableUnique(filterFn: (event: PartialProfitContract) => boolean | Promise<boolean>, fn: (event: PartialProfitContract) => void): () => void;
+/**
+ * Subscribes to partial loss level events, delivering the callback once per new signal id.
+ *
+ * Deduplicates on `event.data.id` — only the first matching loss level of a
+ * signal reaches the callback. The same per-level caveat as the partial-profit
+ * form applies: narrow `filterFn` to a single level if you need each one.
+ *
+ * @param filterFn - Predicate selecting which events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenPartialLossAvailableUnique(filterFn: (event: PartialLossContract) => boolean | Promise<boolean>, fn: (event: PartialLossContract) => void): () => void;
+/**
+ * Subscribes to breakeven events, delivering the callback once per new signal id.
+ *
+ * @param filterFn - Predicate selecting which events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenBreakevenAvailableUnique(filterFn: (event: BreakevenContract) => boolean | Promise<boolean>, fn: (event: BreakevenContract) => void): () => void;
+/**
+ * Subscribes to highest profit events, delivering the callback once per new signal id.
+ *
+ * Deduplicates on `event.signal.id`. Since this channel re-emits on every new
+ * profit peak, the per-signal form reports the first peak that satisfies the
+ * predicate and then goes quiet for that signal.
+ *
+ * @param filterFn - Predicate selecting which events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenHighestProfitUnique(filterFn: (event: HighestProfitContract) => boolean | Promise<boolean>, fn: (event: HighestProfitContract) => void): () => void;
+/**
+ * Subscribes to max drawdown events, delivering the callback once per new signal id.
+ *
+ * Deduplicates on `event.signal.id` — the first drawdown matching the predicate
+ * is reported, later deeper drawdowns of the same signal are suppressed.
+ *
+ * @param filterFn - Predicate selecting which events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenMaxDrawdownUnique(filterFn: (event: MaxDrawdownContract) => boolean | Promise<boolean>, fn: (event: MaxDrawdownContract) => void): () => void;
+/**
+ * Subscribes to signal info events, delivering the callback once per new signal id.
+ *
+ * Deduplicates on `event.data.id`, so a strategy spamming commitSignalInfo() for
+ * the same position notifies the subscriber only once.
+ *
+ * @param filterFn - Predicate selecting which events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalNotifyUnique(filterFn: (event: SignalInfoContract) => boolean | Promise<boolean>, fn: (event: SignalInfoContract) => void): () => void;
+/**
+ * Subscribes to strategy management events, delivering the callback once per new signal id.
+ *
+ * Deduplicates on `event.signalId`. Trailing commits repeat many times per
+ * position, so this reports the first commit matching the predicate per signal.
+ *
+ * @param filterFn - Predicate selecting which events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenStrategyCommitUnique } from "backtest-kit";
+ *
+ * // Report the first trailing-stop adjustment of each position
+ * listenStrategyCommitUnique(
+ *   (event) => event.action === "trailing-stop",
+ *   (event) => console.log("First trailing stop for", event.signalId)
+ * );
+ * ```
+ */
+declare function listenStrategyCommitUnique(filterFn: (event: StrategyCommitContract) => boolean | Promise<boolean>, fn: (event: StrategyCommitContract) => void): () => void;
+/**
+ * ============================================================================
+ * FILTER LISTENERS
+ * ============================================================================
+ *
+ * Persistent filtered forms of the `listenXOnce` pairs: the same
+ * `(filterFn, fn)` signature, but the subscription STAYS ATTACHED after a
+ * match — every event satisfying the predicate is delivered, not just the
+ * first one. Use `listenXOnce` when the subscription should tear itself down
+ * after the first hit, and `listenXUnique` when repeats of the same signal id
+ * should collapse to one delivery.
+ *
+ * Each wraps the matching plain `listenX` listener exactly like the Once forms
+ * do, so the predicate runs INSIDE that listener's queued() wrapper, one event
+ * at a time, and whatever the plain listener checks before delivery applies
+ * here too: the partial-profit, partial-loss, breakeven, ping and notify
+ * channels still confirm the position is live via `hasPendingSignal` first.
+ *
+ * Every function returns an unsubscribe function.
+ */
+/**
+ * Subscribes to signal events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenSignal}: like {@link listenSignalOnce} only
+ * events passing `filterFn` reach the callback, but the listener stays attached
+ * and delivers every matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalFilter } from "backtest-kit";
+ *
+ * // Log EVERY closed tick, unlike listenSignalOnce which stops after the first
+ * const unsubscribe = listenSignalFilter(
+ *   (event) => event.action === "closed",
+ *   (event) => console.log("Closed:", event.signal.id, event.pnl.pnlPercentage)
+ * );
+ * ```
+ */
+declare function listenSignalFilter(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
+/**
+ * Subscribes to live signal events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenSignalLive}: only events passing `filterFn`
+ * reach the callback, and the listener keeps delivering every matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalLiveFilter(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
+/**
+ * Subscribes to backtest signal events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenSignalBacktest}: only events passing
+ * `filterFn` reach the callback, and the listener keeps delivering every
+ * matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalBacktestFilter(filterFn: (event: IStrategyTickResult) => boolean | Promise<boolean>, fn: (event: IStrategyTickResult) => void): () => void;
+/**
+ * Subscribes to live completion events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenDoneLive}: only events passing `filterFn`
+ * reach the callback, and the listener keeps delivering every matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenDoneLiveFilter(filterFn: (event: DoneContract) => boolean | Promise<boolean>, fn: (event: DoneContract) => void): () => void;
+/**
+ * Subscribes to backtest completion events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenDoneBacktest}: only events passing
+ * `filterFn` reach the callback, and the listener keeps delivering every
+ * matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenDoneBacktestFilter(filterFn: (event: DoneContract) => boolean | Promise<boolean>, fn: (event: DoneContract) => void): () => void;
+/**
+ * Subscribes to walker completion events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenDoneWalker}: only events passing `filterFn`
+ * reach the callback, and the listener keeps delivering every matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenDoneWalkerFilter(filterFn: (event: DoneContract) => boolean | Promise<boolean>, fn: (event: DoneContract) => void): () => void;
+/**
+ * Subscribes to walker progress events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenWalker}: only events passing `filterFn`
+ * reach the callback, and the listener keeps delivering every matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenWalkerFilter(filterFn: (event: WalkerContract) => boolean | Promise<boolean>, fn: (event: WalkerContract) => void): () => void;
+/**
+ * Subscribes to partial profit level events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenPartialProfitAvailable}: only events passing
+ * `filterFn` reach the callback, and the listener keeps delivering every
+ * matching event (each new level of the same signal included).
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenPartialProfitAvailableFilter(filterFn: (event: PartialProfitContract) => boolean | Promise<boolean>, fn: (event: PartialProfitContract) => void): () => void;
+/**
+ * Subscribes to partial loss level events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenPartialLossAvailable}: only events passing
+ * `filterFn` reach the callback, and the listener keeps delivering every
+ * matching event (each new level of the same signal included).
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenPartialLossAvailableFilter(filterFn: (event: PartialLossContract) => boolean | Promise<boolean>, fn: (event: PartialLossContract) => void): () => void;
+/**
+ * Subscribes to breakeven events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenBreakevenAvailable}: only events passing
+ * `filterFn` reach the callback, and the listener keeps delivering every
+ * matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenBreakevenAvailableFilter(filterFn: (event: BreakevenContract) => boolean | Promise<boolean>, fn: (event: BreakevenContract) => void): () => void;
+/**
+ * Subscribes to risk rejection events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenRisk}: only events passing `filterFn` reach
+ * the callback, and the listener keeps delivering every matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenRiskFilter(filterFn: (event: RiskContract) => boolean | Promise<boolean>, fn: (event: RiskContract) => void): () => void;
+/**
+ * Subscribes to schedule ping events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenSchedulePing}: only events passing
+ * `filterFn` reach the callback, and the listener keeps delivering every
+ * matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSchedulePingFilter(filterFn: (event: SchedulePingContract) => boolean | Promise<boolean>, fn: (event: SchedulePingContract) => void): () => void;
+/**
+ * Subscribes to pending lifecycle events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenSignalEvent}: only events passing `filterFn`
+ * reach the callback, and the listener keeps delivering every matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalEventFilter(filterFn: (event: SignalEventContract) => boolean | Promise<boolean>, fn: (event: SignalEventContract) => void): () => void;
+/**
+ * Subscribes to active ping events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenActivePing}: only events passing `filterFn`
+ * reach the callback, and the listener keeps delivering every matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenActivePingFilter(filterFn: (event: ActivePingContract) => boolean | Promise<boolean>, fn: (event: ActivePingContract) => void): () => void;
+/**
+ * Subscribes to idle ping events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenIdlePing}: only events passing `filterFn`
+ * reach the callback, and the listener keeps delivering every matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenIdlePingFilter(filterFn: (event: IdlePingContract) => boolean | Promise<boolean>, fn: (event: IdlePingContract) => void): () => void;
+/**
+ * Subscribes to strategy management events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenStrategyCommit}: only events passing
+ * `filterFn` reach the callback, and the listener keeps delivering every
+ * matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenStrategyCommitFilter(filterFn: (event: StrategyCommitContract) => boolean | Promise<boolean>, fn: (event: StrategyCommitContract) => void): () => void;
+/**
+ * Subscribes to highest profit events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenHighestProfit}: only events passing
+ * `filterFn` reach the callback, and the listener keeps delivering every
+ * matching event (each new peak of the same signal included).
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenHighestProfitFilter(filterFn: (event: HighestProfitContract) => boolean | Promise<boolean>, fn: (event: HighestProfitContract) => void): () => void;
+/**
+ * Subscribes to max drawdown events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenMaxDrawdown}: only events passing `filterFn`
+ * reach the callback, and the listener keeps delivering every matching event
+ * (each deeper drawdown of the same signal included).
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenMaxDrawdownFilter(filterFn: (event: MaxDrawdownContract) => boolean | Promise<boolean>, fn: (event: MaxDrawdownContract) => void): () => void;
+/**
+ * Subscribes to pause state change events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenPause}: only events passing `filterFn` reach
+ * the callback, and the listener keeps delivering every matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenPauseFilter(filterFn: (event: PauseContract) => boolean | Promise<boolean>, fn: (event: PauseContract) => void): () => void;
+/**
+ * Subscribes to signal info events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenSignalNotify}: only events passing
+ * `filterFn` reach the callback, and the listener keeps delivering every
+ * matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalNotifyFilter(filterFn: (event: SignalInfoContract) => boolean | Promise<boolean>, fn: (event: SignalInfoContract) => void): () => void;
+/**
+ * Subscribes to before start events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenBeforeStart}: only events passing `filterFn`
+ * reach the callback, and the listener keeps delivering every matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenBeforeStartFilter(filterFn: (event: BeforeStartContract) => boolean | Promise<boolean>, fn: (event: BeforeStartContract) => void): () => void;
+/**
+ * Subscribes to after end events matching the predicate, keeping the subscription.
+ *
+ * Filtered variant of {@link listenAfterEnd}: only events passing `filterFn`
+ * reach the callback, and the listener keeps delivering every matching event.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle each matching event
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenAfterEndFilter(filterFn: (event: AfterEndContract) => boolean | Promise<boolean>, fn: (event: AfterEndContract) => void): () => void;
+
+/**
+ * Subscribes to idle tick results (live + backtest).
+ *
+ * Fires on every tick where the strategy holds no signal at all. `event.signal` is
+ * always `null` here — there is no position to inspect, only `currentPrice` and the
+ * strategy/exchange/frame identity.
+ *
+ * @param fn - Callback receiving idle events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalIdle } from "backtest-kit";
+ *
+ * const unsubscribe = listenSignalIdle((event) => {
+ *   console.log(`${event.symbol} idle at ${event.currentPrice}`);
+ * });
+ * ```
+ */
+declare function listenSignalIdle(fn: (event: IStrategyTickResultIdle) => void): () => void;
+/**
+ * Subscribes to scheduled tick results (live + backtest).
+ *
+ * Fires once when a scheduled signal is created — a resting entry waiting for price
+ * to reach `signal.priceOpen`. Subsequent monitoring ticks arrive as "waiting".
+ *
+ * @param fn - Callback receiving scheduled events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalScheduled(fn: (event: IStrategyTickResultScheduled) => void): () => void;
+/**
+ * Subscribes to waiting tick results (live + backtest).
+ *
+ * Fires on every tick while a scheduled signal has not yet activated. High volume:
+ * one event per tick per waiting signal. Use the `listenSignalWaitingUnique`
+ * form to collapse that down to one callback per signal.
+ *
+ * @param fn - Callback receiving waiting events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalWaiting(fn: (event: IStrategyTickResultWaiting) => void): () => void;
+/**
+ * Subscribes to opened tick results (live + backtest).
+ *
+ * Fires when a position is opened — either directly or by activation of a scheduled
+ * signal.
+ *
+ * @param fn - Callback receiving opened events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalOpened } from "backtest-kit";
+ *
+ * listenSignalOpened((event) => {
+ *   // no action guard needed: signal is always present
+ *   console.log("Opened", event.signal.id, "at", event.signal.priceOpen);
+ * });
+ * ```
+ */
+declare function listenSignalOpened(fn: (event: IStrategyTickResultOpened) => void): () => void;
+/**
+ * Subscribes to active tick results (live + backtest).
+ *
+ * Fires on every tick while a position is open, carrying live `pnl`, `percentTp` and
+ * `percentSl`. High volume: one event per tick per open position. Use the
+ * `listenSignalActiveUnique` form to collapse that down to one callback per
+ * position.
+ *
+ * @param fn - Callback receiving active events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalActive(fn: (event: IStrategyTickResultActive) => void): () => void;
+/**
+ * Subscribes to closed tick results (live + backtest).
+ *
+ * Fires when a position closes. `pnl`, `closeReason` and `closeTimestamp` are
+ * guaranteed present on the narrowed type.
+ *
+ * @param fn - Callback receiving closed events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalClosed } from "backtest-kit";
+ *
+ * listenSignalClosed((event) => {
+ *   console.log(`${event.closeReason}: ${event.pnl.pnlPercentage}%`);
+ * });
+ * ```
+ */
+declare function listenSignalClosed(fn: (event: IStrategyTickResultClosed) => void): () => void;
+/**
+ * Subscribes to cancelled tick results (live + backtest).
+ *
+ * Fires when a scheduled signal is dropped before ever opening a position.
+ * `reason` carries the cancellation cause.
+ *
+ * @param fn - Callback receiving cancelled events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalCancelled(fn: (event: IStrategyTickResultCancelled) => void): () => void;
+/**
+ * Subscribes to idle tick results from live executions only.
+ *
+ * Fires on every tick where the strategy holds no position and nothing scheduled.
+ * `event.signal` is always `null` here, so there is nothing to inspect beyond
+ * `currentPrice`, `symbol` and the strategy/exchange/frame identity. Useful for
+ * heartbeat logging or for noticing that a strategy has gone quiet.
+ *
+ * Receives events from Live.run() only. Backtest replays never reach this callback,
+ * which is what makes it safe for anything with real-world side effects - order
+ * placement mirrors, alerting, notifications.
+ *
+ * Because the emitter is already split by action, the callback receives the
+ * narrowed variant directly - no `if (event.action === ...)` guard is needed
+ * before reading the fields described above.
+ *
+ * @param fn - Callback receiving idle events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalLiveIdle(fn: (event: IStrategyTickResultIdle) => void): () => void;
+/**
+ * Subscribes to scheduled tick results from live executions only.
+ *
+ * Fires once, at the moment a scheduled signal is created: the strategy asked for
+ * an entry at a specific price and the engine is now waiting for the market to
+ * reach it. No position exists yet. Every later tick of that same waiting entry
+ * arrives as a "waiting" event instead, so this action marks the start of the
+ * wait, not the wait itself.
+ *
+ * Receives events from Live.run() only. Backtest replays never reach this callback,
+ * which is what makes it safe for anything with real-world side effects - order
+ * placement mirrors, alerting, notifications.
+ *
+ * Because the emitter is already split by action, the callback receives the
+ * narrowed variant directly - no `if (event.action === ...)` guard is needed
+ * before reading the fields described above.
+ *
+ * @param fn - Callback receiving scheduled events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalLiveScheduled(fn: (event: IStrategyTickResultScheduled) => void): () => void;
+/**
+ * Subscribes to waiting tick results from live executions only.
+ *
+ * Fires on every tick while a scheduled signal has not activated yet. `event.signal`
+ * describes the resting entry and `pnl` is theoretical - the position is not open,
+ * so nothing is at risk. This is a high-volume channel: one event per tick per
+ * waiting signal for as long as the entry rests.
+ *
+ * Receives events from Live.run() only. Backtest replays never reach this callback,
+ * which is what makes it safe for anything with real-world side effects - order
+ * placement mirrors, alerting, notifications.
+ *
+ * Because the emitter is already split by action, the callback receives the
+ * narrowed variant directly - no `if (event.action === ...)` guard is needed
+ * before reading the fields described above.
+ *
+ * @param fn - Callback receiving waiting events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalLiveWaiting(fn: (event: IStrategyTickResultWaiting) => void): () => void;
+/**
+ * Subscribes to opened tick results from live executions only.
+ *
+ * Fires when a position actually opens, either because the strategy returned an
+ * immediate signal or because a scheduled entry finally activated. `event.signal`
+ * carries the stored row with its generated id, entry price and TP/SL levels. This
+ * is the point from which the position starts costing money.
+ *
+ * Receives events from Live.run() only. Backtest replays never reach this callback,
+ * which is what makes it safe for anything with real-world side effects - order
+ * placement mirrors, alerting, notifications.
+ *
+ * Because the emitter is already split by action, the callback receives the
+ * narrowed variant directly - no `if (event.action === ...)` guard is needed
+ * before reading the fields described above.
+ *
+ * @param fn - Callback receiving opened events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalLiveOpened(fn: (event: IStrategyTickResultOpened) => void): () => void;
+/**
+ * Subscribes to active tick results from live executions only.
+ *
+ * Fires on every tick while a position is open, carrying the live `pnl` plus
+ * `percentTp` / `percentSl` - how far price has travelled toward take-profit or
+ * stop-loss. This is a high-volume channel: one event per tick per open position,
+ * for the whole life of the position.
+ *
+ * Receives events from Live.run() only. Backtest replays never reach this callback,
+ * which is what makes it safe for anything with real-world side effects - order
+ * placement mirrors, alerting, notifications.
+ *
+ * Because the emitter is already split by action, the callback receives the
+ * narrowed variant directly - no `if (event.action === ...)` guard is needed
+ * before reading the fields described above.
+ *
+ * @param fn - Callback receiving active events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalLiveActive(fn: (event: IStrategyTickResultActive) => void): () => void;
+/**
+ * Subscribes to closed tick results from live executions only.
+ *
+ * Fires when a position closes, for any reason. `closeReason` says which
+ * ("take_profit", "stop_loss", "time_expired" or "closed" for a user-initiated
+ * close), `closeTimestamp` says when, and `pnl` holds the realised result with fees
+ * and slippage already applied. Terminal for that signal - no further events for
+ * it will arrive on this channel.
+ *
+ * Receives events from Live.run() only. Backtest replays never reach this callback,
+ * which is what makes it safe for anything with real-world side effects - order
+ * placement mirrors, alerting, notifications.
+ *
+ * Because the emitter is already split by action, the callback receives the
+ * narrowed variant directly - no `if (event.action === ...)` guard is needed
+ * before reading the fields described above.
+ *
+ * @param fn - Callback receiving closed events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalLiveClosed(fn: (event: IStrategyTickResultClosed) => void): () => void;
+/**
+ * Subscribes to cancelled tick results from live executions only.
+ *
+ * Fires when a scheduled signal is dropped before it ever became a position, so no
+ * money was ever at risk. `reason` explains why (the wait timed out, price moved
+ * through the entry in the wrong direction, or a user cancelled it) and `cancelId`
+ * is set for user-initiated cancellations. Terminal for that signal.
+ *
+ * Receives events from Live.run() only. Backtest replays never reach this callback,
+ * which is what makes it safe for anything with real-world side effects - order
+ * placement mirrors, alerting, notifications.
+ *
+ * Because the emitter is already split by action, the callback receives the
+ * narrowed variant directly - no `if (event.action === ...)` guard is needed
+ * before reading the fields described above.
+ *
+ * @param fn - Callback receiving cancelled events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalLiveCancelled(fn: (event: IStrategyTickResultCancelled) => void): () => void;
+/**
+ * Subscribes to idle tick results from backtest executions only.
+ *
+ * Fires on every tick where the strategy holds no position and nothing scheduled.
+ * `event.signal` is always `null` here, so there is nothing to inspect beyond
+ * `currentPrice`, `symbol` and the strategy/exchange/frame identity. Useful for
+ * heartbeat logging or for noticing that a strategy has gone quiet.
+ *
+ * Receives events from Backtest.run() only. Live trading never reaches this
+ * callback, so it is the right channel for replay analysis and reporting that must
+ * not be polluted by production traffic.
+ *
+ * Because the emitter is already split by action, the callback receives the
+ * narrowed variant directly - no `if (event.action === ...)` guard is needed
+ * before reading the fields described above.
+ *
+ * @param fn - Callback receiving idle events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalBacktestIdle(fn: (event: IStrategyTickResultIdle) => void): () => void;
+/**
+ * Subscribes to scheduled tick results from backtest executions only.
+ *
+ * Fires once, at the moment a scheduled signal is created: the strategy asked for
+ * an entry at a specific price and the engine is now waiting for the market to
+ * reach it. No position exists yet. Every later tick of that same waiting entry
+ * arrives as a "waiting" event instead, so this action marks the start of the
+ * wait, not the wait itself.
+ *
+ * Receives events from Backtest.run() only. Live trading never reaches this
+ * callback, so it is the right channel for replay analysis and reporting that must
+ * not be polluted by production traffic.
+ *
+ * Because the emitter is already split by action, the callback receives the
+ * narrowed variant directly - no `if (event.action === ...)` guard is needed
+ * before reading the fields described above.
+ *
+ * @param fn - Callback receiving scheduled events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalBacktestScheduled(fn: (event: IStrategyTickResultScheduled) => void): () => void;
+/**
+ * Subscribes to waiting tick results from backtest executions only.
+ *
+ * Fires on every tick while a scheduled signal has not activated yet. `event.signal`
+ * describes the resting entry and `pnl` is theoretical - the position is not open,
+ * so nothing is at risk. This is a high-volume channel: one event per tick per
+ * waiting signal for as long as the entry rests.
+ *
+ * Receives events from Backtest.run() only. Live trading never reaches this
+ * callback, so it is the right channel for replay analysis and reporting that must
+ * not be polluted by production traffic.
+ *
+ * Because the emitter is already split by action, the callback receives the
+ * narrowed variant directly - no `if (event.action === ...)` guard is needed
+ * before reading the fields described above.
+ *
+ * @param fn - Callback receiving waiting events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalBacktestWaiting(fn: (event: IStrategyTickResultWaiting) => void): () => void;
+/**
+ * Subscribes to opened tick results from backtest executions only.
+ *
+ * Fires when a position actually opens, either because the strategy returned an
+ * immediate signal or because a scheduled entry finally activated. `event.signal`
+ * carries the stored row with its generated id, entry price and TP/SL levels. This
+ * is the point from which the position starts costing money.
+ *
+ * Receives events from Backtest.run() only. Live trading never reaches this
+ * callback, so it is the right channel for replay analysis and reporting that must
+ * not be polluted by production traffic.
+ *
+ * Because the emitter is already split by action, the callback receives the
+ * narrowed variant directly - no `if (event.action === ...)` guard is needed
+ * before reading the fields described above.
+ *
+ * @param fn - Callback receiving opened events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalBacktestOpened(fn: (event: IStrategyTickResultOpened) => void): () => void;
+/**
+ * Subscribes to active tick results from backtest executions only.
+ *
+ * Fires on every tick while a position is open, carrying the live `pnl` plus
+ * `percentTp` / `percentSl` - how far price has travelled toward take-profit or
+ * stop-loss. This is a high-volume channel: one event per tick per open position,
+ * for the whole life of the position.
+ *
+ * Receives events from Backtest.run() only. Live trading never reaches this
+ * callback, so it is the right channel for replay analysis and reporting that must
+ * not be polluted by production traffic.
+ *
+ * Because the emitter is already split by action, the callback receives the
+ * narrowed variant directly - no `if (event.action === ...)` guard is needed
+ * before reading the fields described above.
+ *
+ * @param fn - Callback receiving active events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalBacktestActive(fn: (event: IStrategyTickResultActive) => void): () => void;
+/**
+ * Subscribes to closed tick results from backtest executions only.
+ *
+ * Fires when a position closes, for any reason. `closeReason` says which
+ * ("take_profit", "stop_loss", "time_expired" or "closed" for a user-initiated
+ * close), `closeTimestamp` says when, and `pnl` holds the realised result with fees
+ * and slippage already applied. Terminal for that signal - no further events for
+ * it will arrive on this channel.
+ *
+ * Receives events from Backtest.run() only. Live trading never reaches this
+ * callback, so it is the right channel for replay analysis and reporting that must
+ * not be polluted by production traffic.
+ *
+ * Because the emitter is already split by action, the callback receives the
+ * narrowed variant directly - no `if (event.action === ...)` guard is needed
+ * before reading the fields described above.
+ *
+ * @param fn - Callback receiving closed events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalBacktestClosed(fn: (event: IStrategyTickResultClosed) => void): () => void;
+/**
+ * Subscribes to cancelled tick results from backtest executions only.
+ *
+ * Fires when a scheduled signal is dropped before it ever became a position, so no
+ * money was ever at risk. `reason` explains why (the wait timed out, price moved
+ * through the entry in the wrong direction, or a user cancelled it) and `cancelId`
+ * is set for user-initiated cancellations. Terminal for that signal.
+ *
+ * Receives events from Backtest.run() only. Live trading never reaches this
+ * callback, so it is the right channel for replay analysis and reporting that must
+ * not be polluted by production traffic.
+ *
+ * Because the emitter is already split by action, the callback receives the
+ * narrowed variant directly - no `if (event.action === ...)` guard is needed
+ * before reading the fields described above.
+ *
+ * @param fn - Callback receiving cancelled events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalBacktestCancelled(fn: (event: IStrategyTickResultCancelled) => void): () => void;
+/**
+ * Subscribes to scheduled tick results, once per new signal id (live + backtest).
+ *
+ * @param filterFn - Predicate selecting which scheduled events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalScheduledUnique(filterFn: (event: IStrategyTickResultScheduled) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultScheduled) => void): () => void;
+/**
+ * Subscribes to waiting tick results, once per new signal id (live + backtest).
+ *
+ * The canonical use: "waiting" repeats every tick, so this reports the first tick a
+ * resting entry satisfies the predicate and then stays quiet for that signal.
+ *
+ * @param filterFn - Predicate selecting which waiting events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalWaitingUnique(filterFn: (event: IStrategyTickResultWaiting) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultWaiting) => void): () => void;
+/**
+ * Subscribes to opened tick results, once per new signal id (live + backtest).
+ *
+ * @param filterFn - Predicate selecting which opened events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalOpenedUnique(filterFn: (event: IStrategyTickResultOpened) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultOpened) => void): () => void;
+/**
+ * Subscribes to active tick results, once per new signal id (live + backtest).
+ *
+ * Active ticks repeat for the whole life of a position, so this fires the first tick
+ * the position meets the condition and then goes silent for it.
+ *
+ * @param filterFn - Predicate selecting which active events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalActiveUnique } from "backtest-kit";
+ *
+ * // Alert once per position when it first crosses 5% unrealized profit
+ * listenSignalActiveUnique(
+ *   (event) => event.pnl.pnlPercentage > 5,
+ *   (event) => console.log("Up 5%:", event.signal.id)
+ * );
+ * ```
+ */
+declare function listenSignalActiveUnique(filterFn: (event: IStrategyTickResultActive) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultActive) => void): () => void;
+/**
+ * Subscribes to closed tick results, once per new signal id (live + backtest).
+ *
+ * @param filterFn - Predicate selecting which closed events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalClosedUnique(filterFn: (event: IStrategyTickResultClosed) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultClosed) => void): () => void;
+/**
+ * Subscribes to cancelled tick results, once per new signal id (live + backtest).
+ *
+ * @param filterFn - Predicate selecting which cancelled events are considered
+ * @param fn - Callback invoked once per new signal id
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalCancelledUnique(filterFn: (event: IStrategyTickResultCancelled) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultCancelled) => void): () => void;
+/**
+ * Subscribes to scheduled tick results from live executions only,
+ * delivering the callback at most once per signal.
+ *
+ * Fires once per resting entry that satisfies the predicate, at the moment it is
+ * created. Since "scheduled" already fires only once per signal, the dedup here is
+ * mainly a safety net against a repeated emission.
+ *
+ * Receives events from Live.run() only, so backtest replays can never trigger it.
+ *
+ * Deduplication is per execution identity - strategy, exchange, frame, mode and
+ * symbol - so parallel strategies never suppress one another. Within one execution
+ * the listener remembers the last signal id it delivered and drops any repeat of
+ * it; a new signal id reports again.
+ *
+ * The predicate runs BEFORE the dedup, so events the predicate rejects are never
+ * remembered and cannot hide a later matching event.
+ *
+ * @param filterFn - Predicate selecting which scheduled events are considered
+ * @param fn - Callback invoked at most once per signal
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalLiveScheduledUnique(filterFn: (event: IStrategyTickResultScheduled) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultScheduled) => void): () => void;
+/**
+ * Subscribes to waiting tick results from live executions only,
+ * delivering the callback at most once per signal.
+ *
+ * "Waiting" repeats on every tick for as long as a resting entry has not activated,
+ * so this is where the dedup earns its keep: the callback runs on the FIRST tick
+ * where the entry satisfies the predicate and then stays silent for that entry, no
+ * matter how long it keeps waiting.
+ *
+ * Receives events from Live.run() only, so backtest replays can never trigger it.
+ *
+ * Deduplication is per execution identity - strategy, exchange, frame, mode and
+ * symbol - so parallel strategies never suppress one another. Within one execution
+ * the listener remembers the last signal id it delivered and drops any repeat of
+ * it; a new signal id reports again.
+ *
+ * The predicate runs BEFORE the dedup, so events the predicate rejects are never
+ * remembered and cannot hide a later matching event.
+ *
+ * @param filterFn - Predicate selecting which waiting events are considered
+ * @param fn - Callback invoked at most once per signal
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalLiveWaitingUnique(filterFn: (event: IStrategyTickResultWaiting) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultWaiting) => void): () => void;
+/**
+ * Subscribes to opened tick results from live executions only,
+ * delivering the callback at most once per signal.
+ *
+ * Fires once per position that satisfies the predicate, at the moment it opens.
+ * Since "opened" already fires only once per signal, the dedup here is mainly a
+ * safety net against a repeated emission.
+ *
+ * Receives events from Live.run() only, so backtest replays can never trigger it.
+ *
+ * Deduplication is per execution identity - strategy, exchange, frame, mode and
+ * symbol - so parallel strategies never suppress one another. Within one execution
+ * the listener remembers the last signal id it delivered and drops any repeat of
+ * it; a new signal id reports again.
+ *
+ * The predicate runs BEFORE the dedup, so events the predicate rejects are never
+ * remembered and cannot hide a later matching event.
+ *
+ * @param filterFn - Predicate selecting which opened events are considered
+ * @param fn - Callback invoked at most once per signal
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalLiveOpenedUnique(filterFn: (event: IStrategyTickResultOpened) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultOpened) => void): () => void;
+/**
+ * Subscribes to active tick results from live executions only,
+ * delivering the callback at most once per signal.
+ *
+ * "Active" repeats on every tick for the whole life of a position, so this is the
+ * canonical use of the per-signal form: the callback runs on the FIRST tick where
+ * the position satisfies the predicate and then stays silent for that position.
+ * Ideal for one-shot alerts such as "this trade crossed 5% profit".
+ *
+ * Receives events from Live.run() only, so backtest replays can never trigger it.
+ *
+ * Deduplication is per execution identity - strategy, exchange, frame, mode and
+ * symbol - so parallel strategies never suppress one another. Within one execution
+ * the listener remembers the last signal id it delivered and drops any repeat of
+ * it; a new signal id reports again.
+ *
+ * The predicate runs BEFORE the dedup, so events the predicate rejects are never
+ * remembered and cannot hide a later matching event.
+ *
+ * @param filterFn - Predicate selecting which active events are considered
+ * @param fn - Callback invoked at most once per signal
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalLiveActiveUnique(filterFn: (event: IStrategyTickResultActive) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultActive) => void): () => void;
+/**
+ * Subscribes to closed tick results from live executions only,
+ * delivering the callback at most once per signal.
+ *
+ * Fires once per closed position that satisfies the predicate. Since "closed" is
+ * terminal and already fires once per signal, the dedup here is mainly a safety net
+ * against a repeated emission.
+ *
+ * Receives events from Live.run() only, so backtest replays can never trigger it.
+ *
+ * Deduplication is per execution identity - strategy, exchange, frame, mode and
+ * symbol - so parallel strategies never suppress one another. Within one execution
+ * the listener remembers the last signal id it delivered and drops any repeat of
+ * it; a new signal id reports again.
+ *
+ * The predicate runs BEFORE the dedup, so events the predicate rejects are never
+ * remembered and cannot hide a later matching event.
+ *
+ * @param filterFn - Predicate selecting which closed events are considered
+ * @param fn - Callback invoked at most once per signal
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalLiveClosedUnique(filterFn: (event: IStrategyTickResultClosed) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultClosed) => void): () => void;
+/**
+ * Subscribes to cancelled tick results from live executions only,
+ * delivering the callback at most once per signal.
+ *
+ * Fires once per dropped resting entry that satisfies the predicate. Since
+ * "cancelled" is terminal and already fires once per signal, the dedup here is
+ * mainly a safety net against a repeated emission.
+ *
+ * Receives events from Live.run() only, so backtest replays can never trigger it.
+ *
+ * Deduplication is per execution identity - strategy, exchange, frame, mode and
+ * symbol - so parallel strategies never suppress one another. Within one execution
+ * the listener remembers the last signal id it delivered and drops any repeat of
+ * it; a new signal id reports again.
+ *
+ * The predicate runs BEFORE the dedup, so events the predicate rejects are never
+ * remembered and cannot hide a later matching event.
+ *
+ * @param filterFn - Predicate selecting which cancelled events are considered
+ * @param fn - Callback invoked at most once per signal
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalLiveCancelledUnique(filterFn: (event: IStrategyTickResultCancelled) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultCancelled) => void): () => void;
+/**
+ * Subscribes to scheduled tick results from backtest executions only,
+ * delivering the callback at most once per signal.
+ *
+ * Fires once per resting entry that satisfies the predicate, at the moment it is
+ * created. Since "scheduled" already fires only once per signal, the dedup here is
+ * mainly a safety net against a repeated emission.
+ *
+ * Receives events from Backtest.run() only, so live trading can never trigger it.
+ *
+ * Deduplication is per execution identity - strategy, exchange, frame, mode and
+ * symbol - so parallel strategies never suppress one another. Within one execution
+ * the listener remembers the last signal id it delivered and drops any repeat of
+ * it; a new signal id reports again.
+ *
+ * The predicate runs BEFORE the dedup, so events the predicate rejects are never
+ * remembered and cannot hide a later matching event.
+ *
+ * @param filterFn - Predicate selecting which scheduled events are considered
+ * @param fn - Callback invoked at most once per signal
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalBacktestScheduledUnique(filterFn: (event: IStrategyTickResultScheduled) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultScheduled) => void): () => void;
+/**
+ * Subscribes to waiting tick results from backtest executions only,
+ * delivering the callback at most once per signal.
+ *
+ * "Waiting" repeats on every tick for as long as a resting entry has not activated,
+ * so this is where the dedup earns its keep: the callback runs on the FIRST tick
+ * where the entry satisfies the predicate and then stays silent for that entry, no
+ * matter how long it keeps waiting.
+ *
+ * Receives events from Backtest.run() only, so live trading can never trigger it.
+ *
+ * Deduplication is per execution identity - strategy, exchange, frame, mode and
+ * symbol - so parallel strategies never suppress one another. Within one execution
+ * the listener remembers the last signal id it delivered and drops any repeat of
+ * it; a new signal id reports again.
+ *
+ * The predicate runs BEFORE the dedup, so events the predicate rejects are never
+ * remembered and cannot hide a later matching event.
+ *
+ * @param filterFn - Predicate selecting which waiting events are considered
+ * @param fn - Callback invoked at most once per signal
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalBacktestWaitingUnique(filterFn: (event: IStrategyTickResultWaiting) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultWaiting) => void): () => void;
+/**
+ * Subscribes to opened tick results from backtest executions only,
+ * delivering the callback at most once per signal.
+ *
+ * Fires once per position that satisfies the predicate, at the moment it opens.
+ * Since "opened" already fires only once per signal, the dedup here is mainly a
+ * safety net against a repeated emission.
+ *
+ * Receives events from Backtest.run() only, so live trading can never trigger it.
+ *
+ * Deduplication is per execution identity - strategy, exchange, frame, mode and
+ * symbol - so parallel strategies never suppress one another. Within one execution
+ * the listener remembers the last signal id it delivered and drops any repeat of
+ * it; a new signal id reports again.
+ *
+ * The predicate runs BEFORE the dedup, so events the predicate rejects are never
+ * remembered and cannot hide a later matching event.
+ *
+ * @param filterFn - Predicate selecting which opened events are considered
+ * @param fn - Callback invoked at most once per signal
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalBacktestOpenedUnique(filterFn: (event: IStrategyTickResultOpened) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultOpened) => void): () => void;
+/**
+ * Subscribes to active tick results from backtest executions only,
+ * delivering the callback at most once per signal.
+ *
+ * "Active" repeats on every tick for the whole life of a position, so this is the
+ * canonical use of the per-signal form: the callback runs on the FIRST tick where
+ * the position satisfies the predicate and then stays silent for that position.
+ * Ideal for one-shot alerts such as "this trade crossed 5% profit".
+ *
+ * Receives events from Backtest.run() only, so live trading can never trigger it.
+ *
+ * Deduplication is per execution identity - strategy, exchange, frame, mode and
+ * symbol - so parallel strategies never suppress one another. Within one execution
+ * the listener remembers the last signal id it delivered and drops any repeat of
+ * it; a new signal id reports again.
+ *
+ * The predicate runs BEFORE the dedup, so events the predicate rejects are never
+ * remembered and cannot hide a later matching event.
+ *
+ * @param filterFn - Predicate selecting which active events are considered
+ * @param fn - Callback invoked at most once per signal
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalBacktestActiveUnique(filterFn: (event: IStrategyTickResultActive) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultActive) => void): () => void;
+/**
+ * Subscribes to closed tick results from backtest executions only, delivering the
+ * callback at most once per signal.
+ *
+ * Fires once per closed position that satisfies the predicate. Since "closed" is
+ * terminal and already fires once per signal, the dedup here is mainly a safety net
+ * against a repeated emission.
+ *
+ * Receives events from Backtest.run() only, so live trading can never trigger it.
+ *
+ * Deduplication is per execution identity - strategy, exchange, frame, mode and
+ * symbol - so parallel strategies never suppress one another. Within one execution
+ * the listener remembers the last signal id it delivered and drops any repeat of
+ * it; a new signal id reports again.
+ *
+ * The predicate runs BEFORE the dedup, so events the predicate rejects are never
+ * remembered and cannot hide a later matching event.
+ *
+ * @param filterFn - Predicate selecting which closed events are considered
+ * @param fn - Callback invoked at most once per signal
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalBacktestClosedUnique(filterFn: (event: IStrategyTickResultClosed) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultClosed) => void): () => void;
+/**
+ * Subscribes to cancelled tick results from backtest executions only,
+ * delivering the callback at most once per signal.
+ *
+ * Fires once per dropped resting entry that satisfies the predicate. Since
+ * "cancelled" is terminal and already fires once per signal, the dedup here is
+ * mainly a safety net against a repeated emission.
+ *
+ * Receives events from Backtest.run() only, so live trading can never trigger it.
+ *
+ * Deduplication is per execution identity - strategy, exchange, frame, mode and
+ * symbol - so parallel strategies never suppress one another. Within one execution
+ * the listener remembers the last signal id it delivered and drops any repeat of
+ * it; a new signal id reports again.
+ *
+ * The predicate runs BEFORE the dedup, so events the predicate rejects are never
+ * remembered and cannot hide a later matching event.
+ *
+ * @param filterFn - Predicate selecting which cancelled events are considered
+ * @param fn - Callback invoked at most once per signal
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenSignalBacktestCancelledUnique(filterFn: (event: IStrategyTickResultCancelled) => boolean | Promise<boolean>, fn: (event: IStrategyTickResultCancelled) => void): () => void;
+
+/**
+ * Checks if trade context is active (execution and method contexts).
+ *
+ * Returns true when both contexts are active, which is required for calling
+ * exchange functions like getCandles, getAveragePrice, formatPrice, formatQuantity,
+ * getDate, and getMode.
+ *
+ * @returns true if trade context is active, false otherwise
+ *
+ * @example
+ * ```typescript
+ * import { hasTradeContext, getCandles } from "backtest-kit";
+ *
+ * if (hasTradeContext()) {
+ *   const candles = await getCandles("BTCUSDT", "1m", 100);
+ * } else {
+ *   console.log("Trade context not active");
+ * }
+ * ```
+ */
+declare function hasTradeContext(): boolean;
+/**
+ * Fetches historical candle data from the registered exchange.
+ *
+ * Candles are fetched backwards from the current execution context time.
+ * Uses the exchange's getCandles implementation.
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
+ * @param limit - Number of candles to fetch
+ * @returns Promise resolving to array of candle data
+ *
+ * @example
+ * ```typescript
+ * const candles = await getCandles("BTCUSDT", "1m", 100);
+ * console.log(candles[0]); // { timestamp, open, high, low, close, volume }
+ * ```
+ */
+declare function getCandles(symbol: string, interval: CandleInterval, limit: number): Promise<ICandleData[]>;
+/**
+ * Calculates VWAP (Volume Weighted Average Price) for a symbol.
+ *
+ * Uses the last 5 1-minute candles to calculate:
+ * - Typical Price = (high + low + close) / 3
+ * - VWAP = sum(typical_price * volume) / sum(volume)
+ *
+ * If volume is zero, returns simple average of close prices.
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @returns Promise resolving to VWAP price
+ *
+ * @example
+ * ```typescript
+ * const vwap = await getAveragePrice("BTCUSDT");
+ * console.log(vwap); // 50125.43
+ * ```
+ */
+declare function getAveragePrice(symbol: string): Promise<number>;
+/**
+ * Returns the close price of the last completed candle for the given interval.
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
+ * @returns Promise resolving to close price of the last candle
+ *
+ * @example
+ * ```typescript
+ * const close = await getClosePrice("BTCUSDT", "1h");
+ * console.log(close); // 50125.43
+ * ```
+ */
+declare function getClosePrice(symbol: string, interval: CandleInterval): Promise<number>;
+/**
+ * Formats a price value according to exchange rules.
+ *
+ * Uses the exchange's formatPrice implementation for proper decimal places.
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param price - Raw price value
+ * @returns Promise resolving to formatted price string
+ *
+ * @example
+ * ```typescript
+ * const formatted = await formatPrice("BTCUSDT", 50000.123456);
+ * console.log(formatted); // "50000.12"
+ * ```
+ */
+declare function formatPrice(symbol: string, price: number): Promise<string>;
+/**
+ * Formats a quantity value according to exchange rules.
+ *
+ * Uses the exchange's formatQuantity implementation for proper decimal places.
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param quantity - Raw quantity value
+ * @returns Promise resolving to formatted quantity string
+ *
+ * @example
+ * ```typescript
+ * const formatted = await formatQuantity("BTCUSDT", 0.123456789);
+ * console.log(formatted); // "0.12345678"
+ * ```
+ */
+declare function formatQuantity(symbol: string, quantity: number): Promise<string>;
+/**
+ * Fetches order book for a trading pair from the registered exchange.
+ *
+ * Uses current execution context to determine timing. The underlying exchange
+ * implementation receives time range parameters but may use them (backtest)
+ * or ignore them (live trading).
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
+ * @returns Promise resolving to order book data
+ * @throws Error if execution or method context is missing
+ *
+ * @example
+ * ```typescript
+ * const orderBook = await getOrderBook("BTCUSDT");
+ * console.log(orderBook.bids); // [{ price: "50000.00", quantity: "0.5" }, ...]
+ * console.log(orderBook.asks); // [{ price: "50001.00", quantity: "0.3" }, ...]
+ *
+ * // Fetch deeper order book
+ * const deepBook = await getOrderBook("BTCUSDT", 100);
+ * ```
+ */
+declare function getOrderBook(symbol: string, depth?: number): Promise<IOrderBookData>;
+/**
+ * Fetches raw candles with flexible date/limit parameters.
+ *
+ * All modes respect execution context and prevent look-ahead bias.
+ *
+ * Parameter combinations:
+ * 1. sDate + eDate + limit: fetches with explicit parameters, validates eDate <= when
+ * 2. sDate + eDate: calculates limit from date range, validates eDate <= when
+ * 3. eDate + limit: calculates sDate backward, validates eDate <= when
+ * 4. sDate + limit: fetches forward, validates calculated endTimestamp <= when
+ * 5. Only limit: uses execution.context.when as reference (backward)
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
+ * @param limit - Optional number of candles to fetch
+ * @param sDate - Optional start date in milliseconds
+ * @param eDate - Optional end date in milliseconds
+ * @returns Promise resolving to array of candle data
+ *
+ * @example
+ * ```typescript
+ * // Fetch 100 candles backward from current context time
+ * const candles = await getRawCandles("BTCUSDT", "1m", 100);
+ *
+ * // Fetch candles for specific date range
+ * const rangeCandles = await getRawCandles("BTCUSDT", "1h", undefined, startMs, endMs);
+ *
+ * // Fetch with all parameters specified
+ * const exactCandles = await getRawCandles("BTCUSDT", "1m", 100, startMs, endMs);
+ * ```
+ */
+declare function getRawCandles(symbol: string, interval: CandleInterval, limit?: number, sDate?: number, eDate?: number): Promise<ICandleData[]>;
+/**
+ * Fetches the set of candles after current time based on execution context.
+ *
+ * Uses the exchange's getNextCandles implementation to retrieve candles
+ * that occur after the current context time.
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
+ * @param limit - Number of candles to fetch
+ * @returns Promise resolving to array of candle data
+ */
+declare function getNextCandles(symbol: string, interval: CandleInterval, limit: number): Promise<ICandleData[]>;
+/**
+ * Fetches aggregated trades for a trading pair from the registered exchange.
+ *
+ * Trades are fetched backwards from the current execution context time.
+ * If limit is not specified, returns all trades within one CC_AGGREGATED_TRADES_MAX_MINUTES window.
+ * If limit is specified, paginates backwards until at least limit trades are collected.
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param limit - Optional maximum number of trades to fetch
+ * @returns Promise resolving to array of aggregated trade data
+ * @throws Error if execution or method context is missing
+ *
+ * @example
+ * ```typescript
+ * // Fetch last hour of trades
+ * const trades = await getAggregatedTrades("BTCUSDT");
+ *
+ * // Fetch last 500 trades
+ * const lastTrades = await getAggregatedTrades("BTCUSDT", 500);
+ * console.log(lastTrades[0]); // { id, price, qty, timestamp, isBuyerMaker }
+ * ```
+ */
+declare function getAggregatedTrades(symbol: string, limit?: number): Promise<IAggregatedTradeData[]>;
+
+/**
+ * Interface for runtime information and range used in backtesting and strategy execution.
+ * The interface defines the time range for the backtest while executing a strategy in backtest mode
+ */
+interface IRuntimeRange {
+    /** Start date of the runtime range */
+    from: Date;
+    /** End date of the runtime range */
+    to: Date;
+}
+/**
+ * Interface for runtime information returned by the RuntimeMetaService.
+ * This includes the symbol being traded, the time range of the backtest, any additional info defined by the strategy,
+ * and contextual information about the exchange, strategy, and frame being used.
+ */
+interface IRuntimeInfo<Data extends RuntimeData = RuntimeData> {
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Time range for the backtest, null if running in live mode */
+    range: IRuntimeRange | null;
+    /** Additional runtime information defined by the strategy, can be used for custom monitoring or reporting */
+    info: Data | null;
+    /** Contextual information about the current execution environment */
+    context: {
+        exchangeName: ExchangeName;
+        strategyName: StrategyName;
+        frameName: FrameName;
+    };
+    /** Timestamp of the current candle or tick */
+    when: Date;
+    /** Current market price for the symbol at the time of execution */
+    currentPrice: number;
+    /** Whether the strategy is running in backtest mode */
+    backtest: boolean;
+}
+
+/**
+ * Gets the current date from execution context.
+ *
+ * In backtest mode: returns the current timeframe date being processed
+ * In live mode: returns current real-time date
+ *
+ * @returns Promise resolving to current execution context date
+ *
+ * @example
+ * ```typescript
+ * const date = await getDate();
+ * console.log(date); // 2024-01-01T12:00:00.000Z
+ * ```
+ */
+declare function getDate(): Promise<Date>;
+/**
+ * Gets the current timestamp from execution context.
+ *
+ * In backtest mode: returns the current timeframe timestamp being processed
+ * In live mode: returns current real-time timestamp
+ *
+ * @returns Promise resolving to current execution context timestamp in milliseconds
+ * @example
+ * ```typescript
+ * const timestamp = await getTimestamp();
+ * console.log(timestamp); // 1700000000000
+ * ```
+ */
+declare function getTimestamp(): Promise<number>;
+/**
+ * Gets the current execution mode.
+ *
+ * @returns Promise resolving to "backtest" or "live"
+ *
+ * @example
+ * ```typescript
+ * const mode = await getMode();
+ * if (mode === "backtest") {
+ *   console.log("Running in backtest mode");
+ * } else {
+ *   console.log("Running in live mode");
+ * }
+ * ```
+ */
+declare function getMode(): Promise<"backtest" | "live">;
+/**
+ * Gets the current trading symbol from execution context.
+ *
+ * @returns Promise resolving to the current trading symbol (e.g., "BTCUSDT")
+ * @throws Error if execution context is not active
+ *
+ * @example
+ * ```typescript
+ * const symbol = await getSymbol();
+ * console.log(symbol); // "BTCUSDT"
+ * ```
+ */
+declare function getSymbol(): Promise<string>;
+/**
+ * Gets the current method context.
+ *
+ * Returns the context object from the method context service, which contains
+ * information about the current method execution environment.
+ *
+ * @returns Promise resolving to the current method context object
+ * @throws Error if method context is not active
+ *
+ * @example
+ * ```typescript
+ * const context = await getContext();
+ * console.log(context); // { ...method context data... }
+ * ```
+ */
+declare function getContext(): Promise<IMethodContext>;
+/**
+ * Gets runtime information about the current execution environment.
+ *
+ * This includes details such as the current symbol, exchange, timeframe, strategy, and whether it's a backtest or live run.
+ *
+ * @returns Promise resolving to an object containing runtime information
+ * @throws Error if method context or execution context is not active
+ *
+ * @example
+ * ```typescript
+ * const runtimeInfo = await getRuntimeInfo();
+ * console.log(runtimeInfo);
+ * // {
+ * //   symbol: "BTCUSDT",
+ * //   context: {,
+ * //     exchangeName: "Binance",
+ * //     frameName: "1m",
+ * //     strategyName: "MyStrategy",
+ * //   },
+ * //   backtest: false
+ * // }
+ * ```
+ */
+declare function getRuntimeInfo<Data extends RuntimeData = RuntimeData>(): Promise<IRuntimeInfo<Data>>;
+
+/**
+ * Returns the latest signal (pending or closed) for the current strategy context.
+ *
+ * Does not distinguish between active and closed signals — returns whichever
+ * was recorded last. Useful for cooldown logic: e.g. skip opening a new position
+ * for 4 hours after a stop-loss by checking the timestamp of the latest signal
+ * regardless of its outcome.
+ *
+ * Searches backtest storage first, then live storage.
+ * Throws if no signal exists at all.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to the latest signal or null
+ *
+ * @example
+ * ```typescript
+ * import { getLatestSignal } from "backtest-kit";
+ *
+ * const latest = await getLatestSignal("BTCUSDT");
+ * if (latest && Date.now() - latest.closedAt < 4 * 60 * 60 * 1000) {
+ *   return; // cooldown after SL — skip new signal for 4 hours
+ * }
+ * ```
+ */
+declare function getLatestSignal(symbol: string): Promise<IPublicSignalRow | null>;
+/**
+ * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
+ *
+ * Does not distinguish between active and closed signals — measures time since
+ * whichever signal was recorded last. Useful for cooldown logic after a stop-loss.
+ *
+ * Searches backtest storage first, then live storage.
+ * Throws if no signal exists at all.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @param timestamp - Current timestamp in milliseconds
+ * @returns Promise resolving to whole minutes since the latest signal was created
+ *
+ * @example
+ * ```typescript
+ * import { getMinutesSinceLatestSignalCreated } from "backtest-kit";
+ *
+ * const minutes = await getMinutesSinceLatestSignalCreated("BTCUSDT");
+ * if (minutes !== null && minutes < 24 * 60) {
+ *   return; // cooldown — skip new signal for 24 hours after last signal
+ * }
+ * ```
+ */
+declare function getMinutesSinceLatestSignalCreated(symbol: string): Promise<number>;
+
+/**
+ * Reads the session value scoped to the current (symbol, strategy, exchange, frame) context.
+ *
+ * Session data persists across candles within a single run and can survive process
+ * restarts in live mode — useful for caching LLM inference results, intermediate
+ * indicator state, or any cross-candle accumulator that is not tied to a specific signal.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to current session value, or null if not set
+ *
+ * @example
+ * ```typescript
+ * import { getSession } from "backtest-kit";
+ *
+ * const session = await getSession<{ lastLlmSignal: string }>("BTCUSDT");
+ * if (session?.lastLlmSignal === "buy") {
+ *   // reuse cached LLM result instead of calling the model again
+ * }
+ * ```
+ */
+declare function getSessionData<Value extends object = object>(symbol: string): Promise<Value | null>;
+/**
+ * Writes a session value scoped to the current (symbol, strategy, exchange, frame) context.
+ *
+ * Session data persists across candles within a single run and can survive process
+ * restarts in live mode — useful for caching LLM inference results, intermediate
+ * indicator state, or any cross-candle accumulator that is not tied to a specific signal.
+ *
+ * Pass null to clear the session.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @param value - New value or null to clear
+ * @returns Promise that resolves when the session has been written
+ *
+ * @example
+ * ```typescript
+ * import { setSession } from "backtest-kit";
+ *
+ * await setSession("BTCUSDT", { lastLlmSignal: "buy" });
+ * ```
+ */
+declare function setSessionData<Value extends object = object>(symbol: string, value: Value | null): Promise<void>;
+
+/**
+ * Writes a value to memory scoped to the current signal.
+ *
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param dto.bucketName - Memory bucket name
+ * @param dto.memoryId - Unique memory entry identifier
+ * @param dto.value - Value to store
+ * @param dto.description - BM25 index string for contextual search
+ * @returns Promise that resolves when write is complete
+ *
+ * @example
+ * ```typescript
+ * import { writeMemory } from "backtest-kit";
+ *
+ * await writeMemory({ bucketName: "my-strategy", memoryId: "context", value: { trend: "up", confidence: 0.9 }, description: "Signal context at entry" });
+ * ```
+ */
+declare function writeMemory<T extends object = object>(dto: {
+    bucketName: string;
+    memoryId: string;
+    value: T;
+    description: string;
+}): Promise<void>;
+/**
+ * Reads a value from memory scoped to the current signal.
+ *
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param dto.bucketName - Memory bucket name
+ * @param dto.memoryId - Unique memory entry identifier
+ * @returns Promise resolving to stored value
+ * @throws Error if no pending or scheduled signal exists, or if entry not found
+ *
+ * @example
+ * ```typescript
+ * import { readMemory } from "backtest-kit";
+ *
+ * const ctx = await readMemory<{ trend: string }>({ bucketName: "my-strategy", memoryId: "context" });
+ * ```
+ */
+declare function readMemory<T extends object = object>(dto: {
+    bucketName: string;
+    memoryId: string;
+}): Promise<T>;
+/**
+ * Searches memory entries for the current signal using BM25 full-text scoring.
+ *
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param dto.bucketName - Memory bucket name
+ * @param dto.query - Search query string
+ * @returns Promise resolving to matching entries sorted by relevance
+ * @throws Error if no pending or scheduled signal exists
+ *
+ * @example
+ * ```typescript
+ * import { searchMemory } from "backtest-kit";
+ *
+ * const results = await searchMemory({ bucketName: "my-strategy", query: "bullish trend" });
+ * ```
+ */
+declare function searchMemory<T extends object = object>(dto: {
+    bucketName: string;
+    query: string;
+}): Promise<Array<{
+    memoryId: string;
+    score: number;
+    content: T;
+}>>;
+/**
+ * Lists all memory entries for the current signal.
+ *
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param dto.bucketName - Memory bucket name
+ * @returns Promise resolving to all stored entries
+ * @throws Error if no pending or scheduled signal exists
+ *
+ * @example
+ * ```typescript
+ * import { listMemory } from "backtest-kit";
+ *
+ * const entries = await listMemory({ bucketName: "my-strategy" });
+ * ```
+ */
+declare function listMemory<T extends object = object>(dto: {
+    bucketName: string;
+}): Promise<Array<{
+    memoryId: string;
+    content: T;
+}>>;
+/**
+ * Removes a memory entry for the current signal.
+ *
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param dto.bucketName - Memory bucket name
+ * @param dto.memoryId - Unique memory entry identifier
+ * @returns Promise that resolves when removal is complete
+ * @throws Error if no pending or scheduled signal exists
+ *
+ * @example
+ * ```typescript
+ * import { removeMemory } from "backtest-kit";
+ *
+ * await removeMemory({ bucketName: "my-strategy", memoryId: "context" });
+ * ```
+ */
+declare function removeMemory(dto: {
+    bucketName: string;
+    memoryId: string;
+}): Promise<void>;
+
+/** Role of the message sender in an LLM chat history. */
+type MessageRole = "assistant" | "system" | "tool" | "user";
+/**
+ * A tool call requested by the assistant.
+ * Represents a single function invocation emitted in an assistant message.
+ */
+type MessageToolCall = {
+    /** Unique identifier for this tool call, referenced by the tool result message via tool_call_id. */
+    id: string;
+    /** Always "function" — the only supported tool call type. */
+    type: "function";
+    /** The function to invoke. */
+    function: {
+        /** Name of the function to call. */
+        name: string;
+        /** Arguments passed to the function, keyed by parameter name. */
+        arguments: {
+            [key: string]: any;
+        };
+    };
+};
+/**
+ * A single message in an LLM chat history.
+ * Covers all roles: system instructions, user input, assistant responses, and tool results.
+ */
+interface MessageModel<Role extends MessageRole = MessageRole> {
+    /** Sender role — determines how the message is interpreted by the model. */
+    role: Role;
+    /** Text content of the message. Empty string for assistant messages that only contain tool_calls. */
+    content: string;
+    /** Chain-of-thought / reasoning exposed by some providers (e.g. DeepSeek). */
+    reasoning_content?: string | null;
+    /** Tool calls emitted by the assistant. Present only on assistant messages. */
+    tool_calls?: MessageToolCall[];
+    /** Images attached to the message. Supported as Blob, raw bytes, or base64 strings. */
+    images?: Blob[] | Uint8Array[] | string[];
+    /** ID of the tool call this message is responding to. Present only on tool messages. */
+    tool_call_id?: string;
+}
+
+/**
+ * Dumps an MCP (Model Context Protocol) status snapshot scoped to the current signal.
+ *
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * With the default markdown backend, image messages are decoded from base64
+ * and written to ./dump/image/{message.id}.png; the whole message list is
+ * rendered into a single ./dump/mcp/{dumpId}.md - text messages inlined
+ * in order, images embedded via ![{id}](../image/{id}.png) relative links.
+ * The snapshot follows the swappable Dump backend: useDummy() silences it,
+ * useMemory() keeps a searchable text-only projection.
+ *
+ * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
+ * @param dto.dumpId - Unique identifier for this dump entry
+ * @param dto.messages - Status messages as returned by MCP.getStatus
+ * @param dto.description - Human-readable label describing the snapshot; included in the BM25 index for Memory search
+ * @returns Promise that resolves when the dump is complete
+ * @throws Error if no pending or scheduled signal exists
+ *
+ * @example
+ * ```typescript
+ * import { MCP, dumpMCPStatus } from "backtest-kit";
+ *
+ * const messages = await MCP.getStatus("my-mcp");
+ * await dumpMCPStatus({ bucketName: "my-agent", dumpId: String(Date.now()), messages, description: "Portfolio snapshot before rebalance" });
+ * ```
+ */
+declare function dumpMCPStatus(dto: {
+    bucketName: string;
+    dumpId: string;
+    messages: IMCPMessage[];
+    description: string;
+}): Promise<void>;
+/**
+ * Dumps the full agent message history scoped to the current signal.
+ *
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
+ * @param dto.dumpId - Unique identifier for this agent invocation
+ * @param dto.messages - Full chat history (system, user, assistant, tool)
+ * @param dto.description - Human-readable label describing the agent invocation context; included in the BM25 index for Memory search
+ * @returns Promise that resolves when the dump is complete
+ * @throws Error if no pending or scheduled signal exists
+ *
+ * @example
+ * ```typescript
+ * import { dumpAgentAnswer } from "backtest-kit";
+ *
+ * await dumpAgentAnswer({ bucketName: "my-strategy", dumpId: "reasoning-1", messages, description: "BTC long signal reasoning" });
+ * ```
+ */
+declare function dumpAgentAnswer(dto: {
+    bucketName: string;
+    dumpId: string;
+    messages: MessageModel[];
+    description: string;
+}): Promise<void>;
+/**
+ * Dumps a flat key-value record scoped to the current signal.
+ *
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
+ * @param dto.dumpId - Unique identifier for this dump entry
+ * @param dto.record - Arbitrary flat object to persist
+ * @param dto.description - Human-readable label describing the record contents; included in the BM25 index for Memory search
+ * @returns Promise that resolves when the dump is complete
+ * @throws Error if no pending or scheduled signal exists
+ *
+ * @example
+ * ```typescript
+ * import { dumpRecord } from "backtest-kit";
+ *
+ * await dumpRecord({ bucketName: "my-strategy", dumpId: "context", record: { price: 42000, signal: "long" }, description: "Signal context at entry" });
+ * ```
+ */
+declare function dumpRecord(dto: {
+    bucketName: string;
+    dumpId: string;
+    record: Record<string, unknown>;
+    description: string;
+}): Promise<void>;
+/**
+ * Dumps an array of objects as a table scoped to the current signal.
+ *
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * Column headers are derived from the union of all keys across all rows.
+ *
+ * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
+ * @param dto.dumpId - Unique identifier for this dump entry
+ * @param dto.rows - Array of arbitrary objects to render as a table
+ * @param dto.description - Human-readable label describing the table contents; included in the BM25 index for Memory search
+ * @returns Promise that resolves when the dump is complete
+ * @throws Error if no pending or scheduled signal exists
+ *
+ * @example
+ * ```typescript
+ * import { dumpTable } from "backtest-kit";
+ *
+ * await dumpTable({ bucketName: "my-strategy", dumpId: "candles", rows: [{ time: 1234, close: 42000 }], description: "Recent candle history" });
+ * ```
+ */
+declare function dumpTable(dto: {
+    bucketName: string;
+    dumpId: string;
+    rows: Record<string, unknown>[];
+    description: string;
+}): Promise<void>;
+/**
+ * Dumps raw text content scoped to the current signal.
+ *
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
+ * @param dto.dumpId - Unique identifier for this dump entry
+ * @param dto.content - Arbitrary text content to persist
+ * @param dto.description - Human-readable label describing the content; included in the BM25 index for Memory search
+ * @returns Promise that resolves when the dump is complete
+ * @throws Error if no pending or scheduled signal exists
+ *
+ * @example
+ * ```typescript
+ * import { dumpText } from "backtest-kit";
+ *
+ * await dumpText({ bucketName: "my-strategy", dumpId: "summary", content: "Agent concluded: bullish", description: "Agent final summary" });
+ * ```
+ */
+declare function dumpText(dto: {
+    bucketName: string;
+    dumpId: string;
+    content: string;
+    description: string;
+}): Promise<void>;
+/**
+ * Dumps an error description scoped to the current signal.
+ *
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
+ * @param dto.dumpId - Unique identifier for this dump entry
+ * @param dto.content - Error message or description to persist
+ * @param dto.description - Human-readable label describing the error context; included in the BM25 index for Memory search
+ * @returns Promise that resolves when the dump is complete
+ * @throws Error if no pending or scheduled signal exists
+ *
+ * @example
+ * ```typescript
+ * import { dumpError } from "backtest-kit";
+ *
+ * await dumpError({ bucketName: "my-strategy", dumpId: "error-1", content: "Tool call failed: timeout", description: "Tool execution error" });
+ * ```
+ */
+declare function dumpError(dto: {
+    bucketName: string;
+    dumpId: string;
+    content: string;
+    description: string;
+}): Promise<void>;
+/**
+ * Dumps an arbitrary nested object as a fenced JSON block scoped to the current signal.
+ *
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
+ * @param dto.dumpId - Unique identifier for this dump entry
+ * @param dto.json - Arbitrary nested object to serialize with JSON.stringify
+ * @param dto.description - Human-readable label describing the object contents; included in the BM25 index for Memory search
+ * @returns Promise that resolves when the dump is complete
+ * @throws Error if no pending or scheduled signal exists
+ *
+ * @deprecated Prefer dumpRecord — flat key-value structure maps naturally to markdown tables and SQL storage
+ *
+ * @example
+ * ```typescript
+ * import { dumpJson } from "backtest-kit";
+ *
+ * await dumpJson({ bucketName: "my-strategy", dumpId: "signal-state", json: { entries: [], partials: [] }, description: "Signal state snapshot" });
+ * ```
+ */
+declare function dumpJson(dto: {
+    bucketName: string;
+    dumpId: string;
+    json: object;
+    description: string;
+}): Promise<void>;
+
+/**
+ * Full context required to run a function inside both method and execution scopes.
+ *
+ * Combines `IMethodContext` (schema routing: exchange, strategy, frame names) with
+ * `IExecutionContext` (runtime state: symbol, timestamp, backtest flag).
+ *
+ * Passed as a single object to `runInContextInternal`, which splits and distributes
+ * the fields between `MethodContextService` and `ExecutionContextService`.
+ */
+interface IRunContext extends IMethodContext, IExecutionContext {
+}
+/**
+ * A zero-argument function that may be synchronous or asynchronous.
+ *
+ * @template T - Return type of the function.
+ */
+type Function$3<T extends unknown = any> = () => T | Promise<T>;
+/**
+ * Runs a function inside a mock method and execution context.
+ *
+ * Useful in tests and scripts that need to call context-dependent services
+ * (e.g. `getBacktestTimeframe`) without a real backtest runner.
+ *
+ * All context fields are optional; the defaults produce a minimal live-mode
+ * environment pointing at placeholder schema names:
+ * - `exchangeName` → `"mock-exchange"`
+ * - `strategyName` → `"mock-strategy"`
+ * - `frameName`    → `"mock-frame"`
+ * - `symbol`       → `"BTCUSDT"`
+ * - `backtest`     → `false` (live mode)
+ * - `when`         → current minute boundary (`alignToInterval(new Date(), "1m")`)
+ *
+ * @param run - Zero-argument function to execute within the context.
+ * @param context - Partial `IRunContext`; any omitted field falls back to its default.
+ * @returns Promise resolving to the return value of `run`.
+ *
+ * @example
+ * ```typescript
+ * const price = await runInMockContext(
+ *   () => getEffectivePrice("BTCUSDT"),
+ *   { exchangeName: "binance", strategyName: "my-strategy", frameName: "1d" },
+ * );
+ * ```
+ */
+declare function runInMockContext<T extends unknown = any>(run: Function$3<T>, { exchangeName, frameName, strategyName, symbol, backtest: isBacktest, when, }: Partial<IRunContext>): Promise<T>;
+
+/**
+ * Portfolio heatmap statistics for a single symbol.
+ * Aggregated metrics across all strategies for one trading pair.
+ */
+interface IHeatmapRow {
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Total profit/loss percentage across all closed trades */
+    totalPnl: number | null;
+    /** Risk-adjusted return per trade (Sharpe Ratio = avgPnl / stdDev) */
+    sharpeRatio: number | null;
+    /** Maximum drawdown percentage (largest peak-to-trough decline) */
+    maxDrawdown: number | null;
+    /** Total number of closed trades */
+    totalTrades: number;
+    /** Number of winning trades */
+    winCount: number;
+    /** Number of losing trades */
+    lossCount: number;
+    /** Win rate percentage */
+    winRate: number | null;
+    /** Average PNL per trade */
+    avgPnl: number | null;
+    /** Standard deviation of PNL */
+    stdDev: number | null;
+    /** Profit factor: sum of wins / sum of losses */
+    profitFactor: number | null;
+    /** Average profit percentage on winning trades */
+    avgWin: number | null;
+    /** Average loss percentage on losing trades */
+    avgLoss: number | null;
+    /** Maximum consecutive winning trades */
+    maxWinStreak: number;
+    /** Maximum consecutive losing trades */
+    maxLossStreak: number;
+    /** Expectancy: (winRate * avgWin) - (lossRate * avgLoss) */
+    expectancy: number | null;
+    /** Average peak PNL percentage across all trades (_peak.pnlPercentage). Higher is better. */
+    avgPeakPnl: number | null;
+    /** Average fall PNL percentage across all trades (_fall.pnlPercentage). Closer to 0 is better. */
+    avgFallPnl: number | null;
+    /** Maximum peak PNL percentage observed across all trades (best best-case). Higher is better. */
+    peakProfitPnl: number | null;
+    /** Minimum fall PNL percentage observed across all trades (worst worst-case). Closer to 0 is better. */
+    maxDrawdownPnl: number | null;
+    /** Average trade duration in minutes ((closeTimestamp - pendingAt) / 60_000). */
+    avgDuration: number | null;
+    /** Median pnlPercentage — robust to outliers; reveals distribution skew when paired with avgPnl. */
+    medianPnl: number | null;
+    /** Average sum of pnlPercentage across consecutive winning streaks. Null if no win streak. */
+    avgConsecutiveWinPnl: number | null;
+    /** Average sum of pnlPercentage across consecutive losing streaks. Null if no loss streak. Closer to 0 is better. */
+    avgConsecutiveLossPnl: number | null;
+    /** Average duration in minutes of winning trades. */
+    avgWinDuration: number | null;
+    /** Average duration in minutes of losing trades. */
+    avgLossDuration: number | null;
+    /** Sortino Ratio (avgPnl / downside deviation — RMS of losing trades only). Higher is better. */
+    sortinoRatio: number | null;
+    /** Calmar Ratio (totalPnl / maxDrawdown). Higher is better. */
+    calmarRatio: number | null;
+    /** Recovery Factor (totalPnl / maxDrawdown). Higher is better. */
+    recoveryFactor: number | null;
+    /** Annualized Sharpe Ratio (sharpeRatio × √tradesPerYear). Higher is better. */
+    annualizedSharpeRatio: number | null;
+    /** Certainty Ratio (avgWin / |avgLoss|). Higher is better. */
+    certaintyRatio: number | null;
+    /** Expected yearly returns (geometric, capped at ±MAX_EXPECTED_YEARLY_RETURNS). Higher is better. */
+    expectedYearlyReturns: number | null;
+    /** Observed trade frequency extrapolated to one year (signals × 365 / calendarSpanDays). */
+    tradesPerYear: number | null;
+    /** Median |close[i] - close[i-1]| / close[i-1] across trade closes, in %. Robust to outliers. */
+    medianStepSize: number | null;
+    /** Fraction of up-moves among decisive close-to-close moves. 0..1. Higher = buyers more frequent. */
+    buyerPressure: number | null;
+    /** Fraction of down-moves among decisive moves. 0..1. Equals 1 - buyerPressure. */
+    sellerPressure: number | null;
+    /** Share of upward absolute movement in total close-to-close movement. 0..1. */
+    buyerStrength: number | null;
+    /** Share of downward absolute movement in total close-to-close movement. 0..1. */
+    sellerStrength: number | null;
+    /** buyerStrength - sellerStrength ∈ [-1, 1]. Positive = bullish bias on magnitude. */
+    pressureImbalance: number | null;
+    /** Bivariate trend classification (slope × R²). */
+    trend: "bullish" | "bearish" | "sideways" | "neutral" | null;
+    /** Log-price regression slope, in %/day. */
+    trendStrength: number | null;
+    /** R² of the log-price regression, in [0, 1]. */
+    trendConfidence: number | null;
+}
+
+/**
+ * Unified tick event data for report generation.
+ * Contains all information about a tick event regardless of action type.
+ */
+interface TickEvent {
+    /** Event timestamp in milliseconds (scheduledAt for scheduled events, pendingAt for opened/closed events) */
+    timestamp: number;
+    /** Event action type */
+    action: "idle" | "scheduled" | "waiting" | "opened" | "active" | "closed" | "cancelled";
+    /** Trading pair symbol (only for non-idle events) */
+    symbol?: string;
+    /** Signal ID (only for scheduled/waiting/opened/active/closed/cancelled) */
+    signalId?: string;
+    /** Position type (only for scheduled/waiting/opened/active/closed/cancelled) */
+    position?: string;
+    /** Signal note (only for scheduled/waiting/opened/active/closed/cancelled) */
+    note?: string;
+    /** Current price */
+    currentPrice: number;
+    /** Open price (only for scheduled/waiting/opened/active/closed/cancelled) */
+    priceOpen?: number;
+    /** Take profit price (only for scheduled/waiting/opened/active/closed/cancelled) */
+    priceTakeProfit?: number;
+    /** Stop loss price (only for scheduled/waiting/opened/active/closed/cancelled) */
+    priceStopLoss?: number;
+    /** Original take profit price before modifications (only for scheduled/waiting/opened/active/closed/cancelled) */
+    originalPriceTakeProfit?: number;
+    /** Original stop loss price before modifications (only for scheduled/waiting/opened/active/closed/cancelled) */
+    originalPriceStopLoss?: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen?: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries?: number;
+    /** Total number of partial closes executed (_partial.length) */
+    totalPartials?: number;
+    /** Total executed percentage from partial closes (only for scheduled/waiting/opened/active/closed/cancelled) */
+    partialExecuted?: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage (only for scheduled/waiting/opened/active/closed/cancelled) */
+    multiplier?: number;
+    /** Isolated-margin mode: force-close at -100% leveraged PNL (only for scheduled/waiting/opened/active/closed/cancelled) */
+    isolated?: boolean;
+    /** Absolute profit/loss in USD (for active/waiting: unrealized, for closed: realized) */
+    pnlCost?: number;
+    /** USD value of the dividend / staking accruals folded into pnlCost (only for rows carrying a PNL) */
+    pnlDividends?: number;
+    /** DCA entry history of the position (IPublicSignalRow.entries; only for rows carrying a signal) */
+    entries?: ISignalEntry[];
+    /** Partial close history of the position (IPublicSignalRow.partials) */
+    partials?: ISignalPartial[];
+    /** Dividend / staking accruals of the position (IPublicSignalRow.accruals) */
+    accruals?: ISignalAccrual[];
+    /** Total invested capital in USD */
+    pnlEntries?: number;
+    /** Percentage progress towards take profit (only for active/waiting) */
+    percentTp?: number;
+    /** Percentage progress towards stop loss (only for active/waiting) */
+    percentSl?: number;
+    /** PNL percentage (for active/waiting: unrealized, for closed: realized) */
+    pnl?: number;
+    /** Close reason (only for closed) */
+    closeReason?: string;
+    /** Cancel reason (only for cancelled) */
+    cancelReason?: string;
+    /** Duration in minutes (only for closed) */
+    duration?: number;
+    /** Timestamp when position became active (only for opened/active/closed) */
+    pendingAt?: number;
+    /** Timestamp when signal was created/scheduled (only for scheduled/waiting/opened/active/closed/cancelled) */
+    scheduledAt?: number;
+    /** Peak PNL percentage at best price during position (_peak.pnlPercentage, only for closed) */
+    peakPnl?: number;
+    /** Fall PNL percentage at worst price during position (_fall.pnlPercentage, only for closed) */
+    fallPnl?: number;
+}
+/**
+ * Statistical data calculated from live trading results.
+ *
+ * All numeric values are null if calculation is unsafe (NaN, Infinity, etc).
+ * Provides comprehensive metrics for live trading performance analysis.
+ *
+ * @example
+ * ```typescript
+ * const stats = await Live.getData("my-strategy");
+ *
+ * console.log(`Total events: ${stats.totalEvents}`);
+ * console.log(`Closed signals: ${stats.totalClosed}`);
+ * console.log(`Win rate: ${stats.winRate}%`);
+ * console.log(`Sharpe Ratio: ${stats.sharpeRatio}`);
+ *
+ * // Access raw event data (includes idle, opened, active, closed)
+ * stats.eventList.forEach(event => {
+ *   if (event.action === "closed") {
+ *     console.log(`Closed signal: ${event.pnl}%`);
+ *   }
+ * });
+ * ```
+ */
+interface LiveStatisticsModel {
+    /** Array of all events (idle, opened, active, closed) with full details */
+    eventList: TickEvent[];
+    /** Total number of all events (includes idle, opened, active, closed) */
+    totalEvents: number;
+    /** Total number of closed signals only */
+    totalClosed: number;
+    /** Number of winning closed signals (PNL > 0) */
+    winCount: number;
+    /** Number of losing closed signals (PNL < 0) */
+    lossCount: number;
+    /** Win rate as percentage (0-100) based on closed signals, null if unsafe. Higher is better. */
+    winRate: number | null;
+    /** Average PNL per closed signal as percentage, null if unsafe. Higher is better. */
+    avgPnl: number | null;
+    /** Cumulative PNL across all closed signals as percentage, null if unsafe. Higher is better. */
+    totalPnl: number | null;
+    /** Standard deviation of returns (volatility metric), null if unsafe. Lower is better. */
+    stdDev: number | null;
+    /** Sharpe Ratio (risk-adjusted return = avgPnl / stdDev), null if unsafe. Higher is better. */
+    sharpeRatio: number | null;
+    /** Annualized Sharpe Ratio (sharpeRatio × √tradesPerYear), null if unsafe. Higher is better. */
+    annualizedSharpeRatio: number | null;
+    /** Certainty Ratio (avgWin / |avgLoss|), null if unsafe. Higher is better. */
+    certaintyRatio: number | null;
+    /** Expected yearly returns based on average trade duration and PNL, null if unsafe. Higher is better. */
+    expectedYearlyReturns: number | null;
+    /** Average peak PNL percentage across all closed signals (_peak.pnlPercentage), null if unsafe. Higher is better. */
+    avgPeakPnl: number | null;
+    /** Average fall PNL percentage across all closed signals (_fall.pnlPercentage), null if unsafe. Closer to 0 is better. */
+    avgFallPnl: number | null;
+    /** Sortino Ratio (avgPnl / downside deviation — RMS of losing trades only), null if unsafe. Higher is better. */
+    sortinoRatio: number | null;
+    /** Calmar Ratio (annualized expected return / max drawdown), null if unsafe. Higher is better. */
+    calmarRatio: number | null;
+    /** Recovery Factor (totalPnl / max drawdown), null if unsafe. Higher is better. */
+    recoveryFactor: number | null;
+    /** Per-trade Expectancy (winProb*avgWin + lossProb*avgLoss), null if unsafe. Higher is better. */
+    expectancy: number | null;
+    /** Average trade duration in minutes ((timestamp - pendingAt) / 60_000), null if unsafe. */
+    avgDuration: number | null;
+    /** Median pnl — robust to outliers; reveals distribution skew when paired with avgPnl. */
+    medianPnl: number | null;
+    /** Average sum of pnl across consecutive winning streaks. Null if no win streak. */
+    avgConsecutiveWinPnl: number | null;
+    /** Average sum of pnl across consecutive losing streaks. Null if no loss streak. Closer to 0 is better. */
+    avgConsecutiveLossPnl: number | null;
+    /** Average duration in minutes of winning trades. */
+    avgWinDuration: number | null;
+    /** Average duration in minutes of losing trades. */
+    avgLossDuration: number | null;
+    /** Median |close[i] - close[i-1]| / close[i-1] across trade closes, in %. Robust to outliers. */
+    medianStepSize: number | null;
+    /** Fraction of up-moves among decisive close-to-close moves. 0..1. Higher = buyers more frequent. */
+    buyerPressure: number | null;
+    /** Fraction of down-moves among decisive moves. 0..1. Equals 1 - buyerPressure. */
+    sellerPressure: number | null;
+    /** Share of upward absolute movement in total close-to-close movement. 0..1. */
+    buyerStrength: number | null;
+    /** Share of downward absolute movement in total close-to-close movement. 0..1. */
+    sellerStrength: number | null;
+    /** buyerStrength - sellerStrength ∈ [-1, 1]. Positive = bullish bias on magnitude. */
+    pressureImbalance: number | null;
+    /** Bivariate trend classification (slope × R²). */
+    trend: "bullish" | "bearish" | "sideways" | "neutral" | null;
+    /** Log-price regression slope, in %/day. */
+    trendStrength: number | null;
+    /** R² of the log-price regression, in [0, 1]. */
+    trendConfidence: number | null;
+}
+
+/**
+ * Portfolio heatmap statistics structure.
+ * Contains aggregated data for all symbols in the portfolio.
+ */
+interface HeatmapStatisticsModel {
+    /** Array of symbol statistics */
+    symbols: IHeatmapRow[];
+    /** Total number of symbols tracked */
+    totalSymbols: number;
+    /** Portfolio-wide total PNL */
+    portfolioTotalPnl: number | null;
+    /** Portfolio-wide Sharpe Ratio */
+    portfolioSharpeRatio: number | null;
+    /** Portfolio-wide total trades */
+    portfolioTotalTrades: number;
+    /** Trade-count-weighted average peak PNL across all symbols. Higher is better. */
+    portfolioAvgPeakPnl: number | null;
+    /** Trade-count-weighted average fall PNL across all symbols. Closer to 0 is better. */
+    portfolioAvgFallPnl: number | null;
+    /** Maximum peak PNL across all trades of all symbols (best best-case). Higher is better. */
+    portfolioPeakProfitPnl: number | null;
+    /** Minimum fall PNL across all trades of all symbols (worst worst-case). Closer to 0 is better. */
+    portfolioMaxDrawdownPnl: number | null;
+    /** Pooled average trade duration in minutes across all trades of all symbols. */
+    portfolioAvgDuration: number | null;
+    /** Pooled median pnlPercentage across all trades of all symbols. */
+    portfolioMedianPnl: number | null;
+    /** Trade-count-weighted mean of per-symbol avgConsecutiveWinPnl. Null if no symbol has a win streak. */
+    portfolioAvgConsecutiveWinPnl: number | null;
+    /** Trade-count-weighted mean of per-symbol avgConsecutiveLossPnl. Null if no symbol has a loss streak. */
+    portfolioAvgConsecutiveLossPnl: number | null;
+    /** Pooled average duration in minutes of winning trades. */
+    portfolioAvgWinDuration: number | null;
+    /** Pooled average duration in minutes of losing trades. */
+    portfolioAvgLossDuration: number | null;
+    /** Pooled sample standard deviation of returns across all symbols. */
+    portfolioStdDev: number | null;
+    /** Pooled Sortino Ratio over all trades. Same canonical formula as per-symbol. */
+    portfolioSortinoRatio: number | null;
+    /** Pooled Calmar Ratio: pooled compound annual / equity drawdown. Capped at ±MAX_CALMAR_RATIO. */
+    portfolioCalmarRatio: number | null;
+    /** Pooled Recovery Factor: (equityFinal-1)*100 / equityMaxDrawdown. Capped at ±MAX_CALMAR_RATIO. */
+    portfolioRecoveryFactor: number | null;
+    /** Pooled Expectancy: winProb*avgWin + lossProb*avgLoss (per-trade expected %). */
+    portfolioExpectancy: number | null;
+    /** Pooled Annualized Sharpe Ratio (portfolioSharpeRatio × √portfolioTradesPerYear). Higher is better. */
+    portfolioAnnualizedSharpeRatio: number | null;
+    /** Pooled Certainty Ratio (pooledAvgWin / |pooledAvgLoss|). Higher is better. */
+    portfolioCertaintyRatio: number | null;
+    /** Pooled expected yearly returns (geometric annualization of pooled equity, capped at ±MAX_EXPECTED_YEARLY_RETURNS). */
+    portfolioExpectedYearlyReturns: number | null;
+    /** Pooled observed trade frequency extrapolated to one year. */
+    portfolioTradesPerYear: number | null;
+}
+
+/**
+ * Unified scheduled signal event data for report generation.
+ * Contains all information about scheduled, opened and cancelled events.
+ */
+interface ScheduledEvent {
+    /** Event timestamp in milliseconds (scheduledAt for scheduled/cancelled events) */
+    timestamp: number;
+    /** Event action type */
+    action: "scheduled" | "opened" | "cancelled";
+    /** Trading pair symbol */
+    symbol: string;
+    /** Signal ID */
+    signalId: string;
+    /** Position type */
+    position: string;
+    /** Signal note */
+    note?: string;
+    /** Current market price */
+    currentPrice: number;
+    /** Scheduled entry price */
+    priceOpen: number;
+    /** Take profit price */
+    priceTakeProfit: number;
+    /** Stop loss price */
+    priceStopLoss: number;
+    /** Original take profit price before modifications */
+    originalPriceTakeProfit?: number;
+    /** Original stop loss price before modifications */
+    originalPriceStopLoss?: number;
+    /** Total number of DCA entries (present when averageBuy was applied) */
+    totalEntries?: number;
+    /** Total number of partial closes executed (_partial.length) */
+    totalPartials?: number;
+    /** Original entry price before DCA averaging (present when averageBuy was applied) */
+    originalPriceOpen?: number;
+    /** Total executed percentage from partial closes */
+    partialExecuted?: number;
+    /** Unrealized PNL at the moment of this event */
+    pnl?: IStrategyPnL;
+    /** Close timestamp (only for cancelled) */
+    closeTimestamp?: number;
+    /** Duration in minutes (only for cancelled/opened) */
+    duration?: number;
+    /** Cancellation reason (only for cancelled events) */
+    cancelReason?: "timeout" | "price_reject" | "user";
+    /** Cancellation ID (only for user-initiated cancellations) */
+    cancelId?: string;
+    /** Timestamp when position became active (only for opened events) */
+    pendingAt?: number;
+    /** Timestamp when signal was created/scheduled (for all events) */
+    scheduledAt?: number;
+}
+/**
+ * Statistical data calculated from scheduled signals.
+ *
+ * Provides metrics for scheduled signal tracking, activation and cancellation analysis.
+ *
+ * @example
+ * ```typescript
+ * const stats = await Schedule.getData("my-strategy");
+ *
+ * console.log(`Total events: ${stats.totalEvents}`);
+ * console.log(`Scheduled signals: ${stats.totalScheduled}`);
+ * console.log(`Opened signals: ${stats.totalOpened}`);
+ * console.log(`Cancelled signals: ${stats.totalCancelled}`);
+ * console.log(`Cancellation rate: ${stats.cancellationRate}%`);
+ *
+ * // Access raw event data (includes scheduled, opened, cancelled)
+ * stats.eventList.forEach(event => {
+ *   if (event.action === "cancelled") {
+ *     console.log(`Cancelled signal: ${event.signalId}`);
+ *   }
+ * });
+ * ```
+ */
+interface ScheduleStatisticsModel {
+    /** Array of all scheduled/opened/cancelled events with full details */
+    eventList: ScheduledEvent[];
+    /** Total number of all events (includes scheduled, opened, cancelled) */
+    totalEvents: number;
+    /** Total number of scheduled signals */
+    totalScheduled: number;
+    /** Total number of opened signals (activated from scheduled) */
+    totalOpened: number;
+    /** Total number of cancelled signals */
+    totalCancelled: number;
+    /** Cancellation rate as percentage (0-100), null if no scheduled signals. Lower is better. */
+    cancellationRate: number | null;
+    /** Activation rate as percentage (0-100), null if no scheduled signals. Higher is better. */
+    activationRate: number | null;
+    /** Average waiting time for cancelled signals in minutes, null if no cancelled signals */
+    avgWaitTime: number | null;
+    /** Average waiting time for opened signals in minutes, null if no opened signals */
+    avgActivationTime: number | null;
+}
+
+/**
+ * Aggregated statistics for a specific metric type.
+ */
+interface MetricStats {
+    /** Type of metric */
+    metricType: PerformanceMetricType;
+    /** Number of recorded samples */
+    count: number;
+    /** Total duration across all samples (ms) */
+    totalDuration: number;
+    /** Average duration (ms) */
+    avgDuration: number;
+    /** Minimum duration (ms) */
+    minDuration: number;
+    /** Maximum duration (ms) */
+    maxDuration: number;
+    /** Standard deviation of duration (ms) */
+    stdDev: number;
+    /** Median duration (ms) */
+    median: number;
+    /** 95th percentile duration (ms) */
+    p95: number;
+    /** 99th percentile duration (ms) */
+    p99: number;
+    /** Average wait time between events (ms) */
+    avgWaitTime: number;
+    /** Minimum wait time between events (ms) */
+    minWaitTime: number;
+    /** Maximum wait time between events (ms) */
+    maxWaitTime: number;
+}
+/**
+ * Performance statistics aggregated by strategy.
+ */
+interface PerformanceStatisticsModel {
+    /** Strategy name */
+    strategyName: StrategyName;
+    /** Total number of performance events recorded */
+    totalEvents: number;
+    /** Total execution time across all metrics (ms) */
+    totalDuration: number;
+    /** Statistics grouped by metric type */
+    metricStats: Record<string, MetricStats>;
+    /** All raw performance events */
+    events: PerformanceContract[];
+}
+
+/**
+ * Signal data for PNL table.
+ * Represents a single closed signal with essential trading information.
+ */
+interface SignalData {
+    /** Strategy that generated this signal */
+    strategyName: StrategyName;
+    /** Unique signal identifier */
+    signalId: string;
+    /** Trading pair symbol */
+    symbol: string;
+    /** Position type (long/short) */
+    position: string;
+    /** PNL as percentage */
+    pnl: number;
+    /** Reason why signal was closed */
+    closeReason: string;
+    /** Timestamp when signal opened */
+    openTime: number;
+    /** Timestamp when signal closed */
+    closeTime: number;
+}
+/**
+ * Strategy result entry for comparison table.
+ * Contains strategy name, full statistics, and metric value for ranking.
+ */
+interface IStrategyResult {
+    /** Strategy name */
+    strategyName: StrategyName;
+    /** Complete backtest statistics for this strategy */
+    stats: BacktestStatisticsModel;
+    /** Value of the optimization metric (null if invalid) */
+    metricValue: number | null;
+    /** Timestamp of the first signal event (pendingAt of earliest signal), null if no signals */
+    firstEventTime: number | null;
+    /** Timestamp of the last signal event (closeTimestamp of latest signal), null if no signals */
+    lastEventTime: number | null;
+}
+/**
+ * Alias for walker statistics result interface.
+ * Used for clarity in markdown service context.
+ *
+ * Extends IWalkerResults with additional strategy comparison data.
+ */
+interface WalkerStatisticsModel extends WalkerCompleteContract {
+    /** Array of all strategy results for comparison and analysis */
+    strategyResults: IStrategyResult[];
+}
+
+/**
+ * Unified partial profit/loss event data for report generation.
+ * Contains all information about profit and loss level milestones.
+ */
+interface PartialEvent {
+    /** Event timestamp in milliseconds */
+    timestamp: number;
+    /** Event action type (profit or loss) */
+    action: "profit" | "loss";
+    /** Trading pair symbol */
+    symbol: string;
+    /** Strategy name */
+    strategyName: StrategyName;
+    /** Signal ID */
+    signalId: string;
+    /** Position type */
+    position: string;
+    /** Current market price */
+    currentPrice: number;
+    /** Profit/loss level reached (10, 20, 30, etc) */
+    level: PartialLevel;
+    /** Entry price for the position */
+    priceOpen?: number;
+    /** Take profit target price */
+    priceTakeProfit?: number;
+    /** Stop loss exit price */
+    priceStopLoss?: number;
+    /** Original take profit price set at signal creation */
+    originalPriceTakeProfit?: number;
+    /** Original stop loss price set at signal creation */
+    originalPriceStopLoss?: number;
+    /** Total number of DCA entries (present when averageBuy was applied) */
+    totalEntries?: number;
+    /** Total number of partial closes executed (_partial.length) */
+    totalPartials?: number;
+    /** Original entry price before DCA averaging (present when averageBuy was applied) */
+    originalPriceOpen?: number;
+    /** Total executed percentage from partial closes */
+    partialExecuted?: number;
+    /** Unrealized PNL at the moment this level was reached */
+    pnl?: IStrategyPnL;
+    /** Human-readable description of signal reason */
+    note?: string;
+    /** Timestamp when position became active (ms) */
+    pendingAt?: number;
+    /** Timestamp when signal was created/scheduled (ms) */
+    scheduledAt?: number;
+    /** True if backtest mode, false if live mode */
+    backtest: boolean;
+}
+/**
+ * Statistical data calculated from partial profit/loss events.
+ *
+ * Provides metrics for partial profit/loss milestone tracking.
+ *
+ * @example
+ * ```typescript
+ * const stats = await Partial.getData("BTCUSDT", "my-strategy");
+ *
+ * console.log(`Total events: ${stats.totalEvents}`);
+ * console.log(`Profit events: ${stats.totalProfit}`);
+ * console.log(`Loss events: ${stats.totalLoss}`);
+ * ```
+ */
+interface PartialStatisticsModel {
+    /** Array of all profit/loss events with full details */
+    eventList: PartialEvent[];
+    /** Total number of all events (includes profit, loss) */
+    totalEvents: number;
+    /** Total number of profit events */
+    totalProfit: number;
+    /** Total number of loss events */
+    totalLoss: number;
+}
+
+/**
+ * Single highest profit event recorded for a position.
+ */
+interface HighestProfitEvent {
+    /** Unix timestamp in milliseconds when the record was set */
+    timestamp: number;
+    /** Trading pair symbol */
+    symbol: string;
+    /** Strategy name */
+    strategyName: string;
+    /** Signal unique identifier */
+    signalId: string;
+    /** Position direction */
+    position: IPublicSignalRow["position"];
+    /** Total PNL of the closed position (including all entries and partials) */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
+    /** Record price reached in the profit direction */
+    currentPrice: number;
+    /** Effective entry price at the time of the update */
+    priceOpen: number;
+    /** Take profit price */
+    priceTakeProfit: number;
+    /** Stop loss price */
+    priceStopLoss: number;
+    /** Whether the event occurred in backtest mode */
+    backtest: boolean;
+}
+/**
+ * Aggregated statistics model for highest profit events.
+ */
+interface HighestProfitStatisticsModel {
+    /** Full list of recorded events (newest first) */
+    eventList: HighestProfitEvent[];
+    /** Total number of recorded events */
+    totalEvents: number;
+}
+
+/**
+ * Single max drawdown event recorded for a position.
+ */
+interface MaxDrawdownEvent {
+    /** Unix timestamp in milliseconds when the record was set */
+    timestamp: number;
+    /** Trading pair symbol */
+    symbol: string;
+    /** Strategy name */
+    strategyName: string;
+    /** Signal unique identifier */
+    signalId: string;
+    /** Position direction */
+    position: IPublicSignalRow["position"];
+    /** Total PNL of the closed position (including all entries and partials) */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
+    /** Record price reached in the loss direction */
+    currentPrice: number;
+    /** Effective entry price at the time of the update */
+    priceOpen: number;
+    /** Take profit price */
+    priceTakeProfit: number;
+    /** Stop loss price */
+    priceStopLoss: number;
+    /** Whether the event occurred in backtest mode */
+    backtest: boolean;
+}
+/**
+ * Aggregated statistics model for max drawdown events.
+ */
+interface MaxDrawdownStatisticsModel {
+    /** Full list of recorded events (newest first) */
+    eventList: MaxDrawdownEvent[];
+    /** Total number of recorded events */
+    totalEvents: number;
+}
+
+/**
+ * Risk rejection event data for report generation.
+ * Contains all information about rejected signals due to risk limits.
+ */
+interface RiskEvent {
+    /** Event timestamp in milliseconds */
+    timestamp: number;
+    /** Trading pair symbol */
+    symbol: string;
+    /** Pending signal details */
+    currentSignal: IRiskSignalRow;
+    /** Strategy name */
+    strategyName: StrategyName;
+    /** Exchange name */
+    exchangeName: ExchangeName;
+    /** Time frame name */
+    frameName: FrameName;
+    /** Current market price */
+    currentPrice: number;
+    /** Number of active positions at rejection time */
+    activePositionCount: number;
+    /** Unique identifier for this rejection instance (null if validation threw exception without custom ID) */
+    rejectionId: string | null;
+    /** Rejection reason from validation note */
+    rejectionNote: string;
+    /** Whether this event is from backtest mode (true) or live mode (false) */
+    backtest: boolean;
+}
+/**
+ * Statistical data calculated from risk rejection events.
+ *
+ * Provides metrics for risk management tracking.
+ *
+ * @example
+ * ```typescript
+ * const stats = await Risk.getData("BTCUSDT", "my-strategy");
+ *
+ * console.log(`Total rejections: ${stats.totalRejections}`);
+ * console.log(`Rejections by symbol:`, stats.bySymbol);
+ * ```
+ */
+interface RiskStatisticsModel {
+    /** Array of all risk rejection events with full details */
+    eventList: RiskEvent[];
+    /** Total number of risk rejections */
+    totalRejections: number;
+    /** Rejections grouped by symbol */
+    bySymbol: Record<string, number>;
+    /** Rejections grouped by strategy */
+    byStrategy: Record<string, number>;
+}
+
+/**
+ * Unified breakeven event data for report generation.
+ * Contains all information about when signals reached breakeven.
+ */
+interface BreakevenEvent {
+    /** Event timestamp in milliseconds */
+    timestamp: number;
+    /** Trading pair symbol */
+    symbol: string;
+    /** Strategy name */
+    strategyName: StrategyName;
+    /** Signal ID */
+    signalId: string;
+    /** Position type */
+    position: string;
+    /** Current market price when breakeven was reached */
+    currentPrice: number;
+    /** Entry price (breakeven level) */
+    priceOpen: number;
+    /** Take profit target price */
+    priceTakeProfit?: number;
+    /** Stop loss exit price */
+    priceStopLoss?: number;
+    /** Original take profit price set at signal creation */
+    originalPriceTakeProfit?: number;
+    /** Original stop loss price set at signal creation */
+    originalPriceStopLoss?: number;
+    /** Total number of DCA entries (present when averageBuy was applied) */
+    totalEntries?: number;
+    /** Total number of partial closes executed (_partial.length) */
+    totalPartials?: number;
+    /** Original entry price before DCA averaging (present when averageBuy was applied) */
+    originalPriceOpen?: number;
+    /** Total executed percentage from partial closes */
+    partialExecuted?: number;
+    /** Unrealized PNL at the moment breakeven was reached */
+    pnl?: IStrategyPnL;
+    /** Human-readable description of signal reason */
+    note?: string;
+    /** Timestamp when position became active (ms) */
+    pendingAt?: number;
+    /** Timestamp when signal was created/scheduled (ms) */
+    scheduledAt?: number;
+    /** True if backtest mode, false if live mode */
+    backtest: boolean;
+}
+/**
+ * Statistical data calculated from breakeven events.
+ *
+ * Provides metrics for breakeven milestone tracking.
+ *
+ * @example
+ * ```typescript
+ * const stats = await Breakeven.getData("BTCUSDT", "my-strategy");
+ *
+ * console.log(`Total breakeven events: ${stats.totalEvents}`);
+ * console.log(`Average threshold: ${stats.averageThreshold}%`);
+ * ```
+ */
+interface BreakevenStatisticsModel {
+    /** Array of all breakeven events with full details */
+    eventList: BreakevenEvent[];
+    /** Total number of breakeven events */
+    totalEvents: number;
+}
+
+/**
+ * Action types for strategy events.
+ * Represents all possible strategy management actions.
+ */
+type StrategyActionType = "cancel-scheduled" | "close-pending" | "partial-profit" | "partial-loss" | "trailing-stop" | "trailing-take" | "breakeven" | "activate-scheduled" | "average-buy" | "dividend";
+/**
+ * Unified strategy event data for markdown report generation.
+ * Contains all information about strategy management actions.
+ */
+interface StrategyEvent {
+    /** Event timestamp in milliseconds */
+    timestamp: number;
+    /** Trading pair symbol */
+    symbol: string;
+    /** Strategy name */
+    strategyName: StrategyName;
+    /** Exchange name */
+    exchangeName: ExchangeName;
+    /** Frame name (empty for live) */
+    frameName: FrameName;
+    /** Signal ID */
+    signalId: string;
+    /** Action type */
+    action: StrategyActionType;
+    /** Current market price when action was executed */
+    currentPrice?: number;
+    /** Percent to close for partial profit/loss */
+    percentToClose?: number;
+    /** Percent shift for trailing stop/take */
+    percentShift?: number;
+    /** Cancel ID for cancel-scheduled action */
+    cancelId?: string;
+    /** Close ID for close-pending action */
+    closeId?: string;
+    /** Activate ID for activate-scheduled action */
+    activateId?: string;
+    /** ISO timestamp string when action was created */
+    createdAt: string;
+    /** True if backtest mode, false if live mode */
+    backtest: boolean;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position?: "long" | "short";
+    /** Entry price for the position */
+    priceOpen?: number;
+    /** Effective take profit price (with trailing if set) */
+    priceTakeProfit?: number;
+    /** Effective stop loss price (with trailing if set) */
+    priceStopLoss?: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit?: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss?: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen?: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt?: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt?: number;
+    /** Averaged entry price after DCA addition (average-buy action only) */
+    effectivePriceOpen?: number;
+    /** Total number of DCA entries after this addition (average-buy action only) */
+    totalEntries?: number;
+    /** Total number of partial closes executed (_partial.length) */
+    totalPartials?: number;
+    /** DCA entry history of the position at the event (IPublicSignalRow.entries) */
+    entries?: ISignalEntry[];
+    /** Partial close history of the position at the event (IPublicSignalRow.partials) */
+    partials?: ISignalPartial[];
+    /** Dividend / staking accruals of the position at the event (IPublicSignalRow.accruals) */
+    accruals?: ISignalAccrual[];
+    /** PNL at the moment of this action */
+    pnl?: IStrategyPnL;
+    /** Cost of this entry in USD (average-buy action only) */
+    cost?: number;
+    /** Accrual kind: "cash" or "asset" (dividend action only) */
+    accrualType?: AccrualType;
+    /** Accrual amount: USD for "cash", asset units for "asset" (dividend action only) */
+    amount?: number;
+    /** USD value of all accruals of the position after the event (dividend action only) */
+    pnlDividends?: number;
+    /** Total number of accruals on the position after the event (dividend action only) */
+    totalAccruals?: number;
+    /** Optional note from commit payload */
+    note?: string;
+}
+/**
+ * Statistical data calculated from strategy events.
+ *
+ * Provides metrics for strategy action tracking.
+ *
+ * @example
+ * ```typescript
+ * const stats = await Strategy.getData("BTCUSDT", "my-strategy");
+ *
+ * console.log(`Total events: ${stats.totalEvents}`);
+ * console.log(`Cancel scheduled: ${stats.cancelScheduledCount}`);
+ * ```
+ */
+interface StrategyStatisticsModel {
+    /** Array of all strategy events with full details */
+    eventList: StrategyEvent[];
+    /** Total number of strategy events */
+    totalEvents: number;
+    /** Count of cancel-scheduled events */
+    cancelScheduledCount: number;
+    /** Count of close-pending events */
+    closePendingCount: number;
+    /** Count of partial-profit events */
+    partialProfitCount: number;
+    /** Count of partial-loss events */
+    partialLossCount: number;
+    /** Count of trailing-stop events */
+    trailingStopCount: number;
+    /** Count of trailing-take events */
+    trailingTakeCount: number;
+    /** Count of breakeven events */
+    breakevenCount: number;
+    /** Count of activate-scheduled events */
+    activateScheduledCount: number;
+    /** Count of average-buy (DCA) events */
+    averageBuyCount: number;
+    /** Count of dividend (accrual recorded, credit or charge) events */
+    dividendCount: number;
+}
+
+/**
+ * Base fields shared by both variants of the initial-dispatch payload.
+ * Carries the resolved execution context of the state access.
+ */
+interface InitialDispatchContractBase {
+    /**
+     * Trading pair symbol (e.g., "BTCUSDT").
+     */
+    symbol: string;
+    /**
+     * Strategy name owning the signal.
+     */
+    strategyName: StrategyName;
+    /**
+     * Exchange name where this strategy is running.
+     */
+    exchangeName: ExchangeName;
+    /**
+     * Frame name (if backtest)
+     */
+    frameName: FrameName;
+    /**
+     * Current market price of the symbol at the moment of state init.
+     */
+    currentPrice: number;
+    /**
+     * Execution mode flag.
+     * - true: Event from backtest execution (historical candle data)
+     * - false: Event from live trading (real-time tick)
+     */
+    backtest: boolean;
+    /**
+     * Event timestamp in milliseconds since Unix epoch.
+     *
+     * Timing semantics:
+     * - Live mode: when.getTime() at the moment of state init
+     * - Backtest mode: candle.timestamp of the candle being processed
+     */
+    timestamp: number;
+    /**
+     * Event time as a `Date` instance.
+     *
+     * - Backtest mode: virtual execution time — `candle.timestamp` of the candle
+     *   being processed (not wall-clock time).
+     * - Live mode: wall-clock time at the moment of state init.
+     *
+     * Always equal to `new Date(timestamp)`.
+     */
+    when: Date;
+}
+/**
+ * Initial-dispatch payload for an OPEN position: the state access resolved a
+ * pending signal — the order is filled and the position is being monitored.
+ */
+interface InitialDispatchActiveContract extends InitialDispatchContractBase {
+    /**
+     * Discriminator: "active" — open position order.
+     */
+    type: "active";
+    /**
+     * Complete public signal row of the open position at the moment of state init.
+     */
+    signal: IPublicSignalRow;
+}
+/**
+ * Initial-dispatch payload for a RESTING entry: the state access resolved a
+ * scheduled signal — the entry order is waiting for price to reach priceOpen.
+ */
+interface InitialDispatchScheduleContract extends InitialDispatchContractBase {
+    /**
+     * Discriminator: "schedule" — resting entry order.
+     */
+    type: "schedule";
+    /**
+     * Complete scheduled signal row of the resting entry at the moment of state init.
+     */
+    signal: IScheduledSignalRow;
+}
+/**
+ * Contract for lazy per-signal state initialization.
+ *
+ * Passed as the first argument to the `initialData` factory of `new State({ name, initialData })`
+ * when the factory form is used: the factory runs on every state access for the signal
+ * that has no persisted value yet, and this payload carries the full resolved context of
+ * that moment — so the initial state can be DERIVED from the live signal instead of being
+ * a static constant.
+ *
+ * Discriminated union on `type`: "active" carries the pending `IPublicSignalRow` of an
+ * open position, "schedule" carries the `IScheduledSignalRow` of a resting entry — use
+ * `payload.type === "active"` for type-safe access to the variant-specific signal shape.
+ *
+ * Typical use: seed per-trade metrics from the actual entry — e.g. start `peakPercent`
+ * from the current unrealized PnL, anchor thresholds to `signal.priceOpen` / TP / SL
+ * distances, or branch the defaults for a resting entry versus an open position.
+ *
+ * The payload is assembled by the State facade right after the active signal is resolved
+ * from the async_hooks execution context: `signal` is the pending or scheduled row,
+ * `currentPrice` is the VWAP used for that resolution, and `when`/`timestamp` carry the
+ * LOGICAL time of the access (candle time in backtest, wall-clock in live) — the same
+ * timestamp that powers the look-ahead guard, so a factory deriving values from it can
+ * never peek ahead of the tick being processed.
+ *
+ * The returned object becomes `initialValue`: it is what reads yield while nothing was
+ * written (or while the stored record is in the future relative to `when`), and what the
+ * `setState` dispatch updater receives as `prev` on the first update. A fresh payload is
+ * built per access, so the factory result is never shared by reference between calls.
+ */
+type InitialDispatchContract = InitialDispatchActiveContract | InitialDispatchScheduleContract;
+
+/**
  * Public API of the Sweep entity — parameter sweep over crowd
  * trading ideas. Profiles every idea with ONE candle pass and
  * evaluates the whole grid arithmetically from the profiles; the
@@ -23068,6 +24139,8 @@ interface IMarkdownTarget {
     highest_profit: boolean;
     /** Enable max drawdown milestone tracking reports */
     max_drawdown: boolean;
+    /** Enable budget journal reports (reserve / release / reject / deposit / withdraw rows) */
+    budget: boolean;
 }
 /** Symbol key for the singleshot waitForInit function on MarkdownFileBase instances. */
 declare const WAIT_FOR_INIT_SYMBOL: unique symbol;
@@ -23328,6 +24401,8 @@ interface IReportTarget {
     highest_profit: boolean;
     /** Enable max drawdown milestone event logging */
     max_drawdown: boolean;
+    /** Enable budget journal row logging */
+    budget: boolean;
 }
 /**
  * Union type of all valid report names.
@@ -23545,7 +24620,7 @@ declare class ReportUtils {
      *
      * @returns Cleanup function that unsubscribes from all enabled services
      */
-    enable: (({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, }?: Partial<IReportTarget>) => (...args: any[]) => any) & functools_kit.ISingleshotClearable<({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, }?: Partial<IReportTarget>) => (...args: any[]) => any>;
+    enable: (({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, budget, }?: Partial<IReportTarget>) => (...args: any[]) => any) & functools_kit.ISingleshotClearable<({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, budget, }?: Partial<IReportTarget>) => (...args: any[]) => any>;
     /**
      * Disables report services selectively.
      *
@@ -23582,7 +24657,7 @@ declare class ReportUtils {
      * Report.disable();
      * ```
      */
-    disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, }?: Partial<IReportTarget>) => void;
+    disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, budget, }?: Partial<IReportTarget>) => void;
 }
 /**
  * Report adapter with pluggable storage backend and instance memoization.
@@ -23662,7 +24737,7 @@ declare class MarkdownUtils {
      *
      * @returns Cleanup function that unsubscribes from all enabled services
      */
-    enable: (({ backtest: bt, breakeven, heat, live, partial, performance, strategy, risk, schedule, walker, sync, highest_profit, max_drawdown, }?: Partial<IMarkdownTarget>) => (...args: any[]) => any) & functools_kit.ISingleshotClearable<({ backtest: bt, breakeven, heat, live, partial, performance, strategy, risk, schedule, walker, sync, highest_profit, max_drawdown, }?: Partial<IMarkdownTarget>) => (...args: any[]) => any>;
+    enable: (({ backtest: bt, breakeven, heat, live, partial, performance, strategy, risk, schedule, walker, sync, highest_profit, max_drawdown, budget, }?: Partial<IMarkdownTarget>) => (...args: any[]) => any) & functools_kit.ISingleshotClearable<({ backtest: bt, breakeven, heat, live, partial, performance, strategy, risk, schedule, walker, sync, highest_profit, max_drawdown, budget, }?: Partial<IMarkdownTarget>) => (...args: any[]) => any>;
     /**
      * Disables markdown report services selectively.
      *
@@ -23700,7 +24775,7 @@ declare class MarkdownUtils {
      * Markdown.disable();
      * ```
      */
-    disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, strategy, schedule, walker, sync, highest_profit, max_drawdown, }?: Partial<IMarkdownTarget>) => void;
+    disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, strategy, schedule, walker, sync, highest_profit, max_drawdown, budget, }?: Partial<IMarkdownTarget>) => void;
     /**
      * Clears markdown report data selectively.
      *
@@ -23726,8 +24801,9 @@ declare class MarkdownUtils {
      * @param config.sync - Clear sync report data
      * @param config.highest_profit - Clear highest profit report data
      * @param config.max_drawdown - Clear max drawdown report data
+     * @param config.budget - Clear budget report data
      */
-    clear: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, strategy, schedule, walker, sync, highest_profit, max_drawdown, }?: Partial<IMarkdownTarget>) => void;
+    clear: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, strategy, schedule, walker, sync, highest_profit, max_drawdown, budget, }?: Partial<IMarkdownTarget>) => void;
 }
 /**
  * Markdown adapter with pluggable storage backend and instance memoization.
@@ -28129,7 +29205,7 @@ type StrategyColumn = ColumnModel<IStrategyResult>;
  * @see ColumnModel for the base interface
  * @see SignalData for the signal data structure
  */
-type PnlColumn = ColumnModel<SignalData$1>;
+type PnlColumn = ColumnModel<SignalData>;
 /**
  * Service for generating and saving walker markdown reports.
  *
@@ -39365,6 +40441,13 @@ declare const highestProfitSubject: Subject<HighestProfitContract>;
  */
 declare const maxDrawdownSubject: Subject<MaxDrawdownContract>;
 /**
+ * Budget journal emitter: one event per row inserted into a budget record
+ * (reserve / release / reject / deposit / withdraw) by the Local and Persist
+ * budget instances. Feeds `budget.jsonl` (BudgetReportService) and the budget
+ * markdown report (BudgetMarkdownService); exposed to user code via `listenBudget`.
+ */
+declare const budgetSubject: Subject<BudgetContract>;
+/**
  * Pause state emitter for strategy pause/resume tracking.
  * Emits when setPaused toggles the pause flag of a strategy (new position
  * opening suspended/resumed; existing signals keep closing normally).
@@ -39399,6 +40482,7 @@ declare const emitters_afterEndSubject: typeof afterEndSubject;
 declare const emitters_backtestScheduleOpenSubject: typeof backtestScheduleOpenSubject;
 declare const emitters_beforeStartSubject: typeof beforeStartSubject;
 declare const emitters_breakevenSubject: typeof breakevenSubject;
+declare const emitters_budgetSubject: typeof budgetSubject;
 declare const emitters_doneBacktestSubject: typeof doneBacktestSubject;
 declare const emitters_doneLiveSubject: typeof doneLiveSubject;
 declare const emitters_doneWalkerSubject: typeof doneWalkerSubject;
@@ -39435,7 +40519,7 @@ declare const emitters_walkerCompleteSubject: typeof walkerCompleteSubject;
 declare const emitters_walkerEmitter: typeof walkerEmitter;
 declare const emitters_walkerStopSubject: typeof walkerStopSubject;
 declare namespace emitters {
-  export { emitters_activePingSubject as activePingSubject, emitters_afterEndSubject as afterEndSubject, emitters_backtestScheduleOpenSubject as backtestScheduleOpenSubject, emitters_beforeStartSubject as beforeStartSubject, emitters_breakevenSubject as breakevenSubject, emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_entrySubject as entrySubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_highestProfitSubject as highestProfitSubject, emitters_idlePingSubject as idlePingSubject, emitters_maxDrawdownSubject as maxDrawdownSubject, emitters_orderContinueSubject as orderContinueSubject, emitters_orderFillSubject as orderFillSubject, emitters_orderRejectSubject as orderRejectSubject, emitters_orderStopSubject as orderStopSubject, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_pauseSubject as pauseSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_scheduleEventSubject as scheduleEventSubject, emitters_schedulePingSubject as schedulePingSubject, emitters_shutdownEmitter as shutdownEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalEventSubject as signalEventSubject, emitters_signalLiveEmitter as signalLiveEmitter, emitters_signalNotifySubject as signalNotifySubject, emitters_strategyCommitSubject as strategyCommitSubject, emitters_syncPendingSubject as syncPendingSubject, emitters_syncSubject as syncSubject, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
+  export { emitters_activePingSubject as activePingSubject, emitters_afterEndSubject as afterEndSubject, emitters_backtestScheduleOpenSubject as backtestScheduleOpenSubject, emitters_beforeStartSubject as beforeStartSubject, emitters_breakevenSubject as breakevenSubject, emitters_budgetSubject as budgetSubject, emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_entrySubject as entrySubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_highestProfitSubject as highestProfitSubject, emitters_idlePingSubject as idlePingSubject, emitters_maxDrawdownSubject as maxDrawdownSubject, emitters_orderContinueSubject as orderContinueSubject, emitters_orderFillSubject as orderFillSubject, emitters_orderRejectSubject as orderRejectSubject, emitters_orderStopSubject as orderStopSubject, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_pauseSubject as pauseSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_scheduleEventSubject as scheduleEventSubject, emitters_schedulePingSubject as schedulePingSubject, emitters_shutdownEmitter as shutdownEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalEventSubject as signalEventSubject, emitters_signalLiveEmitter as signalLiveEmitter, emitters_signalNotifySubject as signalNotifySubject, emitters_strategyCommitSubject as strategyCommitSubject, emitters_syncPendingSubject as syncPendingSubject, emitters_syncSubject as syncSubject, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
 }
 
 /**
@@ -40320,180 +41404,1403 @@ declare class StrategySchemaService {
     get: (key: StrategyName) => IStrategySchema;
 }
 
-/** Type for active position map */
-type RiskMap = Map<string, IRiskActivePosition>;
-/** Symbol indicating that positions need to be fetched from persistence */
-declare const POSITION_NEED_FETCH: unique symbol;
 /**
- * ClientRisk implementation for portfolio-level risk management.
- *
- * Provides risk checking logic to prevent signals that violate configured limits:
- * - Maximum concurrent positions (tracks across all strategies)
- * - Custom validations with access to all active positions
- *
- * Multiple ClientStrategy instances share the same ClientRisk instance,
- * allowing cross-strategy risk analysis.
- *
- * Used internally by strategy execution to validate signals before opening positions.
+ * Type definition for strategy methods.
+ * Maps all keys of IStrategy to any type.
+ * Used for dynamic method routing in StrategyCoreService.
  */
-declare class ClientRisk implements IRisk {
-    readonly params: IRiskParams;
+type TStrategy$1 = {
+    [key in keyof IStrategy]: any;
+};
+/**
+ * Global service for strategy operations with execution context injection.
+ *
+ * Wraps StrategyConnectionService with ExecutionContextService to inject
+ * symbol, when, and backtest parameters into the execution context.
+ *
+ * Used internally by BacktestLogicPrivateService and LiveLogicPrivateService.
+ */
+declare class StrategyCoreService implements TStrategy$1 {
+    private readonly loggerService;
+    private readonly strategyConnectionService;
+    private readonly strategySchemaService;
+    private readonly riskValidationService;
+    private readonly strategyValidationService;
+    private readonly exchangeValidationService;
+    private readonly frameValidationService;
+    private readonly actionValidationService;
     /**
-     * Map of active positions tracked across all strategies.
-     * Key: `${strategyName}_${exchangeName}_${symbol}` (see CREATE_NAME_FN)
-     * Starts as POSITION_NEED_FETCH symbol, gets initialized on first use.
+     * Validates strategy and associated risk configuration.
+     *
+     * Memoized to avoid redundant validations for the same symbol-strategy-exchange-frame combination.
+     * Logs validation activity.
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise that resolves when validation is complete
      */
-    _activePositions: RiskMap | typeof POSITION_NEED_FETCH;
+    private validate;
     /**
-     * Keys of transient reservation placeholders (checkSignalAndReserve) still
-     * awaiting their finalizing addSignal / releasing removeSignal. Excluded from
-     * persisted snapshots in _updatePositions: a reservation is process-transient,
-     * but a CONCURRENT strategy's addSignal persists the whole shared map — flushed
-     * to disk that placeholder would survive a crash as a phantom position and
-     * block the shared concurrency limit for the whole signal lifetime (forever
-     * for minuteEstimatedTime: Infinity, which the expiry pruning never removes).
+     * Retrieves the currently active pending signal for the symbol.
+     * If no active signal exists, returns null.
+     * Used internally for monitoring TP/SL and time expiration.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to pending signal or null
      */
-    _reservedKeys: Set<string>;
-    constructor(params: IRiskParams);
-    /**
-     * Initializes active positions by loading from persistence.
-     * Uses singleshot pattern to ensure initialization happens exactly once.
-     * Skips persistence in backtest mode.
-     */
-    private waitForInit;
-    /**
-     * Persists current active positions to disk.
-     * Skips in backtest mode.
-     */
-    private _updatePositions;
-    /**
-     * Registers a new opened signal.
-     * Called by StrategyConnectionService after signal is opened.
-     */
-    addSignal(symbol: string, context: {
+    getPendingSignal: (backtest: boolean, symbol: string, currentPrice: number, context: {
         strategyName: StrategyName;
-        riskName: RiskName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, positionData: {
-        position: "long" | "short";
-        priceOpen: number;
-        priceStopLoss: number;
-        priceTakeProfit: number;
-        minuteEstimatedTime: number;
-        openTimestamp: number;
-    }): Promise<void>;
+    }) => Promise<IPublicSignalRow | null>;
     /**
-     * Removes a closed signal.
-     * Called by StrategyConnectionService when signal is closed.
+     * Returns the still-held share of the position as a percentage.
+     * 100 = nothing has been closed (full position), 0 = fully closed.
+     * Correctly accounts for DCA entries between partial closes.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<number> - held percentage (0–100)
      */
-    removeSignal(symbol: string, context: {
+    getTotalPercentHeld: (backtest: boolean, symbol: string, context: {
         strategyName: StrategyName;
-        riskName: RiskName;
         exchangeName: ExchangeName;
-        frameName: string;
-    }): Promise<void>;
+        frameName: FrameName;
+    }) => Promise<number | null>;
     /**
-     * Checks if a signal should be allowed based on risk limits.
+     * Returns the remaining cost basis in dollars after partial closes.
+     * Correctly accounts for DCA entries between partial closes.
      *
-     * Executes custom validations with access to:
-     * - Passthrough params from ClientStrategy (symbol, strategyName, exchangeName, currentPrice, timestamp)
-     * - Active positions via this.activePositions getter
-     *
-     * Returns false immediately if any validation throws error.
-     * Triggers callbacks (onRejected, onAllowed) based on result.
-     *
-     * @param params - Risk check arguments (passthrough from ClientStrategy)
-     * @returns Promise resolving to true if allowed, false if rejected
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<number> - remaining cost basis in dollars
      */
-    checkSignal: (params: IRiskCheckArgs, options?: Partial<IRiskCheckOptions>) => Promise<boolean>;
+    getRemainingCostBasis: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
     /**
-     * Concurrency-safe variant of {@link checkSignal}: validates the signal AND
-     * reserves a placeholder slot in the active position map atomically.
+     * Returns the effective (DCA-averaged) entry price for the current pending signal.
      *
-     * **Why this exists.** `checkSignal` followed later by `addSignal` is not
-     * atomic — between the two calls the caller does signal setup work that
-     * yields to the event loop (sync-open callback, persist writes, etc.). When
-     * several strategies sharing the same risk profile run in parallel, all of
-     * them can pass `checkSignal` while the active position map is still empty,
-     * then each call `addSignal` and blow past the limit. Reserving inside the
-     * lock guarantees the next concurrent caller observes the incremented size
-     * before its own validation runs.
+     * This is the harmonic mean of all _entry prices, which is the correct
+     * cost-basis price used in all PNL calculations.
+     * With no DCA entries, equals the original priceOpen.
      *
-     * The reservation uses the same map key as the eventual `addSignal` call
-     * (`strategyName + exchangeName + symbol`), so `addSignal` overwrites the
-     * placeholder rather than appending a duplicate.
+     * Returns null if no pending signal exists.
      *
-     * Callers MUST ensure that every successful return is followed by either
-     * `addSignal` (overwrites the placeholder with real data) or `removeSignal`
-     * (clears the placeholder if opening is aborted). Otherwise the riskMap
-     * accumulates stale reservations.
-     *
-     * @param params - Risk check arguments (passthrough from ClientStrategy)
-     * @returns Promise resolving to true if allowed (and reserved), false if rejected (no reservation)
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to effective entry price or null
      */
-    checkSignalAndReserve: (params: IRiskCheckArgs) => Promise<boolean>;
+    getPositionEffectivePrice: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the number of DCA entries made for the current pending signal.
+     *
+     * 1 = original entry only (no DCA).
+     * Increases by 1 with each successful commitAverageBuy().
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to entry count or null
+     */
+    getPositionInvestedCount: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the total invested cost basis in dollars for the current pending signal.
+     *
+     * Equal to entryCount × $100 (COST_BASIS_PER_ENTRY).
+     * 1 entry = $100, 2 entries = $200, etc.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to total invested cost in dollars or null
+     */
+    getPositionInvestedCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the unrealized PNL percentage for the current pending signal at currentPrice.
+     *
+     * Accounts for partial closes, DCA entries, slippage and fees
+     * (delegates to toProfitLossDto).
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to pnlPercentage or null
+     */
+    getPositionPnlPercent: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the unrealized PNL in dollars for the current pending signal at currentPrice.
+     *
+     * Calculated as: pnlPercentage / 100 × totalInvestedCost
+     * Accounts for partial closes, DCA entries, slippage and fees.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to pnl in dollars or null
+     */
+    getPositionPnlCost: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the list of DCA entry prices for the current pending signal.
+     *
+     * The first element is always the original priceOpen (initial entry).
+     * Each subsequent element is a price added by commitAverageBuy().
+     *
+     * Returns null if no pending signal exists.
+     * Returns a single-element array [priceOpen] if no DCA entries were made.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to array of entry prices or null
+     *
+     * @example
+     * ```typescript
+     * // No DCA: [43000]
+     * // One DCA: [43000, 42000]
+     * // Two DCA: [43000, 42000, 41500]
+     * ```
+     */
+    getPositionLevels: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number[] | null>;
+    /**
+     * Returns the list of partial closes for the current pending signal.
+     *
+     * Each entry records a partial profit or loss close event with its type,
+     * percent closed, price at close, cost basis snapshot, and entry count at close.
+     *
+     * Returns null if no pending signal exists.
+     * Returns an empty array if no partial closes have been executed.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to array of partial close records or null
+     */
+    getPositionPartials: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<ISignalPartial[]>;
+    /**
+     * Returns the list of DCA entry prices and costs for the current pending signal.
+     *
+     * Each entry records the price and cost of a single position entry.
+     * The first element is always the original priceOpen (initial entry).
+     * Each subsequent element is an entry added by averageBuy().
+     *
+     * Returns null if no pending signal exists.
+     * Returns a single-element array [{ price: priceOpen, cost }] if no DCA entries were made.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to array of entry records or null
+     *
+     * @example
+     * ```typescript
+     * // No DCA: [{ price: 43000, cost: 100 }]
+     * // One DCA: [{ price: 43000, cost: 100 }, { price: 42000, cost: 100 }]
+     * ```
+     */
+    getPositionEntries: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<ISignalEntry[]>;
+    /**
+     * Retrieves the currently active scheduled signal for the symbol.
+     * If no scheduled signal exists, returns null.
+     * Used internally for monitoring scheduled signal activation.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to scheduled signal or null
+     */
+    getScheduledSignal: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<IScheduledSignalRow | null>;
+    /**
+     * Checks if breakeven threshold has been reached for the current pending signal.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to check if price has moved far enough to cover transaction costs.
+     *
+     * Does not require execution context as this is a state query operation.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price to check against threshold
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if breakeven threshold reached, false otherwise
+     *
+     * @example
+     * ```typescript
+     * // Check if breakeven is available for LONG position (entry=100, threshold=0.4%)
+     * const canBreakeven = await strategyCoreService.getBreakeven(
+     *   false,
+     *   "BTCUSDT",
+     *   100.5,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * // Returns true (price >= 100.4)
+     *
+     * if (canBreakeven) {
+     *   await strategyCoreService.breakeven(false, "BTCUSDT", 100.5, context);
+     * }
+     * ```
+     */
+    getBreakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks if the strategy has been stopped.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to retrieve the stopped state from the strategy instance.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to true if strategy is stopped, false otherwise
+     */
+    getStopped: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks if the strategy is paused.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to retrieve the paused state from the strategy instance.
+     * Works out of the async-hooks execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to true if strategy is paused, false otherwise
+     */
+    getPaused: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Pauses or resumes the strategy's own signal generation.
+     *
+     * Validates strategy existence and delegates to connection service.
+     * While paused getSignal is not called; existing signals keep being monitored
+     * and close normally. The flag is persisted and survives restarts and signal
+     * transitions until an explicit setPaused(false).
+     * Works out of the async-hooks execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param paused - New paused state
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise that resolves when the flag is set (and persisted in live mode)
+     */
+    setPaused: (backtest: boolean, symbol: string, paused: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Checks signal status at a specific timestamp.
+     *
+     * Wraps strategy tick() with execution context containing symbol, timestamp,
+     * and backtest mode flag.
+     *
+     * CALLER CONTRACT: ticks for the same (symbol, strategy, exchange) MUST NOT
+     * overlap — there is deliberately no internal mutex. `Live.run` satisfies this
+     * (strict `await tick` loop); manual callers must serialize too. Two concurrent
+     * ticks race the retry slot (the slot bypasses the generation throttle): both
+     * consume it, the open gate fires twice CONCURRENTLY with the same signalId,
+     * and two "opened" results are emitted for one position.
+     *
+     * @param symbol - Trading pair symbol
+     * @param when - Timestamp for tick evaluation
+     * @param backtest - Whether running in backtest mode
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Discriminated union of tick result (idle, opened, active, closed)
+     */
+    tick: (symbol: string, when: Date, backtest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<IStrategyTickResult>;
+    /**
+     * Runs fast backtest against candle array.
+     *
+     * Wraps strategy backtest() with execution context containing symbol,
+     * timestamp, and backtest mode flag.
+     *
+     * @param symbol - Trading pair symbol
+     * @param candles - Array of historical candles to test against
+     * @param when - Starting timestamp for backtest
+     * @param backtest - Whether running in backtest mode (typically true)
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Closed signal result with PNL
+     */
+    backtest: (symbol: string, candles: ICandleData[], frameEndTime: number, when: Date, backtest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive>;
+    /**
+     * Stops the strategy from generating new signals.
+     *
+     * Delegates to StrategyConnectionService.stop() to set internal flag.
+     * Does not require execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param ctx - Context with strategyName, exchangeName, frameName
+     * @returns Promise that resolves when stop flag is set
+     */
+    stopStrategy: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Cancels the scheduled signal without stopping the strategy.
+     *
+     * Delegates to StrategyConnectionService.cancelScheduled() to clear scheduled signal
+     * and emit cancelled event through emitters.
+     * Does not require execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param ctx - Context with strategyName, exchangeName, frameName
+     * @param payload - Optional commit payload with id and note
+     * @returns Promise that resolves when scheduled signal is cancelled
+     */
+    cancelScheduled: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
+    /**
+     * Closes the pending signal without stopping the strategy.
+     *
+     * Clears the pending signal (active position).
+     * Does NOT affect scheduled signals or strategy operation.
+     * Does NOT set stop flag - strategy can continue generating new signals.
+     *
+     * Delegates to StrategyConnectionService.closePending() to clear pending signal
+     * and emit closed event through emitters.
+     * Does not require execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Context with strategyName, exchangeName, frameName
+     * @param payload - Optional commit payload with id and note
+     * @returns Promise that resolves when pending signal is closed
+     */
+    closePending: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
+    /**
+     * Queues a user-supplied signal DTO to be consumed by the next tick instead of getSignal.
+     *
+     * Validates the context, then delegates to StrategyConnectionService.createSignal().
+     * Rejected if a signal or deferred action is already in flight. Does not require execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param dto - Signal DTO to open
+     * @param context - Context with strategyName, exchangeName, frameName
+     * @returns Promise that resolves when the DTO is queued
+     */
+    createSignal: (backtest: boolean, symbol: string, dto: ISignalDto, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Reports that the pending position's take-profit order was actually filled on the exchange
+     * (e.g. by candle high/low), forcing a close that bypasses the framework's VWAP-based TP check.
+     *
+     * Validates the context, then delegates to StrategyConnectionService.createTakeProfit().
+     * The close is deferred and emitted with closeReason "take_profit" on the next tick/backtest.
+     * Does not require execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Context with strategyName, exchangeName, frameName
+     * @param payload - Optional commit payload with id and note
+     * @returns Promise that resolves when the take-profit fill is queued
+     */
+    createTakeProfit: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
+    /**
+     * Reports that the pending position's stop-loss order was actually filled on the exchange
+     * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based SL check (closed-candle granularity).
+     *
+     * Validates the context, then delegates to StrategyConnectionService.createStopLoss().
+     * The close is deferred and emitted with closeReason "stop_loss" on the next tick/backtest.
+     * Does not require execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Context with strategyName, exchangeName, frameName
+     * @param payload - Optional commit payload with id and note
+     * @returns Promise that resolves when the stop-loss fill is queued
+     */
+    createStopLoss: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
+    /**
+     * Returns the in-memory deferred strategy-state snapshot for this iteration.
+     *
+     * Validates the context, then delegates to StrategyConnectionService.getStatus().
+     * Does not require execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to the current StrategyStatus snapshot
+     */
+    getStatus: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<StrategyStatus>;
+    /**
+     * Disposes the ClientStrategy instance for the given context.
+     *
+     * Calls dispose on the strategy instance to clean up resources,
+     * then removes it from cache.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     */
+    dispose: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Clears the memoized ClientStrategy instance from cache.
+     *
+     * Delegates to StrategyConnectionService.dispose() if payload provided,
+     * otherwise clears all strategy instances.
+     *
+     * @param payload - Optional payload with symbol, context and backtest flag (clears all if not provided)
+     */
+    clear: (payload?: {
+        symbol: string;
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+        backtest: boolean;
+    }) => Promise<void>;
+    /**
+     * Checks whether `partialProfit` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validatePartialProfit().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentToClose - Percentage of position to check (0-100]
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `partialProfit` would execute, false otherwise
+     */
+    validatePartialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Executes partial close at profit level (moving toward TP).
+     *
+     * Validates strategy existence and delegates to connection service
+     * to close a percentage of the pending position at profit.
+     *
+     * Does not require execution context as this is a direct state mutation.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentToClose - Percentage of position to close (0-100, absolute value)
+     * @param currentPrice - Current market price for this partial close (must be in profit direction)
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if partial close executed, false if skipped
+     *
+     * @example
+     * ```typescript
+     * // Close 30% of position at profit
+     * const success = await strategyCoreService.partialProfit(
+     *   false,
+     *   "BTCUSDT",
+     *   30,
+     *   45000,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * if (success) {
+     *   console.log('Partial profit executed');
+     * }
+     * ```
+     */
+    partialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, note?: string) => Promise<boolean>;
+    /**
+     * Checks whether `partialLoss` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validatePartialLoss().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentToClose - Percentage of position to check (0-100]
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `partialLoss` would execute, false otherwise
+     */
+    validatePartialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Executes partial close at loss level (moving toward SL).
+     *
+     * Validates strategy existence and delegates to connection service
+     * to close a percentage of the pending position at loss.
+     *
+     * Does not require execution context as this is a direct state mutation.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentToClose - Percentage of position to close (0-100, absolute value)
+     * @param currentPrice - Current market price for this partial close (must be in loss direction)
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if partial close executed, false if skipped
+     *
+     * @example
+     * ```typescript
+     * // Close 40% of position at loss
+     * const success = await strategyCoreService.partialLoss(
+     *   false,
+     *   "BTCUSDT",
+     *   40,
+     *   38000,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * if (success) {
+     *   console.log('Partial loss executed');
+     * }
+     * ```
+     */
+    partialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, note?: string) => Promise<boolean>;
+    /**
+     * Checks whether `trailingStop` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validateTrailingStop().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage shift of ORIGINAL SL distance [-100, 100], excluding 0
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `trailingStop` would execute, false otherwise
+     */
+    validateTrailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Adjusts the trailing stop-loss distance for an active pending signal.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to update the stop-loss distance by a percentage adjustment.
+     *
+     * Does not require execution context as this is a direct state mutation.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if trailing SL was updated, false otherwise
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalSL=90, distance=10%, currentPrice=102
+     * // Tighten stop by 50%: newSL = 100 - 5% = 95
+     * await strategyCoreService.trailingStop(
+     *   false,
+     *   "BTCUSDT",
+     *   -50,
+     *   102,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * ```
+     */
+    trailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks whether `trailingTake` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validateTrailingTake().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to ORIGINAL TP distance [-100, 100], excluding 0
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `trailingTake` would execute, false otherwise
+     */
+    validateTrailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Adjusts the trailing take-profit distance for an active pending signal.
+     * Validates context and delegates to StrategyConnectionService.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
+     * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if trailing TP was updated, false otherwise
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+     * // Move TP further by 50%: newTP = 100 + 15% = 115
+     * await strategyCoreService.trailingTake(
+     *   false,
+     *   "BTCUSDT",
+     *   50,
+     *   102,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * ```
+     */
+    trailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks whether `breakeven` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validateBreakeven().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `breakeven` would execute, false otherwise
+     */
+    validateBreakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Moves stop-loss to breakeven when price reaches threshold.
+     * Validates context and delegates to StrategyConnectionService.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price to check threshold
+     * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if breakeven was set, false otherwise
+     *
+     * @example
+     * ```typescript
+     * const moved = await strategyCoreService.breakeven(
+     *   false,
+     *   "BTCUSDT",
+     *   112,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * ```
+     */
+    breakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Activates a scheduled signal early without waiting for price to reach priceOpen.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to set the activation flag. The actual activation happens on next tick().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @param payload - Optional commit payload with id and note
+     * @returns Promise that resolves when activation flag is set
+     *
+     * @example
+     * ```typescript
+     * // Activate scheduled signal early
+     * await strategyCoreService.activateScheduled(
+     *   false,
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
+     *   { id: "manual-activation" }
+     * );
+     * ```
+     */
+    activateScheduled: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
+    /**
+     * Checks whether `averageBuy` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validateAverageBuy().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - New entry price to validate
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `averageBuy` would execute, false otherwise
+     */
+    validateAverageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Adds a new DCA entry to the active pending signal.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to add a new averaging entry to the position.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - New entry price to add to the averaging history
+     * @param cost - Cost basis for this entry in dollars
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if entry added, false if rejected
+     */
+    averageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, cost: number, note?: string) => Promise<boolean>;
+    /**
+     * Checks whether dividend would succeed without executing it.
+     * Validates strategy existence and delegates to the connection service.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param dto - Accrual to validate
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if dividend would execute, false otherwise
+     */
+    validateDividend: (backtest: boolean, symbol: string, dto: IDividendDto, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Records a dividend / staking accrual (signed amount) on the active pending signal.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price recorded with the commit event
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @param dto - Accrual: signed amount, type ("cash" default | "asset"), optional note
+     * @returns Promise<boolean> - true when the accrual was recorded
+     */
+    dividend: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, dto: IDividendDto) => Promise<boolean>;
+    /**
+     * Returns the dividend / staking accruals recorded on the current pending signal.
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to the accrual list or null
+     */
+    getPositionAccruals: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<ISignalAccrual[]>;
+    /**
+     * Checks if there is an active pending signal for the symbol.
+     * Validates strategy existence and delegates to connection service
+     * to check if a pending signal exists for the symbol.
+     * Does not require execution context as this is a state query operation.
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if pending signal exists, false otherwise
+     */
+    hasPendingSignal: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks if there is a waiting scheduled signal for the symbol.
+     * Validates strategy existence and delegates to connection service
+     * to check if a scheduled signal exists for the symbol.
+     * Does not require execution context as this is a state query operation.
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if scheduled signal exists, false otherwise
+     */
+    hasScheduledSignal: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Returns the original estimated duration for the current pending signal.
+     *
+     * Validates strategy existence and delegates to connection service.
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to estimated duration in minutes or null
+     */
+    getPositionEstimateMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the remaining time before the position expires, clamped to zero.
+     *
+     * Validates strategy existence and delegates to connection service.
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to remaining minutes (≥ 0) or null
+     */
+    getPositionCountdownMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the number of minutes the position has been active since it opened.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to active minutes (≥ 0) or null
+     */
+    getPositionActiveMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the number of minutes the scheduled signal has been waiting for activation.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to waiting minutes (≥ 0) or null
+     */
+    getPositionWaitingMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the best price reached in the profit direction during this position's life.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to price or null
+     */
+    getPositionHighestProfitPrice: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the timestamp when the best profit price was recorded during this position's life.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to timestamp in milliseconds or null
+     */
+    getPositionHighestProfitTimestamp: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the PnL percentage at the moment the best profit price was recorded during this position's life.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to PnL percentage or null
+     */
+    getPositionHighestPnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the PnL cost (in quote currency) at the moment the best profit price was recorded during this position's life.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to PnL cost or null
+     */
+    getPositionHighestPnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns whether breakeven was mathematically reachable at the highest profit price.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to true if breakeven was reachable at peak, false otherwise, or null
+     */
+    getPositionHighestProfitBreakeven: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean | null>;
+    /**
+     * Returns the number of minutes elapsed since the highest profit price was recorded.
+     *
+     * Validates strategy existence and delegates to connection service.
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to drawdown duration in minutes or null
+     */
+    getPositionDrawdownMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the number of minutes elapsed since the highest profit price was recorded.
+     *
+     * Alias for getPositionDrawdownMinutes — measures how long the position has been
+     * pulling back from its peak profit level.
+     *
+     * Validates strategy existence and delegates to connection service.
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to minutes since last profit peak or null
+     */
+    getPositionHighestProfitMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the number of minutes elapsed since the worst loss price was recorded.
+     *
+     * Measures how long ago the deepest drawdown point occurred.
+     * Zero when called at the exact moment the trough was set.
+     *
+     * Validates strategy existence and delegates to connection service.
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to minutes since last drawdown trough or null
+     */
+    getPositionMaxDrawdownMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the worst price reached in the loss direction during this position's life.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to price or null
+     */
+    getPositionMaxDrawdownPrice: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the timestamp when the worst loss price was recorded during this position's life.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to timestamp in milliseconds or null
+     */
+    getPositionMaxDrawdownTimestamp: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the PnL percentage at the moment the worst loss price was recorded during this position's life.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to PnL percentage or null
+     */
+    getPositionMaxDrawdownPnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the PnL cost (in quote currency) at the moment the worst loss price was recorded during this position's life.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to PnL cost or null
+     */
+    getPositionMaxDrawdownPnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL percentage between the current price and the highest profit peak.
+     *
+     * Delegates to StrategyConnectionService.getPositionHighestProfitDistancePnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to drawdown distance in PnL% (≥ 0) or null
+     */
+    getPositionHighestProfitDistancePnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL cost between the current price and the highest profit peak.
+     *
+     * Delegates to StrategyConnectionService.getPositionHighestProfitDistancePnlCost().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to drawdown distance in PnL cost (≥ 0) or null
+     */
+    getPositionHighestProfitDistancePnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+     *
+     * Delegates to StrategyConnectionService.getPositionHighestMaxDrawdownPnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to recovery distance in PnL% (≥ 0) or null
+     */
+    getPositionHighestMaxDrawdownPnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL cost between the current price and the worst drawdown trough.
+     *
+     * Delegates to StrategyConnectionService.getPositionHighestMaxDrawdownPnlCost().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to recovery distance in PnL cost (≥ 0) or null
+     */
+    getPositionHighestMaxDrawdownPnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+     *
+     * Delegates to StrategyConnectionService.getMaxDrawdownDistancePnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
+     */
+    getMaxDrawdownDistancePnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+     *
+     * Delegates to StrategyConnectionService.getMaxDrawdownDistancePnlCost().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
+     */
+    getMaxDrawdownDistancePnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
 }
 
 /**
- * Service for managing risk schema registry.
- *
- * Uses ToolRegistry from functools-kit for type-safe schema storage.
- * Risk profiles are registered via addRisk() and retrieved by name.
+ * Type definition for exchange methods.
+ * Maps all keys of IExchange to any type.
+ * Used for dynamic method routing in ExchangeCoreService.
  */
-declare class RiskSchemaService {
-    readonly loggerService: {
-        readonly methodContextService: {
-            readonly context: IMethodContext;
-        };
-        readonly executionContextService: {
-            readonly context: IExecutionContext;
-        };
-        _commonLogger: ILogger;
-        readonly _methodContext: {};
-        readonly _executionContext: {};
-        log: (topic: string, ...args: any[]) => Promise<void>;
-        debug: (topic: string, ...args: any[]) => Promise<void>;
-        info: (topic: string, ...args: any[]) => Promise<void>;
-        warn: (topic: string, ...args: any[]) => Promise<void>;
-        setLogger: (logger: ILogger) => void;
-    };
-    private _registry;
+type TExchange = {
+    [key in keyof IExchange]: any;
+};
+/**
+ * Global service for exchange operations with execution context injection.
+ *
+ * Wraps ExchangeConnectionService with ExecutionContextService to inject
+ * symbol, when, and backtest parameters into the execution context.
+ *
+ * Used internally by BacktestLogicPrivateService and LiveLogicPrivateService.
+ */
+declare class ExchangeCoreService implements TExchange {
+    private readonly loggerService;
+    private readonly exchangeConnectionService;
+    private readonly methodContextService;
+    private readonly exchangeValidationService;
     /**
-     * Registers a new risk schema.
-     *
-     * @param key - Unique risk profile name
-     * @param value - Risk schema configuration
-     * @throws Error if risk name already exists
+     * Validates exchange configuration.
+     * Memoized to avoid redundant validations for the same exchange.
+     * Logs validation activity.
+     * @param exchangeName - Name of the exchange to validate
+     * @returns Promise that resolves when validation is complete
      */
-    register: (key: RiskName, value: IRiskSchema) => void;
+    private validate;
     /**
-     * Validates risk schema structure for required properties.
+     * Fetches historical candles with execution context.
      *
-     * Performs shallow validation to ensure all required properties exist
-     * and have correct types before registration in the registry.
-     *
-     * @param riskSchema - Risk schema to validate
-     * @throws Error if riskName is missing or not a string
+     * @param symbol - Trading pair symbol
+     * @param interval - Candle interval (e.g., "1m", "1h")
+     * @param limit - Maximum number of candles to fetch
+     * @param when - Timestamp for context (used in backtest mode)
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to array of candles
      */
-    private validateShallow;
+    getCandles: (symbol: string, interval: CandleInterval, limit: number, when: Date, backtest: boolean) => Promise<ICandleData[]>;
     /**
-     * Overrides an existing risk schema with partial updates.
+     * Fetches future candles (backtest mode only) with execution context.
      *
-     * @param key - Risk name to override
-     * @param value - Partial schema updates
-     * @returns Updated risk schema
-     * @throws Error if risk name doesn't exist
+     * @param symbol - Trading pair symbol
+     * @param interval - Candle interval
+     * @param limit - Maximum number of candles to fetch
+     * @param when - Timestamp for context
+     * @param backtest - Whether running in backtest mode (must be true)
+     * @returns Promise resolving to array of future candles
      */
-    override: (key: RiskName, value: Partial<IRiskSchema>) => IRiskSchema;
+    getNextCandles: (symbol: string, interval: CandleInterval, limit: number, when: Date, backtest: boolean) => Promise<ICandleData[]>;
     /**
-     * Retrieves a risk schema by name.
+     * Calculates VWAP with execution context.
      *
-     * @param key - Risk name
-     * @returns Risk schema configuration
-     * @throws Error if risk name doesn't exist
+     * @param symbol - Trading pair symbol
+     * @param when - Timestamp for context
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to VWAP price
      */
-    get: (key: RiskName) => IRiskSchema;
+    getAveragePrice: (symbol: string, when: Date, backtest: boolean) => Promise<number>;
+    /**
+     * Returns the close price of the last completed candle for the given interval with execution context.
+     *
+     * @param symbol - Trading pair symbol
+     * @param interval - Candle interval (e.g., "1m", "1h")
+     * @param when - Timestamp for context (used in backtest mode)
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to close price of the last candle
+     */
+    getClosePrice: (symbol: string, interval: CandleInterval, when: Date, backtest: boolean) => Promise<number>;
+    /**
+     * Formats price with execution context.
+     *
+     * @param symbol - Trading pair symbol
+     * @param price - Price to format
+     * @param when - Timestamp for context
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to formatted price string
+     */
+    formatPrice: (symbol: string, price: number, when: Date, backtest: boolean) => Promise<string>;
+    /**
+     * Formats quantity with execution context.
+     *
+     * @param symbol - Trading pair symbol
+     * @param quantity - Quantity to format
+     * @param when - Timestamp for context
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to formatted quantity string
+     */
+    formatQuantity: (symbol: string, quantity: number, when: Date, backtest: boolean) => Promise<string>;
+    /**
+     * Fetches order book with execution context.
+     *
+     * Sets up execution context with the provided when/backtest parameters.
+     * The exchange implementation will receive time range parameters but may
+     * choose to use them (backtest) or ignore them (live).
+     *
+     * @param symbol - Trading pair symbol
+     * @param when - Timestamp for context
+     * @param backtest - Whether running in backtest mode
+     * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
+     * @returns Promise resolving to order book data
+     */
+    getOrderBook: (symbol: string, when: Date, backtest: boolean, depth?: number) => Promise<IOrderBookData>;
+    /**
+     * Fetches aggregated trades with execution context.
+     *
+     * @param symbol - Trading pair symbol
+     * @param when - Timestamp for context (used in backtest mode)
+     * @param backtest - Whether running in backtest mode
+     * @param limit - Optional maximum number of trades to fetch
+     * @returns Promise resolving to array of aggregated trade data
+     */
+    getAggregatedTrades: (symbol: string, when: Date, backtest: boolean, limit?: number) => Promise<IAggregatedTradeData[]>;
+    /**
+     * Fetches raw candles with flexible date/limit parameters and execution context.
+     *
+     * @param symbol - Trading pair symbol
+     * @param interval - Candle interval (e.g., "1m", "1h")
+     * @param when - Timestamp for context (used in backtest mode)
+     * @param backtest - Whether running in backtest mode
+     * @param limit - Optional number of candles to fetch
+     * @param sDate - Optional start date in milliseconds
+     * @param eDate - Optional end date in milliseconds
+     * @returns Promise resolving to array of candles
+     */
+    getRawCandles: (symbol: string, interval: CandleInterval, when: Date, backtest: boolean, limit?: number, sDate?: number, eDate?: number) => Promise<ICandleData[]>;
+}
+
+/**
+ * Type definition for frame methods.
+ * Maps all keys of IFrame to any type.
+ * Used for dynamic method routing in FrameCoreService.
+ */
+type TFrame = {
+    [key in keyof IFrame]: any;
+};
+/**
+ * Global service for frame operations.
+ *
+ * Wraps FrameConnectionService for timeframe generation.
+ * Used internally by BacktestLogicPrivateService.
+ */
+declare class FrameCoreService implements TFrame {
+    private readonly loggerService;
+    private readonly frameConnectionService;
+    private readonly frameValidationService;
+    /**
+     * Generates timeframe array for backtest iteration.
+     *
+     * @param frameName - Target frame name (e.g., "1m", "1h")
+     * @returns Promise resolving to array of Date objects
+     */
+    getTimeframe: (symbol: string, frameName: FrameName) => Promise<Date[]>;
 }
 
 /**
@@ -40800,6 +43107,358 @@ declare class ActionCoreService implements TAction$1 {
         frameName: FrameName;
         backtest: boolean;
     }) => Promise<void>;
+}
+
+/**
+ * Service for tracking the latest market price per symbol-strategy-exchange-frame combination.
+ *
+ * Maintains a memoized BehaviorSubject per unique key that is updated on every strategy tick
+ * by StrategyConnectionService. Consumers can synchronously read the last known price or
+ * await the first value if none has arrived yet.
+ *
+ * Primary use case: providing the current price outside of a tick execution context,
+ * e.g., when a command is triggered between ticks.
+ *
+ * Features:
+ * - One BehaviorSubject per (symbol, strategyName, exchangeName, frameName, backtest) key
+ * - Falls back to ExchangeConnectionService.getAveragePrice when called inside an execution context
+ * - Waits up to LISTEN_TIMEOUT ms for the first price if none is cached yet
+ * - clear() disposes the BehaviorSubject for a single key or all keys
+ *
+ * Architecture:
+ * - Registered as singleton in DI container
+ * - Updated by StrategyConnectionService after each tick
+ * - Cleared by Backtest/Live/Walker at strategy start to prevent stale data
+ *
+ * @example
+ * ```typescript
+ * const price = await backtest.priceMetaService.getCurrentPrice("BTCUSDT", context, false);
+ * ```
+ */
+declare class PriceMetaService {
+    private readonly loggerService;
+    private readonly exchangeConnectionService;
+    /**
+     * Memoized factory for BehaviorSubject streams keyed by (symbol, strategyName, exchangeName, frameName, backtest).
+     *
+     * Each subject holds the latest currentPrice emitted by the strategy iterator for that key.
+     * Instances are cached until clear() is called.
+     */
+    private getSource;
+    /**
+     * Checks if a price exists for the given key and has emitted at least one value.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Strategy, exchange, and frame identifiers
+     * @param backtest - True if backtest mode, false if live mode
+     * @returns True if a price exists and has emitted a value, false otherwise
+     */
+    hasPrice: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+    }, backtest: boolean) => boolean;
+    /**
+     * Returns the current market price for the given symbol and context.
+     *
+     * When called inside an execution context (i.e., during a signal handler or action),
+     * delegates to ExchangeConnectionService.getAveragePrice for the live exchange price.
+     * Otherwise, reads the last value from the cached BehaviorSubject. If no value has
+     * been emitted yet, waits up to LISTEN_TIMEOUT ms for the first tick before throwing.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Strategy, exchange, and frame identifiers
+     * @param backtest - True if backtest mode, false if live mode
+     * @returns Current market price in quote currency
+     * @throws When no price arrives within LISTEN_TIMEOUT ms
+     */
+    getCurrentPrice: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+    }, backtest: boolean) => Promise<number>;
+    /**
+     * Pushes a new price value into the BehaviorSubject for the given key.
+     *
+     * Called by StrategyConnectionService after each strategy tick to keep
+     * the cached price up to date.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param currentPrice - The latest price from the tick
+     * @param context - Strategy, exchange, and frame identifiers
+     * @param backtest - True if backtest mode, false if live mode
+     */
+    next: (symbol: string, currentPrice: number, context: {
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+    }, backtest: boolean) => Promise<void>;
+    /**
+     * Disposes cached BehaviorSubject(s) to free memory and prevent stale data.
+     *
+     * When called without arguments, clears all memoized price streams.
+     * When called with a payload, clears only the stream for the specified key.
+     * Should be called at strategy start (Backtest/Live/Walker) to reset state.
+     *
+     * @param payload - Optional key to clear a single stream; omit to clear all
+     */
+    clear: (payload?: {
+        symbol: string;
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+        backtest: boolean;
+    }) => void;
+}
+
+/**
+ * Private service for backtest orchestration using async generators.
+ *
+ * Flow:
+ * 1. Get timeframes from frame service
+ * 2. Iterate through timeframes calling tick()
+ * 3. When signal opens: fetch candles and call backtest()
+ * 4. Skip timeframes until signal closes
+ * 5. Yield closed result and continue
+ *
+ * Memory efficient: streams results without array accumulation.
+ * Supports early termination via break in consumer.
+ *
+ * With `CC_BACKTEST_LOCKSTEP` every timeframe iteration runs under the
+ * process-wide `Lockstep` mutex, so parallel backtests advance one
+ * timeframe at a time instead of drifting apart in logical time.
+ */
+declare class BacktestLogicPrivateService {
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
+    readonly strategyCoreService: StrategyCoreService;
+    readonly exchangeCoreService: ExchangeCoreService;
+    readonly frameCoreService: FrameCoreService;
+    readonly methodContextService: {
+        readonly context: IMethodContext;
+    };
+    readonly actionCoreService: ActionCoreService;
+    readonly timeMetaService: TimeMetaService;
+    readonly priceMetaService: PriceMetaService;
+    /**
+     * Lock hand-off inside a candle replay (CC_BACKTEST_LOCKSTEP), called by
+     * `StrategyConnectionService` from its `onSchedulePing` / `onActivePing`
+     * system callbacks on every replayed candle. See {@link HANDOFF_FN}.
+     *
+     * @param symbol - Trading pair symbol of the pinging backtest
+     * @param timestamp - Timestamp of the replayed candle that pinged
+     * @param context - Strategy, exchange and frame of the backtest
+     */
+    handoff: (symbol: string, timestamp: number, context: {
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+    }) => Promise<void>;
+    /**
+     * Runs backtest for a symbol, streaming closed signals as async generator.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @yields Closed signal results with PNL
+     *
+     * @example
+     * ```typescript
+     * for await (const result of backtestLogic.run("BTCUSDT")) {
+     *   console.log(result.closeReason, result.pnl.pnlPercentage);
+     *   if (result.pnl.pnlPercentage < -10) break; // Early termination
+     * }
+     * ```
+     */
+    run(symbol: string): AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, any>;
+}
+
+/** Type for active position map */
+type RiskMap = Map<string, IRiskActivePosition>;
+/** Symbol indicating that positions need to be fetched from persistence */
+declare const POSITION_NEED_FETCH: unique symbol;
+/**
+ * ClientRisk implementation for portfolio-level risk management.
+ *
+ * Provides risk checking logic to prevent signals that violate configured limits:
+ * - Maximum concurrent positions (tracks across all strategies)
+ * - Custom validations with access to all active positions
+ *
+ * Multiple ClientStrategy instances share the same ClientRisk instance,
+ * allowing cross-strategy risk analysis.
+ *
+ * Used internally by strategy execution to validate signals before opening positions.
+ */
+declare class ClientRisk implements IRisk {
+    readonly params: IRiskParams;
+    /**
+     * Map of active positions tracked across all strategies.
+     * Key: `${strategyName}_${exchangeName}_${symbol}` (see CREATE_NAME_FN)
+     * Starts as POSITION_NEED_FETCH symbol, gets initialized on first use.
+     */
+    _activePositions: RiskMap | typeof POSITION_NEED_FETCH;
+    /**
+     * Keys of transient reservation placeholders (checkSignalAndReserve) still
+     * awaiting their finalizing addSignal / releasing removeSignal. Excluded from
+     * persisted snapshots in _updatePositions: a reservation is process-transient,
+     * but a CONCURRENT strategy's addSignal persists the whole shared map — flushed
+     * to disk that placeholder would survive a crash as a phantom position and
+     * block the shared concurrency limit for the whole signal lifetime (forever
+     * for minuteEstimatedTime: Infinity, which the expiry pruning never removes).
+     */
+    _reservedKeys: Set<string>;
+    constructor(params: IRiskParams);
+    /**
+     * Initializes active positions by loading from persistence.
+     * Uses singleshot pattern to ensure initialization happens exactly once.
+     * Skips persistence in backtest mode.
+     */
+    private waitForInit;
+    /**
+     * Persists current active positions to disk.
+     * Skips in backtest mode.
+     */
+    private _updatePositions;
+    /**
+     * Registers a new opened signal.
+     * Called by StrategyConnectionService after signal is opened.
+     */
+    addSignal(symbol: string, context: {
+        strategyName: StrategyName;
+        riskName: RiskName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, positionData: {
+        position: "long" | "short";
+        priceOpen: number;
+        priceStopLoss: number;
+        priceTakeProfit: number;
+        minuteEstimatedTime: number;
+        openTimestamp: number;
+    }): Promise<void>;
+    /**
+     * Removes a closed signal.
+     * Called by StrategyConnectionService when signal is closed.
+     */
+    removeSignal(symbol: string, context: {
+        strategyName: StrategyName;
+        riskName: RiskName;
+        exchangeName: ExchangeName;
+        frameName: string;
+    }): Promise<void>;
+    /**
+     * Checks if a signal should be allowed based on risk limits.
+     *
+     * Executes custom validations with access to:
+     * - Passthrough params from ClientStrategy (symbol, strategyName, exchangeName, currentPrice, timestamp)
+     * - Active positions via this.activePositions getter
+     *
+     * Returns false immediately if any validation throws error.
+     * Triggers callbacks (onRejected, onAllowed) based on result.
+     *
+     * @param params - Risk check arguments (passthrough from ClientStrategy)
+     * @returns Promise resolving to true if allowed, false if rejected
+     */
+    checkSignal: (params: IRiskCheckArgs, options?: Partial<IRiskCheckOptions>) => Promise<boolean>;
+    /**
+     * Concurrency-safe variant of {@link checkSignal}: validates the signal AND
+     * reserves a placeholder slot in the active position map atomically.
+     *
+     * **Why this exists.** `checkSignal` followed later by `addSignal` is not
+     * atomic — between the two calls the caller does signal setup work that
+     * yields to the event loop (sync-open callback, persist writes, etc.). When
+     * several strategies sharing the same risk profile run in parallel, all of
+     * them can pass `checkSignal` while the active position map is still empty,
+     * then each call `addSignal` and blow past the limit. Reserving inside the
+     * lock guarantees the next concurrent caller observes the incremented size
+     * before its own validation runs.
+     *
+     * The reservation uses the same map key as the eventual `addSignal` call
+     * (`strategyName + exchangeName + symbol`), so `addSignal` overwrites the
+     * placeholder rather than appending a duplicate.
+     *
+     * Callers MUST ensure that every successful return is followed by either
+     * `addSignal` (overwrites the placeholder with real data) or `removeSignal`
+     * (clears the placeholder if opening is aborted). Otherwise the riskMap
+     * accumulates stale reservations.
+     *
+     * @param params - Risk check arguments (passthrough from ClientStrategy)
+     * @returns Promise resolving to true if allowed (and reserved), false if rejected (no reservation)
+     */
+    checkSignalAndReserve: (params: IRiskCheckArgs) => Promise<boolean>;
+}
+
+/**
+ * Service for managing risk schema registry.
+ *
+ * Uses ToolRegistry from functools-kit for type-safe schema storage.
+ * Risk profiles are registered via addRisk() and retrieved by name.
+ */
+declare class RiskSchemaService {
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
+    private _registry;
+    /**
+     * Registers a new risk schema.
+     *
+     * @param key - Unique risk profile name
+     * @param value - Risk schema configuration
+     * @throws Error if risk name already exists
+     */
+    register: (key: RiskName, value: IRiskSchema) => void;
+    /**
+     * Validates risk schema structure for required properties.
+     *
+     * Performs shallow validation to ensure all required properties exist
+     * and have correct types before registration in the registry.
+     *
+     * @param riskSchema - Risk schema to validate
+     * @throws Error if riskName is missing or not a string
+     */
+    private validateShallow;
+    /**
+     * Overrides an existing risk schema with partial updates.
+     *
+     * @param key - Risk name to override
+     * @param value - Partial schema updates
+     * @returns Updated risk schema
+     * @throws Error if risk name doesn't exist
+     */
+    override: (key: RiskName, value: Partial<IRiskSchema>) => IRiskSchema;
+    /**
+     * Retrieves a risk schema by name.
+     *
+     * @param key - Risk name
+     * @returns Risk schema configuration
+     * @throws Error if risk name doesn't exist
+     */
+    get: (key: RiskName) => IRiskSchema;
 }
 
 /**
@@ -41184,113 +43843,11 @@ declare class BreakevenConnectionService implements IBreakeven {
 }
 
 /**
- * Service for tracking the latest market price per symbol-strategy-exchange-frame combination.
- *
- * Maintains a memoized BehaviorSubject per unique key that is updated on every strategy tick
- * by StrategyConnectionService. Consumers can synchronously read the last known price or
- * await the first value if none has arrived yet.
- *
- * Primary use case: providing the current price outside of a tick execution context,
- * e.g., when a command is triggered between ticks.
- *
- * Features:
- * - One BehaviorSubject per (symbol, strategyName, exchangeName, frameName, backtest) key
- * - Falls back to ExchangeConnectionService.getAveragePrice when called inside an execution context
- * - Waits up to LISTEN_TIMEOUT ms for the first price if none is cached yet
- * - clear() disposes the BehaviorSubject for a single key or all keys
- *
- * Architecture:
- * - Registered as singleton in DI container
- * - Updated by StrategyConnectionService after each tick
- * - Cleared by Backtest/Live/Walker at strategy start to prevent stale data
- *
- * @example
- * ```typescript
- * const price = await backtest.priceMetaService.getCurrentPrice("BTCUSDT", context, false);
- * ```
- */
-declare class PriceMetaService {
-    private readonly loggerService;
-    private readonly exchangeConnectionService;
-    /**
-     * Memoized factory for BehaviorSubject streams keyed by (symbol, strategyName, exchangeName, frameName, backtest).
-     *
-     * Each subject holds the latest currentPrice emitted by the strategy iterator for that key.
-     * Instances are cached until clear() is called.
-     */
-    private getSource;
-    /**
-     * Checks if a price exists for the given key and has emitted at least one value.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param context - Strategy, exchange, and frame identifiers
-     * @param backtest - True if backtest mode, false if live mode
-     * @returns True if a price exists and has emitted a value, false otherwise
-     */
-    hasPrice: (symbol: string, context: {
-        strategyName: string;
-        exchangeName: string;
-        frameName: string;
-    }, backtest: boolean) => boolean;
-    /**
-     * Returns the current market price for the given symbol and context.
-     *
-     * When called inside an execution context (i.e., during a signal handler or action),
-     * delegates to ExchangeConnectionService.getAveragePrice for the live exchange price.
-     * Otherwise, reads the last value from the cached BehaviorSubject. If no value has
-     * been emitted yet, waits up to LISTEN_TIMEOUT ms for the first tick before throwing.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param context - Strategy, exchange, and frame identifiers
-     * @param backtest - True if backtest mode, false if live mode
-     * @returns Current market price in quote currency
-     * @throws When no price arrives within LISTEN_TIMEOUT ms
-     */
-    getCurrentPrice: (symbol: string, context: {
-        strategyName: string;
-        exchangeName: string;
-        frameName: string;
-    }, backtest: boolean) => Promise<number>;
-    /**
-     * Pushes a new price value into the BehaviorSubject for the given key.
-     *
-     * Called by StrategyConnectionService after each strategy tick to keep
-     * the cached price up to date.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param currentPrice - The latest price from the tick
-     * @param context - Strategy, exchange, and frame identifiers
-     * @param backtest - True if backtest mode, false if live mode
-     */
-    next: (symbol: string, currentPrice: number, context: {
-        strategyName: string;
-        exchangeName: string;
-        frameName: string;
-    }, backtest: boolean) => Promise<void>;
-    /**
-     * Disposes cached BehaviorSubject(s) to free memory and prevent stale data.
-     *
-     * When called without arguments, clears all memoized price streams.
-     * When called with a payload, clears only the stream for the specified key.
-     * Should be called at strategy start (Backtest/Live/Walker) to reset state.
-     *
-     * @param payload - Optional key to clear a single stream; omit to clear all
-     */
-    clear: (payload?: {
-        symbol: string;
-        strategyName: string;
-        exchangeName: string;
-        frameName: string;
-        backtest: boolean;
-    }) => void;
-}
-
-/**
  * Type definition for strategy methods.
  * Maps all keys of IStrategy to any type.
  * Used for dynamic method routing in StrategyConnectionService.
  */
-type TStrategy$1 = {
+type TStrategy = {
     [key in keyof IStrategy]: any;
 };
 /**
@@ -41313,7 +43870,7 @@ type TStrategy$1 = {
  * // Routes to correct strategy instance for symbol-strategy pair
  * ```
  */
-declare class StrategyConnectionService implements TStrategy$1 {
+declare class StrategyConnectionService implements TStrategy {
     readonly loggerService: {
         readonly methodContextService: {
             readonly context: IMethodContext;
@@ -41344,6 +43901,8 @@ declare class StrategyConnectionService implements TStrategy$1 {
     readonly actionCoreService: ActionCoreService;
     readonly timeMetaService: TimeMetaService;
     readonly priceMetaService: PriceMetaService;
+    /** The backtest orchestrator: the lockstep lock hand-off inside a candle replay (a di-kit cycle, resolved lazily) */
+    readonly backtestLogicPrivateService: BacktestLogicPrivateService;
     /**
      * Retrieves memoized ClientStrategy instance for given symbol-strategy pair with exchange and frame isolation.
      *
@@ -43431,1405 +45990,6 @@ declare class ActionConnectionService implements TAction {
 }
 
 /**
- * Type definition for exchange methods.
- * Maps all keys of IExchange to any type.
- * Used for dynamic method routing in ExchangeCoreService.
- */
-type TExchange = {
-    [key in keyof IExchange]: any;
-};
-/**
- * Global service for exchange operations with execution context injection.
- *
- * Wraps ExchangeConnectionService with ExecutionContextService to inject
- * symbol, when, and backtest parameters into the execution context.
- *
- * Used internally by BacktestLogicPrivateService and LiveLogicPrivateService.
- */
-declare class ExchangeCoreService implements TExchange {
-    private readonly loggerService;
-    private readonly exchangeConnectionService;
-    private readonly methodContextService;
-    private readonly exchangeValidationService;
-    /**
-     * Validates exchange configuration.
-     * Memoized to avoid redundant validations for the same exchange.
-     * Logs validation activity.
-     * @param exchangeName - Name of the exchange to validate
-     * @returns Promise that resolves when validation is complete
-     */
-    private validate;
-    /**
-     * Fetches historical candles with execution context.
-     *
-     * @param symbol - Trading pair symbol
-     * @param interval - Candle interval (e.g., "1m", "1h")
-     * @param limit - Maximum number of candles to fetch
-     * @param when - Timestamp for context (used in backtest mode)
-     * @param backtest - Whether running in backtest mode
-     * @returns Promise resolving to array of candles
-     */
-    getCandles: (symbol: string, interval: CandleInterval, limit: number, when: Date, backtest: boolean) => Promise<ICandleData[]>;
-    /**
-     * Fetches future candles (backtest mode only) with execution context.
-     *
-     * @param symbol - Trading pair symbol
-     * @param interval - Candle interval
-     * @param limit - Maximum number of candles to fetch
-     * @param when - Timestamp for context
-     * @param backtest - Whether running in backtest mode (must be true)
-     * @returns Promise resolving to array of future candles
-     */
-    getNextCandles: (symbol: string, interval: CandleInterval, limit: number, when: Date, backtest: boolean) => Promise<ICandleData[]>;
-    /**
-     * Calculates VWAP with execution context.
-     *
-     * @param symbol - Trading pair symbol
-     * @param when - Timestamp for context
-     * @param backtest - Whether running in backtest mode
-     * @returns Promise resolving to VWAP price
-     */
-    getAveragePrice: (symbol: string, when: Date, backtest: boolean) => Promise<number>;
-    /**
-     * Returns the close price of the last completed candle for the given interval with execution context.
-     *
-     * @param symbol - Trading pair symbol
-     * @param interval - Candle interval (e.g., "1m", "1h")
-     * @param when - Timestamp for context (used in backtest mode)
-     * @param backtest - Whether running in backtest mode
-     * @returns Promise resolving to close price of the last candle
-     */
-    getClosePrice: (symbol: string, interval: CandleInterval, when: Date, backtest: boolean) => Promise<number>;
-    /**
-     * Formats price with execution context.
-     *
-     * @param symbol - Trading pair symbol
-     * @param price - Price to format
-     * @param when - Timestamp for context
-     * @param backtest - Whether running in backtest mode
-     * @returns Promise resolving to formatted price string
-     */
-    formatPrice: (symbol: string, price: number, when: Date, backtest: boolean) => Promise<string>;
-    /**
-     * Formats quantity with execution context.
-     *
-     * @param symbol - Trading pair symbol
-     * @param quantity - Quantity to format
-     * @param when - Timestamp for context
-     * @param backtest - Whether running in backtest mode
-     * @returns Promise resolving to formatted quantity string
-     */
-    formatQuantity: (symbol: string, quantity: number, when: Date, backtest: boolean) => Promise<string>;
-    /**
-     * Fetches order book with execution context.
-     *
-     * Sets up execution context with the provided when/backtest parameters.
-     * The exchange implementation will receive time range parameters but may
-     * choose to use them (backtest) or ignore them (live).
-     *
-     * @param symbol - Trading pair symbol
-     * @param when - Timestamp for context
-     * @param backtest - Whether running in backtest mode
-     * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
-     * @returns Promise resolving to order book data
-     */
-    getOrderBook: (symbol: string, when: Date, backtest: boolean, depth?: number) => Promise<IOrderBookData>;
-    /**
-     * Fetches aggregated trades with execution context.
-     *
-     * @param symbol - Trading pair symbol
-     * @param when - Timestamp for context (used in backtest mode)
-     * @param backtest - Whether running in backtest mode
-     * @param limit - Optional maximum number of trades to fetch
-     * @returns Promise resolving to array of aggregated trade data
-     */
-    getAggregatedTrades: (symbol: string, when: Date, backtest: boolean, limit?: number) => Promise<IAggregatedTradeData[]>;
-    /**
-     * Fetches raw candles with flexible date/limit parameters and execution context.
-     *
-     * @param symbol - Trading pair symbol
-     * @param interval - Candle interval (e.g., "1m", "1h")
-     * @param when - Timestamp for context (used in backtest mode)
-     * @param backtest - Whether running in backtest mode
-     * @param limit - Optional number of candles to fetch
-     * @param sDate - Optional start date in milliseconds
-     * @param eDate - Optional end date in milliseconds
-     * @returns Promise resolving to array of candles
-     */
-    getRawCandles: (symbol: string, interval: CandleInterval, when: Date, backtest: boolean, limit?: number, sDate?: number, eDate?: number) => Promise<ICandleData[]>;
-}
-
-/**
- * Type definition for strategy methods.
- * Maps all keys of IStrategy to any type.
- * Used for dynamic method routing in StrategyCoreService.
- */
-type TStrategy = {
-    [key in keyof IStrategy]: any;
-};
-/**
- * Global service for strategy operations with execution context injection.
- *
- * Wraps StrategyConnectionService with ExecutionContextService to inject
- * symbol, when, and backtest parameters into the execution context.
- *
- * Used internally by BacktestLogicPrivateService and LiveLogicPrivateService.
- */
-declare class StrategyCoreService implements TStrategy {
-    private readonly loggerService;
-    private readonly strategyConnectionService;
-    private readonly strategySchemaService;
-    private readonly riskValidationService;
-    private readonly strategyValidationService;
-    private readonly exchangeValidationService;
-    private readonly frameValidationService;
-    private readonly actionValidationService;
-    /**
-     * Validates strategy and associated risk configuration.
-     *
-     * Memoized to avoid redundant validations for the same symbol-strategy-exchange-frame combination.
-     * Logs validation activity.
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise that resolves when validation is complete
-     */
-    private validate;
-    /**
-     * Retrieves the currently active pending signal for the symbol.
-     * If no active signal exists, returns null.
-     * Used internally for monitoring TP/SL and time expiration.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to pending signal or null
-     */
-    getPendingSignal: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<IPublicSignalRow | null>;
-    /**
-     * Returns the still-held share of the position as a percentage.
-     * 100 = nothing has been closed (full position), 0 = fully closed.
-     * Correctly accounts for DCA entries between partial closes.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<number> - held percentage (0–100)
-     */
-    getTotalPercentHeld: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the remaining cost basis in dollars after partial closes.
-     * Correctly accounts for DCA entries between partial closes.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<number> - remaining cost basis in dollars
-     */
-    getRemainingCostBasis: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the effective (DCA-averaged) entry price for the current pending signal.
-     *
-     * This is the harmonic mean of all _entry prices, which is the correct
-     * cost-basis price used in all PNL calculations.
-     * With no DCA entries, equals the original priceOpen.
-     *
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to effective entry price or null
-     */
-    getPositionEffectivePrice: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the number of DCA entries made for the current pending signal.
-     *
-     * 1 = original entry only (no DCA).
-     * Increases by 1 with each successful commitAverageBuy().
-     *
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to entry count or null
-     */
-    getPositionInvestedCount: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the total invested cost basis in dollars for the current pending signal.
-     *
-     * Equal to entryCount × $100 (COST_BASIS_PER_ENTRY).
-     * 1 entry = $100, 2 entries = $200, etc.
-     *
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to total invested cost in dollars or null
-     */
-    getPositionInvestedCost: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the unrealized PNL percentage for the current pending signal at currentPrice.
-     *
-     * Accounts for partial closes, DCA entries, slippage and fees
-     * (delegates to toProfitLossDto).
-     *
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param currentPrice - Current market price
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to pnlPercentage or null
-     */
-    getPositionPnlPercent: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the unrealized PNL in dollars for the current pending signal at currentPrice.
-     *
-     * Calculated as: pnlPercentage / 100 × totalInvestedCost
-     * Accounts for partial closes, DCA entries, slippage and fees.
-     *
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param currentPrice - Current market price
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to pnl in dollars or null
-     */
-    getPositionPnlCost: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the list of DCA entry prices for the current pending signal.
-     *
-     * The first element is always the original priceOpen (initial entry).
-     * Each subsequent element is a price added by commitAverageBuy().
-     *
-     * Returns null if no pending signal exists.
-     * Returns a single-element array [priceOpen] if no DCA entries were made.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to array of entry prices or null
-     *
-     * @example
-     * ```typescript
-     * // No DCA: [43000]
-     * // One DCA: [43000, 42000]
-     * // Two DCA: [43000, 42000, 41500]
-     * ```
-     */
-    getPositionLevels: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number[] | null>;
-    /**
-     * Returns the list of partial closes for the current pending signal.
-     *
-     * Each entry records a partial profit or loss close event with its type,
-     * percent closed, price at close, cost basis snapshot, and entry count at close.
-     *
-     * Returns null if no pending signal exists.
-     * Returns an empty array if no partial closes have been executed.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to array of partial close records or null
-     */
-    getPositionPartials: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<ISignalPartial[]>;
-    /**
-     * Returns the list of DCA entry prices and costs for the current pending signal.
-     *
-     * Each entry records the price and cost of a single position entry.
-     * The first element is always the original priceOpen (initial entry).
-     * Each subsequent element is an entry added by averageBuy().
-     *
-     * Returns null if no pending signal exists.
-     * Returns a single-element array [{ price: priceOpen, cost }] if no DCA entries were made.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to array of entry records or null
-     *
-     * @example
-     * ```typescript
-     * // No DCA: [{ price: 43000, cost: 100 }]
-     * // One DCA: [{ price: 43000, cost: 100 }, { price: 42000, cost: 100 }]
-     * ```
-     */
-    getPositionEntries: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<ISignalEntry[]>;
-    /**
-     * Retrieves the currently active scheduled signal for the symbol.
-     * If no scheduled signal exists, returns null.
-     * Used internally for monitoring scheduled signal activation.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to scheduled signal or null
-     */
-    getScheduledSignal: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<IScheduledSignalRow | null>;
-    /**
-     * Checks if breakeven threshold has been reached for the current pending signal.
-     *
-     * Validates strategy existence and delegates to connection service
-     * to check if price has moved far enough to cover transaction costs.
-     *
-     * Does not require execution context as this is a state query operation.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param currentPrice - Current market price to check against threshold
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if breakeven threshold reached, false otherwise
-     *
-     * @example
-     * ```typescript
-     * // Check if breakeven is available for LONG position (entry=100, threshold=0.4%)
-     * const canBreakeven = await strategyCoreService.getBreakeven(
-     *   false,
-     *   "BTCUSDT",
-     *   100.5,
-     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
-     * );
-     * // Returns true (price >= 100.4)
-     *
-     * if (canBreakeven) {
-     *   await strategyCoreService.breakeven(false, "BTCUSDT", 100.5, context);
-     * }
-     * ```
-     */
-    getBreakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Checks if the strategy has been stopped.
-     *
-     * Validates strategy existence and delegates to connection service
-     * to retrieve the stopped state from the strategy instance.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to true if strategy is stopped, false otherwise
-     */
-    getStopped: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Checks if the strategy is paused.
-     *
-     * Validates strategy existence and delegates to connection service
-     * to retrieve the paused state from the strategy instance.
-     * Works out of the async-hooks execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to true if strategy is paused, false otherwise
-     */
-    getPaused: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Pauses or resumes the strategy's own signal generation.
-     *
-     * Validates strategy existence and delegates to connection service.
-     * While paused getSignal is not called; existing signals keep being monitored
-     * and close normally. The flag is persisted and survives restarts and signal
-     * transitions until an explicit setPaused(false).
-     * Works out of the async-hooks execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param paused - New paused state
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise that resolves when the flag is set (and persisted in live mode)
-     */
-    setPaused: (backtest: boolean, symbol: string, paused: boolean, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<void>;
-    /**
-     * Checks signal status at a specific timestamp.
-     *
-     * Wraps strategy tick() with execution context containing symbol, timestamp,
-     * and backtest mode flag.
-     *
-     * CALLER CONTRACT: ticks for the same (symbol, strategy, exchange) MUST NOT
-     * overlap — there is deliberately no internal mutex. `Live.run` satisfies this
-     * (strict `await tick` loop); manual callers must serialize too. Two concurrent
-     * ticks race the retry slot (the slot bypasses the generation throttle): both
-     * consume it, the open gate fires twice CONCURRENTLY with the same signalId,
-     * and two "opened" results are emitted for one position.
-     *
-     * @param symbol - Trading pair symbol
-     * @param when - Timestamp for tick evaluation
-     * @param backtest - Whether running in backtest mode
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Discriminated union of tick result (idle, opened, active, closed)
-     */
-    tick: (symbol: string, when: Date, backtest: boolean, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<IStrategyTickResult>;
-    /**
-     * Runs fast backtest against candle array.
-     *
-     * Wraps strategy backtest() with execution context containing symbol,
-     * timestamp, and backtest mode flag.
-     *
-     * @param symbol - Trading pair symbol
-     * @param candles - Array of historical candles to test against
-     * @param when - Starting timestamp for backtest
-     * @param backtest - Whether running in backtest mode (typically true)
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Closed signal result with PNL
-     */
-    backtest: (symbol: string, candles: ICandleData[], frameEndTime: number, when: Date, backtest: boolean, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive>;
-    /**
-     * Stops the strategy from generating new signals.
-     *
-     * Delegates to StrategyConnectionService.stop() to set internal flag.
-     * Does not require execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param ctx - Context with strategyName, exchangeName, frameName
-     * @returns Promise that resolves when stop flag is set
-     */
-    stopStrategy: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<void>;
-    /**
-     * Cancels the scheduled signal without stopping the strategy.
-     *
-     * Delegates to StrategyConnectionService.cancelScheduled() to clear scheduled signal
-     * and emit cancelled event through emitters.
-     * Does not require execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param ctx - Context with strategyName, exchangeName, frameName
-     * @param payload - Optional commit payload with id and note
-     * @returns Promise that resolves when scheduled signal is cancelled
-     */
-    cancelScheduled: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, payload?: Partial<CommitPayload>) => Promise<void>;
-    /**
-     * Closes the pending signal without stopping the strategy.
-     *
-     * Clears the pending signal (active position).
-     * Does NOT affect scheduled signals or strategy operation.
-     * Does NOT set stop flag - strategy can continue generating new signals.
-     *
-     * Delegates to StrategyConnectionService.closePending() to clear pending signal
-     * and emit closed event through emitters.
-     * Does not require execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Context with strategyName, exchangeName, frameName
-     * @param payload - Optional commit payload with id and note
-     * @returns Promise that resolves when pending signal is closed
-     */
-    closePending: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, payload?: Partial<CommitPayload>) => Promise<void>;
-    /**
-     * Queues a user-supplied signal DTO to be consumed by the next tick instead of getSignal.
-     *
-     * Validates the context, then delegates to StrategyConnectionService.createSignal().
-     * Rejected if a signal or deferred action is already in flight. Does not require execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param dto - Signal DTO to open
-     * @param context - Context with strategyName, exchangeName, frameName
-     * @returns Promise that resolves when the DTO is queued
-     */
-    createSignal: (backtest: boolean, symbol: string, dto: ISignalDto, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<void>;
-    /**
-     * Reports that the pending position's take-profit order was actually filled on the exchange
-     * (e.g. by candle high/low), forcing a close that bypasses the framework's VWAP-based TP check.
-     *
-     * Validates the context, then delegates to StrategyConnectionService.createTakeProfit().
-     * The close is deferred and emitted with closeReason "take_profit" on the next tick/backtest.
-     * Does not require execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Context with strategyName, exchangeName, frameName
-     * @param payload - Optional commit payload with id and note
-     * @returns Promise that resolves when the take-profit fill is queued
-     */
-    createTakeProfit: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, payload?: Partial<CommitPayload>) => Promise<void>;
-    /**
-     * Reports that the pending position's stop-loss order was actually filled on the exchange
-     * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based SL check (closed-candle granularity).
-     *
-     * Validates the context, then delegates to StrategyConnectionService.createStopLoss().
-     * The close is deferred and emitted with closeReason "stop_loss" on the next tick/backtest.
-     * Does not require execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Context with strategyName, exchangeName, frameName
-     * @param payload - Optional commit payload with id and note
-     * @returns Promise that resolves when the stop-loss fill is queued
-     */
-    createStopLoss: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, payload?: Partial<CommitPayload>) => Promise<void>;
-    /**
-     * Returns the in-memory deferred strategy-state snapshot for this iteration.
-     *
-     * Validates the context, then delegates to StrategyConnectionService.getStatus().
-     * Does not require execution context.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to the current StrategyStatus snapshot
-     */
-    getStatus: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<StrategyStatus>;
-    /**
-     * Disposes the ClientStrategy instance for the given context.
-     *
-     * Calls dispose on the strategy instance to clean up resources,
-     * then removes it from cache.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     */
-    dispose: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<void>;
-    /**
-     * Clears the memoized ClientStrategy instance from cache.
-     *
-     * Delegates to StrategyConnectionService.dispose() if payload provided,
-     * otherwise clears all strategy instances.
-     *
-     * @param payload - Optional payload with symbol, context and backtest flag (clears all if not provided)
-     */
-    clear: (payload?: {
-        symbol: string;
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-        backtest: boolean;
-    }) => Promise<void>;
-    /**
-     * Checks whether `partialProfit` would succeed without executing it.
-     * Validates context, then delegates to StrategyConnectionService.validatePartialProfit().
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param percentToClose - Percentage of position to check (0-100]
-     * @param currentPrice - Current market price to validate against
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if `partialProfit` would execute, false otherwise
-     */
-    validatePartialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Executes partial close at profit level (moving toward TP).
-     *
-     * Validates strategy existence and delegates to connection service
-     * to close a percentage of the pending position at profit.
-     *
-     * Does not require execution context as this is a direct state mutation.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param percentToClose - Percentage of position to close (0-100, absolute value)
-     * @param currentPrice - Current market price for this partial close (must be in profit direction)
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if partial close executed, false if skipped
-     *
-     * @example
-     * ```typescript
-     * // Close 30% of position at profit
-     * const success = await strategyCoreService.partialProfit(
-     *   false,
-     *   "BTCUSDT",
-     *   30,
-     *   45000,
-     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
-     * );
-     * if (success) {
-     *   console.log('Partial profit executed');
-     * }
-     * ```
-     */
-    partialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, note?: string) => Promise<boolean>;
-    /**
-     * Checks whether `partialLoss` would succeed without executing it.
-     * Validates context, then delegates to StrategyConnectionService.validatePartialLoss().
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param percentToClose - Percentage of position to check (0-100]
-     * @param currentPrice - Current market price to validate against
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if `partialLoss` would execute, false otherwise
-     */
-    validatePartialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Executes partial close at loss level (moving toward SL).
-     *
-     * Validates strategy existence and delegates to connection service
-     * to close a percentage of the pending position at loss.
-     *
-     * Does not require execution context as this is a direct state mutation.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param percentToClose - Percentage of position to close (0-100, absolute value)
-     * @param currentPrice - Current market price for this partial close (must be in loss direction)
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if partial close executed, false if skipped
-     *
-     * @example
-     * ```typescript
-     * // Close 40% of position at loss
-     * const success = await strategyCoreService.partialLoss(
-     *   false,
-     *   "BTCUSDT",
-     *   40,
-     *   38000,
-     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
-     * );
-     * if (success) {
-     *   console.log('Partial loss executed');
-     * }
-     * ```
-     */
-    partialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, note?: string) => Promise<boolean>;
-    /**
-     * Checks whether `trailingStop` would succeed without executing it.
-     * Validates context, then delegates to StrategyConnectionService.validateTrailingStop().
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param percentShift - Percentage shift of ORIGINAL SL distance [-100, 100], excluding 0
-     * @param currentPrice - Current market price to validate against
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if `trailingStop` would execute, false otherwise
-     */
-    validateTrailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Adjusts the trailing stop-loss distance for an active pending signal.
-     *
-     * Validates strategy existence and delegates to connection service
-     * to update the stop-loss distance by a percentage adjustment.
-     *
-     * Does not require execution context as this is a direct state mutation.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
-     * @param currentPrice - Current market price to check for intrusion
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if trailing SL was updated, false otherwise
-     *
-     * @example
-     * ```typescript
-     * // LONG: entry=100, originalSL=90, distance=10%, currentPrice=102
-     * // Tighten stop by 50%: newSL = 100 - 5% = 95
-     * await strategyCoreService.trailingStop(
-     *   false,
-     *   "BTCUSDT",
-     *   -50,
-     *   102,
-     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
-     * );
-     * ```
-     */
-    trailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Checks whether `trailingTake` would succeed without executing it.
-     * Validates context, then delegates to StrategyConnectionService.validateTrailingTake().
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param percentShift - Percentage adjustment to ORIGINAL TP distance [-100, 100], excluding 0
-     * @param currentPrice - Current market price to validate against
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if `trailingTake` would execute, false otherwise
-     */
-    validateTrailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Adjusts the trailing take-profit distance for an active pending signal.
-     * Validates context and delegates to StrategyConnectionService.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
-     * @param currentPrice - Current market price to check for intrusion
-     * @param context - Strategy context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if trailing TP was updated, false otherwise
-     *
-     * @example
-     * ```typescript
-     * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
-     * // Move TP further by 50%: newTP = 100 + 15% = 115
-     * await strategyCoreService.trailingTake(
-     *   false,
-     *   "BTCUSDT",
-     *   50,
-     *   102,
-     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
-     * );
-     * ```
-     */
-    trailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Checks whether `breakeven` would succeed without executing it.
-     * Validates context, then delegates to StrategyConnectionService.validateBreakeven().
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param currentPrice - Current market price to validate against
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if `breakeven` would execute, false otherwise
-     */
-    validateBreakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Moves stop-loss to breakeven when price reaches threshold.
-     * Validates context and delegates to StrategyConnectionService.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param currentPrice - Current market price to check threshold
-     * @param context - Strategy context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if breakeven was set, false otherwise
-     *
-     * @example
-     * ```typescript
-     * const moved = await strategyCoreService.breakeven(
-     *   false,
-     *   "BTCUSDT",
-     *   112,
-     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
-     * );
-     * ```
-     */
-    breakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Activates a scheduled signal early without waiting for price to reach priceOpen.
-     *
-     * Validates strategy existence and delegates to connection service
-     * to set the activation flag. The actual activation happens on next tick().
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @param payload - Optional commit payload with id and note
-     * @returns Promise that resolves when activation flag is set
-     *
-     * @example
-     * ```typescript
-     * // Activate scheduled signal early
-     * await strategyCoreService.activateScheduled(
-     *   false,
-     *   "BTCUSDT",
-     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
-     *   { id: "manual-activation" }
-     * );
-     * ```
-     */
-    activateScheduled: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, payload?: Partial<CommitPayload>) => Promise<void>;
-    /**
-     * Checks whether `averageBuy` would succeed without executing it.
-     * Validates context, then delegates to StrategyConnectionService.validateAverageBuy().
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param currentPrice - New entry price to validate
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if `averageBuy` would execute, false otherwise
-     */
-    validateAverageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Adds a new DCA entry to the active pending signal.
-     *
-     * Validates strategy existence and delegates to connection service
-     * to add a new averaging entry to the position.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param currentPrice - New entry price to add to the averaging history
-     * @param cost - Cost basis for this entry in dollars
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if entry added, false if rejected
-     */
-    averageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, cost: number, note?: string) => Promise<boolean>;
-    /**
-     * Checks whether dividend would succeed without executing it.
-     * Validates strategy existence and delegates to the connection service.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param dto - Accrual to validate
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if dividend would execute, false otherwise
-     */
-    validateDividend: (backtest: boolean, symbol: string, dto: IDividendDto, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Records a dividend / staking accrual (signed amount) on the active pending signal.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param currentPrice - Current market price recorded with the commit event
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @param dto - Accrual: signed amount, type ("cash" default | "asset"), optional note
-     * @returns Promise<boolean> - true when the accrual was recorded
-     */
-    dividend: (backtest: boolean, symbol: string, currentPrice: number, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }, dto: IDividendDto) => Promise<boolean>;
-    /**
-     * Returns the dividend / staking accruals recorded on the current pending signal.
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to the accrual list or null
-     */
-    getPositionAccruals: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<ISignalAccrual[]>;
-    /**
-     * Checks if there is an active pending signal for the symbol.
-     * Validates strategy existence and delegates to connection service
-     * to check if a pending signal exists for the symbol.
-     * Does not require execution context as this is a state query operation.
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if pending signal exists, false otherwise
-     */
-    hasPendingSignal: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Checks if there is a waiting scheduled signal for the symbol.
-     * Validates strategy existence and delegates to connection service
-     * to check if a scheduled signal exists for the symbol.
-     * Does not require execution context as this is a state query operation.
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise<boolean> - true if scheduled signal exists, false otherwise
-     */
-    hasScheduledSignal: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean>;
-    /**
-     * Returns the original estimated duration for the current pending signal.
-     *
-     * Validates strategy existence and delegates to connection service.
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to estimated duration in minutes or null
-     */
-    getPositionEstimateMinutes: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the remaining time before the position expires, clamped to zero.
-     *
-     * Validates strategy existence and delegates to connection service.
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to remaining minutes (≥ 0) or null
-     */
-    getPositionCountdownMinutes: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the number of minutes the position has been active since it opened.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to active minutes (≥ 0) or null
-     */
-    getPositionActiveMinutes: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the number of minutes the scheduled signal has been waiting for activation.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to waiting minutes (≥ 0) or null
-     */
-    getPositionWaitingMinutes: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the best price reached in the profit direction during this position's life.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to price or null
-     */
-    getPositionHighestProfitPrice: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the timestamp when the best profit price was recorded during this position's life.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to timestamp in milliseconds or null
-     */
-    getPositionHighestProfitTimestamp: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the PnL percentage at the moment the best profit price was recorded during this position's life.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to PnL percentage or null
-     */
-    getPositionHighestPnlPercentage: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the PnL cost (in quote currency) at the moment the best profit price was recorded during this position's life.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to PnL cost or null
-     */
-    getPositionHighestPnlCost: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns whether breakeven was mathematically reachable at the highest profit price.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to true if breakeven was reachable at peak, false otherwise, or null
-     */
-    getPositionHighestProfitBreakeven: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<boolean | null>;
-    /**
-     * Returns the number of minutes elapsed since the highest profit price was recorded.
-     *
-     * Validates strategy existence and delegates to connection service.
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to drawdown duration in minutes or null
-     */
-    getPositionDrawdownMinutes: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the number of minutes elapsed since the highest profit price was recorded.
-     *
-     * Alias for getPositionDrawdownMinutes — measures how long the position has been
-     * pulling back from its peak profit level.
-     *
-     * Validates strategy existence and delegates to connection service.
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to minutes since last profit peak or null
-     */
-    getPositionHighestProfitMinutes: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the number of minutes elapsed since the worst loss price was recorded.
-     *
-     * Measures how long ago the deepest drawdown point occurred.
-     * Zero when called at the exact moment the trough was set.
-     *
-     * Validates strategy existence and delegates to connection service.
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to minutes since last drawdown trough or null
-     */
-    getPositionMaxDrawdownMinutes: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the worst price reached in the loss direction during this position's life.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to price or null
-     */
-    getPositionMaxDrawdownPrice: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the timestamp when the worst loss price was recorded during this position's life.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to timestamp in milliseconds or null
-     */
-    getPositionMaxDrawdownTimestamp: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the PnL percentage at the moment the worst loss price was recorded during this position's life.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to PnL percentage or null
-     */
-    getPositionMaxDrawdownPnlPercentage: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the PnL cost (in quote currency) at the moment the worst loss price was recorded during this position's life.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to PnL cost or null
-     */
-    getPositionMaxDrawdownPnlCost: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the distance in PnL percentage between the current price and the highest profit peak.
-     *
-     * Delegates to StrategyConnectionService.getPositionHighestProfitDistancePnlPercentage().
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to drawdown distance in PnL% (≥ 0) or null
-     */
-    getPositionHighestProfitDistancePnlPercentage: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the distance in PnL cost between the current price and the highest profit peak.
-     *
-     * Delegates to StrategyConnectionService.getPositionHighestProfitDistancePnlCost().
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to drawdown distance in PnL cost (≥ 0) or null
-     */
-    getPositionHighestProfitDistancePnlCost: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the distance in PnL percentage between the current price and the worst drawdown trough.
-     *
-     * Delegates to StrategyConnectionService.getPositionHighestMaxDrawdownPnlPercentage().
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to recovery distance in PnL% (≥ 0) or null
-     */
-    getPositionHighestMaxDrawdownPnlPercentage: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the distance in PnL cost between the current price and the worst drawdown trough.
-     *
-     * Delegates to StrategyConnectionService.getPositionHighestMaxDrawdownPnlCost().
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to recovery distance in PnL cost (≥ 0) or null
-     */
-    getPositionHighestMaxDrawdownPnlCost: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
-     *
-     * Delegates to StrategyConnectionService.getMaxDrawdownDistancePnlPercentage().
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
-     */
-    getMaxDrawdownDistancePnlPercentage: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-    /**
-     * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
-     *
-     * Delegates to StrategyConnectionService.getMaxDrawdownDistancePnlCost().
-     * Returns null if no pending signal exists.
-     *
-     * @param backtest - Whether running in backtest mode
-     * @param symbol - Trading pair symbol
-     * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
-     */
-    getMaxDrawdownDistancePnlCost: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
-}
-
-/**
- * Type definition for frame methods.
- * Maps all keys of IFrame to any type.
- * Used for dynamic method routing in FrameCoreService.
- */
-type TFrame = {
-    [key in keyof IFrame]: any;
-};
-/**
- * Global service for frame operations.
- *
- * Wraps FrameConnectionService for timeframe generation.
- * Used internally by BacktestLogicPrivateService.
- */
-declare class FrameCoreService implements TFrame {
-    private readonly loggerService;
-    private readonly frameConnectionService;
-    private readonly frameValidationService;
-    /**
-     * Generates timeframe array for backtest iteration.
-     *
-     * @param frameName - Target frame name (e.g., "1m", "1h")
-     * @returns Promise resolving to array of Date objects
-     */
-    getTimeframe: (symbol: string, frameName: FrameName) => Promise<Date[]>;
-}
-
-/**
  * Type definition for sizing methods.
  * Maps all keys of ISizing to any type.
  * Used for dynamic method routing in SizingGlobalService.
@@ -44968,62 +46128,6 @@ declare class RiskGlobalService implements TRisk {
 }
 
 /**
- * Private service for backtest orchestration using async generators.
- *
- * Flow:
- * 1. Get timeframes from frame service
- * 2. Iterate through timeframes calling tick()
- * 3. When signal opens: fetch candles and call backtest()
- * 4. Skip timeframes until signal closes
- * 5. Yield closed result and continue
- *
- * Memory efficient: streams results without array accumulation.
- * Supports early termination via break in consumer.
- */
-declare class BacktestLogicPrivateService {
-    readonly loggerService: {
-        readonly methodContextService: {
-            readonly context: IMethodContext;
-        };
-        readonly executionContextService: {
-            readonly context: IExecutionContext;
-        };
-        _commonLogger: ILogger;
-        readonly _methodContext: {};
-        readonly _executionContext: {};
-        log: (topic: string, ...args: any[]) => Promise<void>;
-        debug: (topic: string, ...args: any[]) => Promise<void>;
-        info: (topic: string, ...args: any[]) => Promise<void>;
-        warn: (topic: string, ...args: any[]) => Promise<void>;
-        setLogger: (logger: ILogger) => void;
-    };
-    readonly strategyCoreService: StrategyCoreService;
-    readonly exchangeCoreService: ExchangeCoreService;
-    readonly frameCoreService: FrameCoreService;
-    readonly methodContextService: {
-        readonly context: IMethodContext;
-    };
-    readonly actionCoreService: ActionCoreService;
-    readonly timeMetaService: TimeMetaService;
-    readonly priceMetaService: PriceMetaService;
-    /**
-     * Runs backtest for a symbol, streaming closed signals as async generator.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @yields Closed signal results with PNL
-     *
-     * @example
-     * ```typescript
-     * for await (const result of backtestLogic.run("BTCUSDT")) {
-     *   console.log(result.closeReason, result.pnl.pnlPercentage);
-     *   if (result.pnl.pnlPercentage < -10) break; // Early termination
-     * }
-     * ```
-     */
-    run(symbol: string): AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, any>;
-}
-
-/**
  * Service for managing frame schema registry.
  *
  * Uses ToolRegistry from functools-kit for type-safe schema storage.
@@ -45099,6 +46203,7 @@ type IBacktestLogicPrivateService = Omit<BacktestLogicPrivateService, keyof {
     methodContextService: never;
     priceMetaService: never;
     timeMetaService: never;
+    handoff: never;
 }>;
 /**
  * Type definition for BacktestLogicPublicService.
@@ -47587,6 +48692,67 @@ declare class HighestProfitReportService {
 }
 
 /**
+ * Service for logging budget journal rows to the JSONL report database.
+ *
+ * Listens to budgetSubject and writes every inserted row (reserve / release /
+ * reject / deposit / withdraw) to ReportWriter.writeData("budget") for
+ * persistence and analytics (`./dump/report/budget.jsonl`).
+ */
+declare class BudgetReportService {
+    private readonly loggerService;
+    /**
+     * Handles a single `BudgetContract` event emitted by `budgetSubject`.
+     *
+     * Writes a JSONL record to the `"budget"` report database via
+     * `ReportWriter.writeData`: the record key (`strategyName`, `exchangeName`,
+     * `frameName`, `backtest`), the budget `name`, the authoring `symbol`, and
+     * the journal row fields spread flat (`type`, `timestamp`, `seq`, `id` /
+     * `asset`, `amount`, `pnl`, `requested`, `available`, `overdraft`, `note`,
+     * `balance` after the row).
+     *
+     * The search keys use the authoring symbol (empty string when the call had
+     * none); `signalId` is empty — a budget record is not bound to a signal.
+     *
+     * @param data - `BudgetContract` payload
+     */
+    private tick;
+    /**
+     * Subscribes to `budgetSubject` to start persisting journal rows.
+     * Protected against multiple subscriptions via `singleshot` — subsequent
+     * calls return the same unsubscribe function without re-subscribing.
+     *
+     * The returned unsubscribe function clears the `singleshot` state and
+     * detaches from `budgetSubject`.
+     *
+     * @returns Unsubscribe function; calling it tears down the subscription
+     *
+     * @example
+     * ```typescript
+     * const service = new BudgetReportService();
+     * const unsubscribe = service.subscribe();
+     * // ... later
+     * unsubscribe();
+     * ```
+     */
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
+    /**
+     * Detaches from `budgetSubject`, stopping further JSONL writes.
+     *
+     * Calls the unsubscribe closure returned by `subscribe()`.
+     * If `subscribe()` was never called, does nothing.
+     *
+     * @example
+     * ```typescript
+     * const service = new BudgetReportService();
+     * service.subscribe();
+     * // ... later
+     * await service.unsubscribe();
+     * ```
+     */
+    unsubscribe: () => Promise<void>;
+}
+
+/**
  * Service for logging max drawdown events to the JSONL report database.
  *
  * Listens to maxDrawdownSubject and writes each new drawdown record to
@@ -48288,6 +49454,7 @@ declare const backtest: {
     strategyReportService: StrategyReportService;
     syncReportService: SyncReportService;
     highestProfitReportService: HighestProfitReportService;
+    budgetReportService: BudgetReportService;
     maxDrawdownReportService: MaxDrawdownReportService;
     backtestMarkdownService: BacktestMarkdownService;
     liveMarkdownService: LiveMarkdownService;
@@ -48301,6 +49468,7 @@ declare const backtest: {
     strategyMarkdownService: StrategyMarkdownService;
     syncMarkdownService: SyncMarkdownService;
     highestProfitMarkdownService: HighestProfitMarkdownService;
+    budgetMarkdownService: BudgetMarkdownService;
     maxDrawdownMarkdownService: MaxDrawdownMarkdownService;
     backtestLogicPublicService: BacktestLogicPublicService;
     liveLogicPublicService: LiveLogicPublicService;
@@ -48957,6 +50125,109 @@ declare class OrderRejectedError extends Error {
 }
 
 /**
+ * Business rejection of a `Budget` action: `reserve` asked for more than the
+ * free balance, or `withdraw` asked for more units of an asset than the budget
+ * holds, both at the logical time of the call.
+ *
+ * The rejection is recorded in the budget journal as a `reject` row (visible in
+ * `getHistory()` and the budget report) BEFORE the error is thrown, so a refused
+ * action is never silent. The strategy decides what to do with it — typically
+ * `return null` from `getSignal` (no trade this tick).
+ *
+ * Nominal runtime identification: the framework and user code recognize the
+ * error by the `__type__ === Symbol.for("BudgetRejectedError")` brand via the
+ * static guard — never by `instanceof`, so it survives duplicated module
+ * instances across bundles.
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await fund.reserve({ id, amount: cost });
+ * } catch (error) {
+ *   if (BudgetRejectedError.isBudgetRejectedError(error)) return null;
+ *   throw error;
+ * }
+ * ```
+ */
+declare class BudgetRejectedError extends Error {
+    /** Runtime brand (Symbol.for — survives duplicated module instances) */
+    readonly __type__: symbol;
+    /**
+     * @param message - Optional human-readable reason (logged, not routed on)
+     */
+    constructor(message?: string);
+    /**
+     * Nominal type guard by the runtime brand. Use this instead of `instanceof`:
+     * the check is based on `Symbol.for`, so it recognizes instances created by a
+     * DIFFERENT copy of this module (duplicated bundles, linked packages).
+     *
+     * @param error - Any thrown object
+     * @returns true when the object carries the BudgetRejectedError brand
+     */
+    static isBudgetRejectedError(error: object): boolean;
+    /**
+     * Nominal constructor for a new BudgetRejectedError from any thrown object.
+     *
+     * @param error - Any thrown object
+     * @returns a new BudgetRejectedError with the original message, or a default message
+     *          if the original was not a string
+     */
+    static fromError(error: object): BudgetRejectedError;
+}
+
+/**
+ * A static `Budget` call reached a record that does not exist yet and gave no
+ * `initialCapital` to create it with.
+ *
+ * A record is created by the first call that touches it. The strategy's own
+ * instance methods always carry the capital of `new Budget({ name, initialCapital })`;
+ * a static call (a listener, a dashboard) that comes first would otherwise create
+ * the record with a capital it does not know, and a later call with the right
+ * capital could never repair it. So the call is refused, nothing is created,
+ * and the next call that brings `initialCapital` creates the record properly.
+ *
+ * Nominal runtime identification: the framework and user code recognize the
+ * error by the `__type__ === Symbol.for("BudgetMissingError")` brand via the
+ * static guard — never by `instanceof`, so it survives duplicated module
+ * instances across bundles.
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   return await Budget._getBalance(context);
+ * } catch (error) {
+ *   if (BudgetMissingError.isBudgetMissingError(error)) return null; // nothing recorded yet
+ *   throw error;
+ * }
+ * ```
+ */
+declare class BudgetMissingError extends Error {
+    /** Runtime brand (Symbol.for — survives duplicated module instances) */
+    readonly __type__: symbol;
+    /**
+     * @param message - Optional human-readable reason (logged, not routed on)
+     */
+    constructor(message?: string);
+    /**
+     * Nominal type guard by the runtime brand. Use this instead of `instanceof`:
+     * the check is based on `Symbol.for`, so it recognizes instances created by a
+     * DIFFERENT copy of this module (duplicated bundles, linked packages).
+     *
+     * @param error - Any thrown object
+     * @returns true when the object carries the BudgetMissingError brand
+     */
+    static isBudgetMissingError(error: object): boolean;
+    /**
+     * Nominal constructor for a new BudgetMissingError from any thrown object.
+     *
+     * @param error - Any thrown object
+     * @returns a new BudgetMissingError with the original message, or a default message
+     *          if the original was not a string
+     */
+    static fromError(error: object): BudgetMissingError;
+}
+
+/**
  * EXPLICIT transient failure marker — "the operation failed for a temporary /
  * unknown reason (network blip, lost response, exchange 5xx, rate limit); retry me".
  *
@@ -49264,4 +50535,4 @@ declare class GeneralUnexpectedError extends Error {
     static fromError(error: object): GeneralUnexpectedError;
 }
 
-export { type AccrualType, ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, Dictionary, DictionaryBacktest, DictionaryBacktestAdapter, type DictionaryData, DictionaryLive, DictionaryLiveAdapter, type DividendCommit, type DividendCommitNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, GeneralExpectedError, GeneralUnexpectedError, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAgentLogger, type IAggregatedTradeData, type IAverageBuyDto, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type ICandleData, type ICommitRow, type IDictionaryInstance, type IDividendCommitRow, type IDividendDto, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILauncherSchema, type ILog, type ILogEntry, type ILogger, type IMCPAverageBuyCommand, type IMCPContext, type IMCPImageMessage, type IMCPMessage, type IMCPPositionCloseCommand, type IMCPPositionOpenCommand, type IMCPSchema, type IMCPSignalNotifyCommand, type IMCPTextMessage, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialCostDto, type IPartialDto, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistDictionaryInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalAccrual, type ISignalDto, type ISignalEntry, type ISignalIntervalDto, type ISignalPartial, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ISweepBest, type ISweepGridAxes, type ISweepGridPoint, type ISweepIdea, type ISweepMetricReport, type ISweepPointReport, type ISweepResult, type ISweepSchema, type ISweepTrack, type ISweepTrade, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IWorkerSchema, type IdlePingContract, type InfoErrorNotification, type InitialDispatchContract, Interval, type IntervalData, Launcher, Level, Live, type LiveStatisticsModel, Log, type LogData, Lookup, MCP, type MCPMessageId, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, type OrderContinueContract, OrderDeletedError, type OrderFillCloseContract, type OrderFillContract, type OrderFillOpenContract, type OrderOpenContract, type OrderRejectCloseContract, type OrderRejectContract, type OrderRejectOpenContract, OrderRejectedError, type OrderStopContract, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, OrderTransientError, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, type PauseContract, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistDictionaryAdapter, PersistDictionaryInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyPauseNotification, type StrategyStatisticsModel, type StrategyStatus, Sweep, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDictionaryInstanceCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistDictionaryInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, Worker, addActionSchema, addExchangeSchema, addFrameSchema, addLauncherSchema, addMCPSchema, addRiskSchema, addSizingSchema, addStrategySchema, addSweepSchema, addWalkerSchema, addWorkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitDividend, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpMCPStatus, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getAccrualsCost, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getBreakevenPrice, getCandleAnomalyFlags, getCandles, getCandlesFilled, getCandlesSampled, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getLauncherSchema, getLiquidationPrice, getMCPSchema, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionAccruals, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSizingSchema, getStrategyPaused, getStrategySchema, getStrategyStatus, getSweepSchema, getSymbol, getTimestamp, getTotalClosed, getTotalPercentHeld, getWalkerSchema, getWorkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStart, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listLauncherSchema, listMCPSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listSweepSchema, listWalkerSchema, listWorkerSchema, listenActivePing, listenActivePingFilter, listenActivePingOnce, listenActivePingUnique, listenAfterEnd, listenAfterEndFilter, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartFilter, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableFilter, listenBreakevenAvailableOnce, listenBreakevenAvailableUnique, listenCheck, listenDoneBacktest, listenDoneBacktestFilter, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveFilter, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerFilter, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitFilter, listenHighestProfitOnce, listenHighestProfitUnique, listenIdlePing, listenIdlePingFilter, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownFilter, listenMaxDrawdownOnce, listenMaxDrawdownUnique, listenOrderContinue, listenOrderFill, listenOrderReject, listenOrderSchedule, listenOrderScheduleUnique, listenOrderStop, listenPartialLossAvailable, listenPartialLossAvailableFilter, listenPartialLossAvailableOnce, listenPartialLossAvailableUnique, listenPartialProfitAvailable, listenPartialProfitAvailableFilter, listenPartialProfitAvailableOnce, listenPartialProfitAvailableUnique, listenPause, listenPauseFilter, listenPauseOnce, listenPerformance, listenRisk, listenRiskFilter, listenRiskOnce, listenSchedulePing, listenSchedulePingFilter, listenSchedulePingOnce, listenSchedulePingUnique, listenSignal, listenSignalActive, listenSignalActiveUnique, listenSignalBacktest, listenSignalBacktestActive, listenSignalBacktestActiveUnique, listenSignalBacktestCancelled, listenSignalBacktestCancelledUnique, listenSignalBacktestClosed, listenSignalBacktestClosedUnique, listenSignalBacktestFilter, listenSignalBacktestIdle, listenSignalBacktestOnce, listenSignalBacktestOpened, listenSignalBacktestOpenedUnique, listenSignalBacktestScheduled, listenSignalBacktestScheduledUnique, listenSignalBacktestUnique, listenSignalBacktestWaiting, listenSignalBacktestWaitingUnique, listenSignalCancelled, listenSignalCancelledUnique, listenSignalClosed, listenSignalClosedUnique, listenSignalEvent, listenSignalEventFilter, listenSignalEventOnce, listenSignalEventUnique, listenSignalFilter, listenSignalIdle, listenSignalLive, listenSignalLiveActive, listenSignalLiveActiveUnique, listenSignalLiveCancelled, listenSignalLiveCancelledUnique, listenSignalLiveClosed, listenSignalLiveClosedUnique, listenSignalLiveFilter, listenSignalLiveIdle, listenSignalLiveOnce, listenSignalLiveOpened, listenSignalLiveOpenedUnique, listenSignalLiveScheduled, listenSignalLiveScheduledUnique, listenSignalLiveUnique, listenSignalLiveWaiting, listenSignalLiveWaitingUnique, listenSignalNotify, listenSignalNotifyFilter, listenSignalNotifyOnce, listenSignalNotifyUnique, listenSignalOnce, listenSignalOpened, listenSignalOpenedUnique, listenSignalScheduled, listenSignalScheduledUnique, listenSignalUnique, listenSignalWaiting, listenSignalWaitingUnique, listenStrategyCommit, listenStrategyCommitFilter, listenStrategyCommitOnce, listenStrategyCommitUnique, listenSync, listenValidation, listenWalker, listenWalkerComplete, listenWalkerFilter, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideLauncherSchema, overrideMCPSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideSweepSchema, overrideWalkerSchema, overrideWorkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setStrategyPaused, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };
+export { type AccrualType, ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Budget, BudgetBacktest, BudgetBacktestAdapter, type BudgetContract, type BudgetData, type BudgetEvent, BudgetLive, BudgetLiveAdapter, BudgetMissingError, BudgetRejectedError, type BudgetStatisticsModel, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, Dictionary, DictionaryBacktest, DictionaryBacktestAdapter, type DictionaryData, DictionaryLive, DictionaryLiveAdapter, type DividendCommit, type DividendCommitNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, GeneralExpectedError, GeneralUnexpectedError, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAgentLogger, type IAggregatedTradeData, type IAverageBuyDto, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type IBudgetInstance, type ICandleData, type ICommitRow, type IDictionaryInstance, type IDividendCommitRow, type IDividendDto, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILauncherSchema, type ILog, type ILogEntry, type ILogger, type IMCPAverageBuyCommand, type IMCPContext, type IMCPImageMessage, type IMCPMessage, type IMCPPositionCloseCommand, type IMCPPositionOpenCommand, type IMCPSchema, type IMCPSignalNotifyCommand, type IMCPTextMessage, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialCostDto, type IPartialDto, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistBudgetInstance, type IPersistCandleInstance, type IPersistDictionaryInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalAccrual, type ISignalDto, type ISignalEntry, type ISignalIntervalDto, type ISignalPartial, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ISweepBest, type ISweepGridAxes, type ISweepGridPoint, type ISweepIdea, type ISweepMetricReport, type ISweepPointReport, type ISweepResult, type ISweepSchema, type ISweepTrack, type ISweepTrade, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IWorkerSchema, type IdlePingContract, type InfoErrorNotification, type InitialDispatchContract, Interval, type IntervalData, Launcher, Level, Live, type LiveStatisticsModel, Log, type LogData, Lookup, MCP, type MCPMessageId, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, type OrderContinueContract, OrderDeletedError, type OrderFillCloseContract, type OrderFillContract, type OrderFillOpenContract, type OrderOpenContract, type OrderRejectCloseContract, type OrderRejectContract, type OrderRejectOpenContract, OrderRejectedError, type OrderStopContract, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, OrderTransientError, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, type PauseContract, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistBudgetAdapter, PersistBudgetInstance, PersistCandleAdapter, PersistCandleInstance, PersistDictionaryAdapter, PersistDictionaryInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData$1 as SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyPauseNotification, type StrategyStatisticsModel, type StrategyStatus, Sweep, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TBudgetInstanceCtor, type TDictionaryInstanceCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistBudgetInstanceCtor, type TPersistCandleInstanceCtor, type TPersistDictionaryInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData as WalkerSignalData, type WalkerStatisticsModel, Worker, addActionSchema, addExchangeSchema, addFrameSchema, addLauncherSchema, addMCPSchema, addRiskSchema, addSizingSchema, addStrategySchema, addSweepSchema, addWalkerSchema, addWorkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitDividend, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpMCPStatus, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getAccrualsCost, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getBreakevenPrice, getCandleAnomalyFlags, getCandles, getCandlesFilled, getCandlesSampled, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getLauncherSchema, getLiquidationPrice, getMCPSchema, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionAccruals, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSizingSchema, getStrategyPaused, getStrategySchema, getStrategyStatus, getSweepSchema, getSymbol, getTimestamp, getTotalClosed, getTotalPercentHeld, getWalkerSchema, getWorkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStart, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listLauncherSchema, listMCPSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listSweepSchema, listWalkerSchema, listWorkerSchema, listenActivePing, listenActivePingFilter, listenActivePingOnce, listenActivePingUnique, listenAfterEnd, listenAfterEndFilter, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartFilter, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableFilter, listenBreakevenAvailableOnce, listenBreakevenAvailableUnique, listenBudget, listenBudgetOnce, listenCheck, listenDoneBacktest, listenDoneBacktestFilter, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveFilter, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerFilter, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitFilter, listenHighestProfitOnce, listenHighestProfitUnique, listenIdlePing, listenIdlePingFilter, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownFilter, listenMaxDrawdownOnce, listenMaxDrawdownUnique, listenOrderContinue, listenOrderFill, listenOrderReject, listenOrderSchedule, listenOrderScheduleUnique, listenOrderStop, listenPartialLossAvailable, listenPartialLossAvailableFilter, listenPartialLossAvailableOnce, listenPartialLossAvailableUnique, listenPartialProfitAvailable, listenPartialProfitAvailableFilter, listenPartialProfitAvailableOnce, listenPartialProfitAvailableUnique, listenPause, listenPauseFilter, listenPauseOnce, listenPerformance, listenRisk, listenRiskFilter, listenRiskOnce, listenSchedulePing, listenSchedulePingFilter, listenSchedulePingOnce, listenSchedulePingUnique, listenSignal, listenSignalActive, listenSignalActiveUnique, listenSignalBacktest, listenSignalBacktestActive, listenSignalBacktestActiveUnique, listenSignalBacktestCancelled, listenSignalBacktestCancelledUnique, listenSignalBacktestClosed, listenSignalBacktestClosedUnique, listenSignalBacktestFilter, listenSignalBacktestIdle, listenSignalBacktestOnce, listenSignalBacktestOpened, listenSignalBacktestOpenedUnique, listenSignalBacktestScheduled, listenSignalBacktestScheduledUnique, listenSignalBacktestUnique, listenSignalBacktestWaiting, listenSignalBacktestWaitingUnique, listenSignalCancelled, listenSignalCancelledUnique, listenSignalClosed, listenSignalClosedUnique, listenSignalEvent, listenSignalEventFilter, listenSignalEventOnce, listenSignalEventUnique, listenSignalFilter, listenSignalIdle, listenSignalLive, listenSignalLiveActive, listenSignalLiveActiveUnique, listenSignalLiveCancelled, listenSignalLiveCancelledUnique, listenSignalLiveClosed, listenSignalLiveClosedUnique, listenSignalLiveFilter, listenSignalLiveIdle, listenSignalLiveOnce, listenSignalLiveOpened, listenSignalLiveOpenedUnique, listenSignalLiveScheduled, listenSignalLiveScheduledUnique, listenSignalLiveUnique, listenSignalLiveWaiting, listenSignalLiveWaitingUnique, listenSignalNotify, listenSignalNotifyFilter, listenSignalNotifyOnce, listenSignalNotifyUnique, listenSignalOnce, listenSignalOpened, listenSignalOpenedUnique, listenSignalScheduled, listenSignalScheduledUnique, listenSignalUnique, listenSignalWaiting, listenSignalWaitingUnique, listenStrategyCommit, listenStrategyCommitFilter, listenStrategyCommitOnce, listenStrategyCommitUnique, listenSync, listenValidation, listenWalker, listenWalkerComplete, listenWalkerFilter, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideLauncherSchema, overrideMCPSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideSweepSchema, overrideWalkerSchema, overrideWorkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setStrategyPaused, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };

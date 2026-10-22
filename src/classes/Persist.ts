@@ -238,6 +238,23 @@ const PERSIST_STATE_UTILS_METHOD_NAME_USE_DUMMY =
 const PERSIST_STATE_UTILS_METHOD_NAME_USE_JSON =
   "PersistStateUtils.useJson";
 
+const PERSIST_BUDGET_UTILS_METHOD_NAME_USE_PERSIST_BUDGET_ADAPTER =
+  "PersistBudgetUtils.usePersistBudgetAdapter";
+const PERSIST_BUDGET_UTILS_METHOD_NAME_READ_DATA =
+  "PersistBudgetUtils.readBudgetData";
+const PERSIST_BUDGET_UTILS_METHOD_NAME_WRITE_DATA =
+  "PersistBudgetUtils.writeBudgetData";
+const PERSIST_BUDGET_UTILS_METHOD_NAME_DISPOSE =
+  "PersistBudgetUtils.dispose";
+const PERSIST_BUDGET_UTILS_METHOD_NAME_WAIT_FOR_INIT =
+  "PersistBudgetUtils.waitForInit";
+const PERSIST_BUDGET_UTILS_METHOD_NAME_USE_DUMMY =
+  "PersistBudgetUtils.useDummy";
+const PERSIST_BUDGET_UTILS_METHOD_NAME_USE_JSON =
+  "PersistBudgetUtils.useJson";
+const PERSIST_BUDGET_UTILS_METHOD_NAME_CLEAR =
+  "PersistBudgetUtils.clear";
+
 const PERSIST_DICTIONARY_UTILS_METHOD_NAME_USE_PERSIST_DICTIONARY_ADAPTER =
   "PersistDictionaryUtils.usePersistDictionaryAdapter";
 const PERSIST_DICTIONARY_UTILS_METHOD_NAME_READ_DATA =
@@ -5557,6 +5574,335 @@ export class PersistStateUtils {
  * Used by StatePersistInstance for crash-safe state persistence.
  */
 export const PersistStateAdapter = new PersistStateUtils();
+
+/**
+ * Type for persisted budget entry data.
+ * Wraps the whole budget record (initial capital + ordered journal) with a
+ * unique id; `when` is the logical timestamp of the last write.
+ */
+export type BudgetData = {
+  id: string;
+  data: object;
+  when: number;
+};
+
+/**
+ * Record key of a budget: one record per strategy run
+ * (strategyName, exchangeName, frameName, backtest) — shared by every symbol of
+ * that run, never branched by signalId.
+ */
+export type BudgetRecordKey = {
+  strategyName: string;
+  exchangeName: string;
+  frameName: string;
+  backtest: boolean;
+};
+
+/**
+ * Folder name of a budget record under ./dump/budget/.
+ * Mirrors the memo key of PersistStateUtils (`signalId:bucketName`) with the
+ * record key in place of the signal.
+ */
+const CREATE_BUDGET_RECORD_KEY_FN = ({ strategyName, exchangeName, frameName, backtest }: BudgetRecordKey): string =>
+  `${strategyName}:${exchangeName}:${frameName}:${backtest ? "backtest" : "live"}`;
+
+/**
+ * Per-context budget persistence instance interface.
+ * Scoped to a budget record key and a budget name (bucket inside the record).
+ *
+ * Used by BudgetPersistInstance for crash-safe budget journal storage.
+ * Custom adapters should implement this interface to override the default
+ * file-based budget behavior.
+ */
+export interface IPersistBudgetInstance {
+  /**
+   * Initialize storage for this budget context.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
+  waitForInit(initial: boolean): Promise<void>;
+
+  /**
+   * Read the persisted budget record for this context.
+   *
+   * @returns Promise resolving to budget data or null if none persisted
+   */
+  readBudgetData(): Promise<BudgetData | null>;
+
+  /**
+   * Write the budget record for this context.
+   *
+   * @param data - Budget data to persist (already carries `data.when`)
+   * @param when - Logical timestamp this value belongs to (duplicates `data.when` for API consistency)
+   * @returns Promise that resolves when write is complete
+   */
+  writeBudgetData(data: BudgetData, when: Date): Promise<void>;
+
+  /**
+   * Release any resources held by this instance.
+   * Default implementations may treat this as a no-op.
+   */
+  dispose(): void;
+}
+
+/**
+ * Default file-based implementation of IPersistBudgetInstance.
+ *
+ * Features:
+ * - Wraps PersistBase for atomic JSON writes
+ * - Uses the budget name as entity ID within a per-record PersistBase
+ * - dispose is a no-op (memo cache is managed by PersistBudgetUtils)
+ *
+ * Storage layout: ./dump/budget/<strategyName>:<exchangeName>:<frameName>:<backtest|live>/<name>.json
+ * — no signalId anywhere in the path: the record is shared by every symbol of the run.
+ */
+export class PersistBudgetInstance implements IPersistBudgetInstance {
+  /** Underlying file-based storage scoped to this context */
+  private readonly _storage: IPersistBase<BudgetData>;
+
+  /**
+   * Creates new budget persistence instance.
+   *
+   * @param key - Budget record key (folder name under budget/)
+   * @param name - Budget name (file name)
+   */
+  constructor(
+    readonly key: BudgetRecordKey,
+    readonly name: string,
+  ) {
+    this._storage = new PersistBase(name, `./dump/budget/${CREATE_BUDGET_RECORD_KEY_FN(key)}/`);
+  }
+
+  /**
+   * Initializes the underlying PersistBase storage.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
+  async waitForInit(initial: boolean): Promise<void> {
+    await this._storage.waitForInit(initial);
+  }
+
+  /**
+   * Reads the persisted budget record using `name` as the entity key.
+   *
+   * @returns Promise resolving to budget data or null if not found
+   */
+  async readBudgetData(): Promise<BudgetData | null> {
+    if (await this._storage.hasValue(this.name)) {
+      return await this._storage.readValue(this.name);
+    }
+    return null;
+  }
+
+  /**
+   * Writes the budget record using `name` as the entity key.
+   *
+   * @param data - Budget data to persist
+   * @returns Promise that resolves when write is complete
+   */
+  async writeBudgetData(data: BudgetData, _when: Date): Promise<void> {
+    await this._storage.writeValue(this.name, data);
+  }
+
+  /**
+   * No-op for the default file-based implementation.
+   * Resource cleanup (memo cache invalidation) is handled by PersistBudgetUtils.dispose().
+   */
+  dispose(): void { void 0; }
+}
+
+/**
+ * No-op IPersistBudgetInstance implementation used by PersistBudgetUtils.useDummy().
+ * All reads return null, all writes are discarded.
+ */
+class PersistBudgetDummyInstance implements IPersistBudgetInstance {
+  /**
+   * No-op constructor.
+   * Context arguments are accepted to satisfy TPersistBudgetInstanceCtor.
+   */
+  constructor(_key: BudgetRecordKey, _name: string) {}
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
+  async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns null (no persisted budget).
+   * @returns Promise resolving to null
+   */
+  async readBudgetData(): Promise<BudgetData | null> { return null; }
+  /**
+   * No-op write (discards the record).
+   * @returns Promise that resolves immediately
+   */
+  async writeBudgetData(_data: BudgetData, _when: Date): Promise<void> { void 0; }
+  /**
+   * No-op dispose.
+   */
+  dispose(): void { void 0; }
+}
+
+/**
+ * Constructor type for IPersistBudgetInstance.
+ * Used by PersistBudgetUtils.usePersistBudgetAdapter() to register custom adapters.
+ */
+export type TPersistBudgetInstanceCtor = new (
+  key: BudgetRecordKey,
+  name: string,
+) => IPersistBudgetInstance;
+
+/**
+ * Utility class for managing budget persistence.
+ *
+ * Features:
+ * - Memoized storage instances per (record key, name) pair
+ * - Custom adapter support
+ * - Atomic read/write operations
+ *
+ * Storage layout: ./dump/budget/<strategyName>:<exchangeName>:<frameName>:<backtest|live>/<name>.json
+ *
+ * Used by BudgetPersistInstance for crash-safe budget journal persistence.
+ */
+export class PersistBudgetUtils {
+  /**
+   * Constructor used to create per-context budget instances.
+   * Replaceable via usePersistBudgetAdapter() / useJson() / useDummy().
+   */
+  private PersistBudgetInstanceCtor: TPersistBudgetInstanceCtor = PersistBudgetInstance;
+
+  /**
+   * Memoized factory creating one IPersistBudgetInstance per (record key, name) pair.
+   */
+  private getBudgetStorage = memoize(
+    ([key, name]: [BudgetRecordKey, string]): string =>
+      `${CREATE_BUDGET_RECORD_KEY_FN(key)}:${name}`,
+    (key: BudgetRecordKey, name: string): IPersistBudgetInstance =>
+      Reflect.construct(this.PersistBudgetInstanceCtor, [key, name])
+  );
+
+  /**
+   * Registers a custom IPersistBudgetInstance constructor.
+   * Clears the memoization cache so subsequent calls use the new adapter.
+   *
+   * @param Ctor - Custom IPersistBudgetInstance constructor
+   */
+  public usePersistBudgetAdapter(Ctor: TPersistBudgetInstanceCtor): void {
+    LOGGER_SERVICE.info(PERSIST_BUDGET_UTILS_METHOD_NAME_USE_PERSIST_BUDGET_ADAPTER);
+    this.PersistBudgetInstanceCtor = Ctor;
+    this.getBudgetStorage.clear();
+  }
+
+  /**
+   * Initializes the budget storage for the given context.
+   * Skips initialization when `initial` is false (used to gate first-time setup).
+   *
+   * @param key - Budget record key
+   * @param name - Budget name
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
+  public waitForInit = async (
+    key: BudgetRecordKey,
+    name: string,
+    initial: boolean
+  ): Promise<void> => {
+    LOGGER_SERVICE.info(PERSIST_BUDGET_UTILS_METHOD_NAME_WAIT_FOR_INIT, { key, name, initial });
+    const memoKey = `${CREATE_BUDGET_RECORD_KEY_FN(key)}:${name}`;
+    const isInitial = initial && !this.getBudgetStorage.has(memoKey);
+    const instance = this.getBudgetStorage(key, name);
+    await instance.waitForInit(isInitial);
+  };
+
+  /**
+   * Reads the persisted budget record for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param key - Budget record key
+   * @param name - Budget name
+   * @returns Promise resolving to budget data or null if none persisted
+   */
+  public readBudgetData = async (
+    key: BudgetRecordKey,
+    name: string
+  ): Promise<BudgetData | null> => {
+    LOGGER_SERVICE.info(PERSIST_BUDGET_UTILS_METHOD_NAME_READ_DATA, { key, name });
+    const memoKey = `${CREATE_BUDGET_RECORD_KEY_FN(key)}:${name}`;
+    const isInitial = !this.getBudgetStorage.has(memoKey);
+    const instance = this.getBudgetStorage(key, name);
+    await instance.waitForInit(isInitial);
+    return instance.readBudgetData();
+  };
+
+  /**
+   * Writes the budget record for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param data - Budget data to persist (already carries `data.when`)
+   * @param key - Budget record key
+   * @param name - Budget name
+   * @param when - Logical timestamp this value belongs to (duplicates `data.when` for API consistency)
+   * @returns Promise that resolves when write is complete
+   */
+  public writeBudgetData = async (
+    data: BudgetData,
+    key: BudgetRecordKey,
+    name: string,
+    when: Date,
+  ): Promise<void> => {
+    LOGGER_SERVICE.info(PERSIST_BUDGET_UTILS_METHOD_NAME_WRITE_DATA, { key, name });
+    const memoKey = `${CREATE_BUDGET_RECORD_KEY_FN(key)}:${name}`;
+    const isInitial = !this.getBudgetStorage.has(memoKey);
+    const instance = this.getBudgetStorage(key, name);
+    await instance.waitForInit(isInitial);
+    return instance.writeBudgetData(data, when);
+  };
+
+  /**
+   * Switches to PersistBudgetDummyInstance (all operations are no-ops).
+   */
+  public useDummy = () => {
+    LOGGER_SERVICE.log(PERSIST_BUDGET_UTILS_METHOD_NAME_USE_DUMMY);
+    this.usePersistBudgetAdapter(PersistBudgetDummyInstance);
+  }
+
+  /**
+   * Switches to the default file-based PersistBudgetInstance.
+   */
+  public useJson = () => {
+    LOGGER_SERVICE.log(PERSIST_BUDGET_UTILS_METHOD_NAME_USE_JSON);
+    this.usePersistBudgetAdapter(PersistBudgetInstance);
+  }
+
+  /**
+   * Clears the memoized instance cache.
+   * Call when process.cwd() changes between strategy iterations.
+   */
+  public clear = () => {
+    LOGGER_SERVICE.info(PERSIST_BUDGET_UTILS_METHOD_NAME_CLEAR);
+    this.getBudgetStorage.clear();
+  };
+
+  /**
+   * Drops the memoized instance for the given context.
+   * Call when a budget record is cleared to clean up its associated storage entry.
+   *
+   * @param key - Budget record key
+   * @param name - Budget name
+   */
+  public dispose = (key: BudgetRecordKey, name: string) => {
+    LOGGER_SERVICE.info(PERSIST_BUDGET_UTILS_METHOD_NAME_DISPOSE);
+    const memoKey = `${CREATE_BUDGET_RECORD_KEY_FN(key)}:${name}`;
+    this.getBudgetStorage.clear(memoKey);
+  };
+}
+
+/**
+ * Global singleton instance of PersistBudgetUtils.
+ * Used by BudgetPersistInstance for crash-safe budget journal persistence.
+ */
+export const PersistBudgetAdapter = new PersistBudgetUtils();
 
 /**
  * Type for persisted dictionary entry data.

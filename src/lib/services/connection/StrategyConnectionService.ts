@@ -27,6 +27,7 @@ import {
 } from "../../../interfaces/Strategy.interface";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import ExchangeConnectionService from "./ExchangeConnectionService";
+import BacktestLogicPrivateService from "../logic/private/BacktestLogicPrivateService";
 import {
   signalEmitter,
   signalBacktestEmitter,
@@ -516,6 +517,11 @@ const CREATE_COMMIT_SCHEDULE_PING_FN = (self: StrategyConnectionService) => tryc
       await self.priceMetaService.next(symbol, currentPrice, { strategyName, exchangeName, frameName: data.frameName }, backtest);
       await self.timeMetaService.next(symbol, timestamp, { strategyName, exchangeName, frameName: data.frameName }, backtest);
     }
+    // CC_BACKTEST_LOCKSTEP: a replayed candle on or past a timeframe boundary is where a parallel
+    // backtest hands the lock off, BEFORE this candle's listeners run (see BacktestLogicPrivateService.handoff)
+    if (backtest) {
+      await self.backtestLogicPrivateService.handoff(symbol, timestamp, { strategyName, exchangeName, frameName: data.frameName });
+    }
     await schedulePingSubject.next(event);
     await self.actionCoreService.pingScheduled(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
   },
@@ -721,6 +727,11 @@ const CREATE_COMMIT_ACTIVE_PING_FN = (self: StrategyConnectionService) => trycat
     {
       await self.priceMetaService.next(symbol, currentPrice, { strategyName, exchangeName, frameName: data.frameName }, backtest);
       await self.timeMetaService.next(symbol, timestamp, { strategyName, exchangeName, frameName: data.frameName }, backtest);
+    }
+    // CC_BACKTEST_LOCKSTEP: a replayed candle on or past a timeframe boundary is where a parallel
+    // backtest hands the lock off, BEFORE this candle's listeners run (see BacktestLogicPrivateService.handoff)
+    if (backtest) {
+      await self.backtestLogicPrivateService.handoff(symbol, timestamp, { strategyName, exchangeName, frameName: data.frameName });
     }
     await activePingSubject.next(event);
     await self.actionCoreService.pingActive(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
@@ -1146,6 +1157,8 @@ export class StrategyConnectionService implements TStrategy {
   );
   public readonly timeMetaService = inject<TimeMetaService>(TYPES.timeMetaService);
   public readonly priceMetaService = inject<PriceMetaService>(TYPES.priceMetaService);
+  /** The backtest orchestrator: the lockstep lock hand-off inside a candle replay (a di-kit cycle, resolved lazily) */
+  public readonly backtestLogicPrivateService = inject<BacktestLogicPrivateService>(TYPES.backtestLogicPrivateService);
 
   /**
    * Retrieves memoized ClientStrategy instance for given symbol-strategy pair with exchange and frame isolation.

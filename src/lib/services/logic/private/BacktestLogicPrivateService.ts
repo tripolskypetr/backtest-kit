@@ -16,9 +16,11 @@ import {
   signalEmitter,
 } from "../../../../config/emitters";
 import { GLOBAL_CONFIG } from "../../../../config/params";
-import { and, errorData, getErrorMessage } from "functools-kit";
+import { and, errorData, getErrorMessage, sleep } from "functools-kit";
 import ActionCoreService from "../../core/ActionCoreService";
 import { Candle } from "../../../../classes/Candle";
+import { Lockstep } from "../../../../classes/Lockstep";
+import { Lookup } from "../../../../classes/Lookup";
 import TimeMetaService from "../../meta/TimeMetaService";
 import PriceMetaService from "../../meta/PriceMetaService";
 
@@ -26,6 +28,201 @@ const ACTIVE_CANDLE_INCLUDED = 1;
 const SCHEDULE_ACTIVATION_CANDLE_SKIP = 1;
 
 const KILL_SYMBOL = Symbol.for("backtest-kit-kill");
+
+const LOCKSTEP_SOURCE = "BacktestLogicPrivateService run";
+const LOCKSTEP_HANDOFF_SOURCE = "BacktestLogicPrivateService handoff";
+
+/** Memo key of a running backtest's lockstep cursor */
+const CREATE_LOCKSTEP_KEY_FN = (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string }) =>
+  `${symbol}:${context.strategyName}:${context.exchangeName}:${context.frameName}`;
+
+/**
+ * Where a running backtest stands with respect to the lockstep lock: whether
+ * its current iteration holds it, the next timeframe boundary of that
+ * iteration, the timeframe step, the logical time it is executing (`clock`:
+ * the timeframe of the iteration it is running, or the boundary a replay has
+ * resumed on) and, while it waits for its peers, where and why it is parked:
+ * `start` before running the iteration at `at` (its tick at `at` has NOT
+ * happened yet), `handoff` on the last candle before the boundary `at`
+ * (everything before `at` HAS happened). Updated by `run()`, read by the
+ * waits of every running backtest.
+ */
+type TLockstepCursor = {
+  locked: boolean;
+  nextBoundary: number;
+  stepMs: number;
+  clock: number;
+  parked: { at: number; kind: "start" | "handoff" } | null;
+  /** Still inside the join wait (sleeping on a timer, not on the lock): peers wait for it by the same timer */
+  joining: boolean;
+};
+
+/** Lockstep cursor of every backtest currently inside `run()`, by symbol and context (process-wide, like the lock itself) */
+const LOCKSTEP_CURSORS = new Map<string, TLockstepCursor>();
+
+/** One macrotask between join rounds, the same beat as `Candle.spinLock` */
+const LOCKSTEP_JOIN_DELAY = 50;
+/** Join rounds before a backtest stops waiting for launched peers that still have no cursor */
+const LOCKSTEP_JOIN_ROUNDS = 20;
+
+/**
+ * Lets the peers launched in the same synchronous loop (`Launcher`, several
+ * `Backtest.background` in a row) register before the first iteration runs.
+ *
+ * `Lookup.addActivity` is synchronous in `Backtest.background`, but the
+ * lockstep cursor appears only after the first awaits of the run (the
+ * before-start price fetch, the timeframes), so a symbol whose candles come
+ * back first would see an empty registry and run ahead alone, and its peers
+ * would then join from the past. The first iteration therefore starts after a
+ * macrotask, and the wait repeats every LOCKSTEP_JOIN_DELAY while a launched
+ * backtest activity has no cursor yet: the peers are blocked on I/O, which a
+ * lock spin on microtasks would never let through. Bounded by
+ * LOCKSTEP_JOIN_ROUNDS: a peer that never registers (a start that died before
+ * `run`) is logged and no longer waited for.
+ */
+const JOIN_PEERS_FN = async (self: BacktestLogicPrivateService, symbol: string): Promise<void> => {
+  const pending = () =>
+    Lookup.listActivity()
+      .filter((activity) => activity.backtest)
+      .filter((activity) => !LOCKSTEP_CURSORS.has(CREATE_LOCKSTEP_KEY_FN(activity.symbol, { ...activity.context, frameName: activity.context.frameName ?? "" })));
+  for (let round = 0; round < LOCKSTEP_JOIN_ROUNDS; round++) {
+    await sleep(LOCKSTEP_JOIN_DELAY);
+    if (pending().length === 0) {
+      return;
+    }
+  }
+  const stuck = pending();
+  const message = "backtestLogicPrivateService lockstep join: launched peers still have no cursor, starting without them";
+  const payload = { symbol, waitedMs: LOCKSTEP_JOIN_DELAY * LOCKSTEP_JOIN_ROUNDS, peers: stuck.map((activity) => activity.symbol) };
+  self.loggerService.warn(message, payload);
+  console.warn(message, payload);
+};
+
+/** The finest timeframe step among the running backtests: the grid the hand-off inside a replay follows */
+const LOCKSTEP_STEP_FN = (): number =>
+  Array.from(LOCKSTEP_CURSORS.values()).reduce((min, cursor) => Math.min(min, cursor.stepMs), Infinity);
+
+/**
+ * Parks the caller at `at` and spins the lockstep lock until every other
+ * running backtest has caught up. A peer has caught up when it is executing
+ * at or past `at` (`clock >= at`) or when it is parked somewhere it has
+ * nothing left to do before `at`:
+ * - for a `start` wait (an iteration about to run its tick at `at`) a peer
+ *   parked at `at` or later counts: two ticks on the same timeframe are a tie
+ *   the journal orders by symbol, so neither has to go first;
+ * - for a `handoff` wait (a replay about to run the candle on the boundary
+ *   `at`) a peer parked at the START of `at` does NOT count: its tick at `at`
+ *   must land before this replay writes at `at` and beyond. A peer parked in
+ *   its own hand-off on `at` or later does count: everything before `at` is
+ *   behind it, and two replays never wait for each other.
+ * One spin gives every peer one iteration and a peer may lag several
+ * iterations behind, so the spin repeats; it stops early when a round moved
+ * no lagging peer (a peer blocked outside the orchestrator), rather than
+ * spinning forever. A lagging peer that is still joining (sleeping on the
+ * join timer, see JOIN_PEERS_FN) is not blocked, it only holds no lock: such a
+ * round sleeps one join beat instead of giving up, bounded like the join
+ * itself. `spinFirst` forces one spin even when nobody lags: inside a replay
+ * that FIFO turn is what keeps the peers interleaved.
+ */
+const WAIT_FOR_PEERS_FN = async (
+  cursor: TLockstepCursor,
+  at: number,
+  kind: "start" | "handoff",
+  spinFirst: boolean,
+): Promise<void> => {
+  cursor.parked = { at, kind };
+  const caughtUp = (peer: TLockstepCursor): boolean => {
+    if (peer.clock >= at) {
+      return true;
+    }
+    if (!peer.parked) {
+      return false;
+    }
+    if (kind === "start") {
+      return peer.parked.at >= at;
+    }
+    return peer.parked.kind === "handoff" ? peer.parked.at >= at : peer.parked.at > at;
+  };
+  const lagging = () => Array.from(LOCKSTEP_CURSORS.values()).filter((peer) => peer !== cursor && !caughtUp(peer));
+  const snapshot = () => lagging().map((peer) => `${peer.clock}/${peer.parked ? `${peer.parked.kind}@${peer.parked.at}` : "-"}/${peer.joining}`).join(",");
+  let before = snapshot();
+  let spin = spinFirst;
+  let joinRounds = 0;
+  while (spin || lagging().length > 0) {
+    spin = false;
+    await Lockstep.spinLock(LOCKSTEP_HANDOFF_SOURCE);
+    const after = snapshot();
+    if (lagging().length > 0 && after === before) {
+      if (lagging().some((peer) => peer.joining) && joinRounds++ < LOCKSTEP_JOIN_ROUNDS) {
+        await sleep(LOCKSTEP_JOIN_DELAY);
+        continue;
+      }
+      break;
+    }
+    before = after;
+  }
+  cursor.parked = null;
+  cursor.clock = at;
+};
+
+/**
+ * Lock hand-off inside a candle replay (CC_BACKTEST_LOCKSTEP).
+ *
+ * BACKTEST_FN replays a whole array of candles under the lockstep lock, so the
+ * symbol's clock would jump by the position lifetime while its peers wait on
+ * one timeframe; anything the strategy writes from the middle of the replay (a
+ * DCA entry, a budget reserve) would then be checked against a journal the
+ * peers have not reached yet. ClientStrategy pings on every replayed candle and
+ * `StrategyConnectionService` calls `handoff` from its `onSchedulePing` /
+ * `onActivePing` system callbacks BEFORE the candle's listeners run: on the
+ * first candle on or past the next boundary the replay waits
+ * ({@link WAIT_FOR_PEERS_FN}) until every running peer has reached the last
+ * boundary that candle crossed, so a write on that candle is checked against
+ * everything the peers wrote before it. Candles are not necessarily one
+ * minute apart: with `CC_BACKTEST_STEP_MINUTES` a replay evaluates one candle
+ * per stride (a daily stride on an hourly frame crosses 24 boundaries at
+ * once), which is why the boundary is derived from the candle instead of
+ * expecting the candle right before it. The boundaries follow the finest
+ * timeframe step among the running backtests, not this symbol's own: a peer
+ * on a 15m frame gets its 01:15 / 01:30 / 01:45 iterations in before this 1h
+ * replay writes at 01:46. The same wait runs at the start of every iteration
+ * (see `run`), so the replay never starts ahead of a peer either.
+ *
+ * No-op when lockstep is off, when the symbol is not inside `run()` (a tick
+ * driven directly, outside the orchestrator) or when its iteration does not
+ * hold the lock.
+ */
+const HANDOFF_FN = async (
+  self: BacktestLogicPrivateService,
+  symbol: string,
+  timestamp: number,
+  context: { strategyName: string; exchangeName: string; frameName: string },
+): Promise<void> => {
+  if (!GLOBAL_CONFIG.CC_BACKTEST_LOCKSTEP) {
+    return;
+  }
+  const cursor = LOCKSTEP_CURSORS.get(CREATE_LOCKSTEP_KEY_FN(symbol, context));
+  if (!cursor || !cursor.locked) {
+    return;
+  }
+  // a candle before the next boundary: nothing of the peers is missing yet
+  if (timestamp < cursor.nextBoundary) {
+    return;
+  }
+  // the last boundary this candle crossed (a strided replay may cross many at once)
+  const step = LOCKSTEP_STEP_FN();
+  let boundary = cursor.nextBoundary;
+  while (boundary + step <= timestamp) {
+    boundary += step;
+  }
+  cursor.nextBoundary = boundary + step;
+  self.loggerService.debug("backtestLogicPrivateService lockstep handoff", {
+    symbol,
+    timestamp,
+    boundary,
+  });
+  await WAIT_FOR_PEERS_FN(cursor, boundary, "handoff", true);
+};
 
 const SYMBOL_FN_ERROR = Symbol("backtest-fn-error");
 
@@ -40,6 +237,25 @@ const SYMBOL_FN_ERROR = Symbol("backtest-fn-error");
  */
 type TFnError = { type: "error"; __error__: typeof SYMBOL_FN_ERROR, reason: string; message: string };
 
+/**
+ * Reports a listener failure on an orchestrator-side emitter (progress,
+ * performance). These emits run inside the timeframe loop; a listener that
+ * throws must not turn into a fatal error of the whole backtest, so the
+ * failure is logged and handed to the error channel, like the fallbacks of
+ * the connection services do.
+ */
+const EMIT_FAILED_FN = (self: BacktestLogicPrivateService, emitter: string, symbol: string, error: unknown): void => {
+  const message = `backtestLogicPrivateService ${emitter} listener thrown`;
+  const payload = {
+    symbol,
+    error: errorData(error),
+    message: getErrorMessage(error),
+  };
+  self.loggerService.warn(message, payload);
+  console.warn(message, payload);
+  errorEmitter.next(error instanceof Error ? error : new Error(getErrorMessage(error)));
+};
+
 const EMIT_PROGRESS_FN = async (
   self: BacktestLogicPrivateService,
   symbol: string,
@@ -47,16 +263,20 @@ const EMIT_PROGRESS_FN = async (
   processedFrames: number,
   when: Date
 ): Promise<void> => {
-  await progressBacktestEmitter.next({
-    exchangeName: self.methodContextService.context.exchangeName,
-    strategyName: self.methodContextService.context.strategyName,
-    symbol,
-    totalFrames,
-    processedFrames,
-    progress: totalFrames > 0 ? processedFrames / totalFrames : 0,
-    backtest: true,
-    when,
-  });
+  try {
+    await progressBacktestEmitter.next({
+      exchangeName: self.methodContextService.context.exchangeName,
+      strategyName: self.methodContextService.context.strategyName,
+      symbol,
+      totalFrames,
+      processedFrames,
+      progress: totalFrames > 0 ? processedFrames / totalFrames : 0,
+      backtest: true,
+      when,
+    });
+  } catch (error) {
+    EMIT_FAILED_FN(self, "progressBacktestEmitter", symbol, error);
+  }
 };
 
 const CHECK_STOPPED_FN = async (
@@ -279,18 +499,22 @@ const EMIT_SIGNAL_PERFORMANCE_FN = async (
 ): Promise<number> => {
   const signalEndTime = performance.now();
   const currentTimestamp = Date.now();
-  await performanceEmitter.next({
-    timestamp: currentTimestamp,
-    previousTimestamp: previousEventTimestamp,
-    when,
-    metricType: "backtest_signal",
-    duration: signalEndTime - signalStartTime,
-    strategyName: self.methodContextService.context.strategyName,
-    exchangeName: self.methodContextService.context.exchangeName,
-    frameName: self.methodContextService.context.frameName,
-    symbol,
-    backtest: true,
-  });
+  try {
+    await performanceEmitter.next({
+      timestamp: currentTimestamp,
+      previousTimestamp: previousEventTimestamp,
+      when,
+      metricType: "backtest_signal",
+      duration: signalEndTime - signalStartTime,
+      strategyName: self.methodContextService.context.strategyName,
+      exchangeName: self.methodContextService.context.exchangeName,
+      frameName: self.methodContextService.context.frameName,
+      symbol,
+      backtest: true,
+    });
+  } catch (error) {
+    EMIT_FAILED_FN(self, "performanceEmitter", symbol, error);
+  }
   return currentTimestamp;
 };
 
@@ -303,18 +527,22 @@ const EMIT_TIMEFRAME_PERFORMANCE_FN = async (
 ): Promise<number> => {
   const timeframeEndTime = performance.now();
   const currentTimestamp = Date.now();
-  await performanceEmitter.next({
-    timestamp: currentTimestamp,
-    previousTimestamp: previousEventTimestamp,
-    when,
-    metricType: "backtest_timeframe",
-    duration: timeframeEndTime - timeframeStartTime,
-    strategyName: self.methodContextService.context.strategyName,
-    exchangeName: self.methodContextService.context.exchangeName,
-    frameName: self.methodContextService.context.frameName,
-    symbol,
-    backtest: true,
-  });
+  try {
+    await performanceEmitter.next({
+      timestamp: currentTimestamp,
+      previousTimestamp: previousEventTimestamp,
+      when,
+      metricType: "backtest_timeframe",
+      duration: timeframeEndTime - timeframeStartTime,
+      strategyName: self.methodContextService.context.strategyName,
+      exchangeName: self.methodContextService.context.exchangeName,
+      frameName: self.methodContextService.context.frameName,
+      symbol,
+      backtest: true,
+    });
+  } catch (error) {
+    EMIT_FAILED_FN(self, "performanceEmitter", symbol, error);
+  }
   return currentTimestamp;
 };
 
@@ -650,6 +878,10 @@ const PROCESS_OPENED_SIGNAL_FN = async function*(
  *
  * Memory efficient: streams results without array accumulation.
  * Supports early termination via break in consumer.
+ *
+ * With `CC_BACKTEST_LOCKSTEP` every timeframe iteration runs under the
+ * process-wide `Lockstep` mutex, so parallel backtests advance one
+ * timeframe at a time instead of drifting apart in logical time.
  */
 export class BacktestLogicPrivateService {
   readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
@@ -674,6 +906,23 @@ export class BacktestLogicPrivateService {
   readonly priceMetaService = inject<PriceMetaService>(
     TYPES.priceMetaService
   );
+
+  /**
+   * Lock hand-off inside a candle replay (CC_BACKTEST_LOCKSTEP), called by
+   * `StrategyConnectionService` from its `onSchedulePing` / `onActivePing`
+   * system callbacks on every replayed candle. See {@link HANDOFF_FN}.
+   *
+   * @param symbol - Trading pair symbol of the pinging backtest
+   * @param timestamp - Timestamp of the replayed candle that pinged
+   * @param context - Strategy, exchange and frame of the backtest
+   */
+  public handoff = async (
+    symbol: string,
+    timestamp: number,
+    context: { strategyName: string; exchangeName: string; frameName: string },
+  ): Promise<void> => {
+    await HANDOFF_FN(this, symbol, timestamp, context);
+  };
 
   /**
    * Runs backtest for a symbol, streaming closed signals as async generator.
@@ -710,114 +959,142 @@ export class BacktestLogicPrivateService {
     
     let frameEndTime = timeframes[totalFrames - 1].getTime();
 
+    // Lockstep cursor of this run: the ping hand-off (see handoff) reads it while a replay runs
+    const stepMs = totalFrames > 1 ? timeframes[1].getTime() - timeframes[0].getTime() : 60_000;
+    const lockstepKey = CREATE_LOCKSTEP_KEY_FN(symbol, this.methodContextService.context);
+    const cursor: TLockstepCursor = { locked: false, nextBoundary: 0, stepMs, clock: timeframes[0].getTime(), parked: null, joining: true };
+    LOCKSTEP_CURSORS.set(lockstepKey, cursor);
+    if (GLOBAL_CONFIG.CC_BACKTEST_LOCKSTEP) {
+      await JOIN_PEERS_FN(this, symbol);
+    }
+    cursor.joining = false;
+
     let i = 0;
 
     try {
       while (i < timeframes.length) {
-        const timeframeStartTime = performance.now();
-        const when = timeframes[i];
+        // One timeframe per turn across parallel backtests (CC_BACKTEST_LOCKSTEP):
+        // the lock spans the tick and the candle replay of a signal opened on it,
+        // and is released in the finally before the next timeframe. Inside the
+        // replay the ping hand-off (see handoff) lets the peers catch up at every
+        // timeframe boundary.
+        await Lockstep.acquireLock(LOCKSTEP_SOURCE);
+        cursor.locked = true;
+        try {
+          const timeframeStartTime = performance.now();
+          const when = timeframes[i];
+          cursor.nextBoundary = when.getTime() + LOCKSTEP_STEP_FN();
+          // time barrier: no iteration starts before every running peer has reached its timeframe
+          if (GLOBAL_CONFIG.CC_BACKTEST_LOCKSTEP) {
+            await WAIT_FOR_PEERS_FN(cursor, when.getTime(), "start", false);
+          }
+          cursor.clock = when.getTime();
 
-        await EMIT_PROGRESS_FN(this, symbol, totalFrames, i, when);
+          await EMIT_PROGRESS_FN(this, symbol, totalFrames, i, when);
 
-        if (globalThis[KILL_SYMBOL]) {
-          this.loggerService.info(
-            "backtestLogicPrivateService stopped by kill flag",
-            {
+          if (globalThis[KILL_SYMBOL]) {
+            this.loggerService.info(
+              "backtestLogicPrivateService stopped by kill flag",
+              {
+                symbol,
+                when: when.toISOString(),
+                processedFrames: i,
+                totalFrames,
+              }
+            );
+            break;
+          }
+
+          if (await CHECK_STOPPED_FN(this, symbol, "before tick", { when: when.toISOString(), processedFrames: i, totalFrames })) {
+            break;
+          }
+
+          const result = await TICK_FN(this, symbol, when);
+          if ("__error__" in result) {
+            _fatalError = new Error(`[${result.reason}] ${result.message}`);
+            break;
+          }
+          lastAction = result.action;
+
+          if (
+            result.action === "idle" &&
+            await and(
+              Promise.resolve(true),
+              this.strategyCoreService.getStopped(true, symbol, {
+                strategyName: this.methodContextService.context.strategyName,
+                exchangeName: this.methodContextService.context.exchangeName,
+                frameName: this.methodContextService.context.frameName,
+              })
+            )
+          ) {
+            this.loggerService.info("backtestLogicPrivateService stopped by user request (idle state)", {
               symbol,
               when: when.toISOString(),
               processedFrames: i,
               totalFrames,
-            }
-          );
-          break;
-        }
-
-        if (await CHECK_STOPPED_FN(this, symbol, "before tick", { when: when.toISOString(), processedFrames: i, totalFrames })) {
-          break;
-        }
-
-        const result = await TICK_FN(this, symbol, when);
-        if ("__error__" in result) {
-          _fatalError = new Error(`[${result.reason}] ${result.message}`);
-          break;
-        }
-        lastAction = result.action;
-
-        if (
-          result.action === "idle" &&
-          await and(
-            Promise.resolve(true),
-            this.strategyCoreService.getStopped(true, symbol, {
-              strategyName: this.methodContextService.context.strategyName,
-              exchangeName: this.methodContextService.context.exchangeName,
-              frameName: this.methodContextService.context.frameName,
-            })
-          )
-        ) {
-          this.loggerService.info("backtestLogicPrivateService stopped by user request (idle state)", {
-            symbol,
-            when: when.toISOString(),
-            processedFrames: i,
-            totalFrames,
-          });
-          break;
-        }
-
-        if (result.action === "scheduled") {
-          yield result;
-
-          const r = yield* PROCESS_SCHEDULED_SIGNAL_FN(this, symbol, when, result, previousEventTimestamp, frameEndTime);
-
-          if (r.type === "error") {
-            _fatalError = new Error(`[${r.reason}] ${r.message}`);
+            });
             break;
           }
 
-          if (r.type === "closed") {
-            lastAction = "closed";
-            previousEventTimestamp = r.previousEventTimestamp;
-            // Skip frames up to and including closeTimestamp (the close minute is
-            // already consumed); the first frame after it must stay tickable, so
-            // continue past the loop-bottom i++.
-            while (i < timeframes.length && timeframes[i].getTime() <= r.closeTimestamp) {
-              i++;
-            }
-            if (r.shouldStop) {
+          if (result.action === "scheduled") {
+            yield result;
+
+            const r = yield* PROCESS_SCHEDULED_SIGNAL_FN(this, symbol, when, result, previousEventTimestamp, frameEndTime);
+
+            if (r.type === "error") {
+              _fatalError = new Error(`[${r.reason}] ${r.message}`);
               break;
             }
-            previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
-            continue;
-          }
-        }
 
-        if (result.action === "opened") {
-          yield result;
-
-          const r = yield* PROCESS_OPENED_SIGNAL_FN(this, symbol, when, result, previousEventTimestamp, frameEndTime);
-
-          if (r.type === "error") {
-            _fatalError = new Error(`[${r.reason}] ${r.message}`);
-            break;
-          }
-
-          if (r.type === "closed") {
-            lastAction = "closed";
-            previousEventTimestamp = r.previousEventTimestamp;
-            // Same off-by-one guard as in the scheduled branch above.
-            while (i < timeframes.length && timeframes[i].getTime() <= r.closeTimestamp) {
-              i++;
+            if (r.type === "closed") {
+              lastAction = "closed";
+              previousEventTimestamp = r.previousEventTimestamp;
+              // Skip frames up to and including closeTimestamp (the close minute is
+              // already consumed); the first frame after it must stay tickable, so
+              // continue past the loop-bottom i++.
+              while (i < timeframes.length && timeframes[i].getTime() <= r.closeTimestamp) {
+                i++;
+              }
+              if (r.shouldStop) {
+                break;
+              }
+              previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
+              continue;
             }
-            if (r.shouldStop) {
+          }
+
+          if (result.action === "opened") {
+            yield result;
+
+            const r = yield* PROCESS_OPENED_SIGNAL_FN(this, symbol, when, result, previousEventTimestamp, frameEndTime);
+
+            if (r.type === "error") {
+              _fatalError = new Error(`[${r.reason}] ${r.message}`);
               break;
             }
-            previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
-            continue;
+
+            if (r.type === "closed") {
+              lastAction = "closed";
+              previousEventTimestamp = r.previousEventTimestamp;
+              // Same off-by-one guard as in the scheduled branch above.
+              while (i < timeframes.length && timeframes[i].getTime() <= r.closeTimestamp) {
+                i++;
+              }
+              if (r.shouldStop) {
+                break;
+              }
+              previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
+              continue;
+            }
           }
+
+          previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
+
+          i++;
+        } finally {
+          cursor.locked = false;
+          await Lockstep.releaseLock(LOCKSTEP_SOURCE);
         }
-
-        previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
-
-        i++;
       }
 
       // The timeframe loop is exhausted with a signal still open (a position that
@@ -826,15 +1103,21 @@ export class BacktestLogicPrivateService {
       // ClientStrategy.backtest treats an empty series as "the frame is over"
       // and closes by time_expired / cancels by timeout at frameEndTime.
       if (i >= timeframes.length && lastAction !== null && lastAction !== "idle" && lastAction !== "closed" && lastAction !== "cancelled") {
-        const expired = await BACKTEST_FN(this, symbol, [], frameEndTime, new Date(frameEndTime), {
-          strategyName: this.methodContextService.context.strategyName,
-          exchangeName: this.methodContextService.context.exchangeName,
-          frameName: this.methodContextService.context.frameName,
-        }, { reason: "frame end" });
-        if ("__error__" in expired) {
-          _fatalError = new Error(`[${expired.reason}] ${expired.message}`);
-        } else if (expired.action !== "active") {
-          yield expired;
+        // The frame-end close commits and emits like any other iteration: under the lock
+        await Lockstep.acquireLock(LOCKSTEP_SOURCE);
+        try {
+          const expired = await BACKTEST_FN(this, symbol, [], frameEndTime, new Date(frameEndTime), {
+            strategyName: this.methodContextService.context.strategyName,
+            exchangeName: this.methodContextService.context.exchangeName,
+            frameName: this.methodContextService.context.frameName,
+          }, { reason: "frame end" });
+          if ("__error__" in expired) {
+            _fatalError = new Error(`[${expired.reason}] ${expired.message}`);
+          } else if (expired.action !== "active") {
+            yield expired;
+          }
+        } finally {
+          await Lockstep.releaseLock(LOCKSTEP_SOURCE);
         }
       }
 
@@ -844,21 +1127,26 @@ export class BacktestLogicPrivateService {
       // Track total backtest duration
       const backtestEndTime = performance.now();
       const currentTimestamp = Date.now();
-      await performanceEmitter.next({
-        timestamp: currentTimestamp,
-        previousTimestamp: previousEventTimestamp,
-        when: new Date(frameEndTime),
-        metricType: "backtest_total",
-        duration: backtestEndTime - backtestStartTime,
-        strategyName: this.methodContextService.context.strategyName,
-        exchangeName: this.methodContextService.context.exchangeName,
-        frameName: this.methodContextService.context.frameName,
-        symbol,
-        backtest: true,
-      });
+      try {
+        await performanceEmitter.next({
+          timestamp: currentTimestamp,
+          previousTimestamp: previousEventTimestamp,
+          when: new Date(frameEndTime),
+          metricType: "backtest_total",
+          duration: backtestEndTime - backtestStartTime,
+          strategyName: this.methodContextService.context.strategyName,
+          exchangeName: this.methodContextService.context.exchangeName,
+          frameName: this.methodContextService.context.frameName,
+          symbol,
+          backtest: true,
+        });
+      } catch (error) {
+        EMIT_FAILED_FN(this, "performanceEmitter", symbol, error);
+      }
     } catch (error) {
       _fatalError = error;
     } finally {
+      LOCKSTEP_CURSORS.delete(lockstepKey);
       if (_fatalError !== null) {
         console.error(
           `[BacktestLogicPrivateService] Fatal error — backtest sequence broken for symbol=${symbol} ` +

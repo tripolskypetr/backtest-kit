@@ -504,6 +504,50 @@ export class MarkdownMockService {
     return data;
   };
 
+  // Budget
+
+  public getBudgetData = async (strategyName: string, exchangeName: string, frameName: string, backtest = false) => {
+    this.loggerService.log("markdownMockService getBudgetData", { strategyName, exchangeName, frameName, backtest });
+    const { data, error } = await fetchApi("/api/v1/markdown_mock/budget_data", {
+      method: "POST",
+      body: JSON.stringify({
+        clientId: CC_CLIENT_ID,
+        serviceName: CC_SERVICE_NAME,
+        userId: CC_USER_ID,
+        requestId: randomString(),
+        strategyName,
+        exchangeName,
+        frameName,
+        backtest,
+      }),
+    });
+    if (error) {
+      throw new Error(error);
+    }
+    return data;
+  };
+
+  public getBudgetReport = async (strategyName: string, exchangeName: string, frameName: string, backtest = false): Promise<string> => {
+    this.loggerService.log("markdownMockService getBudgetReport", { strategyName, exchangeName, frameName, backtest });
+    const { data, error } = await fetchApi("/api/v1/markdown_mock/budget_report", {
+      method: "POST",
+      body: JSON.stringify({
+        clientId: CC_CLIENT_ID,
+        serviceName: CC_SERVICE_NAME,
+        userId: CC_USER_ID,
+        requestId: randomString(),
+        strategyName,
+        exchangeName,
+        frameName,
+        backtest,
+      }),
+    });
+    if (error) {
+      throw new Error(error);
+    }
+    return data;
+  };
+
   // Heat
 
   public getHeatData = async (strategyName: string, exchangeName: string, frameName: string, backtest = false) => {

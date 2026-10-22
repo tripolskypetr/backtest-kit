@@ -3,6 +3,7 @@ import { DataSource } from "typeorm";
 import { getConfig } from "./params";
 
 import { BreakevenModel } from "../schema/Breakeven.schema";
+import { BudgetModel } from "../schema/Budget.schema";
 import { CandleModel } from "../schema/Candle.schema";
 import { DictionaryModel } from "../schema/Dictionary.schema";
 import { IntervalModel } from "../schema/Interval.schema";
@@ -29,6 +30,7 @@ export const getPostgres = singleshot(async () => {
     url: GLOBAL_CONFIG.CC_POSTGRES_CONNECTION_STRING,
     entities: [
       BreakevenModel,
+      BudgetModel,
       CandleModel,
       DictionaryModel,
       IntervalModel,

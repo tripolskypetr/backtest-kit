@@ -35,6 +35,7 @@ const mockServices = {
   setupMockService: Symbol("setupMockService"),
   runtimeMockService: Symbol("runtimeMockService"),
   controlMockService: Symbol("controlMockService"),
+  budgetMockService: Symbol("budgetMockService"),
   pauseMockService: Symbol("pauseMockService"),
 };
 
@@ -53,6 +54,7 @@ const viewServices = {
   setupViewService: Symbol("setupViewService"),
   runtimeViewService: Symbol("runtimeViewService"),
   controlViewService: Symbol("controlViewService"),
+  budgetViewService: Symbol("budgetViewService"),
   pauseViewService: Symbol("pauseViewService"),
 };
 

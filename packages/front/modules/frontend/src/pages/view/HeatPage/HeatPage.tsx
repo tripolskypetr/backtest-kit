@@ -2,6 +2,7 @@ import { IOutlet, OutletView } from "react-declarative";
 import hasRouteMatch from "../../../utils/hasRouteMatch";
 
 import MainView from "./view/MainView";
+import BalanceView from "./view/BalanceView";
 import ioc from "../../../lib";
 
 const routes: IOutlet[] = [
@@ -10,6 +11,11 @@ const routes: IOutlet[] = [
         element: MainView,
         isActive: (pathname) => hasRouteMatch(["/heat"], pathname),
     },
+    {
+        id: "balance",
+        element: BalanceView,
+        isActive: (pathname) => hasRouteMatch(["/heat/balance"], pathname),
+    }
 ];
 
 interface IHeatPageProps {

@@ -35,6 +35,7 @@ const WILDCARD_TARGET: IMarkdownTarget = {
   sync: true,
   highest_profit: true,
   max_drawdown: true,
+  budget: true,
 };
 
 /**
@@ -86,6 +87,7 @@ export class MarkdownUtils {
     sync = false,
     highest_profit = false,
     max_drawdown = false,
+    budget = false,
   }: Partial<IMarkdownTarget> = WILDCARD_TARGET) => {
     LOGGER_SERVICE.debug(MARKDOWN_METHOD_NAME_ENABLE, {
       backtest: bt,
@@ -140,6 +142,9 @@ export class MarkdownUtils {
     }
     if (max_drawdown) {
       unList.push(backtest.maxDrawdownMarkdownService.subscribe());
+    }
+    if (budget) {
+      unList.push(backtest.budgetMarkdownService.subscribe());
     }
     {
       unList.push(() => this.enable.clear());
@@ -198,6 +203,7 @@ export class MarkdownUtils {
     sync = false,
     highest_profit = false,
     max_drawdown = false,
+    budget = false,
   }: Partial<IMarkdownTarget> = WILDCARD_TARGET) => {
     LOGGER_SERVICE.debug(MARKDOWN_METHOD_NAME_DISABLE, {
       backtest: bt,
@@ -257,6 +263,9 @@ export class MarkdownUtils {
     if (max_drawdown) {
       backtest.maxDrawdownMarkdownService.unsubscribe();
     }
+    if (budget) {
+      backtest.budgetMarkdownService.unsubscribe();
+    }
   };
 
   /**
@@ -284,6 +293,7 @@ export class MarkdownUtils {
    * @param config.sync - Clear sync report data
    * @param config.highest_profit - Clear highest profit report data
    * @param config.max_drawdown - Clear max drawdown report data
+   * @param config.budget - Clear budget report data
    */
   public clear = ({
     backtest: bt = false,
@@ -299,6 +309,7 @@ export class MarkdownUtils {
     sync = false,
     highest_profit = false,
     max_drawdown = false,
+    budget = false,
   }: Partial<IMarkdownTarget> = WILDCARD_TARGET) => {
     LOGGER_SERVICE.debug(MARKDOWN_METHOD_NAME_CLEAR, {
       backtest: bt,
@@ -352,6 +363,9 @@ export class MarkdownUtils {
     }
     if (max_drawdown) {
       backtest.maxDrawdownMarkdownService.clear();
+    }
+    if (budget) {
+      backtest.budgetMarkdownService.clear();
     }
   }
 }

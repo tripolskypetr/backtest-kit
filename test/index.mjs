@@ -67,6 +67,7 @@ import "./e2e/step.test.mjs";
 import "./e2e/dividend.test.mjs";
 import "./e2e/partial_note.test.mjs";
 import "./e2e/frame_end.test.mjs";
+import "./e2e/lockstep.test.mjs";
 
 import "./spec/audit.test.mjs";
 import "./spec/live.test.mjs";
@@ -92,6 +93,7 @@ import "./spec/config.test.mjs"
 import "./spec/sample.test.mjs"
 import "./spec/filled.test.mjs"
 import "./spec/dividend.test.mjs"
+import "./spec/budget.test.mjs";
 import "./spec/candle_cache.test.mjs"
 import "./spec/columns.test.mjs"
 import "./spec/lookahead.test.mjs";
