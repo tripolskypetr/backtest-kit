@@ -19,6 +19,7 @@ export const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "4h": 240,
   "6h": 360,
   "8h": 480,
+  "12h": 720,
   "1d": 1440,
 };
 

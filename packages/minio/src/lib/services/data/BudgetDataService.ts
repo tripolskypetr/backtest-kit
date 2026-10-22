@@ -2,12 +2,19 @@ import { IBudgetRow } from "../../../schema/Budget.schema";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
-import { BudgetData, BudgetRecordKey } from "backtest-kit";
+import { BudgetData } from "backtest-kit";
 import BaseStorage from "../../common/BaseStorage";
 
 const GET_STORAGE_KEY_FN = (key: BudgetRecordKey, name: string) => {
     return `${key.strategyName}/${key.exchangeName}/${key.frameName}/${key.backtest ? "backtest" : "live"}/${name}`;
 }
+
+type BudgetRecordKey = {
+  strategyName: string;
+  exchangeName: string;
+  frameName: string;
+  backtest: boolean;
+};
 
 export class BudgetDataService extends BaseStorage("backtest-kit/budget-items") {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

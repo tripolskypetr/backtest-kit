@@ -3,9 +3,15 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import LoggerService from "../base/LoggerService";
 import { IBudgetRow } from "../../../schema/Budget.schema";
-import { BudgetRecordKey } from "backtest-kit";
 
 const REDIS_KEY = "budget_cache";
+
+type BudgetRecordKey = {
+  strategyName: string;
+  exchangeName: string;
+  frameName: string;
+  backtest: boolean;
+};
 
 export class BudgetCacheService extends BaseMap(REDIS_KEY, -1) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);

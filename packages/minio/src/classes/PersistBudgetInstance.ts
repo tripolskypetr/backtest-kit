@@ -1,6 +1,13 @@
-import { BudgetData, BudgetRecordKey, IPersistBudgetInstance } from "backtest-kit";
+import { BudgetData, IPersistBudgetInstance } from "backtest-kit";
 import ioc from "../lib";
 import { waitForInit } from "../utils/waitForInit";
+
+type BudgetRecordKey = {
+  strategyName: string;
+  exchangeName: string;
+  frameName: string;
+  backtest: boolean;
+};
 
 export class PersistBudgetInstance implements IPersistBudgetInstance {
   constructor(

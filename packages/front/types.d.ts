@@ -173,6 +173,8 @@ declare class MarkdownMockService {
     getPartialReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
     getHighestProfitData: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
     getHighestProfitReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
+    getBudgetData: (strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
+    getBudgetReport: (strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
     getMaxDrawdownData: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
     getMaxDrawdownReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
     getScheduleData: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
@@ -313,6 +315,8 @@ declare class MarkdownViewService {
     getPartialReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<string>;
     getHighestProfitData: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<unknown>;
     getHighestProfitReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<string>;
+    getBudgetData: (strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<unknown>;
+    getBudgetReport: (strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<string>;
     getMaxDrawdownData: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<unknown>;
     getMaxDrawdownReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<string>;
     getScheduleData: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<unknown>;
@@ -576,7 +580,7 @@ declare class BudgetMockService {
 declare class BudgetViewService {
     private readonly loggerService;
     private readonly budgetMockService;
-    getBalance: (context: IBudgetViewContext, when: number) => Promise<TBudgetBalance>;
+    getBalance: (context: IBudgetViewContext, when: number) => Promise<TBudgetBalance | null>;
     getHistory: (context: IBudgetViewContext, when: number) => Promise<TBudgetHistoryRow[]>;
 }
 

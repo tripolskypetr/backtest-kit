@@ -5,7 +5,15 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import { LoggerService } from "../base/LoggerService";
 import BudgetCacheService from "../cache/BudgetCacheService";
-import { BudgetData, BudgetRecordKey } from "backtest-kit";
+import { BudgetData } from "backtest-kit";
+
+type BudgetRecordKey = {
+  strategyName: string;
+  exchangeName: string;
+  frameName: string;
+  backtest: boolean;
+};
+
 
 export class BudgetDbService extends BaseCRUD(BudgetModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
