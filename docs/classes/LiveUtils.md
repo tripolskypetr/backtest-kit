@@ -192,7 +192,7 @@ Returns a single-element array [priceOpen] if no DCA entries were made.
 ### getPositionPartials
 
 ```ts
-getPositionPartials: (symbol: string, context: { strategyName: string; exchangeName: string; }) => Promise<{ type: "profit" | "loss"; percent: number; currentPrice: number; costBasisAtClose: number; entryCountAtClose: number; timestamp: number; }[]>
+getPositionPartials: (symbol: string, context: { strategyName: string; exchangeName: string; }) => Promise<ISignalPartial[]>
 ```
 
 Returns the list of partial close events for the current pending signal.
@@ -212,7 +212,7 @@ Each entry contains:
 ### getPositionEntries
 
 ```ts
-getPositionEntries: (symbol: string, context: { strategyName: string; exchangeName: string; }) => Promise<{ price: number; cost: number; timestamp: number; }[]>
+getPositionEntries: (symbol: string, context: { strategyName: string; exchangeName: string; }) => Promise<ISignalEntry[]>
 ```
 
 Returns the list of DCA entry prices and costs for the current pending signal.
@@ -607,7 +607,7 @@ for notification generation.
 ### commitPartialProfit
 
 ```ts
-commitPartialProfit: (symbol: string, percentToClose: number, currentPrice: number, context: { strategyName: string; exchangeName: string; }) => Promise<boolean>
+commitPartialProfit: (symbol: string, dto: number | IPartialDto, currentPrice: number, context: { strategyName: string; exchangeName: string; }) => Promise<boolean>
 ```
 
 Executes partial close at profit level (moving toward TP).
@@ -618,7 +618,7 @@ Price must be moving toward take profit (in profit direction).
 ### commitPartialLoss
 
 ```ts
-commitPartialLoss: (symbol: string, percentToClose: number, currentPrice: number, context: { strategyName: string; exchangeName: string; }) => Promise<boolean>
+commitPartialLoss: (symbol: string, dto: number | IPartialDto, currentPrice: number, context: { strategyName: string; exchangeName: string; }) => Promise<boolean>
 ```
 
 Executes partial close at loss level (moving toward SL).
@@ -629,7 +629,7 @@ Price must be moving toward stop loss (in loss direction).
 ### commitPartialProfitCost
 
 ```ts
-commitPartialProfitCost: (symbol: string, dollarAmount: number, currentPrice: number, context: { strategyName: string; exchangeName: string; }) => Promise<boolean>
+commitPartialProfitCost: (symbol: string, dto: number | IPartialCostDto, currentPrice: number, context: { strategyName: string; exchangeName: string; }) => Promise<boolean>
 ```
 
 Executes partial close at profit level by absolute dollar amount (moving toward TP).
@@ -641,7 +641,7 @@ Price must be moving toward take profit (in profit direction).
 ### commitPartialLossCost
 
 ```ts
-commitPartialLossCost: (symbol: string, dollarAmount: number, currentPrice: number, context: { strategyName: string; exchangeName: string; }) => Promise<boolean>
+commitPartialLossCost: (symbol: string, dto: number | IPartialCostDto, currentPrice: number, context: { strategyName: string; exchangeName: string; }) => Promise<boolean>
 ```
 
 Executes partial close at loss level by absolute dollar amount (moving toward SL).
@@ -741,13 +741,33 @@ happens on the next tick() when strategy detects the flag.
 ### commitAverageBuy
 
 ```ts
-commitAverageBuy: (symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; }, cost?: number) => Promise<boolean>
+commitAverageBuy: (symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; }, dto?: number | IAverageBuyDto) => Promise<boolean>
 ```
 
 Adds a new DCA entry to the active pending signal.
 
 Adds a new averaging entry at currentPrice to the position's entry history.
 Updates effectivePriceOpen (mean of all entries) and emits average-buy commit event.
+
+### commitDividend
+
+```ts
+commitDividend: (symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; }, dto: IDividendDto) => Promise<boolean>
+```
+
+Records a dividend / staking accrual on the open position (see commitDividend).
+A negative amount records a charge. Context-free variant: the strategy,
+exchange and risk/action registrations are validated explicitly. Returns
+false when no pending signal exists or the DTO is invalid.
+
+### getPositionAccruals
+
+```ts
+getPositionAccruals: (symbol: string, context: { strategyName: string; exchangeName: string; }) => Promise<ISignalAccrual[]>
+```
+
+Returns the dividend / staking accruals recorded on the current pending signal
+(see getPositionAccruals). Returns null if no pending signal exists.
 
 ### commitSignalNotify
 

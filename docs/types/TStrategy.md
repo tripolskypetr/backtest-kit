@@ -13,4 +13,4 @@ type TStrategy = {
 
 Type definition for strategy methods.
 Maps all keys of IStrategy to any type.
-Used for dynamic method routing in StrategyCoreService.
+Used for dynamic method routing in StrategyConnectionService.

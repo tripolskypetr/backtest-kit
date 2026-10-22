@@ -23,7 +23,7 @@ constructor();
 ### enable
 
 ```ts
-enable: (({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, }?: Partial<IReportTarget>) => (...args: any[]) => any) & ISingleshotClearable<({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, hig...
+enable: (({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, budget, }?: Partial<IReportTarget>) => (...args: any[]) => any) & ISingleshotClearable<({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, s...
 ```
 
 Enables report services selectively.
@@ -41,7 +41,7 @@ IMPORTANT: Always call the returned unsubscribe function to prevent memory leaks
 ### disable
 
 ```ts
-disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, }?: Partial<IReportTarget>) => void
+disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, budget, }?: Partial<IReportTarget>) => void
 ```
 
 Disables report services selectively.

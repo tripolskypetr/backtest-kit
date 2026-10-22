@@ -40,7 +40,7 @@ Exit price adjusted with slippage and fees
 pnlCost: number
 ```
 
-Absolute profit/loss in USD: pnlPercentage / 100 * pnlEntries
+Absolute profit/loss in USD: pnlPercentage / 100 * pnlEntries (dividends included)
 
 ### pnlEntries
 
@@ -49,3 +49,15 @@ pnlEntries: number
 ```
 
 Total invested capital in USD: sum of all entry costs
+
+### pnlDividends
+
+```ts
+pnlDividends: number
+```
+
+Value of the dividend / staking accruals (ISignalRow._accruals) in USD at
+the PNL price: sum of cash amounts + sum of asset amounts × priceClose.
+Computed on every PNL calculation, never stored. Already included in
+pnlCost and pnlPercentage; published separately so the price component can
+be reconstructed as pnlCost - pnlDividends. Not scaled by the multiplier.

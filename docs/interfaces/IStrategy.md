@@ -178,7 +178,7 @@ Returns null if no pending signal exists.
 ### getPositionEntries
 
 ```ts
-getPositionEntries: (symbol: string, timestamp: number) => Promise<{ price: number; cost: number; timestamp: number; }[]>
+getPositionEntries: (symbol: string, timestamp: number) => Promise<ISignalEntry[]>
 ```
 
 Returns the list of DCA entry prices and costs for the current pending signal.
@@ -193,7 +193,7 @@ Returns a single-element array [{ price: priceOpen, cost }] if no DCA entries we
 ### getPositionPartials
 
 ```ts
-getPositionPartials: (symbol: string) => Promise<{ type: "profit" | "loss"; percent: number; currentPrice: number; costBasisAtClose: number; entryCountAtClose: number; timestamp: number; }[]>
+getPositionPartials: (symbol: string) => Promise<ISignalPartial[]>
 ```
 
 Returns the history of partial closes for the current pending signal.
@@ -330,7 +330,7 @@ flags and the current pending signal id). Synchronous in-memory read; works out 
 ### partialProfit
 
 ```ts
-partialProfit: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean, timestamp: number) => Promise<boolean>
+partialProfit: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean, timestamp: number, note?: string) => Promise<boolean>
 ```
 
 Executes partial close at profit level (moving toward TP).
@@ -368,7 +368,7 @@ Never throws. Safe to call at any time as a pre-flight check.
 ### partialLoss
 
 ```ts
-partialLoss: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean, timestamp: number) => Promise<boolean>
+partialLoss: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean, timestamp: number, note?: string) => Promise<boolean>
 ```
 
 Executes partial close at loss level (moving toward SL).
@@ -563,7 +563,7 @@ Never throws. Safe to call at any time as a pre-flight check.
 ### averageBuy
 
 ```ts
-averageBuy: (symbol: string, currentPrice: number, backtest: boolean, timestamp: number, cost?: number) => Promise<boolean>
+averageBuy: (symbol: string, currentPrice: number, backtest: boolean, timestamp: number, cost?: number, note?: string) => Promise<boolean>
 ```
 
 Adds a new averaging entry to an open position (DCA — Dollar Cost Averaging).
@@ -597,6 +597,41 @@ Returns `true` if all preconditions for a DCA entry are met:
   (or `CC_ENABLE_DCA_EVERYWHERE` is set)
 
 Never throws. Safe to call at any time as a pre-flight check.
+
+### dividend
+
+```ts
+dividend: (symbol: string, currentPrice: number, backtest: boolean, timestamp: number, dto: IDividendDto) => Promise<boolean>
+```
+
+Records a dividend / staking accrual on the open position (see ISignalAccrual).
+
+Appends the accrual to _accruals. From this moment every PNL calculation
+folds it in: a "cash" accrual adds its USD amount, an "asset" accrual adds
+amount × price at the PNL price. The sum is published as pnl.pnlDividends.
+A negative amount records a charge (dividend owed on a short, cash-out).
+The engine does not decide WHEN a dividend is due — that is application
+logic (ex-date calendars, staking epochs), typically tracked with State.
+
+Validations (throws): no pending signal; amount not a non-zero finite number;
+unknown type.
+
+### validateDividend
+
+```ts
+validateDividend: (symbol: string, dto: IDividendDto) => Promise<boolean>
+```
+
+Checks whether dividend would succeed without executing it. Never throws.
+
+### getPositionAccruals
+
+```ts
+getPositionAccruals: (symbol: string) => Promise<ISignalAccrual[]>
+```
+
+Returns the dividend / staking accruals recorded on the current pending signal.
+Returns null if no pending signal exists, an empty array when none were recorded.
 
 ### hasPendingSignal
 

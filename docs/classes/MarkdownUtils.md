@@ -23,7 +23,7 @@ constructor();
 ### enable
 
 ```ts
-enable: (({ backtest: bt, breakeven, heat, live, partial, performance, strategy, risk, schedule, walker, sync, highest_profit, max_drawdown, }?: Partial<IMarkdownTarget>) => (...args: any[]) => any) & ISingleshotClearable<({ backtest: bt, breakeven, heat, live, partial, performance, strategy, risk, schedule, walker, sync, h...
+enable: (({ backtest: bt, breakeven, heat, live, partial, performance, strategy, risk, schedule, walker, sync, highest_profit, max_drawdown, budget, }?: Partial<IMarkdownTarget>) => (...args: any[]) => any) & ISingleshotClearable<({ backtest: bt, breakeven, heat, live, partial, performance, strategy, risk, schedule, walker,...
 ```
 
 Enables markdown report services selectively.
@@ -41,7 +41,7 @@ IMPORTANT: Always call the returned unsubscribe function to prevent memory leaks
 ### disable
 
 ```ts
-disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, strategy, schedule, walker, sync, highest_profit, max_drawdown, }?: Partial<IMarkdownTarget>) => void
+disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, strategy, schedule, walker, sync, highest_profit, max_drawdown, budget, }?: Partial<IMarkdownTarget>) => void
 ```
 
 Disables markdown report services selectively.
@@ -61,7 +61,7 @@ Services are unsubscribed immediately upon calling this method.
 ### clear
 
 ```ts
-clear: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, strategy, schedule, walker, sync, highest_profit, max_drawdown, }?: Partial<IMarkdownTarget>) => void
+clear: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, strategy, schedule, walker, sync, highest_profit, max_drawdown, budget, }?: Partial<IMarkdownTarget>) => void
 ```
 
 Clears markdown report data selectively.

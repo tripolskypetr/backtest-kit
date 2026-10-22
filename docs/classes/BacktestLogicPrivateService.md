@@ -17,6 +17,10 @@ Flow:
 Memory efficient: streams results without array accumulation.
 Supports early termination via break in consumer.
 
+With `CC_BACKTEST_LOCKSTEP` every timeframe iteration runs under the
+process-wide `Lockstep` mutex, so parallel backtests advance one
+timeframe at a time instead of drifting apart in logical time.
+
 ## Constructor
 
 ```ts
@@ -72,6 +76,16 @@ timeMetaService: TimeMetaService
 ```ts
 priceMetaService: PriceMetaService
 ```
+
+### handoff
+
+```ts
+handoff: (symbol: string, timestamp: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Lock hand-off inside a candle replay (CC_BACKTEST_LOCKSTEP), called by
+`StrategyConnectionService` from its `onSchedulePing` / `onActivePing`
+system callbacks on every replayed candle. See {@link HANDOFF_FN }.
 
 ## Methods
 

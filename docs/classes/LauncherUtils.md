@@ -34,7 +34,8 @@ function that stops every instance the launch started.
 Fire-and-forget: the method returns synchronously while {@link RUN_FN }
 resolves the launcher (explicit name or the FIRST registered one), its
 strategy, exchange and — for backtest mode — frame, warms the candle
-cache (skip it with `cache: false` on the schema) and launches every
+cache (GLOBAL_CONFIG.CC_LAUNCHER_CANDLE_CACHE_DEFAULT; override per schema
+with `cache`) and launches every
 symbol of the schema's symbolList via Backtest.background or
 Live.background (paper and live modes both run the live pipeline).
 A resolution failure is routed to exitEmitter — the same fatal-error

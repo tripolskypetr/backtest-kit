@@ -6,11 +6,7 @@ group: docs
 # getPositionEntries
 
 ```ts
-declare function getPositionEntries(symbol: string): Promise<{
-    price: number;
-    cost: number;
-    timestamp: number;
-}[]>;
+declare function getPositionEntries(symbol: string): Promise<ISignalEntry[]>;
 ```
 
 Returns the list of DCA entry prices and costs for the current pending signal.

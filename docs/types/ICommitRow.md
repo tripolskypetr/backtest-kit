@@ -6,7 +6,7 @@ group: docs
 # ICommitRow
 
 ```ts
-type ICommitRow = IPartialProfitCommitRow | IPartialLossCommitRow | IBreakevenCommitRow | IAverageBuyCommitRow | ITrailingStopCommitRow | ITrailingTakeCommitRow | IActivateScheduledCommitRow;
+type ICommitRow = IPartialProfitCommitRow | IPartialLossCommitRow | IBreakevenCommitRow | IAverageBuyCommitRow | IDividendCommitRow | ITrailingStopCommitRow | ITrailingTakeCommitRow | IActivateScheduledCommitRow;
 ```
 
 Discriminated union of all queued commit events.

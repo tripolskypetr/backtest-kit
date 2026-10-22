@@ -5,7 +5,7 @@ group: docs
 
 # StrategyConnectionService
 
-Implements `TStrategy$1`
+Implements `TStrategy`
 
 Connection service routing strategy operations to correct ClientStrategy instance.
 
@@ -92,6 +92,14 @@ timeMetaService: TimeMetaService
 ```ts
 priceMetaService: PriceMetaService
 ```
+
+### backtestLogicPrivateService
+
+```ts
+backtestLogicPrivateService: BacktestLogicPrivateService
+```
+
+The backtest orchestrator: the lockstep lock hand-off inside a candle replay (a di-kit cycle, resolved lazily)
 
 ### getStrategy
 
@@ -216,7 +224,7 @@ Returns a single-element array [priceOpen] if no DCA entries were made.
 ### getPositionPartials
 
 ```ts
-getPositionPartials: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<{ type: "profit" | "loss"; percent: number; currentPrice: number; costBasisAtClose: number; entryCountAtClose: number; timestamp: number; }[]>
+getPositionPartials: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<ISignalPartial[]>
 ```
 
 Returns the list of partial closes for the current pending signal.
@@ -230,7 +238,7 @@ Returns an empty array if no partial closes have been executed.
 ### getPositionEntries
 
 ```ts
-getPositionEntries: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<{ price: number; cost: number; timestamp: number; }[]>
+getPositionEntries: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<ISignalEntry[]>
 ```
 
 Returns the list of DCA entry prices and costs for the current pending signal.
@@ -720,7 +728,7 @@ Delegates to `ClientStrategy.validatePartialProfit()` — no throws, pure boolea
 ### partialProfit
 
 ```ts
-partialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+partialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }, note?: string) => Promise<boolean>
 ```
 
 Executes partial close at profit level (moving toward TP).
@@ -742,7 +750,7 @@ Delegates to `ClientStrategy.validatePartialLoss()` — no throws, pure boolean 
 ### partialLoss
 
 ```ts
-partialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+partialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }, note?: string) => Promise<boolean>
 ```
 
 Executes partial close at loss level (moving toward SL).
@@ -836,9 +844,36 @@ Delegates to `ClientStrategy.validateAverageBuy()` — no throws, pure boolean r
 ### averageBuy
 
 ```ts
-averageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }, cost: number) => Promise<boolean>
+averageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }, cost: number, note?: string) => Promise<boolean>
 ```
 
 Adds a new DCA entry to the active pending signal.
 
 Delegates to ClientStrategy.averageBuy() with current execution context.
+
+### validateDividend
+
+```ts
+validateDividend: (backtest: boolean, symbol: string, dto: IDividendDto, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+```
+
+Checks whether dividend would succeed without executing it.
+Delegates to ClientStrategy.validateDividend() — no throws, pure boolean result.
+
+### dividend
+
+```ts
+dividend: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }, dto: IDividendDto) => Promise<boolean>
+```
+
+Records a dividend / staking accrual (signed amount) on the active pending signal.
+Delegates to ClientStrategy.dividend() with the current execution-context timestamp.
+
+### getPositionAccruals
+
+```ts
+getPositionAccruals: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<ISignalAccrual[]>
+```
+
+Returns the dividend / staking accruals recorded on the current pending signal.
+Returns null if no pending signal exists.

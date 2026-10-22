@@ -32,4 +32,4 @@ Timeframe bounding the run. Optional: defaults to the single registered frame; a
 cache: boolean
 ```
 
-Warm the 1m candle cache over the frame window before launching. Default: true
+Warm the 1m candle cache over the frame window before launching. Default: GLOBAL_CONFIG.CC_LAUNCHER_CANDLE_CACHE_DEFAULT

@@ -98,3 +98,11 @@ averageBuyCount: number
 ```
 
 Count of average-buy (DCA) events
+
+### dividendCount
+
+```ts
+dividendCount: number
+```
+
+Count of dividend (accrual recorded, credit or charge) events

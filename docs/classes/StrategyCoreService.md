@@ -5,7 +5,7 @@ group: docs
 
 # StrategyCoreService
 
-Implements `TStrategy`
+Implements `TStrategy$1`
 
 Global service for strategy operations with execution context injection.
 
@@ -193,7 +193,7 @@ Returns a single-element array [priceOpen] if no DCA entries were made.
 ### getPositionPartials
 
 ```ts
-getPositionPartials: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<{ type: "profit" | "loss"; percent: number; currentPrice: number; costBasisAtClose: number; entryCountAtClose: number; timestamp: number; }[]>
+getPositionPartials: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<ISignalPartial[]>
 ```
 
 Returns the list of partial closes for the current pending signal.
@@ -207,7 +207,7 @@ Returns an empty array if no partial closes have been executed.
 ### getPositionEntries
 
 ```ts
-getPositionEntries: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<{ price: number; cost: number; timestamp: number; }[]>
+getPositionEntries: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<ISignalEntry[]>
 ```
 
 Returns the list of DCA entry prices and costs for the current pending signal.
@@ -429,7 +429,7 @@ Validates context, then delegates to StrategyConnectionService.validatePartialPr
 ### partialProfit
 
 ```ts
-partialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+partialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }, note?: string) => Promise<boolean>
 ```
 
 Executes partial close at profit level (moving toward TP).
@@ -451,7 +451,7 @@ Validates context, then delegates to StrategyConnectionService.validatePartialLo
 ### partialLoss
 
 ```ts
-partialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+partialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }, note?: string) => Promise<boolean>
 ```
 
 Executes partial close at loss level (moving toward SL).
@@ -542,13 +542,39 @@ Validates context, then delegates to StrategyConnectionService.validateAverageBu
 ### averageBuy
 
 ```ts
-averageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }, cost: number) => Promise<boolean>
+averageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }, cost: number, note?: string) => Promise<boolean>
 ```
 
 Adds a new DCA entry to the active pending signal.
 
 Validates strategy existence and delegates to connection service
 to add a new averaging entry to the position.
+
+### validateDividend
+
+```ts
+validateDividend: (backtest: boolean, symbol: string, dto: IDividendDto, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+```
+
+Checks whether dividend would succeed without executing it.
+Validates strategy existence and delegates to the connection service.
+
+### dividend
+
+```ts
+dividend: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }, dto: IDividendDto) => Promise<boolean>
+```
+
+Records a dividend / staking accrual (signed amount) on the active pending signal.
+
+### getPositionAccruals
+
+```ts
+getPositionAccruals: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<ISignalAccrual[]>
+```
+
+Returns the dividend / staking accruals recorded on the current pending signal.
+Returns null if no pending signal exists.
 
 ### hasPendingSignal
 

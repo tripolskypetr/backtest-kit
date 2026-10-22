@@ -63,7 +63,7 @@ strategy_commit: boolean
 Strategy commit confirmations.
 Covers all committed actions: `partial_profit.commit`, `partial_loss.commit`,
 `breakeven.commit`, `trailing_stop.commit`, `trailing_take.commit`,
-`activate_scheduled.commit`, `average_buy.commit`, `cancel_scheduled.commit`,
+`activate_scheduled.commit`, `average_buy.commit`, `dividend.commit`, `cancel_scheduled.commit`,
 `close_pending.commit`.
 Source: `strategyCommitSubject` (StrategyCommitContract).
 

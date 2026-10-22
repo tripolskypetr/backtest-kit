@@ -19,7 +19,8 @@ declare function getColumns(): {
     sync_columns: ColumnModel<SyncEvent>[];
     highest_profit_columns: ColumnModel<HighestProfitEvent>[];
     max_drawdown_columns: ColumnModel<MaxDrawdownEvent>[];
-    walker_pnl_columns: ColumnModel<SignalData$1>[];
+    budget_columns: ColumnModel<BudgetEvent>[];
+    walker_pnl_columns: ColumnModel<SignalData>[];
     walker_strategy_columns: ColumnModel<IStrategyResult>[];
 };
 ```

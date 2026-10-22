@@ -6,7 +6,7 @@ group: docs
 # commitAverageBuy
 
 ```ts
-declare function commitAverageBuy(symbol: string, cost?: number): Promise<boolean>;
+declare function commitAverageBuy(symbol: string, dto?: number | IAverageBuyDto): Promise<boolean>;
 ```
 
 Adds a new DCA entry to the active pending signal.
@@ -23,4 +23,4 @@ Automatically fetches current price via getAveragePrice.
 | Parameter | Description |
 |-----------|-------------|
 | `symbol` | Trading pair symbol |
-| `cost` | Dollar amount of the new entry, weights the effective average price (defaults to CC_POSITION_ENTRY_COST) |
+| `dto` | Dollar amount of the new entry as a number (defaults to CC_POSITION_ENTRY_COST), or { cost, note } to store a note on the entry row |

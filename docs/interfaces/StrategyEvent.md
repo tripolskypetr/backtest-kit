@@ -226,6 +226,30 @@ totalPartials: number
 
 Total number of partial closes executed (_partial.length)
 
+### entries
+
+```ts
+entries: ISignalEntry[]
+```
+
+DCA entry history of the position at the event (IPublicSignalRow.entries)
+
+### partials
+
+```ts
+partials: ISignalPartial[]
+```
+
+Partial close history of the position at the event (IPublicSignalRow.partials)
+
+### accruals
+
+```ts
+accruals: ISignalAccrual[]
+```
+
+Dividend / staking accruals of the position at the event (IPublicSignalRow.accruals)
+
 ### pnl
 
 ```ts
@@ -241,6 +265,38 @@ cost: number
 ```
 
 Cost of this entry in USD (average-buy action only)
+
+### accrualType
+
+```ts
+accrualType: AccrualType
+```
+
+Accrual kind: "cash" or "asset" (dividend action only)
+
+### amount
+
+```ts
+amount: number
+```
+
+Accrual amount: USD for "cash", asset units for "asset" (dividend action only)
+
+### pnlDividends
+
+```ts
+pnlDividends: number
+```
+
+USD value of all accruals of the position after the event (dividend action only)
+
+### totalAccruals
+
+```ts
+totalAccruals: number
+```
+
+Total number of accruals on the position after the event (dividend action only)
 
 ### note
 

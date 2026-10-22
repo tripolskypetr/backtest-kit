@@ -36,7 +36,7 @@ loggerService: { readonly methodContextService: { readonly context: IMethodConte
 ### cancelScheduled
 
 ```ts
-cancelScheduled: (symbol: string, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, cancelId?: string, note?: string) => Promise<...>
+cancelScheduled: (symbol: string, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignal...
 ```
 
 Logs a cancel-scheduled event when a scheduled signal is cancelled.
@@ -44,7 +44,7 @@ Logs a cancel-scheduled event when a scheduled signal is cancelled.
 ### closePending
 
 ```ts
-closePending: (symbol: string, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, closeId?: string, note?: string) => Promise<...>
+closePending: (symbol: string, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartial[], accruals: ISignal...
 ```
 
 Logs a close-pending event when a pending signal is closed.
@@ -52,7 +52,7 @@ Logs a close-pending event when a pending signal is closed.
 ### partialProfit
 
 ```ts
-partialProfit: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "shor...
+partialProfit: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[],...
 ```
 
 Logs a partial-profit event when a portion of the position is closed at profit.
@@ -60,7 +60,7 @@ Logs a partial-profit event when a portion of the position is closed at profit.
 ### partialLoss
 
 ```ts
-partialLoss: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "shor...
+partialLoss: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[],...
 ```
 
 Logs a partial-loss event when a portion of the position is closed at loss.
@@ -68,7 +68,7 @@ Logs a partial-loss event when a portion of the position is closed at loss.
 ### trailingStop
 
 ```ts
-trailingStop: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "short"...
+trailingStop: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], p...
 ```
 
 Logs a trailing-stop event when the stop-loss is adjusted.
@@ -76,7 +76,7 @@ Logs a trailing-stop event when the stop-loss is adjusted.
 ### trailingTake
 
 ```ts
-trailingTake: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "short"...
+trailingTake: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], p...
 ```
 
 Logs a trailing-take event when the take-profit is adjusted.
@@ -84,7 +84,7 @@ Logs a trailing-take event when the take-profit is adjusted.
 ### breakeven
 
 ```ts
-breakeven: (symbol: string, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, p...
+breakeven: (symbol: string, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartia...
 ```
 
 Logs a breakeven event when the stop-loss is moved to entry price.
@@ -92,7 +92,7 @@ Logs a breakeven event when the stop-loss is moved to entry price.
 ### activateScheduled
 
 ```ts
-activateScheduled: (symbol: string, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, p...
+activateScheduled: (symbol: string, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, entries: ISignalEntry[], partials: ISignalPartia...
 ```
 
 Logs an activate-scheduled event when a scheduled signal is activated early.
@@ -104,6 +104,14 @@ averageBuy: (symbol: string, currentPrice: number, effectivePriceOpen: number, t
 ```
 
 Logs an average-buy (DCA) event when a new averaging entry is added to an open position.
+
+### dividend
+
+```ts
+dividend: (action: "dividend", symbol: string, currentPrice: number, accrualType: AccrualType, amount: number, pnlDividends: number, totalAccruals: number, isBacktest: boolean, context: { ...; }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalEntries: number, ...
+```
+
+Logs a dividend / staking accrual event (signed amount) on an open position.
 
 ### subscribe
 

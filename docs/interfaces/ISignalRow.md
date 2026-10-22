@@ -125,7 +125,7 @@ Internal runtime marker for scheduled signals
 ### _partial
 
 ```ts
-_partial: { type: "profit" | "loss"; percent: number; currentPrice: number; costBasisAtClose: number; entryCountAtClose: number; timestamp: number; }[]
+_partial: ISignalPartial[]
 ```
 
 History of partial closes for PNL calculation.
@@ -153,7 +153,7 @@ Original priceStopLoss is preserved in persistence but ignored during execution.
 ### _entry
 
 ```ts
-_entry: { price: number; cost: number; timestamp: number; }[]
+_entry: ISignalEntry[]
 ```
 
 DCA (Dollar Cost Averaging) entry history.
@@ -161,6 +161,20 @@ First element is always the original priceOpen at signal creation.
 Each subsequent element is a new averaging entry added by averageBuy().
 Effective entry price = simple arithmetic mean of all price values.
 Original priceOpen is preserved unchanged for identity/audit purposes.
+
+### _accruals
+
+```ts
+_accruals: ISignalAccrual[]
+```
+
+Dividend / staking accruals credited to this position (see ISignalAccrual).
+Appended by commitDividend (negative amounts are charges). Folded into
+the PNL by toProfitLossDto: "cash" amounts as-is, "asset"
+amounts valued at the PNL price; the sum is published as
+IStrategyPnL.pnlDividends (computed, never stored) and added to pnlCost.
+Not scaled by the leverage multiplier. Missing on rows persisted before the
+field existed — read as an empty array.
 
 ### _trailingPriceTakeProfit
 

@@ -6,7 +6,7 @@ group: docs
 # PnlColumn
 
 ```ts
-type PnlColumn = ColumnModel<SignalData$1>;
+type PnlColumn = ColumnModel<SignalData>;
 ```
 
 Type alias for column configuration used in walker PNL markdown reports.

@@ -6,7 +6,7 @@ group: docs
 # commitPartialProfitCost
 
 ```ts
-declare function commitPartialProfitCost(symbol: string, dollarAmount: number): Promise<boolean>;
+declare function commitPartialProfitCost(symbol: string, dto: number | IPartialCostDto): Promise<boolean>;
 ```
 
 Executes partial close at profit level by absolute dollar amount (moving toward TP).
@@ -23,4 +23,4 @@ Automatically fetches current price via getAveragePrice.
 | Parameter | Description |
 |-----------|-------------|
 | `symbol` | Trading pair symbol |
-| `dollarAmount` | Dollar value of position to close (e.g. 150 closes $150 worth) |
+| `dto` | Dollar value of position to close as a number (e.g. 150 closes $150 worth), or { cost, note } to store a note on the partial row |

@@ -73,6 +73,34 @@ totalPartials: number
 Total number of partial closes executed (_partial.length).
 0 = no partial closes done. 1+ = partial closes executed.
 
+### accruals
+
+```ts
+accruals: ISignalAccrual[]
+```
+
+Dividend / staking accruals credited to this position (copy of _accruals,
+empty array when none). Their value is folded into pnl.pnlCost and
+published separately as pnl.pnlDividends.
+
+### entries
+
+```ts
+entries: ISignalEntry[]
+```
+
+DCA entry history (copy of _entry; the first element is the original
+entry). Each row carries the optional note passed to commitAverageBuy.
+
+### partials
+
+```ts
+partials: ISignalPartial[]
+```
+
+Partial close history (copy of _partial, empty array when none). Each row
+carries the optional note passed to commitPartialProfit / commitPartialLoss.
+
 ### originalPriceOpen
 
 ```ts

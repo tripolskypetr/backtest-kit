@@ -113,3 +113,11 @@ max_drawdown: boolean
 ```
 
 Enable max drawdown milestone event logging
+
+### budget
+
+```ts
+budget: boolean
+```
+
+Enable budget journal row logging

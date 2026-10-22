@@ -6,14 +6,7 @@ group: docs
 # getPositionPartials
 
 ```ts
-declare function getPositionPartials(symbol: string): Promise<{
-    type: "profit" | "loss";
-    percent: number;
-    currentPrice: number;
-    costBasisAtClose: number;
-    entryCountAtClose: number;
-    timestamp: number;
-}[]>;
+declare function getPositionPartials(symbol: string): Promise<ISignalPartial[]>;
 ```
 
 Returns the list of partial close events for the current pending signal.

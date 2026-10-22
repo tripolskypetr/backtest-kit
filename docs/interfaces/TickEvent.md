@@ -162,6 +162,38 @@ pnlCost: number
 
 Absolute profit/loss in USD (for active/waiting: unrealized, for closed: realized)
 
+### pnlDividends
+
+```ts
+pnlDividends: number
+```
+
+USD value of the dividend / staking accruals folded into pnlCost (only for rows carrying a PNL)
+
+### entries
+
+```ts
+entries: ISignalEntry[]
+```
+
+DCA entry history of the position (IPublicSignalRow.entries; only for rows carrying a signal)
+
+### partials
+
+```ts
+partials: ISignalPartial[]
+```
+
+Partial close history of the position (IPublicSignalRow.partials)
+
+### accruals
+
+```ts
+accruals: ISignalAccrual[]
+```
+
+Dividend / staking accruals of the position (IPublicSignalRow.accruals)
+
 ### pnlEntries
 
 ```ts

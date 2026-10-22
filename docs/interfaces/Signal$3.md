@@ -18,11 +18,11 @@ Entry price for the position
 ### _entry
 
 ```ts
-_entry: { price: number; cost: number; timestamp: number; }[]
+_entry: ISignalEntry[]
 ```
 
 ### _partial
 
 ```ts
-_partial: { type: "profit" | "loss"; percent: number; currentPrice: number; costBasisAtClose: number; entryCountAtClose: number; timestamp: number; }[]
+_partial: ISignalPartial[]
 ```

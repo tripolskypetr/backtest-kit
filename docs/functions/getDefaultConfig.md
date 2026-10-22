@@ -19,8 +19,10 @@ declare function getDefaultConfig(): Readonly<{
     CC_GET_CANDLES_RETRY_COUNT: number;
     CC_GET_CANDLES_RETRY_DELAY_MS: number;
     CC_MAX_CANDLES_PER_REQUEST: number;
+    CC_BACKTEST_STEP_MINUTES: number;
     CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
-    CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
+    CC_GET_CANDLES_MAX_ANOMALY_STREAK: number;
+    CC_GET_CANDLES_MAX_GAP_STREAK: number;
     CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
     CC_REPORT_SKIP_IDLE_EVENTS: boolean;
     CC_REPORT_PERFORMANCE_MIN_DURATION_MS: number;
@@ -36,6 +38,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_MAX_HEATMAP_MARKDOWN_ROWS: number;
     CC_MAX_HIGHEST_PROFIT_MARKDOWN_ROWS: number;
     CC_MAX_MAX_DRAWDOWN_MARKDOWN_ROWS: number;
+    CC_MAX_BUDGET_MARKDOWN_ROWS: number;
     CC_MAX_LIVE_MARKDOWN_ROWS: number;
     CC_MAX_PARTIAL_MARKDOWN_ROWS: number;
     CC_MAX_RISK_MARKDOWN_ROWS: number;
@@ -50,6 +53,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_MAX_LOG_LINES: number;
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
     CC_ENABLE_BACKTEST_PARALLEL_SPIN: boolean;
+    CC_BACKTEST_LOCKSTEP: boolean;
     CC_ENABLE_DCA_EVERYWHERE: boolean;
     CC_ENABLE_PPPL_EVERYWHERE: boolean;
     CC_ENABLE_LONG_SIGNAL: boolean;
@@ -61,6 +65,8 @@ declare function getDefaultConfig(): Readonly<{
     CC_ORDER_OPEN_RETRY_ATTEMPTS: number;
     CC_ORDER_CHECK_RETRY_ATTEMPTS: number;
     CC_ORDER_CLOSE_RETRY_ATTEMPTS: number;
+    CC_LAUNCHER_CANDLE_CACHE_DEFAULT: boolean;
+    CC_WORKER_CANDLE_CACHE_DEFAULT: boolean;
 }>;
 ```
 

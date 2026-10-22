@@ -42,11 +42,12 @@ user code:
 
 - PARENT (no worker environment): for backtest mode appends the 1m
   candle cache download to the GLOBAL cache mutex (opt-in via
-  `cache: true` on the schema, off by default), then waits until
+  GLOBAL_CONFIG.CC_WORKER_CANDLE_CACHE_DEFAULT or `cache` on the schema,
+  off by default), then waits until
   EVERY queued download in the process has finished — no child
   starts against a partial cache — and forks ONE child for the
   whole list. The child
-  gets the symbol list and the call ordinal via the environment (argv
+  gets the call ordinal via the environment (argv
   is passed through untouched) and its own working directory
   `./job/&lt;symbols joined with "-"&gt;` (created lazily). The child's
   stdout/stderr are piped into the root process; a non-zero exit is
@@ -57,6 +58,13 @@ user code:
   symbols inline via Backtest.background or Live.background (paper
   and live modes both run the live pipeline), every other call is a
   no-op. No candle caching here — the parent already drained it.
+- MANUAL SHARD (docker-compose): set `BACKTEST_KIT_WORKER_INDEX` by
+  hand — one container per run call, nothing is forked. The matching
+  call runs its symbols inline exactly like a forked child, except it
+  warms its OWN candle cache when caching is enabled (there is no
+  parent to do it) and skips the orphan
+  guard (there is no IPC channel). Each container has its own
+  filesystem, so the `./job` isolation happens for free.
   The child kills itself when the parent dies: the IPC channel
   fork() opened closes and the "disconnect" handler exits the
   process, so no orphan keeps trading unsupervised.
@@ -86,13 +94,15 @@ it stops them immediately.
 getWorkerSymbolList: () => string[]
 ```
 
-Returns the symbol list this worker child owns, or null in the parent.
+Returns the symbol list this worker process owns, or null in the
+parent.
 
-The list travels through the environment as JSON, NOT argv — the
-entry script keeps full ownership of its own CLI arguments. Usually
-there is no need to call this: {@link run} detects the role itself.
-Useful for conditional setup around the run calls (logging,
-monitoring).
+The environment carries only the call ordinal, so the list is
+resolved from {@link RUN_SYMBOL_MAP } — populated synchronously by
+every run call. Works uniformly for a forked child and a manual
+docker-compose shard. Returns null in the parent (no owned index)
+and before the matching run call has executed (the map has no entry
+yet) — call it after the run calls, not before.
 
 ### getWorkerIndex
 
@@ -100,10 +110,13 @@ monitoring).
 getWorkerIndex: () => number
 ```
 
-Returns the ordinal of the Worker.run call that forked this child,
-or null in the parent.
+Returns the ordinal of the Worker.run call this process owns, or
+null in the parent.
 
-This is the child-matching key of the magic: the child counts its
-own run calls and the call whose ordinal equals this value runs its
-symbols inline. Also serves ordinal needs outside run: staggered
-start delays, per-worker port or account offsets.
+Set automatically on a forked child, or BY HAND in a docker-compose
+shard (`BACKTEST_KIT_WORKER_INDEX: "1"` in the service environment —
+one container per run call). This is the matching key of the magic:
+the process counts its own run calls and the call whose ordinal
+equals this value runs its symbols inline. Also serves ordinal needs
+outside run: staggered start delays, per-worker port or account
+offsets.

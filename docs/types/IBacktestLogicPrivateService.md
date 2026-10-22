@@ -15,6 +15,7 @@ type IBacktestLogicPrivateService = Omit<BacktestLogicPrivateService, keyof {
     methodContextService: never;
     priceMetaService: never;
     timeMetaService: never;
+    handoff: never;
 }>;
 ```
 

@@ -1,9 +1,9 @@
 ---
-title: docs/interface/SignalData$1
+title: docs/interface/SignalData
 group: docs
 ---
 
-# SignalData$1
+# SignalData
 
 Signal data for PNL table.
 Represents a single closed signal with essential trading information.

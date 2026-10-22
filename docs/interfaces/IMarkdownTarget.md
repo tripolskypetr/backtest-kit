@@ -113,3 +113,11 @@ max_drawdown: boolean
 ```
 
 Enable max drawdown milestone tracking reports
+
+### budget
+
+```ts
+budget: boolean
+```
+
+Enable budget journal reports (reserve / release / reject / deposit / withdraw rows)

@@ -1,12 +1,12 @@
 ---
-title: docs/type/SignalData
+title: docs/type/SignalData$1
 group: docs
 ---
 
-# SignalData
+# SignalData$1
 
 ```ts
-type SignalData = ISignalRow | null;
+type SignalData$1 = ISignalRow | null;
 ```
 
 Signal data stored in persistence layer.
