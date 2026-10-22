@@ -1218,6 +1218,112 @@ test("LOCKSTEP ERRORS: every listener fed by StrategyConnectionService throws on
   pass(`both backtests and the probe finished; hits/throws: ${summary}`);
 });
 
+// ── The three ping channels throw on every event, six backtests in parallel ──
+
+/** How a ping listener fails: before its first await, as a rejection, or after parking on a timer inside the lock */
+const PING_THROW_MODES = ["sync", "async", "sleep"];
+
+const buildPingThrower = (mode, kind, hits, failures) => {
+  const record = (event) => {
+    hits[event.symbol][kind] += 1;
+  };
+  const error = (event) => new Error(`lockstep pings: ${kind} ping of ${event.symbol} exploded (${mode})`);
+  if (mode === "sync") {
+    return (event) => {
+      record(event);
+      failures[kind] += 1;
+      throw error(event);
+    };
+  }
+  if (mode === "async") {
+    return async (event) => {
+      record(event);
+      failures[kind] += 1;
+      return Promise.reject(error(event));
+    };
+  }
+  return async (event) => {
+    record(event);
+    await sleep(5);
+    failures[kind] += 1;
+    throw error(event);
+  };
+};
+
+test("LOCKSTEP ERRORS: idle, schedule and active ping listeners that throw on every event (sync, rejection, after a sleep) do not hang six parallel backtests", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  // idle pings until hour 1, schedule pings until the dip, active pings for an hour, idle pings to the end — on every symbol
+  const schema = buildPingOrderCase("ping-throw");
+  const symbols = Array.from({ length: 6 }, (_, i) => `PINGERR${i}USDT`);
+  const hits = Object.fromEntries(symbols.map((symbol) => [symbol, { idle: 0, schedule: 0, active: 0 }]));
+  const failures = { idle: 0, schedule: 0, active: 0 };
+  const own = (event) => event.strategyName === schema.strategyName && symbols.includes(event.symbol);
+  // every symbol gets its own failure mode; the listener is one per channel, so the mode is picked per event
+  const modeOf = (symbol) => PING_THROW_MODES[symbols.indexOf(symbol) % PING_THROW_MODES.length];
+  const throwers = Object.fromEntries(["idle", "schedule", "active"].map((kind) => [
+    kind,
+    Object.fromEntries(PING_THROW_MODES.map((mode) => [mode, buildPingThrower(mode, kind, hits, failures)])),
+  ]));
+  // Clock spread over the latest event (progress or ping) every symbol emitted. Peers parked at a
+  // timeframe start emit nothing until they get the lock back, and a replay that starts on that
+  // same timeframe legitimately runs its candles first (the start-wait tie), so one timeframe of
+  // replay can sit on top of the one the peers are parked at: the bound is two timeframes, and
+  // without the lock the sleeping listeners let the spread grow by hours.
+  const latest = new Map();
+  let maxSpread = 0;
+  const track = (event) => {
+    latest.set(event.symbol, event.when.getTime());
+    if (latest.size === symbols.length) {
+      const whens = Array.from(latest.values());
+      maxSpread = Math.max(maxSpread, Math.max(...whens) - Math.min(...whens));
+    }
+  };
+  const route = (kind) => (event) => {
+    if (!own(event)) return;
+    track(event);
+    return throwers[kind][modeOf(event.symbol)](event);
+  };
+  const signals = [];
+  const unsubscribe = [
+    listenBacktestProgress((event) => {
+      if (!own(event) || event.progress >= 1) return;
+      track(event);
+    }),
+    listenIdlePing(route("idle")),
+    listenSchedulePing(route("schedule")),
+    listenActivePing(route("active")),
+    listenSignalBacktest((event) => {
+      if (!own(event)) return;
+      if (event.action === "opened" || event.action === "closed") signals.push({ symbol: event.symbol, action: event.action });
+    }),
+  ];
+
+  let done;
+  try {
+    done = await withFatalStub(() => runUntilDone(schema, symbols, ERROR_TIMEOUT_MS));
+  } finally {
+    unsubscribe.forEach((un) => un());
+  }
+
+  // every channel fired on every symbol, and every one of those events threw
+  const silent = symbols.flatMap((symbol) => ["idle", "schedule", "active"].filter((kind) => hits[symbol][kind] === 0).map((kind) => `${symbol}.${kind}`));
+  if (silent.length) return fail(`ping channels that stayed silent: ${silent.join(", ")}; hits=${JSON.stringify(hits)}`);
+  for (const kind of ["idle", "schedule", "active"]) {
+    const total = symbols.reduce((sum, symbol) => sum + hits[symbol][kind], 0);
+    if (failures[kind] !== total) return fail(`${kind}: ${total} pings but only ${failures[kind]} throws — a listener was skipped or cut short`);
+  }
+  // the replays went through regardless: a position opened and closed on every symbol
+  for (const symbol of symbols) {
+    const opened = signals.filter((e) => e.symbol === symbol && e.action === "opened").length;
+    const closed = signals.filter((e) => e.symbol === symbol && e.action === "closed").length;
+    if (opened !== 1 || closed !== 1) return fail(`${symbol}: expected one opened and one closed signal, got opened=${opened} closed=${closed}`);
+  }
+  if (maxSpread >= 2 * HOUR_MS) return fail(`clocks diverged by ${maxSpread / MIN_MS} minutes while the ping listeners were throwing (expected under 120)`);
+  if (await failedSurvivorsOrLock(schema, done, symbols, fail)) return;
+  const summary = ["idle", "schedule", "active"].map((kind) => `${kind}=${failures[kind]}`).join(" ");
+  pass(`six backtests and the probe finished, every ping threw (${summary}), spread ${maxSpread / MIN_MS} min`);
+});
+
 // ── Budget driven from every callback, errors thrown out of the handlers ─────
 
 const CALLBACK_BUDGET_CAPITAL = 2_500;
