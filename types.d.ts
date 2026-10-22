@@ -42933,51 +42933,10 @@ declare class BacktestLogicPrivateService {
     readonly actionCoreService: ActionCoreService;
     readonly timeMetaService: TimeMetaService;
     readonly priceMetaService: PriceMetaService;
-    /** Lockstep cursor of every backtest currently inside `run()`, by symbol and context */
-    private _lockstep;
-    /** The finest timeframe step among the running backtests: the grid the hand-off inside a replay follows */
-    private lockstepStep;
     /**
-     * Parks the caller at `at` and spins the lockstep lock until every other
-     * running backtest has caught up. A peer has caught up when it is executing
-     * at or past `at` (`clock >= at`) or when it is parked somewhere it has
-     * nothing left to do before `at`:
-     * - for a `start` wait (an iteration about to run its tick at `at`) a peer
-     *   parked at `at` or later counts: two ticks on the same timeframe are a tie
-     *   the journal orders by symbol, so neither has to go first;
-     * - for a `handoff` wait (a replay about to run the candle on the boundary
-     *   `at`) a peer parked at the START of `at` does NOT count: its tick at `at`
-     *   must land before this replay writes at `at` and beyond. A peer parked in
-     *   its own hand-off on `at` or later does count: everything before `at` is
-     *   behind it, and two replays never wait for each other.
-     * One spin gives every peer one iteration and a peer may lag several
-     * iterations behind, so the spin repeats; it stops early when a round moved
-     * no lagging peer (a peer blocked outside the orchestrator), rather than
-     * spinning forever. `spinFirst` forces one spin even when nobody lags: inside
-     * a replay that FIFO turn is what keeps the peers interleaved.
-     */
-    private waitForPeers;
-    /**
-     * Lock hand-off inside a candle replay (CC_BACKTEST_LOCKSTEP).
-     *
-     * BACKTEST_FN replays a whole array of candles under the lockstep lock, so the
-     * symbol's clock would jump by the position lifetime while its peers wait on
-     * one timeframe; anything the strategy writes from the middle of the replay (a
-     * DCA entry, a budget reserve) would then be checked against a journal the
-     * peers have not reached yet. ClientStrategy pings on every replayed candle and
-     * `StrategyConnectionService` calls this from its `onSchedulePing` /
-     * `onActivePing` system callbacks: on the last candle before the next
-     * boundary the replay waits (`waitForPeers`) until every running peer has
-     * reached that boundary, so a write on the boundary candle is checked
-     * against everything the peers wrote before it. The boundaries follow the
-     * finest timeframe step among the running backtests, not this symbol's own:
-     * a peer on a 15m frame gets its 01:15 / 01:30 / 01:45 iterations in before
-     * this 1h replay writes at 01:46. The same wait runs at the start of every
-     * iteration (see `run`), so the replay never starts ahead of a peer either.
-     *
-     * No-op when lockstep is off, when the symbol is not inside `run()` (a tick
-     * driven directly, outside the orchestrator) or when its iteration does not
-     * hold the lock.
+     * Lock hand-off inside a candle replay (CC_BACKTEST_LOCKSTEP), called by
+     * `StrategyConnectionService` from its `onSchedulePing` / `onActivePing`
+     * system callbacks on every replayed candle. See {@link HANDOFF_FN}.
      *
      * @param symbol - Trading pair symbol of the pinging backtest
      * @param timestamp - Timestamp of the replayed candle that pinged

@@ -54,6 +54,121 @@ type TLockstepCursor = {
   parked: { at: number; kind: "start" | "handoff" } | null;
 };
 
+/** Lockstep cursor of every backtest currently inside `run()`, by symbol and context (process-wide, like the lock itself) */
+const LOCKSTEP_CURSORS = new Map<string, TLockstepCursor>();
+
+/** The finest timeframe step among the running backtests: the grid the hand-off inside a replay follows */
+const LOCKSTEP_STEP_FN = (): number =>
+  Array.from(LOCKSTEP_CURSORS.values()).reduce((min, cursor) => Math.min(min, cursor.stepMs), Infinity);
+
+/**
+ * Parks the caller at `at` and spins the lockstep lock until every other
+ * running backtest has caught up. A peer has caught up when it is executing
+ * at or past `at` (`clock >= at`) or when it is parked somewhere it has
+ * nothing left to do before `at`:
+ * - for a `start` wait (an iteration about to run its tick at `at`) a peer
+ *   parked at `at` or later counts: two ticks on the same timeframe are a tie
+ *   the journal orders by symbol, so neither has to go first;
+ * - for a `handoff` wait (a replay about to run the candle on the boundary
+ *   `at`) a peer parked at the START of `at` does NOT count: its tick at `at`
+ *   must land before this replay writes at `at` and beyond. A peer parked in
+ *   its own hand-off on `at` or later does count: everything before `at` is
+ *   behind it, and two replays never wait for each other.
+ * One spin gives every peer one iteration and a peer may lag several
+ * iterations behind, so the spin repeats; it stops early when a round moved
+ * no lagging peer (a peer blocked outside the orchestrator), rather than
+ * spinning forever. `spinFirst` forces one spin even when nobody lags: inside
+ * a replay that FIFO turn is what keeps the peers interleaved.
+ */
+const WAIT_FOR_PEERS_FN = async (
+  cursor: TLockstepCursor,
+  at: number,
+  kind: "start" | "handoff",
+  spinFirst: boolean,
+): Promise<void> => {
+  cursor.parked = { at, kind };
+  const caughtUp = (peer: TLockstepCursor): boolean => {
+    if (peer.clock >= at) {
+      return true;
+    }
+    if (!peer.parked) {
+      return false;
+    }
+    if (kind === "start") {
+      return peer.parked.at >= at;
+    }
+    return peer.parked.kind === "handoff" ? peer.parked.at >= at : peer.parked.at > at;
+  };
+  const lagging = () => Array.from(LOCKSTEP_CURSORS.values()).filter((peer) => peer !== cursor && !caughtUp(peer));
+  const snapshot = () => lagging().map((peer) => `${peer.clock}/${peer.parked ? `${peer.parked.kind}@${peer.parked.at}` : "-"}`).join(",");
+  let before = snapshot();
+  let spin = spinFirst;
+  while (spin || lagging().length > 0) {
+    spin = false;
+    await Lockstep.spinLock(LOCKSTEP_HANDOFF_SOURCE);
+    const after = snapshot();
+    if (lagging().length > 0 && after === before) {
+      break;
+    }
+    before = after;
+  }
+  cursor.parked = null;
+  cursor.clock = at;
+};
+
+/**
+ * Lock hand-off inside a candle replay (CC_BACKTEST_LOCKSTEP).
+ *
+ * BACKTEST_FN replays a whole array of candles under the lockstep lock, so the
+ * symbol's clock would jump by the position lifetime while its peers wait on
+ * one timeframe; anything the strategy writes from the middle of the replay (a
+ * DCA entry, a budget reserve) would then be checked against a journal the
+ * peers have not reached yet. ClientStrategy pings on every replayed candle and
+ * `StrategyConnectionService` calls `handoff` from its `onSchedulePing` /
+ * `onActivePing` system callbacks: on the last candle before the next
+ * boundary the replay waits ({@link WAIT_FOR_PEERS_FN}) until every running
+ * peer has reached that boundary, so a write on the boundary candle is checked
+ * against everything the peers wrote before it. The boundaries follow the
+ * finest timeframe step among the running backtests, not this symbol's own:
+ * a peer on a 15m frame gets its 01:15 / 01:30 / 01:45 iterations in before
+ * this 1h replay writes at 01:46. The same wait runs at the start of every
+ * iteration (see `run`), so the replay never starts ahead of a peer either.
+ *
+ * No-op when lockstep is off, when the symbol is not inside `run()` (a tick
+ * driven directly, outside the orchestrator) or when its iteration does not
+ * hold the lock.
+ */
+const HANDOFF_FN = async (
+  self: BacktestLogicPrivateService,
+  symbol: string,
+  timestamp: number,
+  context: { strategyName: string; exchangeName: string; frameName: string },
+): Promise<void> => {
+  if (!GLOBAL_CONFIG.CC_BACKTEST_LOCKSTEP) {
+    return;
+  }
+  const cursor = LOCKSTEP_CURSORS.get(CREATE_LOCKSTEP_KEY_FN(symbol, context));
+  if (!cursor || !cursor.locked) {
+    return;
+  }
+  // the candle right before the boundary: the strategy's write ON the boundary candle
+  // already sees what the peers wrote up to it
+  if (timestamp + 60_000 < cursor.nextBoundary) {
+    return;
+  }
+  const boundary = cursor.nextBoundary;
+  self.loggerService.debug("backtestLogicPrivateService lockstep handoff", {
+    symbol,
+    timestamp,
+    boundary,
+  });
+  await WAIT_FOR_PEERS_FN(cursor, boundary, "handoff", true);
+  const step = LOCKSTEP_STEP_FN();
+  while (timestamp + 60_000 >= cursor.nextBoundary) {
+    cursor.nextBoundary += step;
+  }
+};
+
 const SYMBOL_FN_ERROR = Symbol("backtest-fn-error");
 
 /**
@@ -737,89 +852,10 @@ export class BacktestLogicPrivateService {
     TYPES.priceMetaService
   );
 
-  /** Lockstep cursor of every backtest currently inside `run()`, by symbol and context */
-  private _lockstep = new Map<string, TLockstepCursor>();
-
-  /** The finest timeframe step among the running backtests: the grid the hand-off inside a replay follows */
-  private lockstepStep = (): number =>
-    Array.from(this._lockstep.values()).reduce((min, cursor) => Math.min(min, cursor.stepMs), Infinity);
-
   /**
-   * Parks the caller at `at` and spins the lockstep lock until every other
-   * running backtest has caught up. A peer has caught up when it is executing
-   * at or past `at` (`clock >= at`) or when it is parked somewhere it has
-   * nothing left to do before `at`:
-   * - for a `start` wait (an iteration about to run its tick at `at`) a peer
-   *   parked at `at` or later counts: two ticks on the same timeframe are a tie
-   *   the journal orders by symbol, so neither has to go first;
-   * - for a `handoff` wait (a replay about to run the candle on the boundary
-   *   `at`) a peer parked at the START of `at` does NOT count: its tick at `at`
-   *   must land before this replay writes at `at` and beyond. A peer parked in
-   *   its own hand-off on `at` or later does count: everything before `at` is
-   *   behind it, and two replays never wait for each other.
-   * One spin gives every peer one iteration and a peer may lag several
-   * iterations behind, so the spin repeats; it stops early when a round moved
-   * no lagging peer (a peer blocked outside the orchestrator), rather than
-   * spinning forever. `spinFirst` forces one spin even when nobody lags: inside
-   * a replay that FIFO turn is what keeps the peers interleaved.
-   */
-  private waitForPeers = async (
-    cursor: TLockstepCursor,
-    at: number,
-    kind: "start" | "handoff",
-    spinFirst: boolean,
-  ): Promise<void> => {
-    cursor.parked = { at, kind };
-    const caughtUp = (peer: TLockstepCursor): boolean => {
-      if (peer.clock >= at) {
-        return true;
-      }
-      if (!peer.parked) {
-        return false;
-      }
-      if (kind === "start") {
-        return peer.parked.at >= at;
-      }
-      return peer.parked.kind === "handoff" ? peer.parked.at >= at : peer.parked.at > at;
-    };
-    const lagging = () => Array.from(this._lockstep.values()).filter((peer) => peer !== cursor && !caughtUp(peer));
-    const snapshot = () => lagging().map((peer) => `${peer.clock}/${peer.parked ? `${peer.parked.kind}@${peer.parked.at}` : "-"}`).join(",");
-    let before = snapshot();
-    let spin = spinFirst;
-    while (spin || lagging().length > 0) {
-      spin = false;
-      await Lockstep.spinLock(LOCKSTEP_HANDOFF_SOURCE);
-      const after = snapshot();
-      if (lagging().length > 0 && after === before) {
-        break;
-      }
-      before = after;
-    }
-    cursor.parked = null;
-    cursor.clock = at;
-  };
-
-  /**
-   * Lock hand-off inside a candle replay (CC_BACKTEST_LOCKSTEP).
-   *
-   * BACKTEST_FN replays a whole array of candles under the lockstep lock, so the
-   * symbol's clock would jump by the position lifetime while its peers wait on
-   * one timeframe; anything the strategy writes from the middle of the replay (a
-   * DCA entry, a budget reserve) would then be checked against a journal the
-   * peers have not reached yet. ClientStrategy pings on every replayed candle and
-   * `StrategyConnectionService` calls this from its `onSchedulePing` /
-   * `onActivePing` system callbacks: on the last candle before the next
-   * boundary the replay waits (`waitForPeers`) until every running peer has
-   * reached that boundary, so a write on the boundary candle is checked
-   * against everything the peers wrote before it. The boundaries follow the
-   * finest timeframe step among the running backtests, not this symbol's own:
-   * a peer on a 15m frame gets its 01:15 / 01:30 / 01:45 iterations in before
-   * this 1h replay writes at 01:46. The same wait runs at the start of every
-   * iteration (see `run`), so the replay never starts ahead of a peer either.
-   *
-   * No-op when lockstep is off, when the symbol is not inside `run()` (a tick
-   * driven directly, outside the orchestrator) or when its iteration does not
-   * hold the lock.
+   * Lock hand-off inside a candle replay (CC_BACKTEST_LOCKSTEP), called by
+   * `StrategyConnectionService` from its `onSchedulePing` / `onActivePing`
+   * system callbacks on every replayed candle. See {@link HANDOFF_FN}.
    *
    * @param symbol - Trading pair symbol of the pinging backtest
    * @param timestamp - Timestamp of the replayed candle that pinged
@@ -830,29 +866,7 @@ export class BacktestLogicPrivateService {
     timestamp: number,
     context: { strategyName: string; exchangeName: string; frameName: string },
   ): Promise<void> => {
-    if (!GLOBAL_CONFIG.CC_BACKTEST_LOCKSTEP) {
-      return;
-    }
-    const cursor = this._lockstep.get(CREATE_LOCKSTEP_KEY_FN(symbol, context));
-    if (!cursor || !cursor.locked) {
-      return;
-    }
-    // the candle right before the boundary: the strategy's write ON the boundary candle
-    // already sees what the peers wrote up to it
-    if (timestamp + 60_000 < cursor.nextBoundary) {
-      return;
-    }
-    const boundary = cursor.nextBoundary;
-    this.loggerService.debug("backtestLogicPrivateService lockstep handoff", {
-      symbol,
-      timestamp,
-      boundary,
-    });
-    await this.waitForPeers(cursor, boundary, "handoff", true);
-    const step = this.lockstepStep();
-    while (timestamp + 60_000 >= cursor.nextBoundary) {
-      cursor.nextBoundary += step;
-    }
+    await HANDOFF_FN(this, symbol, timestamp, context);
   };
 
   /**
@@ -894,7 +908,7 @@ export class BacktestLogicPrivateService {
     const stepMs = totalFrames > 1 ? timeframes[1].getTime() - timeframes[0].getTime() : 60_000;
     const lockstepKey = CREATE_LOCKSTEP_KEY_FN(symbol, this.methodContextService.context);
     const cursor: TLockstepCursor = { locked: false, nextBoundary: 0, stepMs, clock: timeframes[0].getTime(), parked: null };
-    this._lockstep.set(lockstepKey, cursor);
+    LOCKSTEP_CURSORS.set(lockstepKey, cursor);
 
     let i = 0;
 
@@ -910,10 +924,10 @@ export class BacktestLogicPrivateService {
         try {
           const timeframeStartTime = performance.now();
           const when = timeframes[i];
-          cursor.nextBoundary = when.getTime() + this.lockstepStep();
+          cursor.nextBoundary = when.getTime() + LOCKSTEP_STEP_FN();
           // time barrier: no iteration starts before every running peer has reached its timeframe
           if (GLOBAL_CONFIG.CC_BACKTEST_LOCKSTEP) {
-            await this.waitForPeers(cursor, when.getTime(), "start", false);
+            await WAIT_FOR_PEERS_FN(cursor, when.getTime(), "start", false);
           }
           cursor.clock = when.getTime();
 
@@ -1073,7 +1087,7 @@ export class BacktestLogicPrivateService {
     } catch (error) {
       _fatalError = error;
     } finally {
-      this._lockstep.delete(lockstepKey);
+      LOCKSTEP_CURSORS.delete(lockstepKey);
       if (_fatalError !== null) {
         console.error(
           `[BacktestLogicPrivateService] Fatal error — backtest sequence broken for symbol=${symbol} ` +
