@@ -38,11 +38,21 @@ const CREATE_LOCKSTEP_KEY_FN = (symbol: string, context: { strategyName: string;
 /**
  * Where a running backtest stands with respect to the lockstep lock: whether
  * its current iteration holds it, the next timeframe boundary of that
- * iteration, the timeframe step and the logical time it has reached (`clock`:
- * the iteration's timeframe, or the boundary it is parked on inside a replay).
- * Updated by `run()`, read by `handoff()` of every running backtest.
+ * iteration, the timeframe step, the logical time it is executing (`clock`:
+ * the timeframe of the iteration it is running, or the boundary a replay has
+ * resumed on) and, while it waits for its peers, where and why it is parked:
+ * `start` before running the iteration at `at` (its tick at `at` has NOT
+ * happened yet), `handoff` on the last candle before the boundary `at`
+ * (everything before `at` HAS happened). Updated by `run()`, read by the
+ * waits of every running backtest.
  */
-type TLockstepCursor = { locked: boolean; nextBoundary: number; stepMs: number; clock: number };
+type TLockstepCursor = {
+  locked: boolean;
+  nextBoundary: number;
+  stepMs: number;
+  clock: number;
+  parked: { at: number; kind: "start" | "handoff" } | null;
+};
 
 const SYMBOL_FN_ERROR = Symbol("backtest-fn-error");
 
@@ -57,6 +67,25 @@ const SYMBOL_FN_ERROR = Symbol("backtest-fn-error");
  */
 type TFnError = { type: "error"; __error__: typeof SYMBOL_FN_ERROR, reason: string; message: string };
 
+/**
+ * Reports a listener failure on an orchestrator-side emitter (progress,
+ * performance). These emits run inside the timeframe loop; a listener that
+ * throws must not turn into a fatal error of the whole backtest, so the
+ * failure is logged and handed to the error channel, like the fallbacks of
+ * the connection services do.
+ */
+const EMIT_FAILED_FN = (self: BacktestLogicPrivateService, emitter: string, symbol: string, error: unknown): void => {
+  const message = `backtestLogicPrivateService ${emitter} listener thrown`;
+  const payload = {
+    symbol,
+    error: errorData(error),
+    message: getErrorMessage(error),
+  };
+  self.loggerService.warn(message, payload);
+  console.warn(message, payload);
+  errorEmitter.next(error instanceof Error ? error : new Error(getErrorMessage(error)));
+};
+
 const EMIT_PROGRESS_FN = async (
   self: BacktestLogicPrivateService,
   symbol: string,
@@ -64,16 +93,20 @@ const EMIT_PROGRESS_FN = async (
   processedFrames: number,
   when: Date
 ): Promise<void> => {
-  await progressBacktestEmitter.next({
-    exchangeName: self.methodContextService.context.exchangeName,
-    strategyName: self.methodContextService.context.strategyName,
-    symbol,
-    totalFrames,
-    processedFrames,
-    progress: totalFrames > 0 ? processedFrames / totalFrames : 0,
-    backtest: true,
-    when,
-  });
+  try {
+    await progressBacktestEmitter.next({
+      exchangeName: self.methodContextService.context.exchangeName,
+      strategyName: self.methodContextService.context.strategyName,
+      symbol,
+      totalFrames,
+      processedFrames,
+      progress: totalFrames > 0 ? processedFrames / totalFrames : 0,
+      backtest: true,
+      when,
+    });
+  } catch (error) {
+    EMIT_FAILED_FN(self, "progressBacktestEmitter", symbol, error);
+  }
 };
 
 const CHECK_STOPPED_FN = async (
@@ -296,18 +329,22 @@ const EMIT_SIGNAL_PERFORMANCE_FN = async (
 ): Promise<number> => {
   const signalEndTime = performance.now();
   const currentTimestamp = Date.now();
-  await performanceEmitter.next({
-    timestamp: currentTimestamp,
-    previousTimestamp: previousEventTimestamp,
-    when,
-    metricType: "backtest_signal",
-    duration: signalEndTime - signalStartTime,
-    strategyName: self.methodContextService.context.strategyName,
-    exchangeName: self.methodContextService.context.exchangeName,
-    frameName: self.methodContextService.context.frameName,
-    symbol,
-    backtest: true,
-  });
+  try {
+    await performanceEmitter.next({
+      timestamp: currentTimestamp,
+      previousTimestamp: previousEventTimestamp,
+      when,
+      metricType: "backtest_signal",
+      duration: signalEndTime - signalStartTime,
+      strategyName: self.methodContextService.context.strategyName,
+      exchangeName: self.methodContextService.context.exchangeName,
+      frameName: self.methodContextService.context.frameName,
+      symbol,
+      backtest: true,
+    });
+  } catch (error) {
+    EMIT_FAILED_FN(self, "performanceEmitter", symbol, error);
+  }
   return currentTimestamp;
 };
 
@@ -320,18 +357,22 @@ const EMIT_TIMEFRAME_PERFORMANCE_FN = async (
 ): Promise<number> => {
   const timeframeEndTime = performance.now();
   const currentTimestamp = Date.now();
-  await performanceEmitter.next({
-    timestamp: currentTimestamp,
-    previousTimestamp: previousEventTimestamp,
-    when,
-    metricType: "backtest_timeframe",
-    duration: timeframeEndTime - timeframeStartTime,
-    strategyName: self.methodContextService.context.strategyName,
-    exchangeName: self.methodContextService.context.exchangeName,
-    frameName: self.methodContextService.context.frameName,
-    symbol,
-    backtest: true,
-  });
+  try {
+    await performanceEmitter.next({
+      timestamp: currentTimestamp,
+      previousTimestamp: previousEventTimestamp,
+      when,
+      metricType: "backtest_timeframe",
+      duration: timeframeEndTime - timeframeStartTime,
+      strategyName: self.methodContextService.context.strategyName,
+      exchangeName: self.methodContextService.context.exchangeName,
+      frameName: self.methodContextService.context.frameName,
+      symbol,
+      backtest: true,
+    });
+  } catch (error) {
+    EMIT_FAILED_FN(self, "performanceEmitter", symbol, error);
+  }
   return currentTimestamp;
 };
 
@@ -699,6 +740,65 @@ export class BacktestLogicPrivateService {
   /** Lockstep cursor of every backtest currently inside `run()`, by symbol and context */
   private _lockstep = new Map<string, TLockstepCursor>();
 
+  /** The finest timeframe step among the running backtests: the grid the hand-off inside a replay follows */
+  private lockstepStep = (): number =>
+    Array.from(this._lockstep.values()).reduce((min, cursor) => Math.min(min, cursor.stepMs), Infinity);
+
+  /**
+   * Parks the caller at `at` and spins the lockstep lock until every other
+   * running backtest has caught up. A peer has caught up when it is executing
+   * at or past `at` (`clock >= at`) or when it is parked somewhere it has
+   * nothing left to do before `at`:
+   * - for a `start` wait (an iteration about to run its tick at `at`) a peer
+   *   parked at `at` or later counts: two ticks on the same timeframe are a tie
+   *   the journal orders by symbol, so neither has to go first;
+   * - for a `handoff` wait (a replay about to run the candle on the boundary
+   *   `at`) a peer parked at the START of `at` does NOT count: its tick at `at`
+   *   must land before this replay writes at `at` and beyond. A peer parked in
+   *   its own hand-off on `at` or later does count: everything before `at` is
+   *   behind it, and two replays never wait for each other.
+   * One spin gives every peer one iteration and a peer may lag several
+   * iterations behind, so the spin repeats; it stops early when a round moved
+   * no lagging peer (a peer blocked outside the orchestrator), rather than
+   * spinning forever. `spinFirst` forces one spin even when nobody lags: inside
+   * a replay that FIFO turn is what keeps the peers interleaved.
+   */
+  private waitForPeers = async (
+    cursor: TLockstepCursor,
+    at: number,
+    kind: "start" | "handoff",
+    spinFirst: boolean,
+  ): Promise<void> => {
+    cursor.parked = { at, kind };
+    const caughtUp = (peer: TLockstepCursor): boolean => {
+      if (peer.clock >= at) {
+        return true;
+      }
+      if (!peer.parked) {
+        return false;
+      }
+      if (kind === "start") {
+        return peer.parked.at >= at;
+      }
+      return peer.parked.kind === "handoff" ? peer.parked.at >= at : peer.parked.at > at;
+    };
+    const lagging = () => Array.from(this._lockstep.values()).filter((peer) => peer !== cursor && !caughtUp(peer));
+    const snapshot = () => lagging().map((peer) => `${peer.clock}/${peer.parked ? `${peer.parked.kind}@${peer.parked.at}` : "-"}`).join(",");
+    let before = snapshot();
+    let spin = spinFirst;
+    while (spin || lagging().length > 0) {
+      spin = false;
+      await Lockstep.spinLock(LOCKSTEP_HANDOFF_SOURCE);
+      const after = snapshot();
+      if (lagging().length > 0 && after === before) {
+        break;
+      }
+      before = after;
+    }
+    cursor.parked = null;
+    cursor.clock = at;
+  };
+
   /**
    * Lock hand-off inside a candle replay (CC_BACKTEST_LOCKSTEP).
    *
@@ -709,16 +809,13 @@ export class BacktestLogicPrivateService {
    * peers have not reached yet. ClientStrategy pings on every replayed candle and
    * `StrategyConnectionService` calls this from its `onSchedulePing` /
    * `onActivePing` system callbacks: on the last candle before the next
-   * timeframe boundary `Lockstep.spinLock` releases the lock and takes it
-   * again, and the FIFO queue lets the peers run. One spin gives every peer
-   * ONE iteration, and a peer may lag several iterations behind the
-   * boundary (it ran its 01:00 tick while this replay crossed 01:59), so the
-   * spin repeats until every running peer's clock has reached the boundary:
-   * only then is a write on the boundary candle checked against everything
-   * the peers wrote before it. A peer parked in its own hand-off counts as
-   * standing on its boundary, so two replays never wait for each other. The
-   * spin stops early when a round brought no peer forward (a peer blocked
-   * outside the orchestrator), rather than spinning forever.
+   * boundary the replay waits (`waitForPeers`) until every running peer has
+   * reached that boundary, so a write on the boundary candle is checked
+   * against everything the peers wrote before it. The boundaries follow the
+   * finest timeframe step among the running backtests, not this symbol's own:
+   * a peer on a 15m frame gets its 01:15 / 01:30 / 01:45 iterations in before
+   * this 1h replay writes at 01:46. The same wait runs at the start of every
+   * iteration (see `run`), so the replay never starts ahead of a peer either.
    *
    * No-op when lockstep is off, when the symbol is not inside `run()` (a tick
    * driven directly, outside the orchestrator) or when its iteration does not
@@ -751,23 +848,10 @@ export class BacktestLogicPrivateService {
       timestamp,
       boundary,
     });
-    // parked on the boundary: peers waiting for this symbol see it as having reached it
-    cursor.clock = boundary;
-    const peers = () => Array.from(this._lockstep.values()).filter((peer) => peer !== cursor);
-    const lagging = () => peers().filter((peer) => peer.clock < boundary);
-    const snapshot = () => lagging().map((peer) => peer.clock).join(",");
-    let before = snapshot();
-    do {
-      await Lockstep.spinLock(LOCKSTEP_HANDOFF_SOURCE);
-      const after = snapshot();
-      if (after === before) {
-        // no lagging peer moved during this round: nothing to wait for
-        break;
-      }
-      before = after;
-    } while (lagging().length > 0);
+    await this.waitForPeers(cursor, boundary, "handoff", true);
+    const step = this.lockstepStep();
     while (timestamp + 60_000 >= cursor.nextBoundary) {
-      cursor.nextBoundary += cursor.stepMs;
+      cursor.nextBoundary += step;
     }
   };
 
@@ -809,7 +893,7 @@ export class BacktestLogicPrivateService {
     // Lockstep cursor of this run: the ping hand-off (see handoff) reads it while a replay runs
     const stepMs = totalFrames > 1 ? timeframes[1].getTime() - timeframes[0].getTime() : 60_000;
     const lockstepKey = CREATE_LOCKSTEP_KEY_FN(symbol, this.methodContextService.context);
-    const cursor: TLockstepCursor = { locked: false, nextBoundary: 0, stepMs, clock: timeframes[0].getTime() };
+    const cursor: TLockstepCursor = { locked: false, nextBoundary: 0, stepMs, clock: timeframes[0].getTime(), parked: null };
     this._lockstep.set(lockstepKey, cursor);
 
     let i = 0;
@@ -826,7 +910,11 @@ export class BacktestLogicPrivateService {
         try {
           const timeframeStartTime = performance.now();
           const when = timeframes[i];
-          cursor.nextBoundary = when.getTime() + stepMs;
+          cursor.nextBoundary = when.getTime() + this.lockstepStep();
+          // time barrier: no iteration starts before every running peer has reached its timeframe
+          if (GLOBAL_CONFIG.CC_BACKTEST_LOCKSTEP) {
+            await this.waitForPeers(cursor, when.getTime(), "start", false);
+          }
           cursor.clock = when.getTime();
 
           await EMIT_PROGRESS_FN(this, symbol, totalFrames, i, when);
@@ -966,18 +1054,22 @@ export class BacktestLogicPrivateService {
       // Track total backtest duration
       const backtestEndTime = performance.now();
       const currentTimestamp = Date.now();
-      await performanceEmitter.next({
-        timestamp: currentTimestamp,
-        previousTimestamp: previousEventTimestamp,
-        when: new Date(frameEndTime),
-        metricType: "backtest_total",
-        duration: backtestEndTime - backtestStartTime,
-        strategyName: this.methodContextService.context.strategyName,
-        exchangeName: this.methodContextService.context.exchangeName,
-        frameName: this.methodContextService.context.frameName,
-        symbol,
-        backtest: true,
-      });
+      try {
+        await performanceEmitter.next({
+          timestamp: currentTimestamp,
+          previousTimestamp: previousEventTimestamp,
+          when: new Date(frameEndTime),
+          metricType: "backtest_total",
+          duration: backtestEndTime - backtestStartTime,
+          strategyName: this.methodContextService.context.strategyName,
+          exchangeName: this.methodContextService.context.exchangeName,
+          frameName: this.methodContextService.context.frameName,
+          symbol,
+          backtest: true,
+        });
+      } catch (error) {
+        EMIT_FAILED_FN(this, "performanceEmitter", symbol, error);
+      }
     } catch (error) {
       _fatalError = error;
     } finally {

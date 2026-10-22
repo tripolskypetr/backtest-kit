@@ -9435,10 +9435,13 @@ declare const GLOBAL_CONFIG: {
      *   signal) runs under a process-wide FIFO mutex and releases it before the next timeframe,
      *   so concurrent `Backtest.run` / `Backtest.background` workloads interleave
      *   A(t0) B(t0) A(t1) B(t1) … and never drift apart by more than one timeframe.
-     * - A replay spans many timeframes in one iteration, so inside it the orchestrator listens to
-     *   its own schedule / active pings (one per replayed candle) and on the last candle before
-     *   every timeframe boundary releases the lock and takes it again: the peers run their
-     *   iterations up to that boundary before the replay continues.
+     * - Every iteration starts behind a time barrier: it waits until every running peer has
+     *   reached its timeframe (executed up to it, or parked on it with nothing left before it).
+     * - A replay spans many timeframes in one iteration, so inside it `StrategyConnectionService`
+     *   calls the orchestrator from its schedule / active ping callbacks (one per replayed candle)
+     *   and on the last candle before every boundary the replay hands the lock off and waits until
+     *   every peer has executed up to that boundary. The boundaries follow the finest timeframe
+     *   step among the running backtests, so a 1h replay yields to a 15m peer every 15 minutes.
      * - A strategy that blocks inside `getSignal` or a ping handler (an LLM call, a `sleep`)
      *   therefore parks its peers at the same `when`; shared state such as `Budget` sees the
      *   symbols in time order, a write from the middle of a replay included.
@@ -42932,6 +42935,28 @@ declare class BacktestLogicPrivateService {
     readonly priceMetaService: PriceMetaService;
     /** Lockstep cursor of every backtest currently inside `run()`, by symbol and context */
     private _lockstep;
+    /** The finest timeframe step among the running backtests: the grid the hand-off inside a replay follows */
+    private lockstepStep;
+    /**
+     * Parks the caller at `at` and spins the lockstep lock until every other
+     * running backtest has caught up. A peer has caught up when it is executing
+     * at or past `at` (`clock >= at`) or when it is parked somewhere it has
+     * nothing left to do before `at`:
+     * - for a `start` wait (an iteration about to run its tick at `at`) a peer
+     *   parked at `at` or later counts: two ticks on the same timeframe are a tie
+     *   the journal orders by symbol, so neither has to go first;
+     * - for a `handoff` wait (a replay about to run the candle on the boundary
+     *   `at`) a peer parked at the START of `at` does NOT count: its tick at `at`
+     *   must land before this replay writes at `at` and beyond. A peer parked in
+     *   its own hand-off on `at` or later does count: everything before `at` is
+     *   behind it, and two replays never wait for each other.
+     * One spin gives every peer one iteration and a peer may lag several
+     * iterations behind, so the spin repeats; it stops early when a round moved
+     * no lagging peer (a peer blocked outside the orchestrator), rather than
+     * spinning forever. `spinFirst` forces one spin even when nobody lags: inside
+     * a replay that FIFO turn is what keeps the peers interleaved.
+     */
+    private waitForPeers;
     /**
      * Lock hand-off inside a candle replay (CC_BACKTEST_LOCKSTEP).
      *
@@ -42942,16 +42967,13 @@ declare class BacktestLogicPrivateService {
      * peers have not reached yet. ClientStrategy pings on every replayed candle and
      * `StrategyConnectionService` calls this from its `onSchedulePing` /
      * `onActivePing` system callbacks: on the last candle before the next
-     * timeframe boundary `Lockstep.spinLock` releases the lock and takes it
-     * again, and the FIFO queue lets the peers run. One spin gives every peer
-     * ONE iteration, and a peer may lag several iterations behind the
-     * boundary (it ran its 01:00 tick while this replay crossed 01:59), so the
-     * spin repeats until every running peer's clock has reached the boundary:
-     * only then is a write on the boundary candle checked against everything
-     * the peers wrote before it. A peer parked in its own hand-off counts as
-     * standing on its boundary, so two replays never wait for each other. The
-     * spin stops early when a round brought no peer forward (a peer blocked
-     * outside the orchestrator), rather than spinning forever.
+     * boundary the replay waits (`waitForPeers`) until every running peer has
+     * reached that boundary, so a write on the boundary candle is checked
+     * against everything the peers wrote before it. The boundaries follow the
+     * finest timeframe step among the running backtests, not this symbol's own:
+     * a peer on a 15m frame gets its 01:15 / 01:30 / 01:45 iterations in before
+     * this 1h replay writes at 01:46. The same wait runs at the start of every
+     * iteration (see `run`), so the replay never starts ahead of a peer either.
      *
      * No-op when lockstep is off, when the symbol is not inside `run()` (a tick
      * driven directly, outside the orchestrator) or when its iteration does not

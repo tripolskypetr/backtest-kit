@@ -29,6 +29,13 @@ import {
   listenBreakevenAvailable,
   listenRisk,
   addRiskSchema,
+  addActionSchema,
+  ActionBase,
+  listenBeforeStart,
+  listenAfterEnd,
+  listenPerformance,
+  listenValidation,
+  listenExit,
   setConfig,
   Budget,
   BudgetRejectedError,
@@ -88,6 +95,22 @@ import { Subject, sleep } from "functools-kit";
  *              while the peer competes for the same money. The reserve from the partial callback is
  *              checked against the peer's rows (lockstep hand-off), ends as a reserve or a refusal,
  *              never as an overdraft; nothing hangs
+ *   steps    - the peer runs on a 15m frame while the replaying symbol runs on a 1h frame: the hand-off
+ *              follows the finest step among the running backtests and every iteration starts behind a
+ *              time barrier, so the peer's 01:15 reserve (held for an hour) is in the journal before the
+ *              1h symbol writes at 01:46, and the clocks stay within the coarser step
+ *   actions  - the same budget writes and throws from an addActionSchema class (ActionConnectionService):
+ *              pingScheduled / pingActive / signalBacktest / partialProfitAvailable / breakevenAvailable /
+ *              riskRejection hooks reserve, deposit, withdraw, release and explode
+ *   rest     - the emitters outside the connection layer that a backtest feeds: beforeStart / afterEnd
+ *              (BacktestLogicPublicService), backtestProgress / performance (the orchestrator loop),
+ *              validation (ClientRisk), done (Backtest), error and exit. Their listeners touch the budget
+ *              and throw on every other event; a throwing listener must neither hang nor kill the run
+ *   late     - a second Backtest.background joins when the first one is already on hour 6: the early
+ *              one stalls until the late one has caught up, from then on they stay within a timeframe;
+ *              the late one's rows land in the journal BEFORE the early one's already-written rows,
+ *              so the early rows written before the join may end in overdraft (shown, never hidden),
+ *              while no row written after the join does
  */
 const HOUR_MS = 3_600_000;
 const MIN_MS = 60_000;
@@ -1324,7 +1347,8 @@ test("LOCKSTEP ERRORS: a reserve from the partial-profit callback competes with 
   addRiskSchema({
     riskName: "lockstep-partial-risk",
     validations: [
-      () => {
+      (payload) => {
+        if (payload.symbol !== FAST_SYMBOL) return;
         riskChecks += 1;
         if (riskChecks % 4 === 0) throw new Error("lockstep partial: risk refused");
       },
@@ -1423,4 +1447,519 @@ test("LOCKSTEP ERRORS: a reserve from the partial-profit callback competes with 
   if (!(history[history.length - 1].balance.assets.BE > 0)) return fail("the breakeven deposit is missing");
 
   pass(`partial exits=${partialExits.filter((e) => e.exited).length}, top-ups=${topUps.length} (refused ${surfaced.rejected}), handler throws surfaced=${surfaced.handler}, hits=${JSON.stringify(hits)}, journal: ${describeRows(history)}`);
+});
+
+// ── Different frame steps ────────────────────────────────────────────────────
+
+const STEP_SLOW_SYMBOL = "STEPSLOWUSDT";
+const STEP_FAST_SYMBOL = "STEPFASTUSDT";
+const STEP_CAPITAL = 1_500;
+const STEP_COST = 1_000;
+const STEP_SIGNAL_AT = FRAME_START + 1 * HOUR_MS;
+/** The 15m peer opens a 60-minute position on this timeframe: still open when the 1h symbol's scheduled long activates at 01:46 */
+const STEP_PEER_OPEN_AT = FRAME_START + 1 * HOUR_MS + 15 * MIN_MS;
+
+const buildStepCase = (name) => {
+  const exchangeName = `lockstep-step-exchange-${name}`;
+  const strategyName = `lockstep-step-strategy-${name}`;
+  const slowFrame = `lockstep-step-frame-1h-${name}`;
+  const fastFrame = `lockstep-step-frame-15m-${name}`;
+  addExchangeSchema({
+    exchangeName,
+    getCandles: async (symbol, interval, since, limit) => {
+      if (interval !== "1m") throw new Error(`lockstep exchange: only 1m bars, got ${interval}`);
+      const out = [];
+      let timestamp = Math.floor(since.getTime() / MIN_MS) * MIN_MS;
+      while (out.length < limit) {
+        const inDip = timestamp >= STEP_SIGNAL_AT + SLOW_DIP_MINUTE * MIN_MS && timestamp < STEP_SIGNAL_AT + HOUR_MS;
+        const price = symbol === STEP_SLOW_SYMBOL && inDip ? 98 : 100;
+        out.push({ timestamp, open: price, high: price + 0.5, low: price - 0.5, close: price, volume: 1_000 });
+        timestamp += MIN_MS;
+      }
+      return out;
+    },
+    formatPrice: async (_s, p) => p.toFixed(8),
+    formatQuantity: async (_s, q) => q.toFixed(8),
+  });
+  addStrategySchema({
+    strategyName,
+    interval: "15m",
+    getSignal: async (symbol, when) => {
+      if (symbol === STEP_FAST_SYMBOL && when.getTime() === STEP_PEER_OPEN_AT) {
+        return { position: "long", priceStopLoss: 85, priceTakeProfit: 119, cost: STEP_COST, minuteEstimatedTime: 60 };
+      }
+      if (symbol === STEP_SLOW_SYMBOL && when.getTime() === STEP_SIGNAL_AT) {
+        return { position: "long", priceOpen: 99, priceStopLoss: 85, priceTakeProfit: 119, cost: STEP_COST, minuteEstimatedTime: 90 };
+      }
+      return null;
+    },
+  });
+  addFrameSchema({ frameName: slowFrame, interval: "1h", startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
+  addFrameSchema({ frameName: fastFrame, interval: "15m", startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
+  return { exchangeName, strategyName, slowFrame, fastFrame };
+};
+
+test("LOCKSTEP: a 1h replay hands off on the 15m peer's grid, its 01:46 reserve sees the peer's 01:15 reserve, clocks stay within the coarser step", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  Budget.enable();
+  const { exchangeName, strategyName, slowFrame, fastFrame } = buildStepCase("on");
+  const slowSchema = { exchangeName, strategyName, frameName: slowFrame };
+  const fastSchema = { exchangeName, strategyName, frameName: fastFrame };
+  // one budget record: the key is the run, so the two frames share it through the same name only
+  // when the key matches; here each frame is its own record, the journal of the 1h symbol is the
+  // one under test and the peer writes into it explicitly through the 1h key
+  const key = { ...slowSchema, backtest: true, name: BUDGET_NAME, initialCapital: STEP_CAPITAL };
+  const contextOf = (symbol, when) => ({ ...key, symbol, when });
+
+  const reserved = new Set();
+  const rejects = [];
+  const events = [];
+  const unsubscribe = [
+    listenActivePing(async (event) => {
+      if (event.strategyName !== strategyName || reserved.has(event.data.id)) return;
+      reserved.add(event.data.id);
+      try {
+        await Budget._reserve({ id: event.data.id, amount: STEP_COST, note: event.symbol }, contextOf(event.symbol, event.when));
+      } catch (error) {
+        if (!BudgetRejectedError.isBudgetRejectedError(error)) throw error;
+        rejects.push({ symbol: event.symbol, when: event.when.getTime() });
+      }
+    }),
+    listenSignalBacktest(async (event) => {
+      if (event.strategyName !== strategyName || event.action !== "closed") return;
+      await Budget._release({ id: event.signal.id, pnl: event.pnl.pnlCost }, contextOf(event.symbol, new Date(event.closeTimestamp)));
+    }),
+    listenBacktestProgress((event) => {
+      if (event.strategyName !== strategyName || event.progress >= 1) return;
+      events.push({ symbol: event.symbol, when: event.when.getTime() });
+    }),
+    // inside a replay no progress is emitted: the pings carry the symbol's clock
+    listenActivePing((event) => {
+      if (event.strategyName !== strategyName) return;
+      events.push({ symbol: event.symbol, when: event.timestamp });
+    }),
+    listenSchedulePing((event) => {
+      if (event.strategyName !== strategyName) return;
+      events.push({ symbol: event.symbol, when: event.timestamp });
+    }),
+  ];
+
+  const doneSubject = new Subject();
+  const done = new Set();
+  unsubscribe.push(listenDoneBacktest((event) => {
+    if (event.strategyName !== strategyName) return;
+    done.add(event.symbol);
+    if (done.size === 2) doneSubject.next();
+  }));
+  try {
+    Backtest.background(STEP_SLOW_SYMBOL, slowSchema);
+    Backtest.background(STEP_FAST_SYMBOL, fastSchema);
+    await Promise.race([doneSubject.toPromise(), sleep(ERROR_TIMEOUT_MS)]);
+  } finally {
+    unsubscribe.forEach((un) => un());
+  }
+  if (done.size !== 2) return fail(`both backtests must finish within ${ERROR_TIMEOUT_MS} ms, done=${[...done].join(",")}`);
+
+  const history = await Budget._getHistory({ ...key, when: new Date(JOURNAL_END) });
+  const peerReserve = history.find((r) => r.type === "reserve" && r.symbol === STEP_FAST_SYMBOL);
+  if (!peerReserve || peerReserve.timestamp !== STEP_PEER_OPEN_AT) return fail(`expected the peer's reserve at 01:15: ${describeRows(history)}`);
+  const slowRefused = rejects.find((r) => r.symbol === STEP_SLOW_SYMBOL);
+  if (!slowRefused) return fail(`the 1h symbol's reserve at 01:46 must be refused against the peer's 01:15 reserve: rejects=${JSON.stringify(rejects)} journal=${describeRows(history)}`);
+  const overdrafts = history.filter((r) => r.type === "reserve" && r.overdraft !== undefined);
+  if (overdrafts.length) return fail(`overdraft across frame steps: ${describeRows(overdrafts)}`);
+
+  // clocks: at every event the two symbols' latest times never differ by more than the coarser step
+  const latest = new Map();
+  let maxSpread = 0;
+  for (const { symbol, when } of events) {
+    latest.set(symbol, Math.max(latest.get(symbol) ?? 0, when));
+    if (latest.size === 2) maxSpread = Math.max(maxSpread, Math.abs(latest.get(STEP_SLOW_SYMBOL) - latest.get(STEP_FAST_SYMBOL)));
+  }
+  if (maxSpread > HOUR_MS) return fail(`clocks diverged by ${maxSpread / MIN_MS} minutes across a 1h and a 15m frame (expected at most 60)`);
+  pass(`1h vs 15m: max spread ${maxSpread / MIN_MS} min, the 1h reserve at 01:46 refused, journal: ${describeRows(history)}`);
+});
+
+// ── addActionSchema hooks ────────────────────────────────────────────────────
+
+const ACTION_CAPITAL = 2_500;
+const ACTION_COST = 1_000;
+
+test("LOCKSTEP ERRORS: addActionSchema hooks that write to the budget and throw neither hang nor corrupt the journal", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  Budget.enable();
+  let riskChecks = 0;
+  addRiskSchema({
+    riskName: "lockstep-action-risk",
+    validations: [
+      (payload) => {
+        if (payload.symbol !== FAST_SYMBOL) return;
+        riskChecks += 1;
+        if (riskChecks % 4 === 0) throw new Error("lockstep action: risk refused");
+      },
+    ],
+  });
+  const hits = {};
+  const count = (name) => { hits[name] = (hits[name] ?? 0) + 1; return hits[name]; };
+  let keyRef = null;
+  const contextOf = (symbol, when) => ({ ...keyRef, symbol, when });
+  const reserved = new Set();
+  const topUps = [];
+  class BudgetAction extends ActionBase {
+    async pingScheduled(event) {
+      const n = count("pingScheduled");
+      await Budget._getBalance(contextOf(event.symbol, event.when));
+      if (n % 2 === 1) throw new Error("lockstep action: pingScheduled exploded");
+    }
+    async pingActive(event) {
+      const n = count("pingActive");
+      if (!reserved.has(event.data.id)) {
+        reserved.add(event.data.id);
+        await Budget._reserve({ id: event.data.id, amount: ACTION_COST, note: "action entry" }, contextOf(event.symbol, event.when));
+      }
+      if (n % 2 === 1) throw new Error("lockstep action: pingActive exploded");
+    }
+    async signalBacktest(event) {
+      const n = count("signalBacktest");
+      if (event.action === "closed") {
+        const context = contextOf(event.symbol, new Date(event.closeTimestamp));
+        await Budget._release({ id: event.signal.id, pnl: event.pnl.pnlCost }, context);
+        for (const id of topUps) {
+          if (id.startsWith(`${event.signal.id}-pp`)) await Budget._release({ id, pnl: 0 }, context);
+        }
+      }
+      if (n % 2 === 1) throw new Error("lockstep action: signalBacktest exploded");
+    }
+    async partialProfitAvailable(event) {
+      const n = count("partialProfitAvailable");
+      const id = `${event.data.id}-pp${event.level}`;
+      topUps.push(id);
+      await Budget._reserve({ id, amount: ACTION_COST, note: `action partial ${event.level}` }, contextOf(event.symbol, event.when));
+      if (n % 2 === 1) throw new Error("lockstep action: partialProfitAvailable exploded");
+    }
+    async breakevenAvailable(event) {
+      const n = count("breakevenAvailable");
+      await Budget._deposit({ asset: "ABE", amount: 1, note: "action breakeven" }, contextOf(event.symbol, event.when));
+      if (n % 2 === 1) throw new Error("lockstep action: breakevenAvailable exploded");
+    }
+    async riskRejection(event) {
+      const n = count("riskRejection");
+      await Budget._withdraw({ asset: "ABE", amount: 1_000, note: "action risk" }, contextOf(event.symbol, event.when));
+      if (n % 2 === 1) throw new Error("lockstep action: riskRejection exploded");
+    }
+  }
+  addActionSchema({ actionName: "lockstep-budget-action", handler: BudgetAction });
+
+  // the listener case with the action attached: its strategy is registered by the builder
+  const exchangeName = "lockstep-action-exchange";
+  const strategyName = "lockstep-action-strategy";
+  const frameName = "lockstep-action-frame";
+  const slowPriceAt = (timestamp) => {
+    const minute = (timestamp - LISTENER_SIGNAL_AT) / MIN_MS;
+    if (minute >= 45 && minute < 60) return 98;
+    if (minute >= 60 && minute < 75) return 103;
+    if (minute >= 75 && minute < 90) return 97;
+    return 100;
+  };
+  addExchangeSchema({
+    exchangeName,
+    getCandles: async (symbol, interval, since, limit) => {
+      if (interval !== "1m") throw new Error(`lockstep exchange: only 1m bars, got ${interval}`);
+      const out = [];
+      let timestamp = Math.floor(since.getTime() / MIN_MS) * MIN_MS;
+      while (out.length < limit) {
+        const price = symbol === SLOW_SYMBOL ? slowPriceAt(timestamp) : 100;
+        out.push({ timestamp, open: price, high: price + 0.5, low: price - 0.5, close: price, volume: 1_000 });
+        timestamp += MIN_MS;
+      }
+      return out;
+    },
+    formatPrice: async (_s, p) => p.toFixed(8),
+    formatQuantity: async (_s, q) => q.toFixed(8),
+  });
+  addStrategySchema({
+    strategyName,
+    riskName: "lockstep-action-risk",
+    actions: ["lockstep-budget-action"],
+    interval: "1h",
+    getSignal: async (symbol, when) => {
+      if (symbol === FAST_SYMBOL) {
+        return { position: "long", priceStopLoss: 85, priceTakeProfit: 119, cost: ACTION_COST, minuteEstimatedTime: 30 };
+      }
+      if (when.getTime() === LISTENER_SIGNAL_AT) {
+        return { position: "long", priceOpen: 99, priceStopLoss: 85, priceTakeProfit: 119, cost: ACTION_COST, minuteEstimatedTime: 90 };
+      }
+      return null;
+    },
+  });
+  addFrameSchema({ frameName, interval: "1h", startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
+  const schema = { exchangeName, strategyName, frameName };
+  keyRef = { ...schema, backtest: true, name: BUDGET_NAME, initialCapital: ACTION_CAPITAL };
+  const symbols = [SLOW_SYMBOL, FAST_SYMBOL];
+
+  const surfaced = { rejected: 0, handler: 0, other: [] };
+  const unError = listenError((error) => {
+    if (BudgetRejectedError.isBudgetRejectedError(error)) surfaced.rejected += 1;
+    else if (String(error?.message).includes("exploded")) surfaced.handler += 1;
+    else if (String(error?.message).includes("risk refused")) return;
+    else surfaced.other.push(String(error?.message).slice(0, 120));
+  });
+  let done;
+  try {
+    done = await withFatalStub(() => runUntilDone(schema, symbols, ERROR_TIMEOUT_MS));
+  } finally {
+    unError();
+  }
+
+  const silent = ["pingScheduled", "pingActive", "signalBacktest", "partialProfitAvailable", "breakevenAvailable", "riskRejection"].filter((name) => !hits[name]);
+  if (silent.length) return fail(`action hooks stayed silent: ${silent.join(", ")}; hits=${JSON.stringify(hits)} riskChecks=${riskChecks}`);
+  if (await failedSurvivorsOrLock(schema, done, symbols, fail)) return;
+  if (!surfaced.handler) return fail("the thrown hook errors never reached the error channel");
+  if (!surfaced.rejected) return fail("the withdraw above the held amount from riskRejection never surfaced as BudgetRejectedError");
+  if (surfaced.other.length) return fail(`unexpected errors on the error channel: ${surfaced.other.slice(0, 3).join(" | ")}`);
+
+  const history = await Budget._getHistory({ ...keyRef, when: new Date(JOURNAL_END) });
+  const overdrafts = history.filter((r) => r.type === "reserve" && r.overdraft !== undefined);
+  if (overdrafts.length) return fail(`overdraft under lockstep: ${describeRows(overdrafts)}`);
+  const negativeRow = history.find((r) => r.balance.free < 0);
+  if (negativeRow) return fail(`free went negative at ${describeRows([negativeRow])}`);
+  const reserves = history.filter((r) => r.type === "reserve").length;
+  const releases = history.filter((r) => r.type === "release").length;
+  if (reserves !== releases) return fail(`every reserve must be released: reserves=${reserves} releases=${releases}; ${describeRows(history)}`);
+  pass(`action hooks: ${history.length} rows, ${reserves} reserves/releases, ${surfaced.rejected} refusals, ${surfaced.handler} hook throws surfaced, hits=${JSON.stringify(hits)}`);
+});
+
+// ── The emitters outside the connection layer ────────────────────────────────
+
+test("LOCKSTEP ERRORS: throwing listeners on beforeStart / afterEnd / progress / performance / validation / done / error / exit neither hang nor kill the run", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  Budget.enable();
+  let riskChecks = 0;
+  addRiskSchema({
+    riskName: "lockstep-rest-risk",
+    validations: [
+      (payload) => {
+        if (payload.symbol !== FAST_SYMBOL) return;
+        riskChecks += 1;
+        if (riskChecks % 4 === 0) throw new Error("lockstep rest: risk refused");
+      },
+    ],
+  });
+  const schema = buildListenerCase("rest", { riskName: "lockstep-rest-risk" });
+  const symbols = [SLOW_SYMBOL, FAST_SYMBOL];
+  const key = { ...schema, backtest: true, name: BUDGET_NAME, initialCapital: CALLBACK_BUDGET_CAPITAL };
+  const contextOf = (symbol, when) => ({ ...key, symbol, when });
+  const own = (event) => event?.strategyName === schema.strategyName || symbols.includes(event?.symbol);
+
+  const hits = {};
+  const throws = {};
+  const handler = (name, work) => async (event) => {
+    if (!own(event)) return;
+    hits[name] = (hits[name] ?? 0) + 1;
+    await work(event);
+    if (hits[name] % 2 === 1) {
+      throws[name] = (throws[name] ?? 0) + 1;
+      throw new Error(`lockstep rest: ${name} exploded`);
+    }
+  };
+  const reserved = new Set();
+  const unsubscribe = [
+    listenBeforeStart(handler("beforeStart", async (event) => { await Budget._deposit({ asset: "START", amount: 1 }, contextOf(event.symbol, new Date(FRAME_START))); })),
+    listenAfterEnd(handler("afterEnd", async (event) => { await Budget._getBalance(contextOf(event.symbol, new Date(JOURNAL_END))); })),
+    listenBacktestProgress(handler("progress", async (event) => { await Budget._getFree(contextOf(event.symbol, event.when)); })),
+    listenPerformance(handler("performance", async (event) => { await Budget._getFree(contextOf(event.symbol, event.when)); })),
+    listenDoneBacktest(handler("done", async (event) => { await Budget._getHistory(contextOf(event.symbol, new Date(JOURNAL_END))); })),
+    // the validation channel carries the thrown risk error itself (no symbol): every event is ours in this worker
+    listenValidation(async () => {
+      hits.validation = (hits.validation ?? 0) + 1;
+      await Budget._getFree(contextOf(FAST_SYMBOL, new Date(FRAME_START)));
+      if (hits.validation % 2 === 1) {
+        throws.validation = (throws.validation ?? 0) + 1;
+        throw new Error("lockstep rest: validation exploded");
+      }
+    }),
+    listenActivePing(async (event) => {
+      if (!own(event) || reserved.has(event.data.id)) return;
+      reserved.add(event.data.id);
+      await Budget._reserve({ id: event.data.id, amount: CALLBACK_BUDGET_COST, note: "entry" }, contextOf(event.symbol, event.when));
+    }),
+    listenSignalBacktest(async (event) => {
+      if (!own(event) || event.action !== "closed") return;
+      await Budget._release({ id: event.signal.id, pnl: event.pnl.pnlCost }, contextOf(event.symbol, new Date(event.closeTimestamp)));
+    }),
+  ];
+  // the error channel: counts what surfaces and throws on every other error itself
+  const surfaced = [];
+  unsubscribe.push(listenError((error) => {
+    const message = String(error?.message ?? error);
+    surfaced.push(message.slice(0, 80));
+    if (surfaced.length % 2 === 1) throw new Error("lockstep rest: error listener exploded");
+  }));
+  const exits = [];
+  unsubscribe.push(listenExit((error) => {
+    exits.push(String(error?.message ?? error).slice(0, 120));
+    throw new Error("lockstep rest: exit listener exploded");
+  }));
+
+  let done;
+  try {
+    done = await withFatalStub(() => runUntilDone(schema, symbols, ERROR_TIMEOUT_MS));
+  } finally {
+    unsubscribe.forEach((un) => un());
+  }
+
+  const silent = ["beforeStart", "afterEnd", "progress", "performance", "done", "validation"].filter((name) => !hits[name]);
+  if (silent.length) return fail(`channels stayed silent: ${silent.join(", ")}; hits=${JSON.stringify(hits)}`);
+  const missing = symbols.filter((symbol) => !done.has(symbol));
+  if (missing.length) {
+    return fail(`${missing.join(", ")} did not finish: a throwing listener killed or hung the run; exits=${JSON.stringify(exits)}; throws=${JSON.stringify(throws)}; surfaced=${surfaced.length}`);
+  }
+  if (await failedSurvivorsOrLock(schema, done, symbols, fail)) return;
+  const history = await Budget._getHistory({ ...key, when: new Date(JOURNAL_END) });
+  const reserves = history.filter((r) => r.type === "reserve").length;
+  const releases = history.filter((r) => r.type === "release").length;
+  if (reserves !== releases) return fail(`every reserve must be released: reserves=${reserves} releases=${releases}`);
+  if (!(history[history.length - 1].balance.assets.START > 0)) return fail("the beforeStart deposit is missing");
+  pass(`rest of the emitters: hits=${JSON.stringify(hits)} throws=${JSON.stringify(throws)} surfaced=${surfaced.length} exits=${exits.length}, ${reserves} reserves/releases`);
+});
+
+// ── A late joiner ────────────────────────────────────────────────────────────
+
+const EARLY_SYMBOL = "EARLYUSDT";
+const LATE_SYMBOL = "LATEUSDT";
+const LATE_CAPITAL = 1_500;
+const LATE_COST = 1_000;
+const LATE_SIGNAL_AT = FRAME_START + 1 * HOUR_MS;
+const LATE_JOIN_AT = FRAME_START + 6 * HOUR_MS;
+
+const buildLateCase = (name) => {
+  const exchangeName = `lockstep-late-exchange-${name}`;
+  const strategyName = `lockstep-late-strategy-${name}`;
+  const frameName = `lockstep-late-frame-${name}`;
+  addExchangeSchema({
+    exchangeName,
+    getCandles: async (symbol, interval, since, limit) => {
+      if (interval !== "1m") throw new Error(`lockstep exchange: only 1m bars, got ${interval}`);
+      const out = [];
+      let timestamp = Math.floor(since.getTime() / MIN_MS) * MIN_MS;
+      while (out.length < limit) {
+        const inDip = timestamp >= LATE_SIGNAL_AT + SLOW_DIP_MINUTE * MIN_MS && timestamp < LATE_SIGNAL_AT + HOUR_MS;
+        const price = symbol === LATE_SYMBOL && inDip ? 98 : 100;
+        out.push({ timestamp, open: price, high: price + 0.5, low: price - 0.5, close: price, volume: 1_000 });
+        timestamp += MIN_MS;
+      }
+      return out;
+    },
+    formatPrice: async (_s, p) => p.toFixed(8),
+    formatQuantity: async (_s, q) => q.toFixed(8),
+  });
+  addStrategySchema({
+    strategyName,
+    interval: "1h",
+    getSignal: async (symbol, when) => {
+      if (symbol === EARLY_SYMBOL) {
+        return { position: "long", priceStopLoss: 85, priceTakeProfit: 119, cost: LATE_COST, minuteEstimatedTime: 30 };
+      }
+      if (when.getTime() === LATE_SIGNAL_AT) {
+        return { position: "long", priceOpen: 99, priceStopLoss: 85, priceTakeProfit: 119, cost: LATE_COST, minuteEstimatedTime: 90 };
+      }
+      return null;
+    },
+  });
+  addFrameSchema({ frameName, interval: "1h", startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
+  return { exchangeName, strategyName, frameName };
+};
+
+test("LOCKSTEP: a Backtest.background joining when its peer is on hour 6 catches up, then both stay in step; its rows overdraft only what the peer wrote before the join", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  Budget.enable();
+  const schema = buildLateCase("join");
+  const key = { ...schema, backtest: true, name: BUDGET_NAME, initialCapital: LATE_CAPITAL };
+  const contextOf = (symbol, when) => ({ ...key, symbol, when });
+
+  const reserved = new Set();
+  const rejects = [];
+  const events = [];
+  let joinClock = null;
+  const unsubscribe = [
+    listenActivePing(async (event) => {
+      if (event.strategyName !== schema.strategyName) return;
+      events.push({ symbol: event.symbol, when: event.timestamp, kind: "ping" });
+      if (reserved.has(event.data.id)) return;
+      reserved.add(event.data.id);
+      try {
+        await Budget._reserve({ id: event.data.id, amount: LATE_COST, note: event.symbol }, contextOf(event.symbol, event.when));
+      } catch (error) {
+        if (!BudgetRejectedError.isBudgetRejectedError(error)) throw error;
+        rejects.push({ symbol: event.symbol, when: event.when.getTime() });
+      }
+    }),
+    listenSchedulePing((event) => {
+      if (event.strategyName !== schema.strategyName) return;
+      events.push({ symbol: event.symbol, when: event.timestamp, kind: "ping" });
+    }),
+    listenSignalBacktest(async (event) => {
+      if (event.strategyName !== schema.strategyName || event.action !== "closed") return;
+      await Budget._release({ id: event.signal.id, pnl: event.pnl.pnlCost }, contextOf(event.symbol, new Date(event.closeTimestamp)));
+    }),
+    listenBacktestProgress((event) => {
+      if (event.strategyName !== schema.strategyName || event.progress >= 1) return;
+      events.push({ symbol: event.symbol, when: event.when.getTime(), kind: "progress" });
+      // the late peer joins once the early one reports hour 6
+      if (event.symbol === EARLY_SYMBOL && joinClock === null && event.when.getTime() >= LATE_JOIN_AT) {
+        joinClock = event.when.getTime();
+        Backtest.background(LATE_SYMBOL, schema);
+      }
+    }),
+  ];
+
+  const doneSubject = new Subject();
+  const done = new Set();
+  unsubscribe.push(listenDoneBacktest((event) => {
+    if (event.strategyName !== schema.strategyName) return;
+    done.add(event.symbol);
+    if (done.size === 2) doneSubject.next();
+  }));
+  try {
+    Backtest.background(EARLY_SYMBOL, schema);
+    await Promise.race([doneSubject.toPromise(), sleep(ERROR_TIMEOUT_MS)]);
+  } finally {
+    unsubscribe.forEach((un) => un());
+  }
+  if (joinClock === null) return fail("the early backtest never reached hour 6, the late peer never joined");
+  if (done.size !== 2) return fail(`both backtests must finish within ${ERROR_TIMEOUT_MS} ms after the join, done=${[...done].join(",")}`);
+
+  // the catch-up moment is read from every event (pings carry the clock inside a replay); the drift
+  // after it is read from the iterations (progress) only: a symbol parked on the barrier of the next
+  // timeframe emits nothing until its peer's iteration there is over, so pings would overstate it
+  const latest = new Map();
+  const iterations = new Map();
+  let caughtUpAt = -1;
+  let maxSpreadAfter = 0;
+  events.forEach(({ symbol, when, kind }, index) => {
+    latest.set(symbol, Math.max(latest.get(symbol) ?? 0, when));
+    if (kind === "progress") iterations.set(symbol, when);
+    if (latest.size < 2) return;
+    if (caughtUpAt < 0 && latest.get(LATE_SYMBOL) >= latest.get(EARLY_SYMBOL)) caughtUpAt = index;
+    if (caughtUpAt >= 0 && iterations.size === 2) {
+      maxSpreadAfter = Math.max(maxSpreadAfter, Math.abs(iterations.get(LATE_SYMBOL) - iterations.get(EARLY_SYMBOL)));
+    }
+  });
+  if (caughtUpAt < 0) return fail("the late peer never caught up with the early one");
+  if (maxSpreadAfter > HOUR_MS) return fail(`after catching up the clocks drifted by ${maxSpreadAfter / HOUR_MS} timeframes`);
+
+  // journal: the late peer's 01:46 reserve lands before the early peer's rows already written for 02:00 / 03:00
+  const history = await Budget._getHistory({ ...key, when: new Date(JOURNAL_END) });
+  const lateReserve = history.find((r) => r.type === "reserve" && r.symbol === LATE_SYMBOL);
+  if (!lateReserve) return fail(`the late peer's reserve is missing: ${describeRows(history)}`);
+  const overdrafts = history.filter((r) => r.type === "reserve" && r.overdraft !== undefined);
+  if (!overdrafts.length) return fail(`expected the early rows written before the join to show the late insert as overdraft: ${describeRows(history)}`);
+  const wrong = overdrafts.filter((r) => r.symbol !== EARLY_SYMBOL || r.timestamp >= joinClock);
+  if (wrong.length) return fail(`overdraft outside the early peer's pre-join rows: ${describeRows(wrong)} (join at ${new Date(joinClock).toISOString()})`);
+  const negativeAfterJoin = history.find((r) => r.timestamp >= joinClock && r.balance.free < 0);
+  if (negativeAfterJoin) return fail(`free went negative after the join at ${describeRows([negativeAfterJoin])}`);
+  const reserves = history.filter((r) => r.type === "reserve").length;
+  const releases = history.filter((r) => r.type === "release").length;
+  if (reserves !== releases) return fail(`every reserve must be released: reserves=${reserves} releases=${releases}`);
+
+  pass(`late join at ${new Date(joinClock).toISOString().slice(11, 16)}: caught up, spread after ${maxSpreadAfter / HOUR_MS} tf, pre-join overdrafts ${describeRows(overdrafts)}, rejects=${rejects.length}`);
 });

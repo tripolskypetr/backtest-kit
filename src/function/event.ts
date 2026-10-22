@@ -17,7 +17,7 @@ import { SignalEventContract } from "../contract/SignalEvent.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
 import { IdlePingContract } from "../contract/IdlePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
-import { not, queued, LimitedMap } from "functools-kit";
+import { not, queued, LimitedMap, errorData, getErrorMessage } from "functools-kit";
 import OrderSyncContract from "../contract/OrderSync.contract";
 import OrderFillContract from "../contract/OrderFill.contract";
 import OrderRejectContract from "../contract/OrderReject.contract";
@@ -373,7 +373,23 @@ export function listenSignalBacktestOnce(
  */
 export function listenError(fn: (error: Error) => void) {
   backtest.loggerService.log(LISTEN_ERROR_METHOD_NAME);
-  return errorEmitter.subscribe(queued(async (error) => fn(error)));
+  // The error channel is fed fire-and-forget from every fallback in the engine
+  // (`errorEmitter.next(error)` without await): a listener that throws would
+  // surface as an unhandled rejection and kill the process. The channel never
+  // throws back; a failing listener is logged and the emission goes on.
+  return errorEmitter.subscribe(queued(async (error) => {
+    try {
+      await fn(error);
+    } catch (listenerError) {
+      const message = "listenError listener thrown";
+      const payload = {
+        error: errorData(listenerError),
+        message: getErrorMessage(listenerError),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+    }
+  }));
 }
 
 /**
@@ -402,7 +418,21 @@ export function listenError(fn: (error: Error) => void) {
  */
 export function listenExit(fn: (error: Error) => void) {
   backtest.loggerService.log(LISTEN_EXIT_METHOD_NAME);
-  return exitEmitter.subscribe(queued(async (error) => fn(error)));
+  // Same as listenError: emitted fire-and-forget on fatal paths, a throwing
+  // listener must not turn the fatal report into an unhandled rejection.
+  return exitEmitter.subscribe(queued(async (error) => {
+    try {
+      await fn(error);
+    } catch (listenerError) {
+      const message = "listenExit listener thrown";
+      const payload = {
+        error: errorData(listenerError),
+        message: getErrorMessage(listenerError),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+    }
+  }));
 }
 
 /**

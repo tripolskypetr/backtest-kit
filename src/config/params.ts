@@ -485,10 +485,13 @@ export const GLOBAL_CONFIG = {
    *   signal) runs under a process-wide FIFO mutex and releases it before the next timeframe,
    *   so concurrent `Backtest.run` / `Backtest.background` workloads interleave
    *   A(t0) B(t0) A(t1) B(t1) … and never drift apart by more than one timeframe.
-   * - A replay spans many timeframes in one iteration, so inside it the orchestrator listens to
-   *   its own schedule / active pings (one per replayed candle) and on the last candle before
-   *   every timeframe boundary releases the lock and takes it again: the peers run their
-   *   iterations up to that boundary before the replay continues.
+   * - Every iteration starts behind a time barrier: it waits until every running peer has
+   *   reached its timeframe (executed up to it, or parked on it with nothing left before it).
+   * - A replay spans many timeframes in one iteration, so inside it `StrategyConnectionService`
+   *   calls the orchestrator from its schedule / active ping callbacks (one per replayed candle)
+   *   and on the last candle before every boundary the replay hands the lock off and waits until
+   *   every peer has executed up to that boundary. The boundaries follow the finest timeframe
+   *   step among the running backtests, so a 1h replay yields to a 15m peer every 15 minutes.
    * - A strategy that blocks inside `getSignal` or a ping handler (an LLM call, a `sleep`)
    *   therefore parks its peers at the same `when`; shared state such as `Budget` sees the
    *   symbols in time order, a write from the middle of a replay included.
