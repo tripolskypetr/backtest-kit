@@ -117,6 +117,10 @@ import { Subject, sleep } from "functools-kit";
  *              boundaries between two pings, so the hand-off must derive the boundary from the candle
  *              and run before the candle's listeners. A's DCA reserve on the day-3 ping (23:59) must see
  *              B's reserve of 22:59 the same day and be refused
+ *   mixed    - two different strategies on different timeframes: a 15m strategy on a 15m frame from
+ *              00:00 and a 4h strategy on a 1h frame whose frame starts six hours later. The early one
+ *              runs alone until the late frame's start, then they advance within the coarser step;
+ *              the strategy interval only throttles getSignal and never moves the iterations
  */
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
@@ -2107,4 +2111,105 @@ test("LOCKSTEP: with a daily CC_BACKTEST_STEP_MINUTES on an hourly frame the day
   } finally {
     setConfig({ CC_BACKTEST_STEP_MINUTES: 0 }, true);
   }
+});
+
+// ── Different strategies on different timeframes ─────────────────────────────
+
+const MIXED_FINE_SYMBOL = "MIXEDFINEUSDT";
+const MIXED_COARSE_SYMBOL = "MIXEDCOARSEUSDT";
+const MIXED_COARSE_START = FRAME_START + 6 * HOUR_MS;
+
+test("LOCKSTEP: a 15m strategy on a 15m frame and a 4h strategy on a 1h frame starting six hours later sync up at that start and stay within the coarser step", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  const exchangeName = "lockstep-mixed-exchange";
+  addExchangeSchema({
+    exchangeName,
+    getCandles: async (_symbol, interval, since, limit) => {
+      if (interval !== "1m") throw new Error(`lockstep exchange: only 1m bars, got ${interval}`);
+      const out = [];
+      let timestamp = Math.floor(since.getTime() / MIN_MS) * MIN_MS;
+      while (out.length < limit) {
+        out.push({ timestamp, open: 100, high: 100.5, low: 99.5, close: 100, volume: 1_000 });
+        timestamp += MIN_MS;
+      }
+      return out;
+    },
+    formatPrice: async (_s, p) => p.toFixed(8),
+    formatQuantity: async (_s, q) => q.toFixed(8),
+  });
+  const signalCalls = { fine: [], coarse: [] };
+  addStrategySchema({
+    strategyName: "lockstep-mixed-fine",
+    interval: "15m",
+    getSignal: async (_symbol, when) => {
+      signalCalls.fine.push(when.getTime());
+      // a 30-minute position every other hour keeps replays and hand-offs in the mix
+      return when.getTime() % (2 * HOUR_MS) === 0
+        ? { position: "long", priceStopLoss: 85, priceTakeProfit: 119, cost: 1000, minuteEstimatedTime: 30 }
+        : null;
+    },
+  });
+  addStrategySchema({
+    strategyName: "lockstep-mixed-coarse",
+    interval: "4h",
+    getSignal: async (_symbol, when) => {
+      signalCalls.coarse.push(when.getTime());
+      return null;
+    },
+  });
+  addFrameSchema({ frameName: "lockstep-mixed-frame-15m", interval: "15m", startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
+  addFrameSchema({ frameName: "lockstep-mixed-frame-1h", interval: "1h", startDate: new Date(MIXED_COARSE_START), endDate: new Date(FRAME_END) });
+  const fineSchema = { exchangeName, strategyName: "lockstep-mixed-fine", frameName: "lockstep-mixed-frame-15m" };
+  const coarseSchema = { exchangeName, strategyName: "lockstep-mixed-coarse", frameName: "lockstep-mixed-frame-1h" };
+
+  const iterations = [];
+  const unProgress = listenBacktestProgress((event) => {
+    if (event.exchangeName !== exchangeName || event.progress >= 1) return;
+    iterations.push({ symbol: event.symbol, when: event.when.getTime() });
+  });
+  const doneSubject = new Subject();
+  const done = new Set();
+  const unDone = listenDoneBacktest((event) => {
+    if (event.exchangeName !== exchangeName) return;
+    done.add(event.symbol);
+    if (done.size === 2) doneSubject.next();
+  });
+  try {
+    Backtest.background(MIXED_FINE_SYMBOL, fineSchema);
+    Backtest.background(MIXED_COARSE_SYMBOL, coarseSchema);
+    await Promise.race([doneSubject.toPromise(), sleep(ERROR_TIMEOUT_MS)]);
+  } finally {
+    unProgress();
+    unDone();
+  }
+  if (done.size !== 2) return fail(`both backtests must finish within ${ERROR_TIMEOUT_MS} ms, done=${[...done].join(",")}`);
+
+  // the strategy interval throttles getSignal only: the 4h strategy is asked every 4 hours while its frame iterates hourly
+  const coarseIterations = iterations.filter((e) => e.symbol === MIXED_COARSE_SYMBOL).map((e) => e.when);
+  const coarseGaps = coarseIterations.slice(1).map((t, i) => t - coarseIterations[i]);
+  if (!coarseGaps.length || coarseGaps.some((gap) => gap !== HOUR_MS)) return fail(`the 1h frame must iterate hourly, gaps(min)=${coarseGaps.map((g) => g / MIN_MS).join(",")}`);
+  // the throttle aligns to the interval grid: the first call on the frame start, the rest on 4h marks
+  const coarseCalls = signalCalls.coarse;
+  if (coarseCalls.length < 2 || coarseCalls.length >= coarseIterations.length) return fail(`the 4h strategy must be asked on fewer iterations than its frame has, calls=${coarseCalls.length} iterations=${coarseIterations.length}`);
+  const offGrid = coarseCalls.slice(1).filter((t) => t % (4 * HOUR_MS) !== 0);
+  if (offGrid.length) return fail(`the 4h strategy was asked off its grid: ${offGrid.map((t) => new Date(t).toISOString().slice(11, 16)).join(",")}`);
+
+  // before the coarse frame starts the fine one runs alone and never beyond that start plus its own step
+  const firstCoarse = iterations.findIndex((e) => e.symbol === MIXED_COARSE_SYMBOL);
+  if (firstCoarse < 0) return fail("the coarse backtest never iterated");
+  const fineBefore = iterations.slice(0, firstCoarse).filter((e) => e.symbol === MIXED_FINE_SYMBOL).map((e) => e.when);
+  if (!fineBefore.length) return fail("the fine backtest did not run ahead until the coarse frame's start");
+  const fineAhead = Math.max(...fineBefore);
+  if (fineAhead > MIXED_COARSE_START + 15 * MIN_MS) return fail(`the fine backtest ran past the coarse frame's start before it joined: ${new Date(fineAhead).toISOString()}`);
+  if (iterations[firstCoarse].when !== MIXED_COARSE_START) return fail(`the coarse backtest must start on its frame's startDate, got ${new Date(iterations[firstCoarse].when).toISOString()}`);
+
+  // after the coarse frame started the two never drift apart by more than the coarser step
+  const latest = new Map();
+  let maxSpread = 0;
+  for (const { symbol, when } of iterations.slice(firstCoarse)) {
+    latest.set(symbol, when);
+    if (latest.size === 2) maxSpread = Math.max(maxSpread, Math.abs(latest.get(MIXED_FINE_SYMBOL) - latest.get(MIXED_COARSE_SYMBOL)));
+  }
+  if (maxSpread > HOUR_MS) return fail(`clocks drifted by ${maxSpread / MIN_MS} minutes across a 15m and a 1h frame (expected at most 60)`);
+  pass(`mixed timeframes: fine ran alone to ${new Date(fineAhead).toISOString().slice(11, 16)}, coarse joined at 06:00, spread after ${maxSpread / MIN_MS} min, coarse getSignal ${coarseCalls.length}x over ${coarseIterations.length} iterations`);
 });
