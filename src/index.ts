@@ -4,6 +4,9 @@ export {
   checkCandles,
   cacheCandles,
 } from "./function/cache";
+export {
+  renderMustache,
+} from "./function/render";
 export { validate } from "./function/validate";
 export {
   getStrategySchema,
