@@ -11,6 +11,9 @@ import {
   listenSignalBacktest,
   listenActivePing,
   listenSchedulePing,
+  listenActivePingInterval,
+  listenSchedulePingInterval,
+  listenIdlePingInterval,
   listenSignal,
   listenSignalEvent,
   listenOrderSchedule,
@@ -1322,6 +1325,69 @@ test("LOCKSTEP ERRORS: idle, schedule and active ping listeners that throw on ev
   if (await failedSurvivorsOrLock(schema, done, symbols, fail)) return;
   const summary = ["idle", "schedule", "active"].map((kind) => `${kind}=${failures[kind]}`).join(" ");
   pass(`six backtests and the probe finished, every ping threw (${summary}), spread ${maxSpread / MIN_MS} min`);
+});
+
+// ── The interval ping listeners throw on every delivery ─────────────────────
+
+test("LOCKSTEP ERRORS: interval ping listeners that throw on every delivery keep their grid going and do not hang six parallel backtests", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  // idle ticks, a scheduled long on hour 1 that activates on the dip at minute 105 and lives an hour
+  const schema = buildPingOrderCase("ping-interval-throw");
+  const symbols = Array.from({ length: 6 }, (_, i) => `PINGINT${i}USDT`);
+  const own = (event) => event.strategyName === schema.strategyName && symbols.includes(event.symbol);
+  const modeOf = (symbol) => PING_THROW_MODES[symbols.indexOf(symbol) % PING_THROW_MODES.length];
+  // every delivery is recorded and then thrown out of the callback: the queue behind the
+  // listener and the grid behind the delivery must both survive it
+  const delivered = { idle: [], schedule: [], active: [] };
+  const failures = { idle: 0, schedule: 0, active: 0 };
+  const explode = (kind) => (event) => {
+    if (!own(event)) return;
+    delivered[kind].push(event);
+    const mode = modeOf(event.symbol);
+    const error = new Error(`lockstep interval pings: ${kind} delivery of ${event.symbol} exploded (${mode})`);
+    if (mode === "sync") {
+      failures[kind] += 1;
+      throw error;
+    }
+    if (mode === "async") {
+      failures[kind] += 1;
+      return Promise.reject(error);
+    }
+    return sleep(5).then(() => {
+      failures[kind] += 1;
+      throw error;
+    });
+  };
+  const unsubscribe = [
+    listenIdlePingInterval(explode("idle"), { interval: "2h" }),
+    listenSchedulePingInterval(explode("schedule"), { interval: "15m" }),
+    listenActivePingInterval(explode("active"), { interval: "15m" }),
+  ];
+
+  let done;
+  try {
+    done = await withFatalStub(() => runUntilDone(schema, symbols, ERROR_TIMEOUT_MS));
+  } finally {
+    unsubscribe.forEach((un) => un());
+  }
+
+  for (const kind of ["idle", "schedule", "active"]) {
+    if (failures[kind] !== delivered[kind].length) return fail(`${kind}: ${delivered[kind].length} deliveries but ${failures[kind]} throws`);
+  }
+  for (const symbol of symbols) {
+    // the grid kept advancing after every throw: 15 / 30 / 45 minutes from the open, from scheduledAt
+    const active = delivered.active.filter((e) => e.symbol === symbol);
+    const activeOffsets = active.map((e) => (e.timestamp - e.data.pendingAt) / MIN_MS);
+    if (!activeOffsets.join(",").startsWith("15,30,45")) return fail(`${symbol}: active grid broken after the throws: ${activeOffsets.join(",")}`);
+    const schedule = delivered.schedule.filter((e) => e.symbol === symbol);
+    const scheduleOffsets = schedule.map((e) => (e.timestamp - e.data.scheduledAt) / MIN_MS);
+    if (!scheduleOffsets.join(",").startsWith("15,30")) return fail(`${symbol}: schedule grid broken after the throws: ${scheduleOffsets.join(",")}`);
+    const idle = delivered.idle.filter((e) => e.symbol === symbol);
+    if (idle.length < 3) return fail(`${symbol}: idle grid stopped after a throw, ${idle.length} deliveries`);
+  }
+  if (await failedSurvivorsOrLock(schema, done, symbols, fail)) return;
+  const summary = ["idle", "schedule", "active"].map((kind) => `${kind}=${delivered[kind].length}`).join(" ");
+  pass(`six backtests and the probe finished, every interval delivery threw and the next one still came (${summary})`);
 });
 
 // ── Budget driven from every callback, errors thrown out of the handlers ─────
