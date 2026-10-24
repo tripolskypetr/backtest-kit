@@ -377,6 +377,31 @@ const GET_CANDLES_FN = async (
 const CANDLES_UNTIL_FRAME_END_FN = (since: Date, frameEndTime: number): number =>
   Math.max(0, Math.floor((frameEndTime - since.getTime()) / 60_000) + 2);
 
+/**
+ * Size (in 1m candles) of one replay window of an Infinity-hold signal: the
+ * VWAP buffer plus the candles ClientStrategy.backtest evaluates before the
+ * orchestrator fetches the next window.
+ *
+ * Without a stride it is CC_MAX_CANDLES_PER_REQUEST. With CC_BACKTEST_STEP_MINUTES
+ * the window holds a WHOLE number of spans: the largest multiple of the step
+ * that fits CC_MAX_CANDLES_PER_REQUEST, or one span when the step is longer.
+ * The strided loop restarts its count in every array it is given, so a window
+ * that is not a multiple of the step would end on a partial span and the
+ * evaluation grid would follow "step, step, remainder" instead of the step
+ * (a daily step on 1000-candle windows evaluated every 996 minutes). The
+ * exchange layer pages a window longer than CC_MAX_CANDLES_PER_REQUEST, that
+ * limit stays the exchange's request size; the window is what the replay sees.
+ */
+const CHUNK_CANDLES_FN = (bufferMinutes: number): number => {
+  const maxCandles = GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST;
+  const step = GLOBAL_CONFIG.CC_BACKTEST_STEP_MINUTES;
+  if (step <= 1) {
+    return maxCandles;
+  }
+  const spans = Math.max(1, Math.floor((maxCandles - bufferMinutes) / step));
+  return bufferMinutes + spans * step;
+};
+
 const BACKTEST_FN = async (
   self: BacktestLogicPrivateService,
   symbol: string,
@@ -442,7 +467,7 @@ const RUN_INFINITY_CHUNK_LOOP_FN = async (
   initialCandles: ICandleData[]
 ): Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | TFnError> => {
   let backtestResult: IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive = initialResult;
-  const CHUNK = GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST;
+  const CHUNK = CHUNK_CANDLES_FN(bufferMs / 60_000);
   // Seed with the candles already replayed by the caller so CLOSE_PENDING_FN
   // never receives an empty array when the very first chunk fetch comes back
   // empty (frame ending near the present moment).
@@ -586,7 +611,7 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
   const bufferMinutes = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - ACTIVE_CANDLE_INCLUDED;
   const bufferStartTime = new Date(when.getTime() - bufferMinutes * 60 * 1000);
   const pendingPhaseMinutes = signal.minuteEstimatedTime === Infinity
-    ? GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST
+    ? CHUNK_CANDLES_FN(bufferMinutes) - bufferMinutes
     : signal.minuteEstimatedTime;
   const candlesNeeded = Math.min(
     bufferMinutes + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + pendingPhaseMinutes + SCHEDULE_ACTIVATION_CANDLE_SKIP,
@@ -719,7 +744,7 @@ const RUN_OPENED_CHUNK_LOOP_FN = async (
   signalId: string,
   frameEndTime: number
 ): Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | TFnError | null> => {
-  const CHUNK = GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST;
+  const CHUNK = CHUNK_CANDLES_FN(bufferMs / 60_000);
   let chunkStart = bufferStartTime;
   let lastChunkCandles: ICandleData[] = [];
 

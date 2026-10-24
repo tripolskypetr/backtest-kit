@@ -9065,6 +9065,8 @@ declare const GLOBAL_CONFIG: {
     /**
      * Maximum number of candles to request per single API call.
      * If a request exceeds this limit, data will be fetched using pagination.
+     * Also the replay window of an Infinity-hold backtest position; with
+     * CC_BACKTEST_STEP_MINUTES the window is rounded to whole spans of the step.
      * Default: 1000 candles per request
      */
     CC_MAX_CANDLES_PER_REQUEST: number;
@@ -9080,8 +9082,13 @@ declare const GLOBAL_CONFIG: {
      * activation/cancel are checked against the min low / max high of the whole
      * span, so an intra-span touch still fires; VWAP, pings, partial/breakeven
      * callbacks, the commit-queue drain and the per-candle "active"/"waiting"
-     * emissions run once per step. A trailing partial span (or a candle chunk
-     * shorter than the step) is evaluated at its last candle. The tick cadence between signals is NOT affected — that stays the
+     * emissions run once per step. A trailing partial span (the last candles of a
+     * position before its hold runs out or the frame ends) is evaluated at its
+     * last candle. An Infinity-hold position is replayed in windows holding a
+     * whole number of spans (the largest multiple of the step that fits
+     * CC_MAX_CANDLES_PER_REQUEST, or one span when the step is longer; the
+     * exchange layer pages the fetch), so the grid stays regular across windows.
+     * The tick cadence between signals is NOT affected — that stays the
      * frame schema `interval`.
      *
      * Use case: a candle source that only has DAILY bars (Yahoo Finance) with the

@@ -188,9 +188,9 @@ test("CC_BACKTEST_STEP_MINUTES larger than a candle chunk still evaluates every 
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const priceStopLoss = BASE_PRICE - 500;
 
-  // Infinity-hold signals are replayed in chunks of CC_MAX_CANDLES_PER_REQUEST
-  // candles; with a stride longer than the chunk no stride index fits inside a
-  // chunk, so each chunk must be evaluated at its last candle instead.
+  // Infinity-hold signals are replayed in windows of whole spans: with a stride
+  // longer than CC_MAX_CANDLES_PER_REQUEST the window is one span (buffer + step),
+  // paged by the exchange layer, so the daily grid survives the window boundary.
   await setConfig({
     CC_BACKTEST_STEP_MINUTES: STEP_MINUTES,
     CC_MAX_CANDLES_PER_REQUEST: CHUNK,
@@ -240,10 +240,11 @@ test("CC_BACKTEST_STEP_MINUTES larger than a candle chunk still evaluates every 
     }
 
     const closeMinute = (closed[0].closeTimestamp - startTime) / MINUTE_MS;
-    // Detected at the end of the chunk that contains the wick: after the wick,
-    // within one chunk of it
-    if (closeMinute < WICK_MINUTE || closeMinute >= WICK_MINUTE + CHUNK) {
-      fail(`Expected the close within one chunk after minute ${WICK_MINUTE}, got minute ${closeMinute}`);
+    // Detected at the end of the daily span that contains the wick, not at the
+    // end of a 1000-candle chunk: the window is rounded to whole spans
+    const expectedClose = (Math.floor(WICK_MINUTE / STEP_MINUTES) + 1) * STEP_MINUTES - 1;
+    if (closeMinute !== expectedClose) {
+      fail(`Expected the close at the end of the daily span holding minute ${WICK_MINUTE} (minute ${expectedClose}), got minute ${closeMinute}`);
       return;
     }
 
@@ -252,7 +253,7 @@ test("CC_BACKTEST_STEP_MINUTES larger than a candle chunk still evaluates every 
       return;
     }
 
-    pass(`Chunk shorter than the stride was evaluated at its last candle; SL wick at minute ${WICK_MINUTE} closed at minute ${closeMinute}`);
+    pass(`Window rounded to one daily span (${CHUNK}-candle chunk paged); SL wick at minute ${WICK_MINUTE} closed at minute ${closeMinute}`);
   } finally {
     await setConfig({
       CC_BACKTEST_STEP_MINUTES: 0,
@@ -338,7 +339,7 @@ test("CC_BACKTEST_STEP_MINUTES not a multiple of the timeframe: spans end at ste
   }
 });
 
-test("CC_BACKTEST_STEP_MINUTES not a multiple of the chunk: the stride restarts at every chunk (step, step, remainder)", async ({ pass, fail }) => {
+test("CC_BACKTEST_STEP_MINUTES not a multiple of CC_MAX_CANDLES_PER_REQUEST: the replay window holds whole spans, the grid stays regular", async ({ pass, fail }) => {
   const CHUNK = 600;
   const startTime = new Date("2024-03-01T00:00:00Z").getTime();
   await setConfig({
@@ -370,21 +371,18 @@ test("CC_BACKTEST_STEP_MINUTES not a multiple of the chunk: the stride restarts 
 
     for await (const _ of Backtest.run("BTCUSDT", { strategyName, exchangeName: "binance-step-odd-chunk", frameName: "step-odd-chunk-frame" })) { /* drain */ }
 
-    // every chunk carries a VWAP buffer in front: its evaluable length is CHUNK - (CC_AVG_PRICE_CANDLES_COUNT - 1)
-    const chunkSpan = CHUNK - (getConfig().CC_AVG_PRICE_CANDLES_COUNT - 1);
-    const fullSpans = Math.floor(chunkSpan / ODD_STEP_MINUTES);
-    const remainder = chunkSpan - fullSpans * ODD_STEP_MINUTES;
+    // the window is buffer + 2 spans (2 × 243 = 486 fits 600 − 4), so the stride never meets a partial window
+    // before the frame end: every gap is the step, the last evaluation sits on the frame end
+    const windowSpans = Math.floor((CHUNK - (getConfig().CC_AVG_PRICE_CANDLES_COUNT - 1)) / ODD_STEP_MINUTES);
+    if (windowSpans !== 2) return fail(`the scenario expects a two-span window, got ${windowSpans}`);
     const gaps = pings.offsets.map((offset, i) => (i ? offset - pings.offsets[i - 1] : offset + 1));
-    const pattern = [...Array(fullSpans).fill(ODD_STEP_MINUTES), remainder];
-    // at least two full chunks of the pattern must be visible before the frame-end chunk
-    const periods = Math.floor(gaps.length / pattern.length);
-    if (periods < 2) return fail(`expected at least two chunks of ${pattern.join(",")}, got gaps ${gaps.join(",")}`);
-    for (let i = 0; i < periods * pattern.length; i++) {
-      if (gaps[i] !== pattern[i % pattern.length]) {
-        return fail(`chunk ${Math.floor(i / pattern.length)}: expected the gap pattern ${pattern.join(",")} (the stride restarts at every chunk), got gaps ${gaps.join(",")}`);
-      }
+    const regular = gaps.slice(0, -1);
+    if (regular.length < 2 * windowSpans + 1) return fail(`expected the grid to cross at least two window boundaries, got gaps ${gaps.join(",")}`);
+    if (regular.some((gap) => gap !== ODD_STEP_MINUTES)) {
+      return fail(`expected every gap before the frame end to be ${ODD_STEP_MINUTES} (whole spans per window), got ${gaps.join(",")}`);
     }
-    pass(`gaps ${gaps.slice(0, periods * pattern.length).join(",")}: the ${ODD_STEP_MINUTES}-minute stride restarts in every ${chunkSpan}-minute chunk, remainder ${remainder}`);
+    if (gaps[gaps.length - 1] > ODD_STEP_MINUTES) return fail(`the frame-end remainder cannot exceed a span, got ${gaps[gaps.length - 1]}`);
+    pass(`gaps ${gaps.join(",")}: ${ODD_STEP_MINUTES}-minute stride regular across ${Math.ceil(regular.length / windowSpans)} windows of ${windowSpans} spans, frame-end remainder ${gaps[gaps.length - 1]}`);
   } finally {
     pings.unsubscribe();
     await setConfig({
