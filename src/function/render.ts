@@ -1,8 +1,11 @@
 import { readFile } from "fs/promises";
 import { memoize, singleshot } from "functools-kit";
+import { createRequire } from "module";
 import backtest from "../lib";
 
 const METHOD_NAME_RENDER_TEMPLATE = "function.render.renderMustache";
+
+const require = createRequire(import.meta.url);
 
 const REQUIRE_MUSTACHE_FACTORY = async () => {
   try {
@@ -14,7 +17,8 @@ const REQUIRE_MUSTACHE_FACTORY = async () => {
 
 const ESM_MUSTACHE_FACTORY = async () => {
     try {
-        return await import("mustache");
+        const module = await import("mustache");
+        return module.default ?? module;
     } catch {
         return null;
     }
@@ -46,6 +50,7 @@ const getTemplate = memoize(
 
 export async function renderMustache(path: string, view: any = {}) {
   backtest.loggerService.log(METHOD_NAME_RENDER_TEMPLATE, {
+    path,
     view,
   });
   const mustache = await getMustache();
