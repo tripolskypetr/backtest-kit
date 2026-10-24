@@ -1390,6 +1390,53 @@ test("LOCKSTEP ERRORS: interval ping listeners that throw on every delivery keep
   pass(`six backtests and the probe finished, every interval delivery threw and the next one still came (${summary})`);
 });
 
+// ── A stride that is not a multiple of the timeframe ─────────────────────────
+
+test("LOCKSTEP: a 123-minute stride on a 1h frame hands off at the first evaluated candle past each boundary, the peer never runs ahead", async ({ pass, fail }) => {
+  // 2h 03m: not a multiple of the hour; the 12h frame fits five spans of a 700-minute position
+  const STEP = 123;
+  const HOLD = 700;
+  setConfig({ CC_BACKTEST_LOCKSTEP: true, CC_BACKTEST_STEP_MINUTES: STEP }, true);
+  try {
+    // JUMP opens on hour 0 and replays HOLD minutes in 123-minute spans, LAG only ticks
+    const schema = buildErrorCase("odd-stride", { positions: { [JUMP_SYMBOL]: { at: FRAME_START, minutes: HOLD } } });
+    let lagClock = null;
+    const samples = [];
+    const unsubscribe = [
+      listenBacktestProgress((event) => {
+        if (event.strategyName !== schema.strategyName || event.symbol !== LAG_SYMBOL || event.progress >= 1) return;
+        lagClock = event.when.getTime();
+      }),
+      listenActivePing((event) => {
+        if (event.strategyName !== schema.strategyName || event.symbol !== JUMP_SYMBOL) return;
+        samples.push({ offset: (event.timestamp - event.data.pendingAt) / MIN_MS, lag: lagClock === null ? null : (lagClock - FRAME_START) / MIN_MS });
+      }),
+    ];
+    let done;
+    try {
+      done = await runUntilDone(schema, [JUMP_SYMBOL, LAG_SYMBOL], ERROR_TIMEOUT_MS);
+    } finally {
+      unsubscribe.forEach((un) => un());
+    }
+    const expected = [];
+    for (let offset = STEP - 1; offset < HOLD; offset += STEP) expected.push(offset);
+    if (samples.map((s) => s.offset).join(",") !== expected.join(",")) {
+      return fail(`expected evaluations at +${expected.join("/+")}, got ${samples.map((s) => s.offset).join(",")}`);
+    }
+    for (const sample of samples) {
+      // the peer stands on the last hour boundary the evaluated candle crossed: never ahead, never more than a span behind
+      const boundary = Math.floor(sample.offset / 60) * 60;
+      if (sample.lag !== boundary) {
+        return fail(`at +${sample.offset} the peer must be at the boundary ${boundary}, got ${sample.lag}: ${JSON.stringify(samples)}`);
+      }
+    }
+    if (await failedSurvivorsOrLock(schema, done, [JUMP_SYMBOL, LAG_SYMBOL], fail)) return;
+    pass(`peer clock at each evaluation: ${samples.map((s) => `+${s.offset}→${s.lag}`).join(" ")} (lead = offset mod 60), both finished, probe ok`);
+  } finally {
+    setConfig({ CC_BACKTEST_STEP_MINUTES: 0 }, true);
+  }
+});
+
 // ── Budget driven from every callback, errors thrown out of the handlers ─────
 
 const CALLBACK_BUDGET_CAPITAL = 2_500;
