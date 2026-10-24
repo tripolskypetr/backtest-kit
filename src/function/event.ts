@@ -31,6 +31,8 @@ import { SignalInfoContract } from "../contract/SignalInfo.contract";
 import { BeforeStartContract } from "../contract/BeforeStart.contract";
 import { AfterEndContract } from "../contract/AfterEnd.contract";
 import { BudgetContract } from "../contract/Budget.contract";
+import { CandleInterval } from "../interfaces/Exchange.interface";
+import { intervalStepMs } from "../utils/intervalStepMs";
 
 const LISTEN_SIGNAL_METHOD_NAME = "event.listenSignal";
 const LISTEN_SIGNAL_ONCE_METHOD_NAME = "event.listenSignalOnce";
@@ -141,6 +143,27 @@ const LISTEN_PAUSE_FILTER_METHOD_NAME = "event.listenPauseFilter";
 const LISTEN_SIGNAL_NOTIFY_FILTER_METHOD_NAME = "event.listenSignalNotifyFilter";
 const LISTEN_BEFORE_START_FILTER_METHOD_NAME = "event.listenBeforeStartFilter";
 const LISTEN_AFTER_END_FILTER_METHOD_NAME = "event.listenAfterEndFilter";
+
+const LISTEN_ACTIVE_PING_INTERVAL_METHOD_NAME = "event.listenActivePingInterval";
+const LISTEN_SCHEDULE_PING_INTERVAL_METHOD_NAME = "event.listenSchedulePingInterval";
+const LISTEN_IDLE_PING_INTERVAL_METHOD_NAME = "event.listenIdlePingInterval";
+
+/**
+ * Options of the `listenXPingInterval` forms.
+ */
+export interface IListenPingIntervalOptions {
+  /** Grid step between two deliveries, a candle interval (`"1m"` … `"1d"`) */
+  interval: CandleInterval;
+}
+
+/**
+ * First point of the grid `anchor + k * stepMs` that lies strictly after `after`.
+ * Shared by the `listenXPingInterval` forms: a ping may jump several grid points
+ * at once (a daily stride, a restarted live loop), the next delivery is still
+ * aligned to the anchor rather than to the ping that fired.
+ */
+const NEXT_GRID_POINT_FN = (anchor: number, stepMs: number, after: number): number =>
+  anchor + (Math.floor((after - anchor) / stepMs) + 1) * stepMs;
 
 /**
  * Subscribes to all signal events with queued async processing.
@@ -2323,6 +2346,196 @@ export function listenAfterEndOnce(
   };
 
   return disposeFn = listenAfterEnd(wrappedFn);
+}
+
+/**
+ * ============================================================================
+ * INTERVAL PING LISTENERS
+ * ============================================================================
+ *
+ * The ping channels fire on every candle (active / schedule) or every tick
+ * (idle). The `listenXPingInterval` forms thin them to a time grid:
+ *
+ *   listenActivePingInterval(fn, { interval: "1h" })
+ *
+ * - active:   the grid is anchored at the position's open time (`data.pendingAt`);
+ *             the FIRST ping of a position is skipped, then one delivery per grid
+ *             point crossed: open + 1h, open + 2h, …
+ * - schedule: the same, anchored at `data.scheduledAt` of the resting entry.
+ * - idle:     there is no position to anchor on, so the first idle ping of an
+ *             execution is delivered and starts the grid; the following ones are
+ *             delivered once per interval from it.
+ *
+ * A ping that lands past several grid points (a `CC_BACKTEST_STEP_MINUTES`
+ * stride, a live loop that was down for a while) delivers once and the grid
+ * stays aligned to the anchor, never to the ping that fired. A new signal id on
+ * the same execution starts a new grid. State is kept per execution identity
+ * (`strategy:exchange[:frame]:mode:symbol`) in a `LimitedMap` of SEEN_MAP_LIMIT
+ * entries, like the per-signal listeners; the plain listener's gate
+ * (`hasPendingSignal` / `hasScheduledSignal` / `not(hasPendingSignal)`) applies
+ * first because these delegate to it.
+ */
+
+/**
+ * Subscribes to active ping events on a time grid anchored at the position's open time.
+ *
+ * The first active ping of a position is skipped; afterwards the callback runs once
+ * per `interval` elapsed since `event.data.pendingAt` (open + 1·interval, open + 2·interval, …).
+ *
+ * @param fn - Callback function to handle the thinned active ping events
+ * @param options - `{ interval }`: grid step as a candle interval
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenActivePingInterval } from "backtest-kit";
+ *
+ * // Re-evaluate every open position once an hour, counted from its own open time
+ * const unsubscribe = listenActivePingInterval(async (event) => {
+ *   console.log(`${event.symbol} ${event.data.id} is ${(event.timestamp - event.data.pendingAt) / 60_000} minutes old`);
+ * }, { interval: "1h" });
+ * ```
+ */
+export function listenActivePingInterval(
+  fn: (event: ActivePingContract) => void,
+  { interval }: IListenPingIntervalOptions,
+) {
+  backtest.loggerService.log(LISTEN_ACTIVE_PING_INTERVAL_METHOD_NAME, { interval });
+
+  const stepMs = intervalStepMs(interval);
+
+  // Per execution identity: the position the grid belongs to and its next grid point
+  const gridMap = new LimitedMap<string, { signalId: string; nextAt: number }>(SEEN_MAP_LIMIT);
+
+  const wrappedFn = async (event: ActivePingContract) => {
+    const parts = [event.data.strategyName, event.data.exchangeName];
+    if (event.data.frameName) parts.push(event.data.frameName);
+    parts.push(event.backtest ? "backtest" : "live");
+    parts.push(event.symbol);
+    const key = parts.join(":");
+    const grid = gridMap.get(key);
+    if (!grid || grid.signalId !== event.data.id) {
+      // the first ping of a position is skipped; the grid starts at its open time
+      gridMap.set(key, { signalId: event.data.id, nextAt: NEXT_GRID_POINT_FN(event.data.pendingAt, stepMs, event.timestamp) });
+      return;
+    }
+    if (event.timestamp < grid.nextAt) {
+      return;
+    }
+    grid.nextAt = NEXT_GRID_POINT_FN(grid.nextAt, stepMs, event.timestamp);
+    await fn(event);
+  };
+
+  return listenActivePing(wrappedFn);
+}
+
+/**
+ * Subscribes to schedule ping events on a time grid anchored at the resting entry's creation time.
+ *
+ * The first schedule ping of a scheduled signal is skipped; afterwards the callback runs
+ * once per `interval` elapsed since `event.data.scheduledAt`.
+ *
+ * @param fn - Callback function to handle the thinned schedule ping events
+ * @param options - `{ interval }`: grid step as a candle interval
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenSchedulePingInterval } from "backtest-kit";
+ *
+ * // Every 30 minutes a resting entry is still waiting
+ * listenSchedulePingInterval((event) => {
+ *   console.log(`${event.symbol} still waiting for ${event.data.priceOpen}`);
+ * }, { interval: "30m" });
+ * ```
+ */
+export function listenSchedulePingInterval(
+  fn: (event: SchedulePingContract) => void,
+  { interval }: IListenPingIntervalOptions,
+) {
+  backtest.loggerService.log(LISTEN_SCHEDULE_PING_INTERVAL_METHOD_NAME, { interval });
+
+  const stepMs = intervalStepMs(interval);
+
+  // Per execution identity: the scheduled signal the grid belongs to and its next grid point
+  const gridMap = new LimitedMap<string, { signalId: string; nextAt: number }>(SEEN_MAP_LIMIT);
+
+  const wrappedFn = async (event: SchedulePingContract) => {
+    const parts = [event.data.strategyName, event.data.exchangeName];
+    if (event.data.frameName) parts.push(event.data.frameName);
+    parts.push(event.backtest ? "backtest" : "live");
+    parts.push(event.symbol);
+    const key = parts.join(":");
+    const grid = gridMap.get(key);
+    if (!grid || grid.signalId !== event.data.id) {
+      // the first ping of a scheduled signal is skipped; the grid starts at its creation time
+      gridMap.set(key, { signalId: event.data.id, nextAt: NEXT_GRID_POINT_FN(event.data.scheduledAt, stepMs, event.timestamp) });
+      return;
+    }
+    if (event.timestamp < grid.nextAt) {
+      return;
+    }
+    grid.nextAt = NEXT_GRID_POINT_FN(grid.nextAt, stepMs, event.timestamp);
+    await fn(event);
+  };
+
+  return listenSchedulePing(wrappedFn);
+}
+
+/**
+ * Subscribes to idle ping events on a time grid.
+ *
+ * There is no position to anchor on: the first idle ping of an execution is
+ * delivered and anchors the grid, the following ones are delivered once per
+ * `interval` from it. A position opening and closing in between does not move
+ * the anchor.
+ *
+ * @param fn - Callback function to handle the thinned idle ping events
+ * @param options - `{ interval }`: grid step as a candle interval
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenIdlePingInterval } from "backtest-kit";
+ *
+ * // A heartbeat every 4 hours while nothing is open
+ * listenIdlePingInterval((event) => {
+ *   console.log(`${event.symbol} idle at ${event.when.toISOString()}`);
+ * }, { interval: "4h" });
+ * ```
+ */
+export function listenIdlePingInterval(
+  fn: (event: IdlePingContract) => void,
+  { interval }: IListenPingIntervalOptions,
+) {
+  backtest.loggerService.log(LISTEN_IDLE_PING_INTERVAL_METHOD_NAME, { interval });
+
+  const stepMs = intervalStepMs(interval);
+
+  // Per execution identity: the next grid point; the first idle ping seeds it
+  const gridMap = new LimitedMap<string, { nextAt: number }>(SEEN_MAP_LIMIT);
+
+  const wrappedFn = async (event: IdlePingContract) => {
+    const parts = [event.strategyName, event.exchangeName];
+    if (event.frameName) parts.push(event.frameName);
+    parts.push(event.backtest ? "backtest" : "live");
+    parts.push(event.symbol);
+    const key = parts.join(":");
+    const grid = gridMap.get(key);
+    if (!grid) {
+      // the first idle ping is delivered and anchors the grid
+      gridMap.set(key, { nextAt: event.timestamp + stepMs });
+      await fn(event);
+      return;
+    }
+    if (event.timestamp < grid.nextAt) {
+      return;
+    }
+    grid.nextAt = NEXT_GRID_POINT_FN(grid.nextAt, stepMs, event.timestamp);
+    await fn(event);
+  };
+
+  return listenIdlePing(wrappedFn);
 }
 
 /**

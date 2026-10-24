@@ -2157,9 +2157,9 @@ listenSignalOnce(
 
 | Listener | Fires on |
 | --- | --- |
-| `listenIdlePing` / `…Once` | Every minute while idle. |
-| `listenSchedulePing` / `…Once` | Every minute while a scheduled signal waits. |
-| `listenActivePing` / `…Once` | Every minute while a position is active. |
+| `listenIdlePing` / `…Once` / `…Interval` | Every minute while idle; `…Interval(fn, { interval })` delivers the first idle ping and then one per interval from it. |
+| `listenSchedulePing` / `…Once` / `…Interval` | Every minute while a scheduled signal waits; `…Interval(fn, { interval })` skips the first ping and delivers once per interval from `scheduledAt`. |
+| `listenActivePing` / `…Once` / `…Interval` | Every minute while a position is active; `…Interval(fn, { interval })` skips the first ping and delivers once per interval from the open time (`pendingAt`). |
 | `listenPartialProfitAvailable` / `…Once` | A profit milestone (10/20/…/100%) reached (deduplicated). |
 | `listenPartialLossAvailable` / `…Once` | A loss milestone reached. |
 | `listenBreakevenAvailable` / `…Once` | Breakeven threshold reached. |
@@ -2647,7 +2647,7 @@ Everything below is exported from the `backtest-kit` package root.
 
 **Control & setup:** `stopStrategy` `shutdown` `waitForReady` `setLogger` `setConfig` `getConfig` `getDefaultConfig` `setColumns` `getColumns` `getDefaultColumns`
 
-**Events:** `listenSignal(+Once/Backtest/Live)` `listenError` `listenExit` `listenDoneLive` `listenDoneBacktest` `listenDoneWalker` `listenBacktestProgress` `listenPerformance` `listenWalker(+Once/Complete/Progress)` `listenValidation` `listenPartialLossAvailable(+Once)` `listenPartialProfitAvailable(+Once)` `listenBreakevenAvailable(+Once)` `listenRisk(+Once)` `listenSchedulePing(+Once)` `listenActivePing(+Once)` `listenIdlePing(+Once)` `listenStrategyCommit(+Once)` `listenSync(+Once)` `listenCheck(+Once)` `listenHighestProfit(+Once)` `listenMaxDrawdown(+Once)` `listenBudget(+Once)` `listenSignalNotify(+Once)` `listenBeforeStart(+Once)` `listenAfterEnd(+Once)` · `emitters`
+**Events:** `listenSignal(+Once/Backtest/Live)` `listenError` `listenExit` `listenDoneLive` `listenDoneBacktest` `listenDoneWalker` `listenBacktestProgress` `listenPerformance` `listenWalker(+Once/Complete/Progress)` `listenValidation` `listenPartialLossAvailable(+Once)` `listenPartialProfitAvailable(+Once)` `listenBreakevenAvailable(+Once)` `listenRisk(+Once)` `listenSchedulePing(+Once/Interval)` `listenActivePing(+Once/Interval)` `listenIdlePing(+Once/Interval)` `listenStrategyCommit(+Once)` `listenSync(+Once)` `listenCheck(+Once)` `listenHighestProfit(+Once)` `listenMaxDrawdown(+Once)` `listenBudget(+Once)` `listenSignalNotify(+Once)` `listenBeforeStart(+Once)` `listenAfterEnd(+Once)` · `emitters`
 
 **Broker / Cron / persistence:** `Broker` `BrokerBase` `IBroker` `TBrokerCtor` + all `Broker*Payload` types · `OrderTransientError` `OrderRejectedError` `OrderDeletedError` (typed gate/check outcomes, [§42](#42-adaptive-broker-three-error-classes-bounded-retries--attempt)) · `IBrokerOrderVerdict` `BROKER_ORDER_VERDICT` (framework-side verdict union + runtime brand) · `Cron` (`CronEntry` `CronHandle` `CronCallback`) · `PersistBase` + the 15-domain `Persist*Adapter` / `IPersist*Instance` / `Persist*Instance` / `*Data` sets · `Session`/`Storage`/`Recent`/`Memory`/`State`/`Notification`/`Dump` utility classes & variants
 
