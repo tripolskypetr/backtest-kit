@@ -5843,6 +5843,32 @@ declare function warmCandles(params: IWarmCandlesParams): Promise<void>;
  */
 declare function cacheCandles({ symbol, interval, from, to, exchangeName, onCheckStart, onWarmStart, }: ICacheCandlesParams): Promise<void>;
 
+/**
+ * Renders a Mustache template file with the given view.
+ *
+ * The template is read from `path` (relative to the current working directory
+ * or absolute) and cached per path; `mustache` itself is an optional
+ * dependency resolved on the first call. Rendering uses Mustache defaults:
+ * `{{name}}` HTML-escapes the value (`&`, `<`, `>`, `"`, `'`), `{{{name}}}`
+ * inserts it verbatim. Templates that produce plain text or markdown (an LLM
+ * prompt, a report) should use the triple form for free-text values.
+ *
+ * @param path - Path of the template file
+ * @param view - Values the template refers to (default: `{}`)
+ * @returns Promise resolving to the rendered string
+ * @throws {Error} When `mustache` is not installed, or when the template file cannot be read
+ *
+ * @example
+ * ```typescript
+ * import { renderMustache } from "backtest-kit";
+ *
+ * // ./prompts/signal.mustache: "Analyze {{symbol}} at {{{price}}} USD"
+ * const prompt = await renderMustache("./prompts/signal.mustache", {
+ *   symbol: "BTCUSDT",
+ *   price: 50_000,
+ * });
+ * ```
+ */
 declare function renderMustache(path: string, view?: any): Promise<any>;
 
 /**
