@@ -586,13 +586,15 @@ Use `onActivePing` to call `commitAverageBuy` / `commitPartialProfit` / `commitT
 
 ### 6.3 Frame schema — `addFrameSchema(schema: IFrameSchema)`
 
-Defines the backtest period. (Live mode ignores frames — it uses the wall clock.)
+Defines the backtest period and its two cadences. (Live mode ignores frames — it uses the wall clock and evaluates every candle.)
 
 ```typescript
 interface IFrameSchema {
   frameName: FrameName;        // unique id
   note?: string;
-  interval?: FrameInterval;    // tick granularity; default "1m"
+  entryInterval?: FrameInterval; // tick: how often getSignal / idle pings run; default "1m"
+  interval?: FrameInterval;      // alias of entryInterval (original shape); setting both throws
+  watchInterval?: FrameInterval; // stride of the candle loops watching an open/scheduled signal; default "1m"
   startDate: Date;             // inclusive
   endDate: Date;               // inclusive
   callbacks?: Partial<{
@@ -604,7 +606,9 @@ type FrameInterval =
   "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d";
 ```
 
-The number of generated ticks corresponds to `(endDate - startDate) / interval`. For a 1-day frame at `1m` granularity that is ~1440 ticks. The `interval` here is the engine's *step size*, independent of any `getCandles` interval you request inside `getSignal`.
+The number of generated ticks corresponds to `(endDate - startDate) / entryInterval`. For a 1-day frame at `1m` granularity that is ~1440 ticks. `entryInterval` is the engine's *tick size*, independent of any `getCandles` interval you request inside `getSignal`; the lockstep hand-off between parallel backtests follows it too.
+
+`watchInterval` is independent of the tick and may be shorter or longer than it (an hourly tick with a 4h watch, or a 1h tick with a 15m watch). Candles stay 1m; the replay of an open or scheduled signal evaluates one candle per watch span, at its last candle: TP / time-expiry, VWAP, active and schedule pings, partial / breakeven / trailing callbacks run once per span. Stop-loss, liquidation and scheduled activation / cancel look at the min low / max high of the whole span, so a touch on a skipped candle still fires, fixed at the span end (up to one span late). `minuteEstimatedTime` stays exact (the trailing partial span is evaluated at the position's last candle). Long replays are windowed in whole spans (the largest multiple of the step within `CC_MAX_CANDLES_PER_REQUEST`, or one span when the step is longer, paged by the exchange layer), so the grid stays regular. The use case: a candle source with daily bars only (Yahoo Finance) polyfilled to 1m — every minute of a day is identical, so `watchInterval: "1d"` evaluates once per real bar instead of 1440 times.
 
 ### 6.4 Risk schema — see [§16](#16-risk-management)
 ### 6.5 Sizing schema — see [§15](#15-position-sizing)
@@ -3686,7 +3690,7 @@ Default `false` for the three `*_EVERYWHERE` (conservative); the DCA/PPPL/traili
 | `CC_ORDER_OPEN_RETRY_ATTEMPTS` | `ClientStrategy` open gate (`ARM_RETRY_OPEN_SIGNAL_FN`, pre-armed before each attempt) | Cap on identity-stable open retries; slot + per-signalId counter persisted in `StrategyData`, crash mid-attempt still counted. |
 | `CC_ORDER_CLOSE_RETRY_ATTEMPTS` | `ClientStrategy` close gate (pre-armed in `CALL_ORDER_SYNC_CLOSE_FN`, resolved in `RESOLVE_CLOSE_GATE_FN`) | Cap on started close attempts before force-close; `retryCloseCount` persisted in `StrategyData` (restored by `pendingSignalId` match, clamped to 1 — the streak resets, the reconcile bit survives). |
 | `CC_ORDER_CHECK_RETRY_ATTEMPTS` | `ClientStrategy` tick order-check tolerance | Cap on consecutive failed checks before the terminal close/cancel (in-memory counter). |
-| `CC_MAX_CANDLES_PER_REQUEST` | candle fetch / cache (5 sites), backtest replay window | Pagination chunk size when a request exceeds it; also the replay window of an Infinity-hold backtest position, rounded to whole spans of `CC_BACKTEST_STEP_MINUTES`. |
+| `CC_MAX_CANDLES_PER_REQUEST` | candle fetch / cache (5 sites), backtest replay window | Pagination chunk size when a request exceeds it; also the replay window of an Infinity-hold backtest position, rounded to whole spans of the frame's `watchInterval`. |
 | `CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR`, `CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN` | `validateCandles` | Anomaly rejection (price ≫ factor below median) + median-vs-average switch ([§7.6](#76-candle-data-validation)). |
 | `CC_ENABLE_CANDLE_FETCH_MUTEX` | `Candle.ts` (`spinLock`, fetch lock) | Serializes concurrent identical-candle fetches. |
 | `CC_ENABLE_BACKTEST_PARALLEL_SPIN` | `Candle.ts` (`spinLock`) | Cooperative round-robin yield between parallel backtests after each fetch (skipped if single workload, mutex off or lockstep on). |

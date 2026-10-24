@@ -115,7 +115,7 @@ import { Subject, sleep } from "functools-kit";
  *              the late one's rows land in the journal BEFORE the early one's already-written rows,
  *              so the early rows written before the join may end in overdraft (shown, never hidden),
  *              while no row written after the join does
- *   stride   - CC_BACKTEST_STEP_MINUTES = 1 day on an hourly frame (the backtest-kit-template setup:
+ *   stride   - frame watchInterval = 1 day on an hourly entry interval (the backtest-kit-template setup:
  *              daily bars sampled to minutes): a replay evaluates one candle a day and crosses 24
  *              boundaries between two pings, so the hand-off must derive the boundary from the candle
  *              and run before the candle's listeners. A's DCA reserve on the day-3 ping (23:59) must see
@@ -890,7 +890,7 @@ const PROBE_SYMBOL = "PROBEUSDT";
  * long at `at` for `minutes` (Infinity = chunked replay), `fatalTick` makes getSignal
  * throw on that tick number, `failFetch(symbol, since)` makes getCandles throw.
  */
-const buildErrorCase = (name, { positions = {}, fatalTick = {}, failFetch = () => false } = {}) => {
+const buildErrorCase = (name, { positions = {}, fatalTick = {}, failFetch = () => false, watchInterval = undefined } = {}) => {
   const exchangeName = `lockstep-error-exchange-${name}`;
   const strategyName = `lockstep-error-strategy-${name}`;
   const frameName = `lockstep-error-frame-${name}`;
@@ -928,7 +928,7 @@ const buildErrorCase = (name, { positions = {}, fatalTick = {}, failFetch = () =
       return null;
     },
   });
-  addFrameSchema({ frameName, interval: "1h", startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
+  addFrameSchema({ frameName, interval: "1h", ...(watchInterval && { watchInterval }), startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
   return { exchangeName, strategyName, frameName, ticks };
 };
 
@@ -1392,14 +1392,15 @@ test("LOCKSTEP ERRORS: interval ping listeners that throw on every delivery keep
 
 // ── A stride that is not a multiple of the timeframe ─────────────────────────
 
-test("LOCKSTEP: a 123-minute stride on a 1h frame hands off at the first evaluated candle past each boundary, the peer never runs ahead", async ({ pass, fail }) => {
-  // 2h 03m: not a multiple of the hour; the 12h frame fits five spans of a 700-minute position
-  const STEP = 123;
+test("LOCKSTEP: a 2h watchInterval on a 1h entry interval hands off at the first evaluated candle past each boundary, the peer never runs ahead", async ({ pass, fail }) => {
+  // the watch span is longer than the tick: every evaluated candle crosses two hour boundaries;
+  // the 12h frame fits five spans of a 700-minute position
+  const STEP = 120;
   const HOLD = 700;
-  setConfig({ CC_BACKTEST_LOCKSTEP: true, CC_BACKTEST_STEP_MINUTES: STEP }, true);
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
   try {
-    // JUMP opens on hour 0 and replays HOLD minutes in 123-minute spans, LAG only ticks
-    const schema = buildErrorCase("odd-stride", { positions: { [JUMP_SYMBOL]: { at: FRAME_START, minutes: HOLD } } });
+    // JUMP opens on hour 0 and replays HOLD minutes in 2h spans, LAG only ticks
+    const schema = buildErrorCase("odd-stride", { positions: { [JUMP_SYMBOL]: { at: FRAME_START, minutes: HOLD } }, watchInterval: "2h" });
     let lagClock = null;
     const samples = [];
     const unsubscribe = [
@@ -1433,7 +1434,7 @@ test("LOCKSTEP: a 123-minute stride on a 1h frame hands off at the first evaluat
     if (await failedSurvivorsOrLock(schema, done, [JUMP_SYMBOL, LAG_SYMBOL], fail)) return;
     pass(`peer clock at each evaluation: ${samples.map((s) => `+${s.offset}→${s.lag}`).join(" ")} (lead = offset mod 60), both finished, probe ok`);
   } finally {
-    setConfig({ CC_BACKTEST_STEP_MINUTES: 0 }, true);
+    // nothing to restore: the stride lives in the frame schema
   }
 });
 
@@ -2267,12 +2268,13 @@ const buildStrideCase = (name) => {
       return null;
     },
   });
-  addFrameSchema({ frameName, interval: "1h", startDate: new Date(FRAME_START), endDate: new Date(STRIDE_FRAME_END) });
+  // the template setup: hourly ticks, the position evaluated once per daily bar
+  addFrameSchema({ frameName, interval: "1h", watchInterval: "1d", startDate: new Date(FRAME_START), endDate: new Date(STRIDE_FRAME_END) });
   return { exchangeName, strategyName, frameName };
 };
 
-test("LOCKSTEP: with a daily CC_BACKTEST_STEP_MINUTES on an hourly frame the day-3 ping's reserve sees the peer's reserve of an hour earlier", async ({ pass, fail }) => {
-  setConfig({ CC_BACKTEST_LOCKSTEP: true, CC_BACKTEST_STEP_MINUTES: 24 * 60 }, true);
+test("LOCKSTEP: with a daily watchInterval on an hourly entry interval the day-3 ping's reserve sees the peer's reserve of an hour earlier", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
   try {
     Budget.enable();
     const schema = buildStrideCase("daily");
@@ -2344,7 +2346,7 @@ test("LOCKSTEP: with a daily CC_BACKTEST_STEP_MINUTES on an hourly frame the day
     if (reserves !== releases) return fail(`every reserve must be released: reserves=${reserves} releases=${releases}; ${describeRows(history)}`);
     pass(`daily stride: A pings every ${Math.min(...gaps) / HOUR_MS}h, DCA on day 3 refused, journal: ${describeRows(history)}`);
   } finally {
-    setConfig({ CC_BACKTEST_STEP_MINUTES: 0 }, true);
+    // nothing to restore: the stride lives in the frame schema
   }
 });
 

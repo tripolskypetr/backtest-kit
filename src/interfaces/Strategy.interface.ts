@@ -5,7 +5,7 @@ import { ILogger } from "./Logger.interface";
 import { IRisk, RiskName } from "./Risk.interface";
 import { IPartial } from "./Partial.interface";
 import { IBreakeven } from "./Breakeven.interface";
-import { FrameName } from "./Frame.interface";
+import { FrameInterval, FrameName } from "./Frame.interface";
 import { ActionName } from "./Action.interface";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import { OrderSyncContract } from "../contract/OrderSync.contract";
@@ -789,6 +789,13 @@ export interface IStrategyParams extends IStrategySchema {
   exchangeName: ExchangeName;
   /** Time frame name for tracking (e.g., "1m", "5m") */
   frameName: FrameName;
+  /**
+   * Stride of the backtest candle loops (IFrameSchema.watchInterval of the
+   * frame): an open or scheduled signal is re-evaluated once per span of this
+   * interval, at the span's last candle. "1m" evaluates every candle. Live
+   * mode never strides, the connection layer passes "1m" there.
+   */
+  watchInterval: FrameInterval;
   /** Trading pair symbol (e.g., "BTCUSDT") */
   symbol: string;
   /** Whether this event is from backtest mode (true) or live mode (false) */

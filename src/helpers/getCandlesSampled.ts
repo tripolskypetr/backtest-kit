@@ -36,8 +36,8 @@ export interface IGetCandlesSampledConfig extends IGetCandlesFilledConfig {
  * NOTE on look-ahead: a daily bar's high/low/close are known only at the end
  * of the day, yet every synthesized minute of that day carries them. This is
  * inherent to sampling a daily source and is the accepted trade-off for
- * such backtests (combine with CC_BACKTEST_STEP_MINUTES to evaluate once per
- * native bar).
+ * such backtests (combine with a frame `watchInterval` of the native bar to
+ * evaluate once per bar).
  *
  * @throws Error if `interval` is larger than `nativeInterval` or does not
  *   divide it evenly (e.g. "7m" into "1d")

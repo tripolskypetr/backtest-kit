@@ -2366,8 +2366,8 @@ export function listenAfterEndOnce(
  *             execution is delivered and starts the grid; the following ones are
  *             delivered once per interval from it.
  *
- * A ping that lands past several grid points (a `CC_BACKTEST_STEP_MINUTES`
- * stride, a live loop that was down for a while) delivers once and the grid
+ * A ping that lands past several grid points (a coarse frame `watchInterval`,
+ * a live loop that was down for a while) delivers once and the grid
  * stays aligned to the anchor, never to the ping that fired. A new signal id on
  * the same execution starts a new grid. State is kept per execution identity
  * (`strategy:exchange[:frame]:mode:symbol`) in a `LimitedMap` of SEEN_MAP_LIMIT

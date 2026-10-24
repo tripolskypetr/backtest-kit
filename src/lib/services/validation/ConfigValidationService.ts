@@ -201,12 +201,6 @@ export class ConfigValidationService {
       );
     }
 
-    if (!Number.isInteger(GLOBAL_CONFIG.CC_BACKTEST_STEP_MINUTES) || GLOBAL_CONFIG.CC_BACKTEST_STEP_MINUTES < 0) {
-      errors.push(
-        `CC_BACKTEST_STEP_MINUTES must be a non-negative integer (0 = per-candle loop), got ${GLOBAL_CONFIG.CC_BACKTEST_STEP_MINUTES}`
-      );
-    }
-
     if (!Number.isInteger(GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES) || GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES < 0) {
       errors.push(
         `CC_ORDER_BOOK_TIME_OFFSET_MINUTES must be a non-negative integer, got ${GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES}`

@@ -6,6 +6,8 @@ import { ICandleData } from "../../../../interfaces/Exchange.interface";
 import StrategyCoreService from "../../core/StrategyCoreService";
 import ExchangeCoreService from "../../core/ExchangeCoreService";
 import FrameCoreService from "../../core/FrameCoreService";
+import FrameSchemaService from "../../schema/FrameSchemaService";
+import { intervalStepMs } from "../../../../utils/intervalStepMs";
 import { TMethodContextService } from "../../context/MethodContextService";
 import {
   progressBacktestEmitter,
@@ -179,8 +181,8 @@ const WAIT_FOR_PEERS_FN = async (
  * ({@link WAIT_FOR_PEERS_FN}) until every running peer has reached the last
  * boundary that candle crossed, so a write on that candle is checked against
  * everything the peers wrote before it. Candles are not necessarily one
- * minute apart: with `CC_BACKTEST_STEP_MINUTES` a replay evaluates one candle
- * per stride (a daily stride on an hourly frame crosses 24 boundaries at
+ * minute apart: with the frame's `watchInterval` a replay evaluates one candle
+ * per span (a daily watch on an hourly frame crosses 24 boundaries at
  * once), which is why the boundary is derived from the candle instead of
  * expecting the candle right before it. The boundaries follow the finest
  * timeframe step among the running backtests, not this symbol's own: a peer
@@ -382,19 +384,20 @@ const CANDLES_UNTIL_FRAME_END_FN = (since: Date, frameEndTime: number): number =
  * VWAP buffer plus the candles ClientStrategy.backtest evaluates before the
  * orchestrator fetches the next window.
  *
- * Without a stride it is CC_MAX_CANDLES_PER_REQUEST. With CC_BACKTEST_STEP_MINUTES
- * the window holds a WHOLE number of spans: the largest multiple of the step
- * that fits CC_MAX_CANDLES_PER_REQUEST, or one span when the step is longer.
- * The strided loop restarts its count in every array it is given, so a window
- * that is not a multiple of the step would end on a partial span and the
- * evaluation grid would follow "step, step, remainder" instead of the step
- * (a daily step on 1000-candle windows evaluated every 996 minutes). The
- * exchange layer pages a window longer than CC_MAX_CANDLES_PER_REQUEST, that
- * limit stays the exchange's request size; the window is what the replay sees.
+ * With a per-candle watch ("1m") it is CC_MAX_CANDLES_PER_REQUEST. With a
+ * coarser `watchInterval` of the frame the window holds a WHOLE number of
+ * spans: the largest multiple of the step that fits CC_MAX_CANDLES_PER_REQUEST,
+ * or one span when the step is longer. The strided loop restarts its count in
+ * every array it is given, so a window that is not a multiple of the step
+ * would end on a partial span and the evaluation grid would follow "step,
+ * step, remainder" instead of the step (a daily watch on 1000-candle windows
+ * evaluated every 996 minutes). The exchange layer pages a window longer than
+ * CC_MAX_CANDLES_PER_REQUEST, that limit stays the exchange's request size;
+ * the window is what the replay sees.
  */
-const CHUNK_CANDLES_FN = (bufferMinutes: number): number => {
+const CHUNK_CANDLES_FN = (self: BacktestLogicPrivateService, bufferMinutes: number): number => {
   const maxCandles = GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST;
-  const step = GLOBAL_CONFIG.CC_BACKTEST_STEP_MINUTES;
+  const step = intervalStepMs(self.frameSchemaService.getWatchInterval(self.methodContextService.context.frameName)) / 60_000;
   if (step <= 1) {
     return maxCandles;
   }
@@ -467,7 +470,7 @@ const RUN_INFINITY_CHUNK_LOOP_FN = async (
   initialCandles: ICandleData[]
 ): Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | TFnError> => {
   let backtestResult: IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive = initialResult;
-  const CHUNK = CHUNK_CANDLES_FN(bufferMs / 60_000);
+  const CHUNK = CHUNK_CANDLES_FN(self, bufferMs / 60_000);
   // Seed with the candles already replayed by the caller so CLOSE_PENDING_FN
   // never receives an empty array when the very first chunk fetch comes back
   // empty (frame ending near the present moment).
@@ -611,7 +614,7 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
   const bufferMinutes = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - ACTIVE_CANDLE_INCLUDED;
   const bufferStartTime = new Date(when.getTime() - bufferMinutes * 60 * 1000);
   const pendingPhaseMinutes = signal.minuteEstimatedTime === Infinity
-    ? CHUNK_CANDLES_FN(bufferMinutes) - bufferMinutes
+    ? CHUNK_CANDLES_FN(self, bufferMinutes) - bufferMinutes
     : signal.minuteEstimatedTime;
   const candlesNeeded = Math.min(
     bufferMinutes + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + pendingPhaseMinutes + SCHEDULE_ACTIVATION_CANDLE_SKIP,
@@ -744,7 +747,7 @@ const RUN_OPENED_CHUNK_LOOP_FN = async (
   signalId: string,
   frameEndTime: number
 ): Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | TFnError | null> => {
-  const CHUNK = CHUNK_CANDLES_FN(bufferMs / 60_000);
+  const CHUNK = CHUNK_CANDLES_FN(self, bufferMs / 60_000);
   let chunkStart = bufferStartTime;
   let lastChunkCandles: ICandleData[] = [];
 
@@ -916,6 +919,7 @@ export class BacktestLogicPrivateService {
   readonly exchangeCoreService = inject<ExchangeCoreService>(
     TYPES.exchangeCoreService
   );
+  readonly frameSchemaService = inject<FrameSchemaService>(TYPES.frameSchemaService);
   readonly frameCoreService = inject<FrameCoreService>(
     TYPES.frameCoreService
   );

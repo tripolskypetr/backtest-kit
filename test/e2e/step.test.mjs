@@ -11,6 +11,10 @@ import {
   getConfig,
 } from "../../build/index.mjs";
 
+// The watch stride is a property of the frame (IFrameSchema.watchInterval): an
+// open or scheduled signal is re-evaluated once per watch span, at its last
+// candle; "1m" (the default) evaluates every candle.
+
 const MINUTE_MS = 60_000;
 const BASE_PRICE = 95_000;
 
@@ -44,12 +48,10 @@ const addPolyfilledExchange = (exchangeName, startTime, candleByMinute = {}) => 
   });
 };
 
-test("CC_BACKTEST_STEP_MINUTES strides the pending candle loop (one iteration per day)", async ({ pass, fail }) => {
+test("watchInterval 1d strides the pending candle loop (one iteration per day)", async ({ pass, fail }) => {
   const STEP_MINUTES = 24 * 60;
   const LIFETIME_DAYS = 3;
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
-
-  await setConfig({ CC_BACKTEST_STEP_MINUTES: STEP_MINUTES }, true);
 
   try {
     addPolyfilledExchange("binance-step-pending", startTime);
@@ -79,6 +81,7 @@ test("CC_BACKTEST_STEP_MINUTES strides the pending candle loop (one iteration pe
     addFrameSchema({
       frameName: "step-pending-frame",
       interval: "1d",
+      watchInterval: "1d",
       startDate: new Date(startTime),
       endDate: new Date(startTime + 10 * STEP_MINUTES * MINUTE_MS),
     });
@@ -107,16 +110,14 @@ test("CC_BACKTEST_STEP_MINUTES strides the pending candle loop (one iteration pe
 
     pass(`Pending loop strided daily: ${activePings} pings over ${LIFETIME_DAYS * STEP_MINUTES} 1m candles`);
   } finally {
-    await setConfig({ CC_BACKTEST_STEP_MINUTES: 0 }, true);
+    // nothing to restore: the stride lives in the frame schema
   }
 });
 
-test("CC_BACKTEST_STEP_MINUTES: a stop-loss touched on a SKIPPED candle still fires", async ({ pass, fail }) => {
+test("watchInterval 1d: a stop-loss touched on a SKIPPED candle still fires", async ({ pass, fail }) => {
   const STEP_MINUTES = 24 * 60;
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const priceStopLoss = BASE_PRICE - 500;
-
-  await setConfig({ CC_BACKTEST_STEP_MINUTES: STEP_MINUTES }, true);
 
   try {
     // Minute 700 of day 1 wicks through the SL; it never lands on a daily
@@ -144,6 +145,7 @@ test("CC_BACKTEST_STEP_MINUTES: a stop-loss touched on a SKIPPED candle still fi
     addFrameSchema({
       frameName: "step-touch-frame",
       interval: "1d",
+      watchInterval: "1d",
       startDate: new Date(startTime),
       endDate: new Date(startTime + 10 * STEP_MINUTES * MINUTE_MS),
     });
@@ -177,11 +179,11 @@ test("CC_BACKTEST_STEP_MINUTES: a stop-loss touched on a SKIPPED candle still fi
 
     pass("Span-aggregated low caught the SL wick on a skipped candle; closed at the SL level at the span end");
   } finally {
-    await setConfig({ CC_BACKTEST_STEP_MINUTES: 0 }, true);
+    // nothing to restore: the stride lives in the frame schema
   }
 });
 
-test("CC_BACKTEST_STEP_MINUTES larger than a candle chunk still evaluates every chunk (Infinity hold)", async ({ pass, fail }) => {
+test("watchInterval 1d longer than the exchange page: the replay window is one whole day (Infinity hold)", async ({ pass, fail }) => {
   const STEP_MINUTES = 24 * 60;
   const CHUNK = 1000;
   const WICK_MINUTE = 2500;
@@ -192,7 +194,6 @@ test("CC_BACKTEST_STEP_MINUTES larger than a candle chunk still evaluates every 
   // longer than CC_MAX_CANDLES_PER_REQUEST the window is one span (buffer + step),
   // paged by the exchange layer, so the daily grid survives the window boundary.
   await setConfig({
-    CC_BACKTEST_STEP_MINUTES: STEP_MINUTES,
     CC_MAX_CANDLES_PER_REQUEST: CHUNK,
     CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity,
   }, true);
@@ -221,6 +222,7 @@ test("CC_BACKTEST_STEP_MINUTES larger than a candle chunk still evaluates every 
     addFrameSchema({
       frameName: "step-chunk-frame",
       interval: "1d",
+      watchInterval: "1d",
       startDate: new Date(startTime),
       endDate: new Date(startTime + 10 * STEP_MINUTES * MINUTE_MS),
     });
@@ -256,7 +258,6 @@ test("CC_BACKTEST_STEP_MINUTES larger than a candle chunk still evaluates every 
     pass(`Window rounded to one daily span (${CHUNK}-candle chunk paged); SL wick at minute ${WICK_MINUTE} closed at minute ${closeMinute}`);
   } finally {
     await setConfig({
-      CC_BACKTEST_STEP_MINUTES: 0,
       CC_MAX_CANDLES_PER_REQUEST: 1000,
       CC_MAX_SIGNAL_LIFETIME_MINUTES: 999999,
     }, true);
@@ -264,10 +265,9 @@ test("CC_BACKTEST_STEP_MINUTES larger than a candle chunk still evaluates every 
 });
 
 // ---------------------------------------------------------------------------
-// A stride that is NOT a multiple of the timeframe (4h 03m on a 1h frame)
+// A watch stride that is NOT a multiple of the entry interval, and one that
+// is not a multiple of the exchange page
 // ---------------------------------------------------------------------------
-
-const ODD_STEP_MINUTES = 243;
 
 /** Active pings of the strategy as minute offsets from the position's open */
 const collectPingOffsets = (strategyName, listen = listenActivePing, options) => {
@@ -278,20 +278,21 @@ const collectPingOffsets = (strategyName, listen = listenActivePing, options) =>
   return { offsets, unsubscribe };
 };
 
-test("CC_BACKTEST_STEP_MINUTES not a multiple of the timeframe: spans end at step-1, drift past the hour, time_expired stays exact", async ({ pass, fail }) => {
-  const HOLD_MINUTES = 1000;
+test("watchInterval 5m on a 3m entry interval: spans end at step-1, drift past the tick grid, time_expired stays exact", async ({ pass, fail }) => {
+  const WATCH_MINUTES = 5;
+  const ENTRY_MINUTES = 3;
+  const HOLD_MINUTES = 60;
   const startTime = new Date("2024-03-01T00:00:00Z").getTime();
-  await setConfig({ CC_BACKTEST_STEP_MINUTES: ODD_STEP_MINUTES }, true);
 
   const strategyName = "test-strategy-step-odd";
   const pings = collectPingOffsets(strategyName);
-  const hourly = collectPingOffsets(strategyName, listenActivePingInterval, { interval: "1h" });
+  const quarterHourly = collectPingOffsets(strategyName, listenActivePingInterval, { interval: "15m" });
   try {
     addPolyfilledExchange("binance-step-odd", startTime);
     let issued = false;
     addStrategySchema({
       strategyName,
-      interval: "1h",
+      interval: "3m",
       getSignal: async () => {
         if (issued) return null;
         issued = true;
@@ -300,9 +301,10 @@ test("CC_BACKTEST_STEP_MINUTES not a multiple of the timeframe: spans end at ste
     });
     addFrameSchema({
       frameName: "step-odd-frame",
-      interval: "1h",
+      entryInterval: "3m",
+      watchInterval: "5m",
       startDate: new Date(startTime),
-      endDate: new Date(startTime + 30 * 60 * MINUTE_MS),
+      endDate: new Date(startTime + 3 * 60 * MINUTE_MS),
     });
 
     const closed = [];
@@ -312,14 +314,14 @@ test("CC_BACKTEST_STEP_MINUTES not a multiple of the timeframe: spans end at ste
 
     // one evaluation per span, at the span END: step-1, 2·step-1, … while the hold lasts
     const expected = [];
-    for (let offset = ODD_STEP_MINUTES - 1; offset < HOLD_MINUTES; offset += ODD_STEP_MINUTES) expected.push(offset);
+    for (let offset = WATCH_MINUTES - 1; offset < HOLD_MINUTES; offset += WATCH_MINUTES) expected.push(offset);
     if (pings.offsets.join(",") !== expected.join(",")) {
       return fail(`expected evaluations at ${expected.join(",")} minutes from the open, got ${pings.offsets.join(",")}`);
     }
-    // the evaluation points drift (step mod 60) minutes further past the hour on every span
-    const drift = pings.offsets.map((offset) => (offset + 1) % 60);
-    if (drift.join(",") !== expected.map((_, i) => ((i + 1) * ODD_STEP_MINUTES) % 60).join(",")) {
-      return fail(`expected the evaluation to drift ${ODD_STEP_MINUTES % 60} minutes per span past the hour, got ${drift.join(",")}`);
+    // 5 is not a multiple of 3: the evaluation points drift (5 mod 3 = 2) minutes past the tick grid on every span
+    const drift = pings.offsets.map((offset) => (offset + 1) % ENTRY_MINUTES);
+    if (drift.join(",") !== expected.map((_, i) => ((i + 1) * WATCH_MINUTES) % ENTRY_MINUTES).join(",")) {
+      return fail(`expected the evaluation to drift ${WATCH_MINUTES % ENTRY_MINUTES} minutes per span past the ${ENTRY_MINUTES}m grid, got ${drift.join(",")}`);
     }
     // the trailing partial span is evaluated at the last candle of the hold: time_expired is exact
     if (closed.length !== 1 || closed[0].closeReason !== "time_expired") {
@@ -327,23 +329,27 @@ test("CC_BACKTEST_STEP_MINUTES not a multiple of the timeframe: spans end at ste
     }
     const closeOffset = (closed[0].closeTimestamp - startTime) / MINUTE_MS;
     if (closeOffset !== HOLD_MINUTES) return fail(`expected the close exactly ${HOLD_MINUTES} minutes after the open, got ${closeOffset}`);
-    // the 1h interval listener skips the first evaluation and then delivers on every one (each span crosses an hour)
-    if (hourly.offsets.join(",") !== expected.slice(1).join(",")) {
-      return fail(`listenActivePingInterval(1h) expected ${expected.slice(1).join(",")}, got ${hourly.offsets.join(",")}`);
+    // the 15m interval listener skips the first evaluation and then delivers on the first evaluation past each 15m point
+    const expectedDeliveries = [];
+    for (let point = 15; point < HOLD_MINUTES; point += 15) {
+      const hit = expected.find((offset) => offset >= point && offset !== expected[0]);
+      if (hit !== undefined && !expectedDeliveries.includes(hit)) expectedDeliveries.push(hit);
     }
-    pass(`evaluated at +${pings.offsets.join("/+")} (drift ${ODD_STEP_MINUTES % 60} min per span), closed exactly at +${closeOffset}, 1h interval deliveries at +${hourly.offsets.join("/+")}`);
+    if (quarterHourly.offsets.join(",") !== expectedDeliveries.join(",")) {
+      return fail(`listenActivePingInterval(15m) expected ${expectedDeliveries.join(",")}, got ${quarterHourly.offsets.join(",")}`);
+    }
+    pass(`evaluated at +${pings.offsets.join("/+")} (drift ${WATCH_MINUTES % ENTRY_MINUTES} min per span), closed exactly at +${closeOffset}, 15m interval deliveries at +${quarterHourly.offsets.join("/+")}`);
   } finally {
     pings.unsubscribe();
-    hourly.unsubscribe();
-    await setConfig({ CC_BACKTEST_STEP_MINUTES: 0 }, true);
+    quarterHourly.unsubscribe();
   }
 });
 
-test("CC_BACKTEST_STEP_MINUTES not a multiple of CC_MAX_CANDLES_PER_REQUEST: the replay window holds whole spans, the grid stays regular", async ({ pass, fail }) => {
+test("watchInterval 4h not a multiple of the exchange page: the replay window holds whole spans, the grid stays regular", async ({ pass, fail }) => {
+  const WATCH_MINUTES = 240;
   const CHUNK = 600;
   const startTime = new Date("2024-03-01T00:00:00Z").getTime();
   await setConfig({
-    CC_BACKTEST_STEP_MINUTES: ODD_STEP_MINUTES,
     CC_MAX_CANDLES_PER_REQUEST: CHUNK,
     CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity,
   }, true);
@@ -364,29 +370,29 @@ test("CC_BACKTEST_STEP_MINUTES not a multiple of CC_MAX_CANDLES_PER_REQUEST: the
     });
     addFrameSchema({
       frameName: "step-odd-chunk-frame",
-      interval: "1h",
+      entryInterval: "1h",
+      watchInterval: "4h",
       startDate: new Date(startTime),
-      endDate: new Date(startTime + 30 * 60 * MINUTE_MS),
+      endDate: new Date(startTime + 40 * 60 * MINUTE_MS),
     });
 
     for await (const _ of Backtest.run("BTCUSDT", { strategyName, exchangeName: "binance-step-odd-chunk", frameName: "step-odd-chunk-frame" })) { /* drain */ }
 
-    // the window is buffer + 2 spans (2 × 243 = 486 fits 600 − 4), so the stride never meets a partial window
-    // before the frame end: every gap is the step, the last evaluation sits on the frame end
-    const windowSpans = Math.floor((CHUNK - (getConfig().CC_AVG_PRICE_CANDLES_COUNT - 1)) / ODD_STEP_MINUTES);
+    // the window is buffer + 2 spans (2 × 240 = 480 fits 600 − 4), so the stride never meets a partial window
+    // before the frame end: every gap is the step
+    const windowSpans = Math.floor((CHUNK - (getConfig().CC_AVG_PRICE_CANDLES_COUNT - 1)) / WATCH_MINUTES);
     if (windowSpans !== 2) return fail(`the scenario expects a two-span window, got ${windowSpans}`);
     const gaps = pings.offsets.map((offset, i) => (i ? offset - pings.offsets[i - 1] : offset + 1));
     const regular = gaps.slice(0, -1);
     if (regular.length < 2 * windowSpans + 1) return fail(`expected the grid to cross at least two window boundaries, got gaps ${gaps.join(",")}`);
-    if (regular.some((gap) => gap !== ODD_STEP_MINUTES)) {
-      return fail(`expected every gap before the frame end to be ${ODD_STEP_MINUTES} (whole spans per window), got ${gaps.join(",")}`);
+    if (regular.some((gap) => gap !== WATCH_MINUTES)) {
+      return fail(`expected every gap before the frame end to be ${WATCH_MINUTES} (whole spans per window), got ${gaps.join(",")}`);
     }
-    if (gaps[gaps.length - 1] > ODD_STEP_MINUTES) return fail(`the frame-end remainder cannot exceed a span, got ${gaps[gaps.length - 1]}`);
-    pass(`gaps ${gaps.join(",")}: ${ODD_STEP_MINUTES}-minute stride regular across ${Math.ceil(regular.length / windowSpans)} windows of ${windowSpans} spans, frame-end remainder ${gaps[gaps.length - 1]}`);
+    if (gaps[gaps.length - 1] > WATCH_MINUTES) return fail(`the frame-end remainder cannot exceed a span, got ${gaps[gaps.length - 1]}`);
+    pass(`gaps ${gaps.join(",")}: 4h watch regular across ${Math.ceil(regular.length / windowSpans)} windows of ${windowSpans} spans, frame-end remainder ${gaps[gaps.length - 1]}`);
   } finally {
     pings.unsubscribe();
     await setConfig({
-      CC_BACKTEST_STEP_MINUTES: 0,
       CC_MAX_CANDLES_PER_REQUEST: 1000,
       CC_MAX_SIGNAL_LIFETIME_MINUTES: 999999,
     }, true);

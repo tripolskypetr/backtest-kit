@@ -58,8 +58,9 @@ declare const ExecutionContextService: (new () => {
 type TExecutionContextService = InstanceType<typeof ExecutionContextService>;
 
 /**
- * Timeframe interval for backtest period generation.
- * Determines the granularity of timestamps in the generated timeframe array.
+ * Interval of a backtest frame: the granularity of the generated timeframe
+ * array (`entryInterval`) and the stride of the candle loops that watch an
+ * open or scheduled signal (`watchInterval`).
  *
  * Minutes: 1m, 3m, 5m, 15m, 30m
  * Hours: 1h, 2h, 4h, 6h, 8h, 12h
@@ -73,8 +74,10 @@ type FrameInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "
 interface IFrameParams extends IFrameSchema {
     /** Logger service for debug output */
     logger: ILogger;
-    /** Frame name for identification */
-    interval: FrameInterval;
+    /** Resolved tick interval: `entryInterval`, or `interval`, or `"1m"` (see IFrameSchema) */
+    entryInterval: FrameInterval;
+    /** Resolved watch interval: `watchInterval` or `"1m"` (see IFrameSchema) */
+    watchInterval: FrameInterval;
 }
 /**
  * Callbacks for frame lifecycle events.
@@ -87,27 +90,56 @@ interface IFrameCallbacks {
      * @param timeframe - Array of Date objects representing tick timestamps
      * @param startDate - Start of the backtest period
      * @param endDate - End of the backtest period
-     * @param interval - Interval used for generation
+     * @param interval - Entry interval the timestamps were generated with
      */
     onTimeframe: (timeframe: Date[], startDate: Date, endDate: Date, interval: FrameInterval) => void | Promise<void>;
 }
 /**
- * Frame schema registered via addFrame().
- * Defines backtest period and interval for timestamp generation.
+ * Frame schema registered via addFrameSchema().
+ * Defines the backtest period and the two cadences of the backtest:
+ *
+ * - `entryInterval` — how often the strategy is asked for a NEW signal
+ *   (`getSignal`) and how often idle pings fire: the generated timeframe array
+ *   is spaced by it. This is the "tick" of the backtest and the step the
+ *   lockstep hand-off between parallel backtests follows.
+ * - `watchInterval` — how often an OPEN or SCHEDULED signal is re-evaluated
+ *   during its candle replay: TP / time-expiry checks, VWAP, active and
+ *   schedule pings, partial / breakeven / trailing callbacks run once per
+ *   watch span, at its last candle. Candles stay 1m; stop-loss, liquidation
+ *   and scheduled activation / cancel look at the min low / max high of the
+ *   whole span, so a touch on a skipped candle still fires, it is fixed at the
+ *   span end (up to one span late). The hold of a position (`minuteEstimatedTime`)
+ *   is exact: the trailing partial span is evaluated at the position's last
+ *   candle. Long replays are windowed in whole watch spans, so the grid stays
+ *   regular across candle fetches.
+ *
+ * `interval` is an alias of `entryInterval` kept for the original schema
+ * shape; a schema that sets both is rejected. `watchInterval` defaults to
+ * `"1m"` (every candle is evaluated) regardless of `entryInterval`, so an
+ * existing `{ interval: "1h" }` frame keeps its per-minute replay. Use a
+ * coarse `watchInterval` when the candle feed has no intra-span movement
+ * (daily bars polyfilled to 1m) or when a per-minute replay is not worth its
+ * cost. Live mode ignores frames: it ticks on the real clock and evaluates
+ * every candle.
  *
  * @example
  * ```typescript
- * addFrame({
- *   frameName: "1d-backtest",
- *   interval: "1m",
+ * // a new signal once an hour, the open position re-evaluated every 4 hours
+ * addFrameSchema({
+ *   frameName: "q1-backtest",
+ *   entryInterval: "1h",
+ *   watchInterval: "4h",
  *   startDate: new Date("2024-01-01T00:00:00Z"),
- *   endDate: new Date("2024-01-02T00:00:00Z"),
+ *   endDate: new Date("2024-03-31T23:59:59Z"),
  *   callbacks: {
  *     onTimeframe: (timeframe, startDate, endDate, interval) => {
- *       console.log(`Generated ${timeframe.length} timestamps`);
+ *       console.log(`Generated ${timeframe.length} timestamps at ${interval}`);
  *     },
  *   },
  * });
+ *
+ * // the original shape: ticks every minute, every candle evaluated
+ * addFrameSchema({ frameName: "1d-backtest", interval: "1m", startDate, endDate });
  * ```
  */
 interface IFrameSchema {
@@ -115,8 +147,26 @@ interface IFrameSchema {
     frameName: FrameName;
     /** Optional developer note for documentation */
     note?: string;
-    /** Interval for time range generation. Defaults to "1m" if not specified */
+    /**
+     * Alias of `entryInterval` (the original schema shape). Setting both
+     * `interval` and `entryInterval` is a validation error. Defaults to "1m".
+     */
     interval?: FrameInterval;
+    /**
+     * Tick interval: spacing of the generated timeframe array, i.e. how often
+     * `getSignal` is asked for a new signal and idle pings fire. Also the step
+     * the lockstep hand-off between parallel backtests follows. Defaults to
+     * `interval`, then "1m".
+     */
+    entryInterval?: FrameInterval;
+    /**
+     * Stride of the candle loops that watch an open or scheduled signal: one
+     * evaluation per span, at its last candle, with stop-loss / liquidation /
+     * activation touches taken over the whole span. Independent of
+     * `entryInterval`: may be shorter (a 1h tick with a 15m watch) or longer
+     * (a 1h tick with a 4h watch). Defaults to "1m" — every candle evaluated.
+     */
+    watchInterval?: FrameInterval;
     /** Start of backtest period (inclusive) */
     startDate: Date;
     /** End of backtest period (inclusive) */
@@ -9065,43 +9115,11 @@ declare const GLOBAL_CONFIG: {
     /**
      * Maximum number of candles to request per single API call.
      * If a request exceeds this limit, data will be fetched using pagination.
-     * Also the replay window of an Infinity-hold backtest position; with
-     * CC_BACKTEST_STEP_MINUTES the window is rounded to whole spans of the step.
+     * Also the replay window of an Infinity-hold backtest position; with a
+     * frame `watchInterval` coarser than 1m the window is rounded to whole spans.
      * Default: 1000 candles per request
      */
     CC_MAX_CANDLES_PER_REQUEST: number;
-    /**
-     * Stride (in minutes) of the candle loops in ClientStrategy.backtest.
-     * Candles stay 1m — only how often the backtest LOOKS at them changes.
-     *
-     * The pending TP/SL monitoring loop and the scheduled activation loop advance
-     * `step` 1m candles per iteration instead of one. Each span is evaluated at
-     * its LAST candle, so the VWAP window (CC_AVG_PRICE_CANDLES_COUNT candles)
-     * lies entirely inside the span and never blends two spans' prices. The
-     * skipped candles are NOT ignored: stop-loss / liquidation and scheduled
-     * activation/cancel are checked against the min low / max high of the whole
-     * span, so an intra-span touch still fires; VWAP, pings, partial/breakeven
-     * callbacks, the commit-queue drain and the per-candle "active"/"waiting"
-     * emissions run once per step. A trailing partial span (the last candles of a
-     * position before its hold runs out or the frame ends) is evaluated at its
-     * last candle. An Infinity-hold position is replayed in windows holding a
-     * whole number of spans (the largest multiple of the step that fits
-     * CC_MAX_CANDLES_PER_REQUEST, or one span when the step is longer; the
-     * exchange layer pages the fetch), so the grid stays regular across windows.
-     * The tick cadence between signals is NOT affected — that stays the
-     * frame schema `interval`.
-     *
-     * Use case: a candle source that only has DAILY bars (Yahoo Finance) with the
-     * 1m feed polyfilled by repeating the daily bar 1440 times — every minute of a
-     * day is identical, so a per-minute loop does 1440x the work for the same
-     * result. With 24 * 60 the backtest evaluates one candle per day.
-     *
-     * Applies to backtest only: live/paper tick on the real clock.
-     * Set to 0 for the per-candle loop (legacy).
-     *
-     * Default: 0
-     */
-    CC_BACKTEST_STEP_MINUTES: number;
     /**
      * Maximum allowed deviation factor for price anomaly detection.
      * No price of a candle may be more than this factor away from its reference.
@@ -9764,7 +9782,6 @@ declare function getConfig(): {
     CC_GET_CANDLES_RETRY_COUNT: number;
     CC_GET_CANDLES_RETRY_DELAY_MS: number;
     CC_MAX_CANDLES_PER_REQUEST: number;
-    CC_BACKTEST_STEP_MINUTES: number;
     CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
     CC_GET_CANDLES_MAX_ANOMALY_STREAK: number;
     CC_GET_CANDLES_MAX_GAP_STREAK: number;
@@ -9840,7 +9857,6 @@ declare function getDefaultConfig(): Readonly<{
     CC_GET_CANDLES_RETRY_COUNT: number;
     CC_GET_CANDLES_RETRY_DELAY_MS: number;
     CC_MAX_CANDLES_PER_REQUEST: number;
-    CC_BACKTEST_STEP_MINUTES: number;
     CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
     CC_GET_CANDLES_MAX_ANOMALY_STREAK: number;
     CC_GET_CANDLES_MAX_GAP_STREAK: number;
@@ -20938,8 +20954,8 @@ declare function listenAfterEndOnce(filterFn: (event: AfterEndContract) => boole
  *             execution is delivered and starts the grid; the following ones are
  *             delivered once per interval from it.
  *
- * A ping that lands past several grid points (a `CC_BACKTEST_STEP_MINUTES`
- * stride, a live loop that was down for a while) delivers once and the grid
+ * A ping that lands past several grid points (a coarse frame `watchInterval`,
+ * a live loop that was down for a while) delivers once and the grid
  * stays aligned to the anchor, never to the ping that fired. A new signal id on
  * the same execution starts a new grid. State is kept per execution identity
  * (`strategy:exchange[:frame]:mode:symbol`) in a `LimitedMap` of SEEN_MAP_LIMIT
@@ -41544,6 +41560,90 @@ declare class StrategySchemaService {
 }
 
 /**
+ * Service for managing frame schema registry.
+ *
+ * Uses ToolRegistry from functools-kit for type-safe schema storage.
+ * Frames are registered via addFrame() and retrieved by name.
+ */
+declare class FrameSchemaService {
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
+    private _registry;
+    /**
+     * Registers a new frame schema.
+     *
+     * @param key - Unique frame name
+     * @param value - Frame schema configuration
+     * @throws Error if frame name already exists
+     */
+    register(key: FrameName, value: IFrameSchema): void;
+    /**
+     * Validates frame schema structure for required properties.
+     *
+     * Performs shallow validation to ensure all required properties exist
+     * and have correct types before registration in the registry.
+     *
+     * @param frameSchema - Frame schema to validate
+     * @throws Error if frameName is missing or not a string
+     * @throws Error if interval, entryInterval or watchInterval is present but not a string
+     * @throws Error if both interval and entryInterval are set (interval is an alias of entryInterval)
+     * @throws Error if startDate is missing or not a Date
+     * @throws Error if endDate is missing or not a Date
+     */
+    private validateShallow;
+    /**
+     * Overrides an existing frame schema with partial updates.
+     *
+     * @param key - Frame name to override
+     * @param value - Partial schema updates
+     * @throws Error if frame name doesn't exist
+     */
+    override(key: FrameName, value: Partial<IFrameSchema>): IFrameSchema;
+    /**
+     * Tick interval of a frame: spacing of its timeframe array (how often
+     * `getSignal` runs). Resolves `entryInterval`, then the `interval` alias,
+     * then `"1m"`.
+     *
+     * @param key - Frame name
+     * @returns The entry interval
+     * @throws Error if frame name doesn't exist
+     */
+    getEntryInterval(key: FrameName): FrameInterval;
+    /**
+     * Watch interval of a frame: stride of the candle loops that re-evaluate an
+     * open or scheduled signal. Resolves `watchInterval`, then `"1m"` (every
+     * candle); it does NOT follow `interval` / `entryInterval`.
+     *
+     * @param key - Frame name
+     * @returns The watch interval
+     * @throws Error if frame name doesn't exist
+     */
+    getWatchInterval(key: FrameName): FrameInterval;
+    /**
+     * Retrieves a frame schema by name.
+     *
+     * @param key - Frame name
+     * @returns Frame schema configuration
+     * @throws Error if frame name doesn't exist
+     */
+    get(key: FrameName): IFrameSchema;
+}
+
+/**
  * Type definition for strategy methods.
  * Maps all keys of IStrategy to any type.
  * Used for dynamic method routing in StrategyCoreService.
@@ -43386,6 +43486,7 @@ declare class BacktestLogicPrivateService {
     };
     readonly strategyCoreService: StrategyCoreService;
     readonly exchangeCoreService: ExchangeCoreService;
+    readonly frameSchemaService: FrameSchemaService;
     readonly frameCoreService: FrameCoreService;
     readonly methodContextService: {
         readonly context: IMethodContext;
@@ -44032,6 +44133,7 @@ declare class StrategyConnectionService implements TStrategy {
     readonly methodContextService: {
         readonly context: IMethodContext;
     };
+    readonly frameSchemaService: FrameSchemaService;
     readonly strategySchemaService: StrategySchemaService;
     readonly riskConnectionService: RiskConnectionService;
     readonly exchangeConnectionService: ExchangeConnectionService;
@@ -46264,69 +46366,6 @@ declare class RiskGlobalService implements TRisk {
         frameName: FrameName;
         backtest: boolean;
     }) => Promise<void>;
-}
-
-/**
- * Service for managing frame schema registry.
- *
- * Uses ToolRegistry from functools-kit for type-safe schema storage.
- * Frames are registered via addFrame() and retrieved by name.
- */
-declare class FrameSchemaService {
-    readonly loggerService: {
-        readonly methodContextService: {
-            readonly context: IMethodContext;
-        };
-        readonly executionContextService: {
-            readonly context: IExecutionContext;
-        };
-        _commonLogger: ILogger;
-        readonly _methodContext: {};
-        readonly _executionContext: {};
-        log: (topic: string, ...args: any[]) => Promise<void>;
-        debug: (topic: string, ...args: any[]) => Promise<void>;
-        info: (topic: string, ...args: any[]) => Promise<void>;
-        warn: (topic: string, ...args: any[]) => Promise<void>;
-        setLogger: (logger: ILogger) => void;
-    };
-    private _registry;
-    /**
-     * Registers a new frame schema.
-     *
-     * @param key - Unique frame name
-     * @param value - Frame schema configuration
-     * @throws Error if frame name already exists
-     */
-    register(key: FrameName, value: IFrameSchema): void;
-    /**
-     * Validates frame schema structure for required properties.
-     *
-     * Performs shallow validation to ensure all required properties exist
-     * and have correct types before registration in the registry.
-     *
-     * @param frameSchema - Frame schema to validate
-     * @throws Error if frameName is missing or not a string
-     * @throws Error if interval is missing or not a valid FrameInterval
-     * @throws Error if startDate is missing or not a Date
-     * @throws Error if endDate is missing or not a Date
-     */
-    private validateShallow;
-    /**
-     * Overrides an existing frame schema with partial updates.
-     *
-     * @param key - Frame name to override
-     * @param value - Partial schema updates
-     * @throws Error if frame name doesn't exist
-     */
-    override(key: FrameName, value: Partial<IFrameSchema>): IFrameSchema;
-    /**
-     * Retrieves a frame schema by name.
-     *
-     * @param key - Frame name
-     * @returns Frame schema configuration
-     * @throws Error if frame name doesn't exist
-     */
-    get(key: FrameName): IFrameSchema;
 }
 
 /**
@@ -50040,8 +50079,8 @@ interface IGetCandlesSampledConfig extends IGetCandlesFilledConfig {
  * NOTE on look-ahead: a daily bar's high/low/close are known only at the end
  * of the day, yet every synthesized minute of that day carries them. This is
  * inherent to sampling a daily source and is the accepted trade-off for
- * such backtests (combine with CC_BACKTEST_STEP_MINUTES to evaluate once per
- * native bar).
+ * such backtests (combine with a frame `watchInterval` of the native bar to
+ * evaluate once per bar).
  *
  * @throws Error if `interval` is larger than `nativeInterval` or does not
  *   divide it evenly (e.g. "7m" into "1d")

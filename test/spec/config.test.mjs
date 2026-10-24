@@ -1,5 +1,5 @@
 import { test } from "worker-testbed";
-import { setConfig, getDefaultConfig } from "../../build/index.mjs";
+import { setConfig, getDefaultConfig, addFrameSchema } from "../../build/index.mjs";
 
 test("ConfigValidationService: valid default config passes", async ({ pass, fail }) => {
   setConfig(getDefaultConfig());
@@ -406,46 +406,63 @@ test("ConfigValidationService: multiple errors aggregated", async ({ pass, fail 
   }
 });
 
-test("ConfigValidationService: negative BACKTEST_STEP fails", async ({ pass, fail }) => {
-  setConfig(getDefaultConfig());
-
+test("FrameSchemaService: interval together with entryInterval is rejected (interval is an alias)", async ({ pass, fail }) => {
   try {
-    setConfig({ CC_BACKTEST_STEP_MINUTES: -60 });
-    fail("Should have thrown error for negative BACKTEST_STEP");
+    addFrameSchema({
+      frameName: "config-frame-both-intervals",
+      interval: "1h",
+      entryInterval: "1h",
+      startDate: new Date("2024-01-01T00:00:00Z"),
+      endDate: new Date("2024-01-02T00:00:00Z"),
+    });
+    fail("Should have thrown for interval + entryInterval");
   } catch (error) {
-    if (error.message.includes("CC_BACKTEST_STEP_MINUTES must be a non-negative integer")) {
-      pass("Correctly rejected negative BACKTEST_STEP");
+    if (error.message.includes("interval and entryInterval are both set")) {
+      pass("Correctly rejected a frame naming the tick interval twice");
     } else {
       fail(`Wrong error message: ${error.message}`);
     }
   }
 });
 
-test("ConfigValidationService: non-integer BACKTEST_STEP fails", async ({ pass, fail }) => {
-  setConfig(getDefaultConfig());
-
+test("FrameSchemaService: interval with watchInterval, and entryInterval with watchInterval, are accepted", async ({ pass, fail }) => {
   try {
-    setConfig({ CC_BACKTEST_STEP_MINUTES: 1.5 });
-    fail("Should have thrown error for non-integer BACKTEST_STEP");
+    addFrameSchema({
+      frameName: "config-frame-alias-watch",
+      interval: "1h",
+      watchInterval: "1d",
+      startDate: new Date("2024-01-01T00:00:00Z"),
+      endDate: new Date("2024-01-02T00:00:00Z"),
+    });
+    addFrameSchema({
+      frameName: "config-frame-entry-watch",
+      entryInterval: "1h",
+      watchInterval: "4h",
+      startDate: new Date("2024-01-01T00:00:00Z"),
+      endDate: new Date("2024-01-02T00:00:00Z"),
+    });
+    pass("Both shapes registered");
   } catch (error) {
-    if (error.message.includes("CC_BACKTEST_STEP_MINUTES must be a non-negative integer")) {
-      pass("Correctly rejected non-integer BACKTEST_STEP");
-    } else {
-      fail(`Wrong error message: ${error.message}`);
-    }
+    fail(`Should have accepted the frames: ${error.message}`);
   }
 });
 
-test("ConfigValidationService: daily BACKTEST_STEP passes", async ({ pass, fail }) => {
-  setConfig(getDefaultConfig());
-
+test("FrameSchemaService: a non-string watchInterval is rejected", async ({ pass, fail }) => {
   try {
-    setConfig({ CC_BACKTEST_STEP_MINUTES: 24 * 60 });
-    pass("Correctly accepted a 1440-minute timeframe step");
+    addFrameSchema({
+      frameName: "config-frame-bad-watch",
+      interval: "1h",
+      watchInterval: 240,
+      startDate: new Date("2024-01-01T00:00:00Z"),
+      endDate: new Date("2024-01-02T00:00:00Z"),
+    });
+    fail("Should have thrown for a numeric watchInterval");
   } catch (error) {
-    fail(`Should have passed for a daily timeframe step: ${error.message}`);
-  } finally {
-    setConfig(getDefaultConfig());
+    if (error.message.includes("invalid watchInterval")) {
+      pass("Correctly rejected a numeric watchInterval");
+    } else {
+      fail(`Wrong error message: ${error.message}`);
+    }
   }
 });
 

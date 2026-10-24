@@ -1,8 +1,9 @@
 import { ILogger } from "./Logger.interface";
 
 /**
- * Timeframe interval for backtest period generation.
- * Determines the granularity of timestamps in the generated timeframe array.
+ * Interval of a backtest frame: the granularity of the generated timeframe
+ * array (`entryInterval`) and the stride of the candle loops that watch an
+ * open or scheduled signal (`watchInterval`).
  *
  * Minutes: 1m, 3m, 5m, 15m, 30m
  * Hours: 1h, 2h, 4h, 6h, 8h, 12h
@@ -29,8 +30,10 @@ export type FrameInterval =
 export interface IFrameParams extends IFrameSchema {
     /** Logger service for debug output */
     logger: ILogger;
-    /** Frame name for identification */
-    interval: FrameInterval;
+    /** Resolved tick interval: `entryInterval`, or `interval`, or `"1m"` (see IFrameSchema) */
+    entryInterval: FrameInterval;
+    /** Resolved watch interval: `watchInterval` or `"1m"` (see IFrameSchema) */
+    watchInterval: FrameInterval;
 }
 
 /**
@@ -44,7 +47,7 @@ export interface IFrameCallbacks {
    * @param timeframe - Array of Date objects representing tick timestamps
    * @param startDate - Start of the backtest period
    * @param endDate - End of the backtest period
-   * @param interval - Interval used for generation
+   * @param interval - Entry interval the timestamps were generated with
    */
   onTimeframe: (
     timeframe: Date[],
@@ -55,22 +58,51 @@ export interface IFrameCallbacks {
 }
 
 /**
- * Frame schema registered via addFrame().
- * Defines backtest period and interval for timestamp generation.
+ * Frame schema registered via addFrameSchema().
+ * Defines the backtest period and the two cadences of the backtest:
+ *
+ * - `entryInterval` — how often the strategy is asked for a NEW signal
+ *   (`getSignal`) and how often idle pings fire: the generated timeframe array
+ *   is spaced by it. This is the "tick" of the backtest and the step the
+ *   lockstep hand-off between parallel backtests follows.
+ * - `watchInterval` — how often an OPEN or SCHEDULED signal is re-evaluated
+ *   during its candle replay: TP / time-expiry checks, VWAP, active and
+ *   schedule pings, partial / breakeven / trailing callbacks run once per
+ *   watch span, at its last candle. Candles stay 1m; stop-loss, liquidation
+ *   and scheduled activation / cancel look at the min low / max high of the
+ *   whole span, so a touch on a skipped candle still fires, it is fixed at the
+ *   span end (up to one span late). The hold of a position (`minuteEstimatedTime`)
+ *   is exact: the trailing partial span is evaluated at the position's last
+ *   candle. Long replays are windowed in whole watch spans, so the grid stays
+ *   regular across candle fetches.
+ *
+ * `interval` is an alias of `entryInterval` kept for the original schema
+ * shape; a schema that sets both is rejected. `watchInterval` defaults to
+ * `"1m"` (every candle is evaluated) regardless of `entryInterval`, so an
+ * existing `{ interval: "1h" }` frame keeps its per-minute replay. Use a
+ * coarse `watchInterval` when the candle feed has no intra-span movement
+ * (daily bars polyfilled to 1m) or when a per-minute replay is not worth its
+ * cost. Live mode ignores frames: it ticks on the real clock and evaluates
+ * every candle.
  *
  * @example
  * ```typescript
- * addFrame({
- *   frameName: "1d-backtest",
- *   interval: "1m",
+ * // a new signal once an hour, the open position re-evaluated every 4 hours
+ * addFrameSchema({
+ *   frameName: "q1-backtest",
+ *   entryInterval: "1h",
+ *   watchInterval: "4h",
  *   startDate: new Date("2024-01-01T00:00:00Z"),
- *   endDate: new Date("2024-01-02T00:00:00Z"),
+ *   endDate: new Date("2024-03-31T23:59:59Z"),
  *   callbacks: {
  *     onTimeframe: (timeframe, startDate, endDate, interval) => {
- *       console.log(`Generated ${timeframe.length} timestamps`);
+ *       console.log(`Generated ${timeframe.length} timestamps at ${interval}`);
  *     },
  *   },
  * });
+ *
+ * // the original shape: ticks every minute, every candle evaluated
+ * addFrameSchema({ frameName: "1d-backtest", interval: "1m", startDate, endDate });
  * ```
  */
 export interface IFrameSchema {
@@ -78,8 +110,26 @@ export interface IFrameSchema {
   frameName: FrameName;
   /** Optional developer note for documentation */
   note?: string;
-  /** Interval for time range generation. Defaults to "1m" if not specified */
+  /**
+   * Alias of `entryInterval` (the original schema shape). Setting both
+   * `interval` and `entryInterval` is a validation error. Defaults to "1m".
+   */
   interval?: FrameInterval;
+  /**
+   * Tick interval: spacing of the generated timeframe array, i.e. how often
+   * `getSignal` is asked for a new signal and idle pings fire. Also the step
+   * the lockstep hand-off between parallel backtests follows. Defaults to
+   * `interval`, then "1m".
+   */
+  entryInterval?: FrameInterval;
+  /**
+   * Stride of the candle loops that watch an open or scheduled signal: one
+   * evaluation per span, at its last candle, with stop-loss / liquidation /
+   * activation touches taken over the whole span. Independent of
+   * `entryInterval`: may be shorter (a 1h tick with a 15m watch) or longer
+   * (a 1h tick with a 4h watch). Defaults to "1m" — every candle evaluated.
+   */
+  watchInterval?: FrameInterval;
   /** Start of backtest period (inclusive) */
   startDate: Date;
   /** End of backtest period (inclusive) */

@@ -77,44 +77,11 @@ export const GLOBAL_CONFIG = {
   /**
    * Maximum number of candles to request per single API call.
    * If a request exceeds this limit, data will be fetched using pagination.
-   * Also the replay window of an Infinity-hold backtest position; with
-   * CC_BACKTEST_STEP_MINUTES the window is rounded to whole spans of the step.
+   * Also the replay window of an Infinity-hold backtest position; with a
+   * frame `watchInterval` coarser than 1m the window is rounded to whole spans.
    * Default: 1000 candles per request
    */
   CC_MAX_CANDLES_PER_REQUEST: 1_000,
-  /**
-   * Stride (in minutes) of the candle loops in ClientStrategy.backtest.
-   * Candles stay 1m — only how often the backtest LOOKS at them changes.
-   *
-   * The pending TP/SL monitoring loop and the scheduled activation loop advance
-   * `step` 1m candles per iteration instead of one. Each span is evaluated at
-   * its LAST candle, so the VWAP window (CC_AVG_PRICE_CANDLES_COUNT candles)
-   * lies entirely inside the span and never blends two spans' prices. The
-   * skipped candles are NOT ignored: stop-loss / liquidation and scheduled
-   * activation/cancel are checked against the min low / max high of the whole
-   * span, so an intra-span touch still fires; VWAP, pings, partial/breakeven
-   * callbacks, the commit-queue drain and the per-candle "active"/"waiting"
-   * emissions run once per step. A trailing partial span (the last candles of a
-   * position before its hold runs out or the frame ends) is evaluated at its
-   * last candle. An Infinity-hold position is replayed in windows holding a
-   * whole number of spans (the largest multiple of the step that fits
-   * CC_MAX_CANDLES_PER_REQUEST, or one span when the step is longer; the
-   * exchange layer pages the fetch), so the grid stays regular across windows.
-   * The tick cadence between signals is NOT affected — that stays the
-   * frame schema `interval`.
-   *
-   * Use case: a candle source that only has DAILY bars (Yahoo Finance) with the
-   * 1m feed polyfilled by repeating the daily bar 1440 times — every minute of a
-   * day is identical, so a per-minute loop does 1440x the work for the same
-   * result. With 24 * 60 the backtest evaluates one candle per day.
-   *
-   * Applies to backtest only: live/paper tick on the real clock.
-   * Set to 0 for the per-candle loop (legacy).
-   *
-   * Default: 0
-   */
-  CC_BACKTEST_STEP_MINUTES: 0,
-
   /**
    * Maximum allowed deviation factor for price anomaly detection.
    * No price of a candle may be more than this factor away from its reference.

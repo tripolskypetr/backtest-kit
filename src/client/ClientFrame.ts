@@ -76,7 +76,7 @@ const GET_TIMEFRAME_FN = async (symbol: string, self: ClientFrame) => {
     symbol,
   });
 
-  const { interval, startDate, endDate } = self.params;
+  const { entryInterval: interval, startDate, endDate } = self.params;
 
   const intervalMinutes = INTERVAL_MINUTES[interval];
   if (!intervalMinutes) {

@@ -47,6 +47,7 @@ import { PersistSignalAdapter, PersistScheduleAdapter, PersistRecentAdapter, Per
 import { ExecutionContextService } from "../lib/services/context/ExecutionContextService";
 import { errorEmitter, exitEmitter } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
+import { intervalStepMs } from "../utils/intervalStepMs";
 import { getTotalClosed } from "../helpers/getTotalClosed";
 import beginTime from "../utils/beginTime";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
@@ -1574,14 +1575,12 @@ const GET_AVG_PRICE_FN = (candles: ICandleData[]): number => {
 };
 
 /**
- * Number of 1m candles the backtest candle loops advance per iteration
- * (CC_BACKTEST_STEP_MINUTES; 0 = legacy per-candle loop). The backtest candle
- * feed is always 1m, so minutes map 1:1 to candles.
+ * Number of 1m candles the backtest candle loops advance per iteration: the
+ * frame's `watchInterval` (IStrategyParams.watchInterval; "1m" = per-candle
+ * loop). The backtest candle feed is always 1m, so minutes map 1:1 to candles.
  */
-const GET_BACKTEST_STEP_CANDLES_FN = (): number =>
-  GLOBAL_CONFIG.CC_BACKTEST_STEP_MINUTES > 0
-    ? GLOBAL_CONFIG.CC_BACKTEST_STEP_MINUTES
-    : 1;
+const GET_BACKTEST_STEP_CANDLES_FN = (self: ClientStrategy): number =>
+  intervalStepMs(self.params.watchInterval) / 60_000;
 
 /**
  * First evaluation index of a strided candle loop: the END of the first span
@@ -5958,11 +5957,11 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
   const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
   const maxTimeToWait = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES * 60 * 1000;
   const bufferCandlesCount = candlesCount - 1;
-  // CC_BACKTEST_STEP_MINUTES: stride of the loop in 1m candles (1 = legacy).
+  // watchInterval of the frame: stride of the loop in 1m candles (1 = every candle).
   // Each span is evaluated at its END (VWAP window fully inside the span) and
   // activation/cancel touches are taken over the whole span (see
   // GET_TOUCH_RANGE_FN), so a coarse stride does not miss an intra-span breach.
-  const stepCandles = GET_BACKTEST_STEP_CANDLES_FN();
+  const stepCandles = GET_BACKTEST_STEP_CANDLES_FN(self);
   const lastIndex = candles.length - 1;
   let spanStart = bufferCandlesCount;
 
@@ -6498,11 +6497,11 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   }
   const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
   const bufferCandlesCount = candlesCount - 1;
-  // CC_BACKTEST_STEP_MINUTES: stride of the loop in 1m candles (1 = legacy).
+  // watchInterval of the frame: stride of the loop in 1m candles (1 = every candle).
   // Each span is evaluated at its END (VWAP window fully inside the span) and
   // stop/liquidation touches are taken over the whole span (see
   // GET_TOUCH_RANGE_FN), so a coarse stride does not miss an intra-span touch.
-  const stepCandles = GET_BACKTEST_STEP_CANDLES_FN();
+  const stepCandles = GET_BACKTEST_STEP_CANDLES_FN(self);
   const lastIndex = candles.length - 1;
   let spanStart = bufferCandlesCount;
 

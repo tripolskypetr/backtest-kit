@@ -26,6 +26,7 @@ import {
   IDividendDto,
 } from "../../../interfaces/Strategy.interface";
 import StrategySchemaService from "../schema/StrategySchemaService";
+import FrameSchemaService from "../schema/FrameSchemaService";
 import ExchangeConnectionService from "./ExchangeConnectionService";
 import BacktestLogicPrivateService from "../logic/private/BacktestLogicPrivateService";
 import {
@@ -1137,6 +1138,7 @@ export class StrategyConnectionService implements TStrategy {
     TYPES.executionContextService
   );
   public readonly methodContextService = inject<TMethodContextService>(TYPES.methodContextService);
+  public readonly frameSchemaService = inject<FrameSchemaService>(TYPES.frameSchemaService);
   public readonly strategySchemaService = inject<StrategySchemaService>(
     TYPES.strategySchemaService
   );
@@ -1189,6 +1191,8 @@ export class StrategyConnectionService implements TStrategy {
         interval,
         exchangeName,
         frameName,
+        // the frame's watch stride drives the backtest candle loops; live has no frame and evaluates every candle
+        watchInterval: backtest && frameName ? this.frameSchemaService.getWatchInterval(frameName) : "1m",
         backtest,
         execution: this.executionContextService,
         method: this.methodContextService,

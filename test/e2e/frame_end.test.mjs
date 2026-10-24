@@ -67,7 +67,8 @@ const buildCase = (name, { frameStart = FRAME_START, frameEnd = FRAME_END, serie
       return { position: "long", priceStopLoss: currentPrice * 0.85, priceTakeProfit: currentPrice * 1.19, cost: 1000, minuteEstimatedTime: holdMinutes };
     },
   });
-  addFrameSchema({ frameName, interval: "1h", startDate: new Date(frameStart), endDate: new Date(frameEnd) });
+  // daily bars sampled to minutes: the position is re-evaluated once a day (watchInterval), ticks stay hourly
+  addFrameSchema({ frameName, interval: "1h", watchInterval: "1d", startDate: new Date(frameStart), endDate: new Date(frameEnd) });
   return { exchangeName, strategyName, frameName, frameEnd };
 };
 
@@ -106,7 +107,7 @@ const failedClosedAtFrameEnd = ({ opened, closed, fatal }, schema, fail, expecte
 };
 
 const withConfig = async (fn) => {
-  setConfig({ ...getDefaultConfig(), CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity, CC_BACKTEST_STEP_MINUTES: 24 * 60 });
+  setConfig({ ...getDefaultConfig(), CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity });
   try { return await fn(); } finally { setConfig(getDefaultConfig()); }
 };
 
