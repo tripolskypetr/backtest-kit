@@ -25,6 +25,7 @@ import {
   listenOrderSchedule,
   listenSync,
   MethodContextService,
+  OrderRejectedError,
 } from "../../build/index.mjs";
 
 import { Subject, sleep } from "functools-kit";
@@ -1894,7 +1895,7 @@ test("AUDIT: live price-activation sync-reject notifies broker channel", async (
   const unsubscribeSync = listenSync((event) => {
     if (event.strategyName === context.strategyName && event.action === "signal-open" && event.type === "active") {
       syncRejects += 1;
-      throw new Error("audit: broker rejected order at activation");
+      throw new OrderRejectedError("audit: broker rejected order at activation");
     }
   }, true);
 

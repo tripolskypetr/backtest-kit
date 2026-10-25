@@ -74,6 +74,10 @@ export class ConfigValidationService {
       errors.push(`CC_SIGNAL_LEVERAGE_MULTIPLIER must be a positive finite number, got ${GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER}`);
     }
 
+    if (typeof GLOBAL_CONFIG.CC_BUDGET_THROW_ON_REJECT !== "boolean") {
+      errors.push(`CC_BUDGET_THROW_ON_REJECT must be a boolean, got ${GLOBAL_CONFIG.CC_BUDGET_THROW_ON_REJECT}`);
+    }
+
     if (typeof GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN !== "boolean") {
       errors.push(`CC_SIGNAL_ISOLATED_MARGIN must be a boolean, got ${GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN}`);
     }

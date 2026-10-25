@@ -83,6 +83,15 @@ export interface OrderOpenContract extends OrderSyncBase {
   maxDrawdown: IStrategyPnL;
   /** Cost of the position at close (sum of all entry costs) */
   cost: number;
+  /**
+   * true when the row is a RESTING entry: type "schedule" is its placement, type "active"
+   * is its ACTIVATION — and both carry the SAME signalId. On an activation the adapter
+   * MUST first check whether the resting order it placed under clientOrderId = signalId
+   * has already resolved (filled / partially filled) and only then act, regardless of
+   * `attempt` (the activation counts its own attempts, the placement is a prior order
+   * under this id by definition). false on an immediate market entry.
+   */
+  scheduled: boolean;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
   /** Entry price at which the limit order was filled */

@@ -14,6 +14,7 @@ import {
   MethodContextService,
   Broker,
   lib,
+  OrderRejectedError,
 } from "../../build/index.mjs";
 
 // Отмена ордера в live через БРОКЕРСКИЕ хуки (useBrokerAdapter + enable):
@@ -240,9 +241,10 @@ test("broker openCommit throw (schedule) rejects placement and retries next tick
   t.pass("rejected placement is not registered, throttle rolls back, next tick retries and succeeds");
 });
 
-// 4. Broker.onOrderOpenCommit (type=active) бросает при АКТИВАЦИИ scheduled:
-//    терминальная отмена (não ретрай) — resting снят, адаптер уведомлён
-test("broker openCommit throw (active) at scheduled activation terminally cancels", async (t) => {
+// 4. Broker.onOrderOpenCommit (type=active) бросает OrderRejectedError при АКТИВАЦИИ
+//    scheduled: терминальная отмена (без ретрая) — resting снят, адаптер уведомлён.
+//    Обычный бросок здесь — транзиент: resting остаётся, активация ретраится (тест 4b)
+test("broker openCommit OrderRejectedError (active) at scheduled activation terminally cancels", async (t) => {
   useMemoryPersist();
   setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60 }, true);
   let px = 50000;
@@ -254,7 +256,7 @@ test("broker openCommit throw (active) at scheduled activation terminally cancel
     async onOrderOpenCommit(p) {
       calls.push({ m: "openCommit", type: p.type });
       if (p.type === "active") {
-        throw new Error("exchange reports our resting order was NOT filled");
+        throw new OrderRejectedError("exchange reports our resting order was definitively NOT filled");
       }
     }
     async onSignalScheduleCancelled(p) { calls.push({ m: "scheduleCancelled", reason: p.reason }); }
@@ -297,4 +299,57 @@ test("broker openCommit throw (active) at scheduled activation terminally cancel
     return;
   }
   t.pass("rejected activation fill terminally cancels the scheduled order and notifies the adapter");
+});
+
+// 4b. Broker.onOrderOpenCommit (type=active) бросает ОБЫЧНУЮ ошибку при активации:
+//     транзиент — resting НЕ снимается, адаптер НЕ получает cancel, активация
+//     ретраится следующим тиком тем же id с attempt 1 (адаптер сверяет по clientOrderId)
+test("broker openCommit transient throw (active) at scheduled activation keeps the resting order and retries", async (t) => {
+  useMemoryPersist();
+  setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60 }, true);
+  let px = 50000;
+  makePriceExchange("bc4b-ex", () => px);
+  const CTX = { strategyName: "bc4b-strat", exchangeName: "bc4b-ex", frameName: "" };
+  const calls = [];
+  const activations = [];
+  Broker.useBrokerAdapter(class {
+    async onOrderOpenCommit(p) {
+      calls.push({ m: "openCommit", type: p.type });
+      if (p.type === "active") {
+        activations.push({ id: p.signalId, attempt: p.attempt, scheduled: p.scheduled });
+        if (activations.length === 1) throw new Error("exchange timed out, fill status unknown");
+      }
+    }
+    async onSignalScheduleCancelled(p) { calls.push({ m: "scheduleCancelled", reason: p.reason }); }
+  });
+  Broker.enable();
+
+  let emitted = false;
+  addStrategySchema({
+    strategyName: CTX.strategyName,
+    interval: "1m",
+    getSignal: async () => (emitted ? null : ((emitted = true), { ...SCHEDULED_DTO })),
+  });
+  const schedule = [];
+  listenOrderSchedule((e) => schedule.push(e.action));
+  const signals = [];
+  listenSignal((e) => signals.push(e.action));
+  const r1 = await liveTick("BTCUSDT", BASE + 1 * MIN, CTX);
+  if (r1.action !== "scheduled") { t.fail(`tick1 ${r1.action}`); return; }
+  px = 48500; // кроссинг priceOpen -> попытка активации -> гейт падает транзиентно
+  const r2 = await liveTick("BTCUSDT", BASE + 2 * MIN, CTX);
+  if (r2.action !== "waiting") { t.fail(`transient activation refusal must keep the entry scheduled (waiting), got ${r2.action}`); return; }
+  if (schedule.includes("cancelled") || calls.some((c) => c.m === "scheduleCancelled")) {
+    t.fail(`resting order must NOT be cancelled on a transient refusal: ${schedule.join(",")} ${JSON.stringify(calls)}`);
+    return;
+  }
+  const r3 = await liveTick("BTCUSDT", BASE + 3 * MIN, CTX);
+  if (r3.action !== "opened") { t.fail(`activation must be retried and accepted on the next tick, got ${r3.action}`); return; }
+  if (activations.length !== 2 || activations[0].id !== activations[1].id || activations.map((a) => a.attempt).join(",") !== "0,1") {
+    t.fail(`expected activation attempts 0,1 on the same id, got ${JSON.stringify(activations)}`);
+    return;
+  }
+  if (!signals.includes("opened")) { t.fail("opened event missing after the retried activation"); return; }
+  if (!activations.every((a) => a.scheduled === true)) { t.fail(`activation payloads must carry scheduled=true: ${JSON.stringify(activations)}`); return; }
+  t.pass("transient activation refusal keeps the resting order, next tick activates with attempt 1 on the same id, scheduled=true");
 });

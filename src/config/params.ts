@@ -468,6 +468,9 @@ export const GLOBAL_CONFIG = {
    *   A(t0) B(t0) A(t1) B(t1) … and never drift apart by more than one timeframe.
    * - Every iteration starts behind a time barrier: it waits until every running peer has
    *   reached its timeframe (executed up to it, or parked on it with nothing left before it).
+   *   Ticks of the SAME timeframe are a tie and run in launch order (the FIFO of the mutex):
+   *   with a shared `Budget` that order is the priority at the money — the `Launcher`
+   *   symbol list decides who reserves first when several symbols signal in the same hour.
    * - A replay spans many timeframes in one iteration, so inside it `StrategyConnectionService`
    *   calls the orchestrator from its schedule / active ping callbacks (one per replayed candle)
    *   and on the last candle before every boundary the replay hands the lock off and waits until
@@ -476,8 +479,14 @@ export const GLOBAL_CONFIG = {
    * - A strategy that blocks inside `getSignal` or a ping handler (an LLM call, a `sleep`)
    *   therefore parks its peers at the same `when`; shared state such as `Budget` sees the
    *   symbols in time order, a write from the middle of a replay included.
-   * - While the lock is held the generator still yields to its consumer, so a consumer that
-   *   waits for ANOTHER backtest's progress inside the `for await` body would deadlock.
+   * - While the lock is held the generator still yields to its consumer, and the progress /
+   *   tick listeners run under it too. The whole group therefore moves at the pace of its
+   *   SLOWEST consumer or listener: a `for await` body or a `listenBacktestProgress` handler
+   *   that writes to a database or a network per result slows every parallel backtest, not
+   *   only its own. This is a slowdown, never a hang, and the no-progress warning of the
+   *   peer wait does not fire for it (the slow party holds the lock, it is not outside it) —
+   *   keep consumers and listeners cheap, or batch their work. A consumer that waits for
+   *   ANOTHER backtest's progress inside the `for await` body would deadlock.
    * - Makes `CC_ENABLE_BACKTEST_PARALLEL_SPIN` redundant: `Candle.spinLock` is skipped while
    *   lockstep is on, the peers are parked on this mutex anyway.
    *
@@ -496,6 +505,20 @@ export const GLOBAL_CONFIG = {
    * Default: true (parallel backtests advance one timeframe at a time)
    */
   CC_BACKTEST_LOCKSTEP: true,
+
+  /**
+   * How `Budget.reserve` / `Budget.withdraw` (and the context-free `Budget._reserve` /
+   * `Budget._withdraw`) report a refusal — a reserve above the free balance, a withdrawal
+   * above the held units. The `reject` row is written to the journal either way.
+   *
+   * - `false` (default): the call returns `false`; the strategy branches on the result
+   *   (`if (!(await fund.reserve(dto))) return null;`).
+   * - `true`: the call throws `BudgetRejectedError` — for code that treats a refusal as an
+   *   exception path or wants it to surface out of a listener into `listenError`.
+   *
+   * Default: false
+   */
+  CC_BUDGET_THROW_ON_REJECT: false,
 
   /**
    * Enables DCA (Dollar-Cost Averaging) logic even if antirecord is not broken.

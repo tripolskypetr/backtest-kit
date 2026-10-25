@@ -123,10 +123,17 @@ const LOCKSTEP_STEP_FN = (): number =>
  * spinning forever. A lagging peer that is still joining (sleeping on the
  * join timer, see JOIN_PEERS_FN) is not blocked, it only holds no lock: such a
  * round sleeps one join beat instead of giving up, bounded like the join
- * itself. `spinFirst` forces one spin even when nobody lags: inside a replay
- * that FIFO turn is what keeps the peers interleaved.
+ * itself. Giving up is logged (loggerService.warn + console.warn) with the
+ * lagging peers: in a healthy run it never happens — every await of an
+ * iteration, the yields included, sits under the lock — so a hit means a peer
+ * is dying (its cursor goes away once its error handling is done) or has been
+ * left outside the lock by a code change, and the clocks will drift by what
+ * this caller writes before that peer returns. `spinFirst` forces one spin
+ * even when nobody lags: inside a replay that FIFO turn is what keeps the
+ * peers interleaved.
  */
 const WAIT_FOR_PEERS_FN = async (
+  self: BacktestLogicPrivateService,
   cursor: TLockstepCursor,
   at: number,
   kind: "start" | "handoff",
@@ -146,7 +153,9 @@ const WAIT_FOR_PEERS_FN = async (
     return peer.parked.kind === "handoff" ? peer.parked.at >= at : peer.parked.at > at;
   };
   const lagging = () => Array.from(LOCKSTEP_CURSORS.values()).filter((peer) => peer !== cursor && !caughtUp(peer));
-  const snapshot = () => lagging().map((peer) => `${peer.clock}/${peer.parked ? `${peer.parked.kind}@${peer.parked.at}` : "-"}/${peer.joining}`).join(",");
+  const describe = (peer: TLockstepCursor) => `${peer.clock}/${peer.parked ? `${peer.parked.kind}@${peer.parked.at}` : "-"}/${peer.joining}`;
+  const snapshot = () => lagging().map(describe).join(",");
+  const keyOf = (target: TLockstepCursor) => Array.from(LOCKSTEP_CURSORS.entries()).find(([, peer]) => peer === target)?.[0] ?? "";
   let before = snapshot();
   let spin = spinFirst;
   let joinRounds = 0;
@@ -158,6 +167,22 @@ const WAIT_FOR_PEERS_FN = async (
       if (lagging().some((peer) => peer.joining) && joinRounds++ < LOCKSTEP_JOIN_ROUNDS) {
         await sleep(LOCKSTEP_JOIN_DELAY);
         continue;
+      }
+      {
+        const message = "backtestLogicPrivateService lockstep gave up waiting for peers that make no progress";
+        const payload = {
+          backtest: keyOf(cursor),
+          kind,
+          at: new Date(at).toISOString(),
+          lagging: lagging().map((peer) => ({
+            backtest: keyOf(peer),
+            clock: new Date(peer.clock).toISOString(),
+            parked: peer.parked ? `${peer.parked.kind}@${new Date(peer.parked.at).toISOString()}` : null,
+            joining: peer.joining,
+          })),
+        };
+        self.loggerService.warn(message, payload);
+        console.warn(message, payload);
       }
       break;
     }
@@ -176,7 +201,10 @@ const WAIT_FOR_PEERS_FN = async (
  * DCA entry, a budget reserve) would then be checked against a journal the
  * peers have not reached yet. ClientStrategy pings on every replayed candle and
  * `StrategyConnectionService` calls `handoff` from its `onSchedulePing` /
- * `onActivePing` system callbacks BEFORE the candle's listeners run: on the
+ * `onActivePing` system callbacks BEFORE the candle's listeners run, and from
+ * `onHandoff` right before the loops execute an exchange-forced event (a stop,
+ * a take-profit, an activation) on a candle inside a watch span, which never
+ * reaches the span-end ping: on the
  * first candle on or past the next boundary the replay waits
  * ({@link WAIT_FOR_PEERS_FN}) until every running peer has reached the last
  * boundary that candle crossed, so a write on that candle is checked against
@@ -223,7 +251,7 @@ const HANDOFF_FN = async (
     timestamp,
     boundary,
   });
-  await WAIT_FOR_PEERS_FN(cursor, boundary, "handoff", true);
+  await WAIT_FOR_PEERS_FN(self, cursor, boundary, "handoff", true);
 };
 
 const SYMBOL_FN_ERROR = Symbol("backtest-fn-error");
@@ -395,14 +423,26 @@ const CANDLES_UNTIL_FRAME_END_FN = (since: Date, frameEndTime: number): number =
  * CC_MAX_CANDLES_PER_REQUEST, that limit stays the exchange's request size;
  * the window is what the replay sees.
  */
-const CHUNK_CANDLES_FN = (self: BacktestLogicPrivateService, bufferMinutes: number): number => {
+const CHUNK_CANDLES_FN = (
+  self: BacktestLogicPrivateService,
+  bufferMinutes: number,
+  firstEvaluableMs: number,
+  anchorMs: number
+): number => {
   const maxCandles = GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST;
-  const step = intervalStepMs(self.frameSchemaService.getWatchInterval(self.methodContextService.context.frameName)) / 60_000;
+  const stepMs = intervalStepMs(self.frameSchemaService.getWatchInterval(self.methodContextService.context.frameName));
+  const step = stepMs / 60_000;
   if (step <= 1) {
     return maxCandles;
   }
   const spans = Math.max(1, Math.floor((maxCandles - bufferMinutes) / step));
-  return bufferMinutes + spans * step;
+  // The watch grid of ClientStrategy.backtest is anchored at the signal (pendingAt), not at the
+  // window: a window that starts off the grid (the candle after a scheduled activation) would end
+  // on a boundary and leave one lone candle to a span of its own. Trim the window by the phase of
+  // its first evaluable candle so it ends on the candle before a boundary.
+  const phaseMinutes = (((firstEvaluableMs - anchorMs) % stepMs) + stepMs) % stepMs / 60_000;
+  const usable = spans * step - phaseMinutes;
+  return bufferMinutes + (usable > 0 ? usable : spans * step);
 };
 
 const BACKTEST_FN = async (
@@ -470,7 +510,7 @@ const RUN_INFINITY_CHUNK_LOOP_FN = async (
   initialCandles: ICandleData[]
 ): Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | TFnError> => {
   let backtestResult: IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive = initialResult;
-  const CHUNK = CHUNK_CANDLES_FN(self, bufferMs / 60_000);
+  const anchor = initialResult.signal.pendingAt;
   // Seed with the candles already replayed by the caller so CLOSE_PENDING_FN
   // never receives an empty array when the very first chunk fetch comes back
   // empty (frame ending near the present moment).
@@ -478,7 +518,8 @@ const RUN_INFINITY_CHUNK_LOOP_FN = async (
   let chunkStart = new Date(initialResult._backtestLastTimestamp + 60_000 - bufferMs);
 
   while (backtestResult.action === "active") {
-    const chunkLimit = Math.min(CHUNK, CANDLES_UNTIL_FRAME_END_FN(chunkStart, frameEndTime));
+    const window = CHUNK_CANDLES_FN(self, bufferMs / 60_000, chunkStart.getTime() + bufferMs, anchor);
+    const chunkLimit = Math.min(window, CANDLES_UNTIL_FRAME_END_FN(chunkStart, frameEndTime));
     const chunkCandles = chunkLimit > 0
       ? await GET_CANDLES_FN(self, symbol, chunkLimit, chunkStart, { signalId, chunkLimit })
       : [];
@@ -614,7 +655,7 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
   const bufferMinutes = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - ACTIVE_CANDLE_INCLUDED;
   const bufferStartTime = new Date(when.getTime() - bufferMinutes * 60 * 1000);
   const pendingPhaseMinutes = signal.minuteEstimatedTime === Infinity
-    ? CHUNK_CANDLES_FN(self, bufferMinutes) - bufferMinutes
+    ? CHUNK_CANDLES_FN(self, bufferMinutes, bufferStartTime.getTime() + bufferMinutes * 60_000, bufferStartTime.getTime() + bufferMinutes * 60_000) - bufferMinutes
     : signal.minuteEstimatedTime;
   const candlesNeeded = Math.min(
     bufferMinutes + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + pendingPhaseMinutes + SCHEDULE_ACTIVATION_CANDLE_SKIP,
@@ -689,7 +730,10 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
     unScheduleOpen && unScheduleOpen();
   }
 
-  if (backtestResult.action === "active" && signal.minuteEstimatedTime === Infinity) {
+  // Infinity hold: the leftover after the activation is replayed in whole watch spans.
+  // Finite hold: the array covers the hold, so "active" means a close refused by the
+  // broker gate on the last candle — the retry belongs to the next candle (next window).
+  if (backtestResult.action === "active") {
     const bufferMs = bufferMinutes * 60_000;
     const chunkResult = await RUN_INFINITY_CHUNK_LOOP_FN(self, symbol, when, context, backtestResult, bufferMs, signal.id, frameEndTime, candles);
     if ("__error__" in chunkResult) {
@@ -697,10 +741,6 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
       return chunkResult;
     }
     backtestResult = chunkResult;
-  }
-
-  if (backtestResult.action === "active") {
-    return { type: "skip" };
   }
 
   self.loggerService.info("backtestLogicPrivateService scheduled signal closed", {
@@ -747,12 +787,13 @@ const RUN_OPENED_CHUNK_LOOP_FN = async (
   signalId: string,
   frameEndTime: number
 ): Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | TFnError | null> => {
-  const CHUNK = CHUNK_CANDLES_FN(self, bufferMs / 60_000);
+  const anchor = when.getTime();
   let chunkStart = bufferStartTime;
   let lastChunkCandles: ICandleData[] = [];
 
   while (true) {
-    const chunkLimit = Math.min(CHUNK, CANDLES_UNTIL_FRAME_END_FN(chunkStart, frameEndTime));
+    const window = CHUNK_CANDLES_FN(self, bufferMs / 60_000, chunkStart.getTime() + bufferMs, anchor);
+    const chunkLimit = Math.min(window, CANDLES_UNTIL_FRAME_END_FN(chunkStart, frameEndTime));
     const chunkCandles = chunkLimit > 0
       ? await GET_CANDLES_FN(self, symbol, chunkLimit, chunkStart, { signalId, bufferMs, chunkLimit })
       : [];
@@ -855,6 +896,18 @@ const PROCESS_OPENED_SIGNAL_FN = async function*(
       return firstResult;
     }
     backtestResult = firstResult;
+    // The window covers the hold, so the replay normally ends with a close. It hands the
+    // position back "active" when a close was refused by the broker gate on the window's
+    // last candle (the expiry candle): the retry belongs to the next candle, not to the
+    // same one, so the replay continues in whole watch spans until the close is accepted.
+    if (firstResult.action === "active") {
+      const chunkResult = await RUN_INFINITY_CHUNK_LOOP_FN(self, symbol, when, context, firstResult, bufferMinutes * 60_000, signal.id, frameEndTime, candles);
+      if ("__error__" in chunkResult) {
+        console.error(`backtestLogicPrivateService opened signal: chunk loop after a refused close failed, stopping backtest symbol=${symbol} signalId=${signal.id} reason=${chunkResult.reason} message=${chunkResult.message}`);
+        return chunkResult;
+      }
+      backtestResult = chunkResult;
+    }
   } else {
     const bufferMs = bufferMinutes * 60_000;
     const chunkResult = await RUN_OPENED_CHUNK_LOOP_FN(self, symbol, when, context, bufferStartTime, bufferMs, signal.id, frameEndTime);
@@ -1015,7 +1068,7 @@ export class BacktestLogicPrivateService {
           cursor.nextBoundary = when.getTime() + LOCKSTEP_STEP_FN();
           // time barrier: no iteration starts before every running peer has reached its timeframe
           if (GLOBAL_CONFIG.CC_BACKTEST_LOCKSTEP) {
-            await WAIT_FOR_PEERS_FN(cursor, when.getTime(), "start", false);
+            await WAIT_FOR_PEERS_FN(this, cursor, when.getTime(), "start", false);
           }
           cursor.clock = when.getTime();
 

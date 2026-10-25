@@ -1663,6 +1663,14 @@ export type StrategyData = {
    */
   retryCloseCount: number;
   /**
+   * Number of activation-gate attempts STARTED for the current scheduled signal (pre-armed
+   * BEFORE each `onOrderOpenCommit` type "active" call that activates the resting entry).
+   * A transient refusal keeps the scheduled signal and retries the activation with the
+   * same id and `attempt + 1` up to CC_ORDER_OPEN_RETRY_ATTEMPTS. Restored CLAMPED to 1
+   * (only the reconcile bit survives a restart); reset on every scheduled-signal transition.
+   */
+  retryActivateCount: number;
+  /**
    * Pause flag: while true nothing new opens — params.getSignal is NOT called and a
    * queued createSignal DTO is NOT consumed (it stays queued and drains after unpause);
    * an existing pending/scheduled signal keeps being monitored and closes normally.

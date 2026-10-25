@@ -65,16 +65,25 @@ export interface IFrameCallbacks {
  *   (`getSignal`) and how often idle pings fire: the generated timeframe array
  *   is spaced by it. This is the "tick" of the backtest and the step the
  *   lockstep hand-off between parallel backtests follows.
- * - `watchInterval` — how often an OPEN or SCHEDULED signal is re-evaluated
- *   during its candle replay: TP / time-expiry checks, VWAP, active and
- *   schedule pings, partial / breakeven / trailing callbacks run once per
- *   watch span, at its last candle. Candles stay 1m; stop-loss, liquidation
- *   and scheduled activation / cancel look at the min low / max high of the
- *   whole span, so a touch on a skipped candle still fires, it is fixed at the
- *   span end (up to one span late). The hold of a position (`minuteEstimatedTime`)
- *   is exact: the trailing partial span is evaluated at the position's last
- *   candle. Long replays are windowed in whole watch spans, so the grid stays
- *   regular across candle fetches.
+ * - `watchInterval` — how often the strategy LOOKS at an open or scheduled
+ *   signal during its candle replay: VWAP, active and schedule pings,
+ *   partial / breakeven / trailing callbacks and the commit queue run once per
+ *   watch span, at its last candle. Candles stay 1m, and what the exchange does
+ *   on its own does not wait for the look: stop-loss / liquidation touches,
+ *   take-profit by VWAP, time expiry (`minuteEstimatedTime`), scheduled
+ *   activation / stop reject / wait timeout are found candle by candle inside
+ *   the span and executed on the candle they happened on, with the exact level
+ *   price and timestamp (an activated entry gets the minute of the touch as
+ *   `pendingAt`). The strategy's own protective events do not wait either: a
+ *   partial profit / loss level crossed or the breakeven threshold reached
+ *   inside the span gets its callbacks on that candle (a light look, no ping),
+ *   a commit issued between looks (its action is immediate) has its commit
+ *   event stamped on the next candle like a live tick a minute later, and the
+ *   peak / drawdown of the position are recorded candle by candle
+ *   (reported once, at the next look). Only the active / schedule pings and
+ *   the decisions taken in them keep the span cadence. Long replays are
+ *   windowed in whole watch spans, so the grid stays regular across candle
+ *   fetches.
  *
  * `interval` is an alias of `entryInterval` kept for the original schema
  * shape; a schema that sets both is rejected. `watchInterval` defaults to
@@ -123,9 +132,12 @@ export interface IFrameSchema {
    */
   entryInterval?: FrameInterval;
   /**
-   * Stride of the candle loops that watch an open or scheduled signal: one
-   * evaluation per span, at its last candle, with stop-loss / liquidation /
-   * activation touches taken over the whole span. Independent of
+   * Stride of the candle loops that watch an open or scheduled signal: the
+   * strategy's pings come once per span, at its last candle; exchange-forced
+   * events (stop / liquidation / take-profit / time expiry / activation /
+   * timeout), partial levels, breakeven, queued commits and the peak /
+   * drawdown statistics still happen on the exact candle inside the span.
+   * Independent of
    * `entryInterval`: may be shorter (a 1h tick with a 15m watch) or longer
    * (a 1h tick with a 4h watch). Defaults to "1m" — every candle evaluated.
    */

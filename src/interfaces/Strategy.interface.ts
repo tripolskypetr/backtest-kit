@@ -104,6 +104,14 @@ export type StrategyStatus = {
    */
   retryCloseCount: number;
   /**
+   * Number of activation-gate attempts STARTED for the current scheduled signal (pre-armed
+   * BEFORE each `onOrderOpenCommit` type "active" call that activates the resting entry).
+   * A transient refusal keeps the scheduled signal and retries the activation with the
+   * same id and `attempt + 1` up to CC_ORDER_OPEN_RETRY_ATTEMPTS. Restored CLAMPED to 1
+   * (only the reconcile bit survives a restart); reset on every scheduled-signal transition.
+   */
+  retryActivateCount: number;
+  /**
    * Pause flag: while true nothing new opens — params.getSignal is NOT called and a
    * queued createSignal DTO is NOT consumed (it stays queued and drains after unpause);
    * an existing pending/scheduled signal keeps being monitored and closes normally.
@@ -820,6 +828,16 @@ export interface IStrategyParams extends IStrategySchema {
   onSchedulePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IPublicSignalRow, currentPrice: number, backtest: boolean, timestamp: number) => Promise<void>;
   /** System callback for active ping events (emits to activePingSubject) */
   onActivePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IPublicSignalRow, currentPrice: number, backtest: boolean, timestamp: number) => Promise<void>;
+  /**
+   * System callback the backtest candle loops call right before they execute an
+   * exchange-forced event (stop / liquidation / take-profit / time expiry /
+   * scheduled activation / stop reject / wait timeout) on a candle inside a
+   * watch span. Under CC_BACKTEST_LOCKSTEP it hands the lock off to the
+   * parallel backtests so they reach the last timeframe boundary before this
+   * candle (see BacktestLogicPrivateService.handoff); the pings do the same at
+   * the span end, but a forced event does not wait for the ping. No-op in live.
+   */
+  onHandoff: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, timestamp: number, backtest: boolean) => Promise<void>;
   /** System callback for idle ping events (emits to idlePingSubject) */
   onIdlePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, currentPrice: number, backtest: boolean, timestamp: number) => Promise<void>;
   /**

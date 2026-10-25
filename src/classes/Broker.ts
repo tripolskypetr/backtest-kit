@@ -84,6 +84,15 @@ const BROKER_BASE_METHOD_NAME_ON_AVERAGE_BUY = "BrokerBase.onAverageBuyCommit";
 export type BrokerOrderOpenPayload = {
   /** Which order is being opened: "active" — position entry, "schedule" — resting entry order placement */
   type: "schedule" | "active";
+  /**
+   * true when the row is a RESTING entry: type "schedule" is its placement, type "active"
+   * is its ACTIVATION — and both carry the SAME signalId. On an activation the adapter
+   * MUST first check whether the resting order it placed under clientOrderId = signalId
+   * has already resolved (filled / partially filled) and only then act, regardless of
+   * `attempt` (the activation counts its own attempts, the placement is a prior order
+   * under this id by definition). false on an immediate market entry.
+   */
+  scheduled: boolean;
   /** Trading pair symbol, e.g. "BTCUSDT" */
   symbol: string;
   /** Unique signal identifier (UUID v4) the order belongs to */
@@ -975,6 +984,13 @@ export interface IBroker {
    * strategy state, so it is also the open **gate**. Discriminated by `payload.type`:
    * - "active" — position entry (immediate open or activation fill of the resting order);
    * - "schedule" — PLACEMENT of the resting entry order at scheduled-signal creation.
+   * `payload.scheduled` tells the two "active" cases apart: true is the ACTIVATION of a
+   * resting order that was placed under the SAME signalId at type "schedule" — check
+   * whether that order has already resolved (filled / partially filled) BEFORE sending
+   * anything, whatever `attempt` says: the activation counts its own attempts, and the
+   * placement is a prior order under this id by definition. A retried market entry
+   * overtaken by the price is re-submitted as a resting order too (type "schedule",
+   * same id), so its later activation arrives with `scheduled: true` and `attempt` 0.
    *
    * MANUAL WIRING — EXCEPTION-BASED: place the real order here (tag the exchange order with
    * `clientOrderId = payload.signalId` so later `onOrderActiveCheck` / `onOrderScheduleCheck` /
@@ -985,7 +1001,12 @@ export interface IBroker {
    *   idle; type "schedule": scheduled not registered, risk reservation released) and
    *   retries IDENTITY-STABLY — the SAME signal row with the SAME signalId is re-submitted
    *   on the next tick with `payload.attempt` incremented, up to
-   *   CC_ORDER_OPEN_RETRY_ATTEMPTS. The attempt is PRE-ARMED (persisted before this hook
+   *   CC_ORDER_OPEN_RETRY_ATTEMPTS. The ACTIVATION of a resting order (type "active" fired
+   *   by the price touch or by activateScheduled) follows the same rule: the scheduled
+   *   signal stays registered and the activation is re-attempted on the next tick / candle
+   *   with `attempt + 1` — this gate fires exactly when the resting order is likely to
+   *   have filled, so reconcile by clientOrderId at `attempt > 0` instead of re-sending.
+   *   Exhaustion cancels the scheduled signal (reason "user") and signals a fatal exit. The attempt is PRE-ARMED (persisted before this hook
    *   runs), so even a crash mid-attempt resumes with `attempt >= 1`. Because the id is
    *   stable, the adapter MUST reconcile at `attempt > 0`: query the prior order by
    *   clientOrderId BEFORE re-sending and confirm the open if it filled. Do NOT rely on
@@ -2328,6 +2349,7 @@ export class BrokerAdapter {
       }
       await this.commitOrderOpen({
         type: event.type,
+        scheduled: event.scheduled,
         position: event.signal.position,
         cost: event.signal.cost,
         symbol: event.symbol,

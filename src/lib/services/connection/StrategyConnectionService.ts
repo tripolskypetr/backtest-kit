@@ -119,7 +119,7 @@ const TO_ORDER_FILL_FN = (event: OrderSyncContract): OrderFillContract => {
     totalPartials: event.totalPartials,
   };
   if (event.action === "signal-open") {
-    return { ...base, action: "signal-open", cost: event.cost };
+    return { ...base, action: "signal-open", cost: event.cost, scheduled: event.scheduled };
   }
   return { ...base, action: "signal-close", closeReason: event.closeReason };
 };
@@ -160,7 +160,7 @@ const TO_ORDER_REJECT_FN = (event: OrderSyncContract, message: string): OrderRej
     message,
   };
   if (event.action === "signal-open") {
-    return { ...base, action: "signal-open", cost: event.cost };
+    return { ...base, action: "signal-open", cost: event.cost, scheduled: event.scheduled };
   }
   return { ...base, action: "signal-close", closeReason: event.closeReason };
 };
@@ -697,6 +697,48 @@ const CREATE_COMMIT_IDLE_PING_FN = (self: StrategyConnectionService) => trycatch
 );
 
 /**
+ * Creates the lockstep hand-off callback of the backtest candle loops.
+ *
+ * Called by ClientStrategy right before it executes an exchange-forced event
+ * (stop / liquidation / take-profit / time expiry / scheduled activation / stop
+ * reject / wait timeout) on a candle inside a watch span. The pings hand the
+ * lock off at the span end; a forced event inside the span must not write
+ * before the parallel backtests have reached the last boundary that candle
+ * crossed, so it hands off itself. Live has no lockstep: no-op.
+ *
+ * @param self - Reference to StrategyConnectionService instance
+ * @returns Callback function for the hand-off
+ */
+const CREATE_COMMIT_HANDOFF_FN = (self: StrategyConnectionService) => trycatch(
+  async (
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    if (!backtest) {
+      return;
+    }
+    await self.backtestLogicPrivateService.handoff(symbol, timestamp, { strategyName, exchangeName, frameName });
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_COMMIT_HANDOFF_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
+
+/**
  * Creates a callback function for emitting active ping events.
  *
  * Called by ClientStrategy when an active pending signal is being monitored every minute.
@@ -1219,6 +1261,7 @@ export class StrategyConnectionService implements TStrategy {
         onScheduleEvent: CREATE_COMMIT_SCHEDULE_EVENT_FN(this),
         onSignalEvent: CREATE_COMMIT_SIGNAL_EVENT_FN(this),
         onActivePing: CREATE_COMMIT_ACTIVE_PING_FN(this),
+        onHandoff: CREATE_COMMIT_HANDOFF_FN(this),
         onIdlePing: CREATE_COMMIT_IDLE_PING_FN(this),
         onDispose: CREATE_COMMIT_DISPOSE_FN(this),
         onCommit: CREATE_COMMIT_FN(this),

@@ -15,6 +15,7 @@ import {
   listenCheck,
   lib,
   MethodContextService,
+  OrderRejectedError,
 } from "../../build/index.mjs";
 
 import { Subject } from "functools-kit";
@@ -25,20 +26,21 @@ const alignTimestamp = (timestampMs, intervalMinutes) => {
 };
 
 /**
- * GAUNTLET #1: полный жизненный цикл scheduled с отказом на КАЖДОМ гейте (live, "1h").
+ * GAUNTLET #1: полный жизненный цикл scheduled с транзиентным отказом на КАЖДОМ
+ * гейте (live, "1h") — обе строки доживают до открытия с тем же id.
  *
  * 1. tick #1: размещение resting-ордера отвергнуто (onOrderSync type "schedule") →
  *    scheduled НЕ зарегистрирован, троттл откачен → idle.
- * 2. tick #2 (+1 мин, тот же час): размещение принято → "scheduled".
+ * 2. tick #2 (+1 мин, тот же час): та же строка размещена → "scheduled".
  * 3. tick #3: мониторинг → "waiting".
- * 4. Цена касается priceOpen; tick #4: активация отвергнута sync (type "active") →
- *    ТЕРМИНАЛЬНАЯ отмена (cancelled + commit до брокера), НЕ retry → idle.
- * 5. tick #5 (тот же час): троттл потреблён, активация не ретраится, getSignal
- *    не вызывается → idle, размещений не прибавилось.
- * 6. tick #6 (следующий час): новый сигнал → размещение принято → "scheduled".
- * 7. tick #7: активация принята → "opened" по priceOpen.
+ * 4. Цена касается priceOpen; tick #4: активация отвергнута sync (type "active")
+ *    транзиентно → resting ОСТАЁТСЯ, отмены брокеру нет → "waiting".
+ * 5. tick #5: активация ретраится тем же id с attempt 1 → принята → "opened" по priceOpen.
+ *
+ * Терминальный отказ активации (OrderRejectedError → отмена + потребление id) —
+ * broker_cancel #4 и refuse_open «consumed id».
  */
-test("GAUNTLET: scheduled lifecycle survives placement reject and terminal activation reject", async ({ pass, fail }) => {
+test("GAUNTLET: scheduled lifecycle survives placement reject and transient activation reject", async ({ pass, fail }) => {
   const basePrice = 50000;
   const priceOpen = 40000;
   const t0 = new Date("2024-01-01T00:00:00Z").getTime();
@@ -108,7 +110,7 @@ test("GAUNTLET: scheduled lifecycle survives placement reject and terminal activ
     if (event.type === "active") {
       activeOpenCalls += 1;
       if (activeOpenCalls === 1) {
-        throw new Error("gauntlet: exchange rejected activation fill");
+        throw new Error("gauntlet: exchange timed out on the activation fill");
       }
     }
   }, true);
@@ -128,51 +130,31 @@ test("GAUNTLET: scheduled lifecycle survives placement reject and terminal activ
     actions.push((await runTick(new Date(t0 + 1 * MIN))).action);
     // #3: мониторинг
     actions.push((await runTick(new Date(t0 + 2 * MIN))).action);
-    // #4: цена у priceOpen — активация отвергнута sync → терминальная отмена
+    // #4: цена у priceOpen — активация отвергнута sync транзиентно → resting остаётся
     marketPrice = priceOpen;
     actions.push((await runTick(new Date(t0 + 3 * MIN))).action);
-    // #5: терминальность — тот же час, getSignal заглушен троттлом
-    actions.push((await runTick(new Date(t0 + 4 * MIN))).action);
-    const placementsAfterCancel = scheduleOpenCalls;
-    // #6: новый час — новый сигнал, размещение принято
-    marketPrice = basePrice;
-    actions.push((await runTick(new Date(t0 + HOUR))).action);
-    // #7: активация принята → открытие
-    marketPrice = priceOpen;
-    const tick7 = await runTick(new Date(t0 + HOUR + 1 * MIN));
-    actions.push(tick7.action);
-
-    const expected = ["idle", "scheduled", "waiting", "idle", "idle", "scheduled", "opened"];
+    // #5: активация ретраится тем же id → принята → открытие
+    const tick5 = await runTick(new Date(t0 + 4 * MIN));
+    actions.push(tick5.action);
+    const expected = ["idle", "scheduled", "waiting", "waiting", "opened"];
     if (JSON.stringify(actions) !== JSON.stringify(expected)) {
       fail(`tick actions mismatch: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actions)}`);
       return;
     }
-
-    if (placementsAfterCancel !== 2) {
-      fail(`REGRESSION: activation reject must be terminal — expected 2 placement syncs before hour boundary, got ${placementsAfterCancel}`);
+    if (scheduleOpenCalls !== 2 || activeOpenCalls !== 2) {
+      fail(`sync call counts mismatch: schedule=${scheduleOpenCalls} (expected 2), active=${activeOpenCalls} (expected 2)`);
       return;
     }
-    if (scheduleOpenCalls !== 3 || activeOpenCalls !== 2) {
-      fail(`sync call counts mismatch: schedule=${scheduleOpenCalls} (expected 3), active=${activeOpenCalls} (expected 2)`);
-      return;
-    }
-
     const eventActions = scheduleEvents.map((e) => e.action);
-    if (JSON.stringify(eventActions) !== JSON.stringify(["scheduled", "cancelled", "scheduled"])) {
-      fail(`schedule events mismatch: expected [scheduled, cancelled, scheduled], got ${JSON.stringify(eventActions)}`);
+    if (JSON.stringify(eventActions) !== JSON.stringify(["scheduled"])) {
+      fail(`schedule events mismatch: expected [scheduled] (no cancel on a transient activation refusal), got ${JSON.stringify(eventActions)}`);
       return;
     }
-    if (scheduleEvents[1].reason !== "user") {
-      fail(`cancelled event reason expected "user", got "${scheduleEvents[1].reason}"`);
+    if (tick5.signal.id !== "gauntlet-lifecycle-id" || tick5.signal.priceOpen !== priceOpen) {
+      fail(`opened signal must be the same row at the limit price: id=${tick5.signal.id} priceOpen=${tick5.signal.priceOpen}`);
       return;
     }
-
-    if (tick7.signal.priceOpen !== priceOpen) {
-      fail(`opened priceOpen expected ${priceOpen} (limit fill price), got ${tick7.signal.priceOpen}`);
-      return;
-    }
-
-    pass(`lifecycle survived both gates: ${actions.join(" → ")}, events ${eventActions.join("/")}`);
+    pass(`lifecycle survived both gates with the same id: ${actions.join(" → ")}, events ${eventActions.join("/")}`);
   } finally {
     unsubscribeSchedule();
     unsubscribeSync();
@@ -263,7 +245,7 @@ test("GAUNTLET: stopStrategy racing activation gate emits exactly one cancellati
       async () => await lib.strategyCoreService.stopStrategy(false, "BTCUSDT", context),
       context,
     );
-    throw new Error("gauntlet: broker rejected fill while strategy was being stopped");
+    throw new OrderRejectedError("gauntlet: broker rejected fill while strategy was being stopped");
   }, true);
 
   try {

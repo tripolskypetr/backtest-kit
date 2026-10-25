@@ -98,6 +98,8 @@ interface OrderFillBase {
 export interface OrderFillOpenContract extends OrderFillBase {
   /** Discriminator for the confirmed open/placement */
   action: "signal-open";
+  /** true when the row is a resting entry (placement or its activation under the same signalId) */
+  scheduled: boolean;
   /** Cost of the position (sum of entry costs) */
   cost: number;
 }

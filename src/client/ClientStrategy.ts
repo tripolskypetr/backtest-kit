@@ -42,6 +42,7 @@ import toProfitLossDto from "../helpers/toProfitLossDto";
 import { getEffectivePriceOpen as GET_EFFECTIVE_PRICE_OPEN } from "../helpers/getEffectivePriceOpen";
 import { getLiquidationPrice as GET_LIQUIDATION_PRICE } from "../helpers/getLiquidationPrice";
 import { getBreakevenPrice as GET_BREAKEVEN_PRICE } from "../helpers/getBreakevenPrice";
+import { PROFIT_LEVELS as PARTIAL_PROFIT_LEVELS, LOSS_LEVELS as PARTIAL_LOSS_LEVELS } from "./ClientPartial";
 import { ICandleData } from "../interfaces/Exchange.interface";
 import { PersistSignalAdapter, PersistScheduleAdapter, PersistRecentAdapter, PersistStrategyAdapter } from "../classes/Persist";
 import { ExecutionContextService } from "../lib/services/context/ExecutionContextService";
@@ -232,13 +233,18 @@ const CALL_ORDER_SYNC_OPEN_FN = trycatch(
     return await CALL_ORDER_SYNC_GUARDED_FN(self, {
       action: "signal-open",
       type: "active",
+      // The activation of a resting entry: the placement already went to the exchange
+      // under this signalId (the scheduled row is still registered while the gate runs),
+      // so the adapter must check that order's resolution first. false on a market entry.
+      scheduled: self._scheduledSignal?.id === pendingSignal.id,
       // Prior STARTED attempts for THIS id (counter is pre-armed before this call,
       // so count-1 = attempts that may have reached the exchange; >= 1 means the
       // adapter MUST reconcile by clientOrderId before re-sending). Activation
-      // paths (id not in the retry slot) always report 0.
+      // paths (id not in the retry slot) report their own started-attempts counter
+      // (_retryActivateCount, pre-armed by the activation before this call).
       attempt: self._retryOpenSignal?.id === pendingSignal.id
         ? Math.max(self._retryOpenCount - 1, 0)
-        : 0,
+        : Math.max(self._retryActivateCount - 1, 0),
       symbol: self.params.execution.context.symbol,
       strategyName: self.params.strategyName,
       exchangeName: self.params.exchangeName,
@@ -307,6 +313,7 @@ const CALL_ORDER_SYNC_SCHEDULE_OPEN_FN = trycatch(
     return await CALL_ORDER_SYNC_GUARDED_FN(self, {
       action: "signal-open",
       type: "schedule",
+      scheduled: true,
       // Prior STARTED placement attempts for THIS id (counter pre-armed before this
       // call; >= 1 means a prior placement may have reached the exchange)
       attempt: self._retryOpenSignal?.id === scheduledSignal.id
@@ -1575,77 +1582,338 @@ const GET_AVG_PRICE_FN = (candles: ICandleData[]): number => {
 };
 
 /**
- * Number of 1m candles the backtest candle loops advance per iteration: the
- * frame's `watchInterval` (IStrategyParams.watchInterval; "1m" = per-candle
- * loop). The backtest candle feed is always 1m, so minutes map 1:1 to candles.
+ * Watch grid of one candle array: spans of the frame's `watchInterval` on the
+ * TIME axis, anchored at the signal (`pendingAt` of a position, `scheduledAt`
+ * of a resting entry): boundary k = anchor + k·step. `nextBoundary` is the
+ * exclusive end of the span the loop is in. Anchoring at the signal, not at
+ * the array, keeps the grid in place across replay windows and across the
+ * hand-back after a scheduled activation.
  */
-const GET_BACKTEST_STEP_CANDLES_FN = (self: ClientStrategy): number =>
-  intervalStepMs(self.params.watchInterval) / 60_000;
+type TWatchGrid = { stepMs: number; nextBoundary: number };
 
 /**
- * First evaluation index of a strided candle loop: the END of the first span
- * (`buffer + step - 1`), not its start. Evaluating at the span end keeps the
- * VWAP window (the last CC_AVG_PRICE_CANDLES_COUNT candles) entirely inside the
- * span — at the span START the window would straddle the previous span (e.g.
- * 4 candles of yesterday + 1 of today on a daily stride) and blend two days'
- * prices into every TP check / time_expired close. With step 1 this is
- * `buffer`, the legacy first index.
- *
- * When the array is shorter than one span (a chunk of CC_MAX_CANDLES_PER_REQUEST
- * candles smaller than the stride for an Infinity-hold signal) the last candle
- * is evaluated instead, so every chunk gets at least one evaluation.
+ * Creates the watch grid of a candle array: the first boundary strictly after
+ * the first evaluable candle (candles[bufferCandlesCount]). For a position
+ * opened on that candle this is `pendingAt + step`; for a continuation window
+ * that starts on a boundary it is the next one.
  */
-const GET_FIRST_STEP_INDEX_FN = (
+const CREATE_WATCH_GRID_FN = (
+  self: ClientStrategy,
+  candles: ICandleData[],
   bufferCandlesCount: number,
-  stepCandles: number,
-  lastIndex: number
-): number => {
-  const first = bufferCandlesCount + stepCandles - 1;
-  if (first <= lastIndex) {
-    return first;
+  anchor: number
+): TWatchGrid => {
+  const stepMs = intervalStepMs(self.params.watchInterval);
+  const first = candles[Math.min(bufferCandlesCount, candles.length - 1)]?.timestamp ?? anchor;
+  let nextBoundary = anchor + stepMs;
+  while (nextBoundary <= first) {
+    nextBoundary += stepMs;
   }
-  return lastIndex >= bufferCandlesCount ? lastIndex : lastIndex + 1;
+  return { stepMs, nextBoundary };
 };
 
 /**
- * Next evaluation index of a strided candle loop: `index + step`, clamped to the
- * last candle so a trailing partial span (array length not a multiple of the
- * stride) is still evaluated at its end. Returns `lastIndex + 1` (loop exit)
- * once the last candle has been evaluated. With step 1 this is `index + 1`.
+ * Index of the span end from `from`: the LAST candle before `grid.nextBoundary`.
+ * The loops evaluate a span at its end so the VWAP window (the last
+ * CC_AVG_PRICE_CANDLES_COUNT candles) lies inside the span — at the span start
+ * it would straddle the previous one and blend two spans' prices into every
+ * check. The grid is on the time axis, not on indexes: a gap in the 1m feed (a
+ * maintenance window, a missing minute) shortens the span's candle count and
+ * leaves the boundary where it is; a gap that swallows whole spans moves the
+ * boundary past the first available candle. Clamps to `lastIndex`, so the
+ * trailing part of an array (the end of a hold, the end of a replay window) is
+ * still evaluated at its last candle. Returns `lastIndex + 1` (loop exit) when
+ * `from` is past the array.
  */
-const GET_NEXT_STEP_INDEX_FN = (
+const GET_SPAN_END_INDEX_FN = (
+  candles: ICandleData[],
+  from: number,
+  grid: TWatchGrid,
+  lastIndex: number
+): number => {
+  if (from > lastIndex) {
+    return lastIndex + 1;
+  }
+  while (candles[from].timestamp >= grid.nextBoundary) {
+    grid.nextBoundary += grid.stepMs;
+  }
+  let index = from;
+  while (index < lastIndex && candles[index + 1].timestamp < grid.nextBoundary) {
+    index += 1;
+  }
+  return index;
+};
+
+/**
+ * Span end after the one evaluated at `index`: the boundary moves one step on
+ * and GET_SPAN_END_INDEX_FN finds the last candle before it. With a 1m watch
+ * on a complete feed this is `index + 1`, the legacy per-candle loop.
+ */
+const GET_NEXT_SPAN_END_INDEX_FN = (
+  candles: ICandleData[],
   index: number,
-  stepCandles: number,
+  grid: TWatchGrid,
   lastIndex: number
 ): number => {
   if (index >= lastIndex) {
     return lastIndex + 1;
   }
-  return Math.min(index + stepCandles, lastIndex);
+  grid.nextBoundary += grid.stepMs;
+  return GET_SPAN_END_INDEX_FN(candles, index + 1, grid, lastIndex);
 };
 
 /**
- * Touch extremes for one loop iteration: the min low / max high over
- * candles[spanStart .. index] — every candle since the previous evaluation
- * (inclusive of the evaluated one). With step 1 the span is exactly
- * candles[index], i.e. the legacy single-candle touch check. A stop-loss /
- * liquidation / scheduled activation that happened on a skipped candle
- * therefore still fires on this iteration instead of being lost. The caller
- * advances spanStart to index + 1 after each iteration, so spans never overlap.
+ * VWAP of the backtest loops at candle `index`: the last CC_AVG_PRICE_CANDLES_COUNT
+ * candles up to and including it (the buffer in front of the array guarantees
+ * the window is complete for every index the loops evaluate).
  */
-const GET_TOUCH_RANGE_FN = (
+const GET_AVG_PRICE_AT_FN = (candles: ICandleData[], index: number, candlesCount: number): number =>
+  GET_AVG_PRICE_FN(candles.slice(Math.max(0, index - (candlesCount - 1)), index + 1));
+
+/**
+ * First candle of the span candles[spanStart .. spanEnd] on which the exchange
+ * would have acted on the SCHEDULED signal without the strategy looking: the
+ * frame end passed, the wait timed out (CC_SCHEDULE_AWAIT_MINUTES from
+ * scheduledAt), the stop was touched (price_reject) or the entry price was
+ * touched (activation). The touch is the candle's own low / high, like the
+ * last closed candle in live. Returns -1 when nothing happened in the span.
+ *
+ * With a watch stride the loop evaluates one candle per span; these events do
+ * not wait for that candle — the loop re-evaluates the span at the candle
+ * returned here, so an activation gets the exact minute (and `pendingAt`) of
+ * the touch and a timeout the exact minute it expired. With step 1 the span is
+ * the evaluated candle itself and this is the legacy per-candle check.
+ */
+const FIND_SCHEDULED_FORCED_INDEX_FN = (
+  scheduled: IScheduledSignalRow,
   candles: ICandleData[],
   spanStart: number,
-  index: number
-): { low: number; high: number } => {
-  let low = candles[index].low;
-  let high = candles[index].high;
-  for (let j = spanStart; j < index; j++) {
-    const c = candles[j];
-    if (c.low < low) low = c.low;
-    if (c.high > high) high = c.high;
+  spanEnd: number,
+  frameEndTime: number,
+  maxTimeToWait: number
+): number => {
+  for (let k = spanStart; k <= spanEnd; k++) {
+    const c = candles[k];
+    if (c.timestamp > frameEndTime) return k;
+    if (c.timestamp - scheduled.scheduledAt >= maxTimeToWait) return k;
+    if (scheduled.position === "long" && (c.low <= scheduled.priceStopLoss || c.low <= scheduled.priceOpen)) return k;
+    if (scheduled.position === "short" && (c.high >= scheduled.priceStopLoss || c.high >= scheduled.priceOpen)) return k;
   }
-  return { low, high };
+  return -1;
+};
+
+/**
+ * First candle of the span candles[spanStart .. spanEnd] on which the exchange
+ * would have closed the PENDING signal without the strategy looking: the frame
+ * end passed, the hold ran out (`minuteEstimatedTime` from pendingAt), the stop
+ * or liquidation level was touched by the candle's low / high, or the VWAP at
+ * that candle reached the take-profit (TP follows VWAP, not the wick — the
+ * same asymmetric rule as CHECK_PENDING_SIGNAL_COMPLETION_FN). Returns -1 when
+ * nothing happened in the span.
+ *
+ * Trailing levels are frozen during the scan: they move only at the span's
+ * evaluation, where the strategy looks. With step 1 this is the legacy
+ * per-candle check.
+ */
+const FIND_PENDING_FORCED_INDEX_FN = (
+  signal: ISignalRow,
+  candles: ICandleData[],
+  spanStart: number,
+  spanEnd: number,
+  frameEndTime: number,
+  candlesCount: number
+): number => {
+  const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
+  const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+  const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+  const liquidationPrice = signal.isolated ? GET_LIQUIDATION_PRICE(signal) : null;
+  for (let k = spanStart; k <= spanEnd; k++) {
+    const c = candles[k];
+    if (c.timestamp > frameEndTime) return k;
+    if (c.timestamp - signal.pendingAt >= maxTimeToWait) return k;
+    if (signal.position === "long") {
+      const stopPrice = liquidationPrice !== null && liquidationPrice > effectiveStopLoss ? liquidationPrice : effectiveStopLoss;
+      if (c.low <= stopPrice) return k;
+      if (GET_AVG_PRICE_AT_FN(candles, k, candlesCount) >= effectiveTakeProfit) return k;
+    }
+    if (signal.position === "short") {
+      const stopPrice = liquidationPrice !== null && liquidationPrice < effectiveStopLoss ? liquidationPrice : effectiveStopLoss;
+      if (c.high >= stopPrice) return k;
+      if (GET_AVG_PRICE_AT_FN(candles, k, candlesCount) <= effectiveTakeProfit) return k;
+    }
+  }
+  return -1;
+};
+
+/** A level of `levels` lies in (previous, current]: crossed on this candle */
+const CROSSED_LEVEL_FN = (levels: readonly number[], previous: number, current: number): boolean =>
+  levels.some((level) => current >= level && previous < level);
+
+/**
+ * Progress of a pending signal at `averagePrice`: towards the take-profit (`tp`,
+ * 0..100) when the price is on the profit side of the effective entry, towards the
+ * stop-loss (`sl`, 0..100) when it is on the loss side — the percentTp / percentSl
+ * the span-end look computes.
+ */
+const GET_PENDING_PROGRESS_FN = (signal: ISignalRow, averagePrice: number): { tp: number; sl: number } => {
+  const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(signal);
+  const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+  const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+  const currentDistance = signal.position === "long" ? averagePrice - effectivePriceOpen : effectivePriceOpen - averagePrice;
+  if (currentDistance > 0) {
+    const tpDistance = signal.position === "long" ? effectiveTakeProfit - effectivePriceOpen : effectivePriceOpen - effectiveTakeProfit;
+    return { tp: GET_PROGRESS_PERCENT_FN(currentDistance, tpDistance), sl: 0 };
+  }
+  if (currentDistance < 0) {
+    const slDistance = signal.position === "long" ? effectivePriceOpen - effectiveStopLoss : effectiveStopLoss - effectivePriceOpen;
+    return { tp: 0, sl: GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance) };
+  }
+  return { tp: 0, sl: 0 };
+};
+
+/**
+ * Breakeven threshold price of a pending signal, ClientBreakeven's rule: the
+ * zero-PNL close price shifted by CC_BREAKEVEN_THRESHOLD in the profit
+ * direction; null when nothing is left to protect.
+ */
+const GET_BREAKEVEN_THRESHOLD_FN = (signal: ISignalRow): number | null => {
+  const breakevenPrice = GET_BREAKEVEN_PRICE(signal);
+  if (breakevenPrice === null) {
+    return null;
+  }
+  const shift = GLOBAL_CONFIG.CC_BREAKEVEN_THRESHOLD / 100;
+  return signal.position === "long" ? breakevenPrice * (1 + shift) : breakevenPrice * (1 - shift);
+};
+
+/**
+ * First candle STRICTLY inside the span candles[spanStart .. spanEnd) on which the
+ * strategy has something to react to without waiting for the span-end look:
+ * - commit events queued since the previous look (`_commitQueue`; the actions
+ *   themselves were applied at once): emitted on the very next candle, the way a
+ *   live tick emits them a minute later → `spanStart`;
+ * - a partial profit / loss level (ClientPartial's PROFIT_LEVELS / LOSS_LEVELS)
+ *   crossed between two consecutive candles;
+ * - the breakeven threshold crossed between two consecutive candles.
+ * The candle gets a light look (EVALUATE_PENDING_EVENT_FN): the related callbacks
+ * and the commit queue, no ping. The services dedupe the levels, so a level
+ * re-crossed after a pullback costs a check and emits nothing. Returns -1 when
+ * nothing happened before the span end; with step 1 the range is empty.
+ */
+const FIND_PENDING_STRATEGY_EVENT_INDEX_FN = (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  candles: ICandleData[],
+  spanStart: number,
+  spanEnd: number,
+  candlesCount: number
+): number => {
+  if (spanStart >= spanEnd) {
+    return -1;
+  }
+  if (self._commitQueue.length > 0) {
+    return spanStart;
+  }
+  const threshold = GET_BREAKEVEN_THRESHOLD_FN(signal);
+  let previousPrice = GET_AVG_PRICE_AT_FN(candles, spanStart - 1, candlesCount);
+  let previous = GET_PENDING_PROGRESS_FN(signal, previousPrice);
+  for (let k = spanStart; k < spanEnd; k++) {
+    const averagePrice = GET_AVG_PRICE_AT_FN(candles, k, candlesCount);
+    const progress = GET_PENDING_PROGRESS_FN(signal, averagePrice);
+    if (CROSSED_LEVEL_FN(PARTIAL_PROFIT_LEVELS, previous.tp, progress.tp)) return k;
+    if (CROSSED_LEVEL_FN(PARTIAL_LOSS_LEVELS, previous.sl, progress.sl)) return k;
+    if (threshold !== null) {
+      const reached = signal.position === "long" ? averagePrice >= threshold : averagePrice <= threshold;
+      const wasReached = signal.position === "long" ? previousPrice >= threshold : previousPrice <= threshold;
+      if (reached && !wasReached) return k;
+    }
+    previousPrice = averagePrice;
+    previous = progress;
+  }
+  return -1;
+};
+
+/** Peaks / troughs recorded since the last span-end look: emitted there, once */
+type TPendingExtremes = { peak: boolean; fall: boolean };
+
+/**
+ * Updates the peak (`_peak`) and trough (`_fall`) snapshots of a pending signal with
+ * the VWAP of one candle — the same rule as the span-end look: a peak is a real
+ * plus only. Marks `extremes` so the look emits onHighestProfit / onMaxDrawdown
+ * once with the recorded extreme. Runs for every candle the loop skips, so the
+ * statistics of the position do not depend on the watch stride.
+ */
+const TRACK_PENDING_EXTREMES_FN = (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  averagePrice: number,
+  timestamp: number,
+  extremes: TPendingExtremes
+): void => {
+  const isPeak = signal.position === "long" ? averagePrice > signal._peak.price : averagePrice < signal._peak.price;
+  if (isPeak) {
+    const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
+    if (pnl.pnlPercentage > 0) {
+      signal._peak = { price: averagePrice, timestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
+      if (self.params.callbacks?.onWrite) {
+        self.params.callbacks.onWrite(signal.symbol, signal, averagePrice, new Date(timestamp), true);
+      }
+      extremes.peak = true;
+    }
+  }
+  const isFall = signal.position === "long" ? averagePrice < signal._fall.price : averagePrice > signal._fall.price;
+  if (isFall) {
+    const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
+    signal._fall = { price: averagePrice, timestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
+    if (self.params.callbacks?.onWrite) {
+      self.params.callbacks.onWrite(signal.symbol, signal, averagePrice, new Date(timestamp), true);
+    }
+    extremes.fall = true;
+  }
+};
+
+/** TRACK_PENDING_EXTREMES_FN over candles[from .. to) */
+const TRACK_PENDING_EXTREMES_RANGE_FN = (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  candles: ICandleData[],
+  from: number,
+  to: number,
+  candlesCount: number,
+  extremes: TPendingExtremes
+): void => {
+  for (let k = from; k < to; k++) {
+    TRACK_PENDING_EXTREMES_FN(self, signal, GET_AVG_PRICE_AT_FN(candles, k, candlesCount), candles[k].timestamp, extremes);
+  }
+};
+
+/**
+ * The light look at a strategy-event candle inside a span (see
+ * FIND_PENDING_STRATEGY_EVENT_INDEX_FN): extremes, the breakeven check and the
+ * partial profit / loss callbacks for the side the price is on, then the commit
+ * queue — everything the strategy needs to react on this candle. No active ping
+ * and no tick result: the pings keep the watch cadence.
+ */
+const EVALUATE_PENDING_EVENT_FN = async (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  candles: ICandleData[],
+  index: number,
+  candlesCount: number,
+  extremes: TPendingExtremes
+): Promise<void> => {
+  const timestamp = candles[index].timestamp;
+  const averagePrice = GET_AVG_PRICE_AT_FN(candles, index, candlesCount);
+  const symbol = self.params.execution.context.symbol;
+  const backtest = self.params.execution.context.backtest;
+  TRACK_PENDING_EXTREMES_FN(self, signal, averagePrice, timestamp, extremes);
+  const { tp, sl } = GET_PENDING_PROGRESS_FN(signal, averagePrice);
+  if (tp > 0) {
+    await CALL_BREAKEVEN_CHECK_FN(self, symbol, signal, averagePrice, timestamp, backtest);
+    await CALL_PARTIAL_PROFIT_CALLBACKS_FN(self, symbol, signal, averagePrice, tp, timestamp, backtest);
+  } else if (sl > 0) {
+    await CALL_PARTIAL_LOSS_CALLBACKS_FN(self, symbol, signal, averagePrice, sl, timestamp, backtest);
+  }
+  await PROCESS_COMMIT_QUEUE_FN(self, averagePrice, timestamp);
 };
 
 // Static reads (like WAIT_FOR_DISPOSE_FN): symbol/strategyName/exchangeName/
@@ -1754,6 +2022,10 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
       // must not burn the fresh retry budget — a stale streak from a long outage
       // would otherwise drop the signal on the first post-restart rejection.
       self._retryOpenCount = Math.min(strategyData.retryOpenCount ?? 0, 1);
+      // Started activation attempts of the restored scheduled signal, CLAMPED to 1 the
+      // same way: only the `attempt >= 1` reconcile bit survives a restart. A later
+      // placement resets it through setScheduledSignal.
+      self._retryActivateCount = Math.min(strategyData.retryActivateCount ?? 0, 1);
       // JSON serializes Infinity as null: restore eternal-hold rows the same way
       // as the pending/scheduled snapshots below.
       if (self._retryOpenSignal && self._retryOpenSignal.minuteEstimatedTime == null) {
@@ -2042,6 +2314,7 @@ const PERSIST_STRATEGY_FN = async (self: ClientStrategy): Promise<void> => {
       retryOpenSignal: self._retryOpenSignal,
       retryOpenCount: self._retryOpenCount,
       retryCloseCount: self._retryCloseCount,
+      retryActivateCount: self._retryActivateCount,
       isPaused: self._isPaused,
     },
     self.params.symbol,
@@ -2113,6 +2386,81 @@ const DROP_RETRY_OPEN_SIGNAL_FN = async (
     self._retryOpenCount = 0;
   }
   await PERSIST_STRATEGY_FN(self);
+};
+
+/**
+ * Resolves the outcome of the activation gate (`onOrderOpenCommit` type "active" for a
+ * resting entry — price touch or activateScheduled) into an actionable verdict:
+ *
+ * - "allow" — confirmed; the started-attempts counter resets.
+ * - "retry" — transient refusal within CC_ORDER_OPEN_RETRY_ATTEMPTS: the caller KEEPS the
+ *   scheduled signal (releasing only the risk slot the check reserved for this attempt)
+ *   and re-attempts the activation on the next tick / candle with the SAME id and
+ *   `attempt + 1`. The gate fires at the moment the price touched the entry — exactly
+ *   when a real resting order is likely to have filled — so a network blip there used to
+ *   cancel the signal, make the adapter cancel an already-filled order and leave the
+ *   position on the exchange without the engine; the retry lets the adapter reconcile
+ *   by clientOrderId instead, as the open gate does.
+ * - "cancel" — terminal rejection (OrderRejectedError) or transient attempts exhausted:
+ *   the caller cancels the scheduled signal (reason "user") and the id is consumed so a
+ *   deterministic strategy does not re-issue it. Exhaustion is a network failure, not a
+ *   business outcome: it is RETURNED as `fatalError` and the caller fires exitEmitter
+ *   only AFTER its teardown (same deferred-fatal pattern as the close gate).
+ *
+ * CC_ORDER_OPEN_RETRY_ATTEMPTS = 0 keeps the legacy behaviour: any refusal cancels.
+ */
+const RESOLVE_ACTIVATE_GATE_FN = (
+  self: ClientStrategy,
+  verdict: IBrokerOrderVerdict,
+  scheduled: IScheduledSignalRow
+): { verdict: "allow" | "retry" | "cancel"; fatalError: Error | null } => {
+  if (verdict.reason === "confirmed") {
+    self._retryActivateCount = 0;
+    return { verdict: "allow", fatalError: null };
+  }
+  const terminal = verdict.reason !== "transient";
+  if (!terminal && GLOBAL_CONFIG.CC_ORDER_OPEN_RETRY_ATTEMPTS <= 0) {
+    // Legacy (retry disabled): a transient refusal cancels the entry without consuming
+    // the id and without a fatal exit — the next tick may place a fresh one.
+    self._retryActivateCount = 0;
+    return { verdict: "cancel", fatalError: null };
+  }
+  const retryable = !terminal
+    && self._retryActivateCount <= GLOBAL_CONFIG.CC_ORDER_OPEN_RETRY_ATTEMPTS;
+  if (retryable) {
+    const message = "ClientStrategy RESOLVE_ACTIVATE_GATE_FN: transient activation refusal, the resting entry stays scheduled and the activation is retried";
+    const payload = {
+      symbol: self.params.execution.context.symbol,
+      strategyName: self.params.strategyName,
+      signalId: scheduled.id,
+      attempts: self._retryActivateCount,
+      maxAttempts: GLOBAL_CONFIG.CC_ORDER_OPEN_RETRY_ATTEMPTS,
+    };
+    self.params.logger.warn(message, payload);
+    console.warn(message, payload);
+    return { verdict: "retry", fatalError: null };
+  }
+  // Consume the id BEFORE the teardown (the callers persist right after): a
+  // deterministic strategy re-emitting the same id must not place another real order.
+  self._lastPendingId = scheduled.id;
+  if (terminal) {
+    self._retryActivateCount = 0;
+    return { verdict: "cancel", fatalError: null };
+  }
+  const message = "ClientStrategy RESOLVE_ACTIVATE_GATE_FN: activation attempts exhausted (network), cancelling the scheduled signal and signaling fatal exit";
+  const payload = {
+    symbol: self.params.execution.context.symbol,
+    strategyName: self.params.strategyName,
+    signalId: scheduled.id,
+    attempts: self._retryActivateCount,
+    maxAttempts: GLOBAL_CONFIG.CC_ORDER_OPEN_RETRY_ATTEMPTS,
+  };
+  self.params.logger.warn(message, payload);
+  console.warn(message, payload);
+  const error = new Error(message);
+  errorEmitter.next(error);
+  self._retryActivateCount = 0;
+  return { verdict: "cancel", fatalError: error };
 };
 
 /**
@@ -3216,6 +3564,10 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
   }
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
+  // PRE-ARM the started activation attempt (persisted before the gate, like the close
+  // gate): a crash after the order was POSTed restores attempt >= 1 for the reconcile.
+  self._retryActivateCount += 1;
+  await PERSIST_STRATEGY_FN(self);
   const syncOpenAllowed = await CALL_ORDER_SYNC_OPEN_FN(
     activationTime,
     activatedSignal.priceOpen,
@@ -3235,10 +3587,19 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
     // тиком: новое РЕАЛЬНОЕ размещение resting-ордера → новая активация → новый
     // реальный реджект — по паре отклонённых ордеров на бирже за цикл, вечно,
     // пока цена в entry-диапазоне. Транзиентный реджект id не потребляет.
-    if (syncOpenAllowed.reason !== "transient") {
-      self._lastPendingId = scheduled.id;
-      await PERSIST_STRATEGY_FN(self);
+    const activateGate = RESOLVE_ACTIVATE_GATE_FN(self, syncOpenAllowed, scheduled);
+    if (activateGate.verdict === "retry") {
+      // the resting entry stays scheduled; only the slot reserved by the risk check
+      // above is released — the next attempt re-reserves it
+      await CALL_RISK_REMOVE_SIGNAL_FN(
+        self,
+        self.params.execution.context.symbol,
+        activationTime,
+        self.params.execution.context.backtest
+      );
+      return null;
     }
+    await PERSIST_STRATEGY_FN(self);
     await self.setScheduledSignal(null);
     // Release the slot reserved by checkSignalAndReserve above
     await CALL_RISK_REMOVE_SIGNAL_FN(
@@ -3270,6 +3631,9 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
       signal: publicSignal,
       note: scheduled.note,
     });
+    if (activateGate.fatalError) {
+      exitEmitter.next(activateGate.fatalError);
+    }
     return null;
   }
 
@@ -5464,6 +5828,10 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
   }
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
+  // PRE-ARM the started activation attempt (persisted before the gate, like the close
+  // gate): a crash after the order was POSTed restores attempt >= 1 for the reconcile.
+  self._retryActivateCount += 1;
+  await PERSIST_STRATEGY_FN(self);
   const syncOpenAllowed = await CALL_ORDER_SYNC_OPEN_FN(
     activationTime,
     activatedSignal.priceOpen,
@@ -5479,8 +5847,16 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     });
     // Терминальный реджект активации — потребить id (зеркало live-ветки):
     // иначе детерминированная стратегия реиграет тот же сигнал каждую свечу.
-    if (syncOpenAllowed.reason !== "transient") {
-      self._lastPendingId = scheduled.id;
+    const activateGate = RESOLVE_ACTIVATE_GATE_FN(self, syncOpenAllowed, scheduled);
+    if (activateGate.verdict === "retry") {
+      // the resting entry stays scheduled; the loop retries on the next candle
+      await CALL_RISK_REMOVE_SIGNAL_FN(
+        self,
+        self.params.execution.context.symbol,
+        activationTime,
+        self.params.execution.context.backtest
+      );
+      return false;
     }
     await self.setScheduledSignal(null);
     // Release the slot reserved by checkSignalAndReserve above
@@ -5513,6 +5889,9 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       signal: publicSignal,
       note: scheduled.note,
     });
+    if (activateGate.fatalError) {
+      exitEmitter.next(activateGate.fatalError);
+    }
     return false;
   }
 
@@ -5958,26 +6337,68 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
   const maxTimeToWait = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES * 60 * 1000;
   const bufferCandlesCount = candlesCount - 1;
   // watchInterval of the frame: stride of the loop in 1m candles (1 = every candle).
-  // Each span is evaluated at its END (VWAP window fully inside the span) and
-  // activation/cancel touches are taken over the whole span (see
-  // GET_TOUCH_RANGE_FN), so a coarse stride does not miss an intra-span breach.
-  const stepCandles = GET_BACKTEST_STEP_CANDLES_FN(self);
+  // The strategy looks once per span, at its END (VWAP window fully inside the
+  // span); the exchange-forced events of the span — timeout, stop touch, entry
+  // touch, frame end — are found candle by candle (FIND_SCHEDULED_FORCED_INDEX_FN)
+  // and executed on the candle they happened on, so a coarse stride neither
+  // misses an intra-span breach nor delays it to the span end. The spans are
+  // on the time axis, anchored at scheduledAt (TWatchGrid).
   const lastIndex = candles.length - 1;
+  const grid = CREATE_WATCH_GRID_FN(self, candles, bufferCandlesCount, scheduled.scheduledAt);
   let spanStart = bufferCandlesCount;
 
   // КРИТИЧНО: Пропускаем первые bufferCandlesCount свечей (буфер для VWAP)
   // BacktestLogicPrivateService запросил свечи начиная с (when - bufferMinutes)
-  for (
-    let i = GET_FIRST_STEP_INDEX_FN(bufferCandlesCount, stepCandles, lastIndex);
-    i <= lastIndex;
-    i = GET_NEXT_STEP_INDEX_FN(i, stepCandles, lastIndex)
-  ) {
-    const candle = candles[i];
+  // commits queued at a schedule ping are applied on the next candle (like a live tick);
+  // the iteration is then re-entered on the same span end, see the pending loop
+  let holdIndex = false;
 
-    const recentCandles = candles.slice(Math.max(0, i - (candlesCount - 1)), i + 1);
-    const averagePrice = GET_AVG_PRICE_FN(recentCandles);
-    const { low: touchLow, high: touchHigh } = GET_TOUCH_RANGE_FN(candles, spanStart, i);
+  for (
+    let i = GET_SPAN_END_INDEX_FN(candles, bufferCandlesCount, grid, lastIndex);
+    i <= lastIndex;
+    i = holdIndex ? i : GET_NEXT_SPAN_END_INDEX_FN(candles, i, grid, lastIndex)
+  ) {
+    holdIndex = false;
+    // a user cancel / activation queued at the previous evaluation applies on the first
+    // candle of the span; otherwise the span is evaluated on its first forced event, or
+    // on its last candle when nothing forced happened
+    const forcedIndex = (self._cancelledSignal || self._activatedSignal)
+      ? spanStart
+      : FIND_SCHEDULED_FORCED_INDEX_FN(scheduled, candles, spanStart, i, frameEndTime, maxTimeToWait);
+    if (!self._cancelledSignal && !self._activatedSignal && self._commitQueue.length > 0 && spanStart < i && (forcedIndex === -1 || spanStart < forcedIndex)) {
+      const drainCandle = candles[spanStart];
+      await self.params.onHandoff(
+        self.params.execution.context.symbol,
+        self.params.strategyName,
+        self.params.exchangeName,
+        self.params.frameName,
+        drainCandle.timestamp,
+        self.params.execution.context.backtest
+      );
+      await PROCESS_COMMIT_QUEUE_FN(self, GET_AVG_PRICE_AT_FN(candles, spanStart, candlesCount), drainCandle.timestamp);
+      spanStart = spanStart + 1;
+      holdIndex = true;
+      continue;
+    }
+    const evalIndex = forcedIndex === -1 ? i : forcedIndex;
+    const candle = candles[evalIndex];
+    const averagePrice = GET_AVG_PRICE_AT_FN(candles, evalIndex, candlesCount);
+    const touchLow = candle.low;
+    const touchHigh = candle.high;
     spanStart = i + 1;
+
+    // CC_BACKTEST_LOCKSTEP: a forced event does not reach the span-end ping that normally
+    // hands the lock off; let the parallel backtests reach this candle's boundary first
+    if (forcedIndex !== -1) {
+      await self.params.onHandoff(
+        self.params.execution.context.symbol,
+        self.params.strategyName,
+        self.params.exchangeName,
+        self.params.frameName,
+        candle.timestamp,
+        self.params.execution.context.backtest
+      );
+    }
 
     // Если timestamp свечи вышел за frameEndTime — отменяем scheduled сигнал
     if (candle.timestamp > frameEndTime) {
@@ -6173,6 +6594,9 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       }
 
       // Sync open: if external system rejects — cancel scheduled signal instead of opening
+      // PRE-ARM the started activation attempt (see RESOLVE_ACTIVATE_GATE_FN)
+      self._retryActivateCount += 1;
+      await PERSIST_STRATEGY_FN(self);
       const syncOpenAllowed = await CALL_ORDER_SYNC_OPEN_FN(
         candle.timestamp,
         pendingSignal.priceOpen,
@@ -6188,8 +6612,22 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         });
         // Терминальный реджект активации — потребить id (зеркало live-ветки):
         // иначе детерминированная стратегия реиграет тот же сигнал каждую свечу.
-        if (syncOpenAllowed.reason !== "transient") {
-          self._lastPendingId = activatedSignal.id;
+        const activateGate = RESOLVE_ACTIVATE_GATE_FN(self, syncOpenAllowed, activatedSignal);
+        if (activateGate.verdict === "retry") {
+          // the resting entry stays scheduled; the user activation is re-queued and the
+          // loop retries it on the next candle (re-entered on the same span end)
+          await CALL_RISK_REMOVE_SIGNAL_FN(
+            self,
+            self.params.execution.context.symbol,
+            candle.timestamp,
+            self.params.execution.context.backtest
+          );
+          self._activatedSignal = activatedSignal;
+          if (evalIndex < i) {
+            spanStart = evalIndex + 1;
+            holdIndex = true;
+          }
+          continue;
         }
         await self.setScheduledSignal(null);
         // Release the slot reserved by checkSignalAndReserve above
@@ -6246,6 +6684,9 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
             candle.timestamp,
             self.params.execution.context.backtest
           );
+          if (activateGate.fatalError) {
+            exitEmitter.next(activateGate.fatalError);
+          }
           return { outcome: "cancelled", result };
         }
       }
@@ -6319,7 +6760,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         self.params.execution.context.backtest
       );
 
-      return { outcome: "activated", activationIndex: i };
+      return { outcome: "activated", activationIndex: evalIndex };
     }
 
     // КРИТИЧНО: Проверяем timeout ПЕРЕД проверкой цены
@@ -6385,6 +6826,15 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
 
     if (shouldActivate) {
       const activated = await ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN(self, scheduled, candle.timestamp);
+      if (!activated && self._scheduledSignal) {
+        // transient refusal of the activation gate: the entry stays scheduled and the
+        // touch is re-evaluated on the next candle (the span is re-entered, not skipped)
+        if (evalIndex < i) {
+          spanStart = evalIndex + 1;
+          holdIndex = true;
+        }
+        continue;
+      }
       if (!activated) {
         // Activation was rejected (stopped/risk/sync) — ACTIVATE_... already
         // released the reservation and emitted the cancel commit + schedule
@@ -6413,7 +6863,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         );
         return { outcome: "cancelled", result };
       }
-      return { outcome: "activated", activationIndex: i };
+      return { outcome: "activated", activationIndex: evalIndex };
     }
 
     await CALL_SCHEDULE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, scheduled, candle.timestamp, true, averagePrice);
@@ -6498,30 +6948,91 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
   const bufferCandlesCount = candlesCount - 1;
   // watchInterval of the frame: stride of the loop in 1m candles (1 = every candle).
-  // Each span is evaluated at its END (VWAP window fully inside the span) and
-  // stop/liquidation touches are taken over the whole span (see
-  // GET_TOUCH_RANGE_FN), so a coarse stride does not miss an intra-span touch.
-  const stepCandles = GET_BACKTEST_STEP_CANDLES_FN(self);
+  // The strategy looks once per span, at its END (VWAP window fully inside the
+  // span): pings, partial / breakeven / trailing, the commit queue. The
+  // exchange-forced events of the span — time expiry, stop / liquidation touch,
+  // take-profit by VWAP, frame end — are found candle by candle
+  // (FIND_PENDING_FORCED_INDEX_FN) and executed on the candle they happened on,
+  // so a coarse stride neither misses an intra-span touch nor delays it. The
+  // spans are on the time axis, anchored at pendingAt (TWatchGrid).
   const lastIndex = candles.length - 1;
+  const grid = CREATE_WATCH_GRID_FN(self, candles, bufferCandlesCount, signal.pendingAt);
   let spanStart = bufferCandlesCount;
+
+  // A user close rejected by the gate is retried on the NEXT CANDLE, and a
+  // strategy event inside the span (a commit queued at the previous look, a
+  // partial level, breakeven) gets its light look on its own candle. Neither
+  // may wait for the next span nor skip the rest of this one, so the iteration
+  // is re-entered on the same span end `i` with spanStart moved past the handled
+  // candle — `holdIndex` keeps the for-update from advancing `i`. The watch grid
+  // itself stays where it was.
+  let holdIndex = false;
+  // peaks / troughs recorded on skipped candles, emitted at the next span-end look
+  const extremes: TPendingExtremes = { peak: false, fall: false };
+  // A close attempt refused on the window's last candle: the position is handed back
+  // "active" instead of a second attempt on the same candle (see the loop exit).
+  let lastCandleRefused = false;
 
   // КРИТИЧНО: проверяем TP/SL на каждой ИТЕРАЦИИ начиная после буфера.
   // Первые bufferCandlesCount свечей - это буфер для VWAP
   // (BacktestLogicPrivateService запросил свечи начиная с when - bufferMinutes)
   for (
-    let i = GET_FIRST_STEP_INDEX_FN(bufferCandlesCount, stepCandles, lastIndex);
+    let i = GET_SPAN_END_INDEX_FN(candles, bufferCandlesCount, grid, lastIndex);
     i <= lastIndex;
-    i = GET_NEXT_STEP_INDEX_FN(i, stepCandles, lastIndex)
+    i = holdIndex ? i : GET_NEXT_SPAN_END_INDEX_FN(candles, i, grid, lastIndex)
   ) {
-    const currentCandle = candles[i];
+    holdIndex = false;
+    const spanFrom = spanStart;
+    const userQueued = Boolean(self._closedSignal || self._takeProfitSignal || self._stopLossSignal);
+    // a user close / fill queued at the previous look applies on the first candle of the span;
+    // otherwise the span is evaluated on its first exchange-forced event, or on its last candle
+    const forcedIndex = userQueued
+      ? spanFrom
+      : FIND_PENDING_FORCED_INDEX_FN(signal, candles, spanFrom, i, frameEndTime, candlesCount);
+    // the strategy's own events inside the span — commits queued at the previous look, a partial
+    // level crossed, breakeven reached — get a light look on their candle (no ping) and the span
+    // goes on to its end; an exchange-forced event on the same or an earlier candle wins
+    const eventIndex = userQueued ? -1 : FIND_PENDING_STRATEGY_EVENT_INDEX_FN(self, signal, candles, spanFrom, i, candlesCount);
+    if (eventIndex !== -1 && eventIndex < i && (forcedIndex === -1 || eventIndex < forcedIndex)) {
+      TRACK_PENDING_EXTREMES_RANGE_FN(self, signal, candles, spanFrom, eventIndex, candlesCount, extremes);
+      // CC_BACKTEST_LOCKSTEP: the strategy writes on this candle, the peers must have reached its boundary
+      await self.params.onHandoff(
+        self.params.execution.context.symbol,
+        self.params.strategyName,
+        self.params.exchangeName,
+        self.params.frameName,
+        candles[eventIndex].timestamp,
+        self.params.execution.context.backtest
+      );
+      await EVALUATE_PENDING_EVENT_FN(self, signal, candles, eventIndex, candlesCount, extremes);
+      spanStart = eventIndex + 1;
+      holdIndex = true;
+      continue;
+    }
+    const evalIndex = forcedIndex === -1 ? i : forcedIndex;
+    // peaks / troughs of the candles skipped before the evaluated one: the statistics do not wait for the look
+    TRACK_PENDING_EXTREMES_RANGE_FN(self, signal, candles, spanFrom, evalIndex, candlesCount, extremes);
+    const currentCandle = candles[evalIndex];
     const currentCandleTimestamp = currentCandle.timestamp;
 
-    // Берем последние candlesCount свечей для VWAP (включая буфер)
-    const startIndex = Math.max(0, i - (candlesCount - 1));
-    const recentCandles = candles.slice(startIndex, i + 1);
-    const averagePrice = GET_AVG_PRICE_FN(recentCandles);
-    const { low: touchLow, high: touchHigh } = GET_TOUCH_RANGE_FN(candles, spanStart, i);
+    // VWAP: the last candlesCount candles up to the evaluated one (buffer included)
+    const averagePrice = GET_AVG_PRICE_AT_FN(candles, evalIndex, candlesCount);
+    const touchLow = currentCandle.low;
+    const touchHigh = currentCandle.high;
     spanStart = i + 1;
+
+    // CC_BACKTEST_LOCKSTEP: a forced event does not reach the span-end ping that normally
+    // hands the lock off; let the parallel backtests reach this candle's boundary first
+    if (forcedIndex !== -1) {
+      await self.params.onHandoff(
+        self.params.execution.context.symbol,
+        self.params.strategyName,
+        self.params.exchangeName,
+        self.params.frameName,
+        currentCandleTimestamp,
+        self.params.execution.context.backtest
+      );
+    }
 
     // Если timestamp свечи вышел за frameEndTime — закрываем pending сигнал по time_expired
     if (currentCandleTimestamp > frameEndTime) {
@@ -6546,10 +7057,17 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       // Sync close accepted — position closed, return. If rejected, _closedSignal is
       // kept and we skip this candle: live tick returns idle on a rejected user close
       // (it does NOT fall into the TP/SL or active-monitoring path), so the candle is
-      // skipped here and the close is re-attempted on the next candle.
+      // skipped here and the close is re-attempted on the next candle. With a watch
+      // stride the rest of the span is not skipped with it: the iteration is re-entered
+      // on the same span end, scanning from the candle after this one.
       if (userCloseResult) {
         return userCloseResult;
       }
+      if (evalIndex < i) {
+        spanStart = evalIndex + 1;
+        holdIndex = true;
+      }
+      lastCandleRefused = evalIndex === lastIndex;
       continue;
     }
 
@@ -6653,6 +7171,16 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         return closeResult;
       }
 
+      // With a watch stride the rest of the span must not be skipped after the refusal:
+      // after this candle's look below the iteration is re-entered on the same span end
+      // from the next candle, like the user-close path — the retry lands on the next
+      // candle on every watch.
+      if (evalIndex < i) {
+        spanStart = evalIndex + 1;
+        holdIndex = true;
+      }
+      lastCandleRefused = evalIndex === lastIndex;
+
       // Sync close rejected (e.g. broker rejected the order) — _pendingSignal is left
       // intact (not cleared on rejection). Do NOT return/continue: fall through to the
       // active-monitoring block below so this candle is processed exactly like live
@@ -6685,7 +7213,6 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           // The peak snapshot is updated BEFORE the active ping (the ping carries it) and
           // the onHighestProfit callback fires AFTER it: the ping is where a parallel backtest
           // hands the lockstep lock off, so every listener of this candle runs behind it.
-          let peakReached = false;
           if (averagePrice > signal._peak.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             // Пик — только реальный плюс (зеркало live-ветки): реализуемый
@@ -6701,18 +7228,11 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
                   true
                 );
               }
-              peakReached = true;
+              extremes.peak = true;
             }
           }
 
           await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
-          if (peakReached) {
-            await self.params.onHighestProfit(
-              TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
-              averagePrice,
-              currentCandleTimestamp
-            );
-          }
 
           await CALL_BREAKEVEN_CHECK_FN(
             self,
@@ -6739,7 +7259,6 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const progressPercent = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
           percentSl = progressPercent;
           // Same as the peak: the fall snapshot before the ping, the callback after it.
-          let fallReached = false;
           if (averagePrice < signal._fall.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
@@ -6752,16 +7271,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
                 true
               );
             }
-            fallReached = true;
+            extremes.fall = true;
           }
           await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
-          if (fallReached) {
-            await self.params.onMaxDrawdown(
-              TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
-              averagePrice,
-              currentCandleTimestamp
-            );
-          }
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
             self.params.execution.context.symbol,
@@ -6788,7 +7300,6 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           // The peak snapshot is updated BEFORE the active ping (the ping carries it) and
           // the onHighestProfit callback fires AFTER it: the ping is where a parallel backtest
           // hands the lockstep lock off, so every listener of this candle runs behind it.
-          let peakReached = false;
           if (averagePrice < signal._peak.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             // Пик — только реальный плюс (зеркало live-ветки): реализуемый
@@ -6804,18 +7315,11 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
                   true
                 );
               }
-              peakReached = true;
+              extremes.peak = true;
             }
           }
 
           await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
-          if (peakReached) {
-            await self.params.onHighestProfit(
-              TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
-              averagePrice,
-              currentCandleTimestamp
-            );
-          }
 
           await CALL_BREAKEVEN_CHECK_FN(
             self,
@@ -6842,7 +7346,6 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const progressPercent = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
           percentSl = progressPercent;
           // Same as the peak: the fall snapshot before the ping, the callback after it.
-          let fallReached = false;
           if (averagePrice > signal._fall.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
@@ -6855,16 +7358,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
                 true
               );
             }
-            fallReached = true;
+            extremes.fall = true;
           }
           await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
-          if (fallReached) {
-            await self.params.onMaxDrawdown(
-              TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
-              averagePrice,
-              currentCandleTimestamp
-            );
-          }
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
             self.params.execution.context.symbol,
@@ -6881,6 +7377,25 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     }
 
     // Process queued commit events with candle timestamp
+    // the extremes recorded since the previous look — on this candle or on the skipped ones —
+    // are reported once, after the ping (the ping is where a parallel backtest hands off)
+    if (extremes.peak) {
+      extremes.peak = false;
+      await self.params.onHighestProfit(
+        TO_PUBLIC_SIGNAL("pending", signal, signal._peak.price),
+        signal._peak.price,
+        signal._peak.timestamp
+      );
+    }
+    if (extremes.fall) {
+      extremes.fall = false;
+      await self.params.onMaxDrawdown(
+        TO_PUBLIC_SIGNAL("pending", signal, signal._fall.price),
+        signal._fall.price,
+        signal._fall.timestamp
+      );
+    }
+
     await PROCESS_COMMIT_QUEUE_FN(self, averagePrice, currentCandleTimestamp);
 
     // Эмуляция live-тика (report-паритет): live эмитит "active" на каждый тик
@@ -6927,7 +7442,16 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   const lastPrice = GET_AVG_PRICE_FN(lastCandles);
   const closeTimestamp = lastCandles[lastCandles.length - 1].timestamp;
 
-  if (signal.minuteEstimatedTime === Infinity) {
+  // A close refused on the window's last candle is retried on the NEXT candle like on any
+  // other candle: the position is handed back "active" and the orchestrator continues with
+  // the next window (BacktestLogicPrivateService runs the chunk loop for a finite hold too).
+  // A second attempt on the same candle would be a retry on the same tick — a transient
+  // refusal of the time-expiry close (the last candle of a finite-hold window by
+  // construction) got one same-candle retry and then killed the backtest, instead of the
+  // per-candle retries up to CC_ORDER_CLOSE_RETRY_ATTEMPTS every other close gets. Only
+  // while candles can still exist: on the frame end the refusal stays fatal below.
+  const handBack = signal.minuteEstimatedTime === Infinity || (lastCandleRefused && closeTimestamp < frameEndTime);
+  if (handBack) {
     const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, lastPrice);
     const result: IStrategyTickResultActive = {
       action: "active",
@@ -7109,6 +7633,16 @@ export class ClientStrategy implements IStrategy {
    * loudly — see RESOLVE_CLOSE_GATE_FN.
    */
   _retryCloseCount = 0;
+  /**
+   * Number of activation-gate attempts STARTED for the current scheduled signal
+   * (pre-armed BEFORE each `onOrderOpenCommit` type "active" call that activates a
+   * resting entry — by price touch or by activateScheduled). A transient refusal keeps
+   * the scheduled signal and retries the activation on the next tick / candle with the
+   * SAME id and `attempt + 1`, up to CC_ORDER_OPEN_RETRY_ATTEMPTS; the adapter reconciles
+   * by clientOrderId at `attempt > 0` (the resting order may have filled). Reset on a
+   * confirmed activation and on every scheduled-signal transition.
+   */
+  _retryActivateCount = 0;
 
   /**
    * Number of CONSECUTIVE failed order-check pings (active OR scheduled — the states are
@@ -7255,6 +7789,8 @@ export class ClientStrategy implements IStrategy {
     // отложенная отмена стирается здесь, и дренаж не эмитит дубль.
     this._cancelledSignal = null;
     this._activatedSignal = null;
+    // the started activation attempts belong to the signal too (see RESOLVE_ACTIVATE_GATE_FN)
+    this._retryActivateCount = 0;
 
     // Счётчик последовательных сбоев order-check привязан к сигналу — новый
     // (или снятый) scheduled не должен наследовать чужую историю отказов.
@@ -8629,6 +9165,9 @@ export class ClientStrategy implements IStrategy {
         pendingSignal._fall = { price: pendingSignal.priceOpen, timestamp: currentTime, pnlPercentage, pnlCost, priceClose, pnlEntries, pnlDividends, priceOpen };
       }
 
+      // PRE-ARM the started activation attempt (see RESOLVE_ACTIVATE_GATE_FN)
+      this._retryActivateCount += 1;
+      await PERSIST_STRATEGY_FN(this);
       const syncOpenAllowed = await CALL_ORDER_SYNC_OPEN_FN(currentTime, currentPrice, pendingSignal, this);
       if (syncOpenAllowed.reason !== "confirmed") {
         this.params.logger.info("ClientStrategy tick: user-activated signal rejected by sync", {
@@ -8640,10 +9179,24 @@ export class ClientStrategy implements IStrategy {
         // ACTIVATE_SCHEDULED_SIGNAL_FN): без консумации детерминированная
         // стратегия ре-издаёт тот же id и выдаёт по реальному отклонённому
         // ордеру за цикл. Транзиентный реджект id не потребляет.
-        if (syncOpenAllowed.reason !== "transient") {
-          this._lastPendingId = activatedSignal.id;
+        const activateGate = RESOLVE_ACTIVATE_GATE_FN(this, syncOpenAllowed, activatedSignal);
+        if (activateGate.verdict === "retry") {
+          // the resting entry stays scheduled; the user activation is re-queued and the
+          // next tick drains it again with attempt + 1
+          await CALL_RISK_REMOVE_SIGNAL_FN(
+            this,
+            this.params.execution.context.symbol,
+            currentTime,
+            this.params.execution.context.backtest
+          );
+          this._activatedSignal = activatedSignal;
           await PERSIST_STRATEGY_FN(this);
+          if (this._scheduledSignal) {
+            return await RETURN_SCHEDULED_SIGNAL_ACTIVE_FN(this, this._scheduledSignal, currentPrice);
+          }
+          return await RETURN_IDLE_FN(this, currentPrice);
         }
+        await PERSIST_STRATEGY_FN(this);
         await this.setScheduledSignal(null);
         // Release the slot reserved by checkSignalAndReserve above
         await CALL_RISK_REMOVE_SIGNAL_FN(
@@ -8675,6 +9228,9 @@ export class ClientStrategy implements IStrategy {
           signal: publicSignal,
           note: activatedSignal.activateNote ?? activatedSignal.note,
         });
+        if (activateGate.fatalError) {
+          exitEmitter.next(activateGate.fatalError);
+        }
         return await RETURN_IDLE_FN(this, currentPrice);
       }
 
@@ -8888,7 +9444,11 @@ export class ClientStrategy implements IStrategy {
         if (activateResult) {
           return activateResult;
         }
-        // Risk rejected or stopped - return idle
+        // Transient activation refusal: the entry is still scheduled, keep waiting
+        if (this._scheduledSignal) {
+          return await RETURN_SCHEDULED_SIGNAL_ACTIVE_FN(this, this._scheduledSignal, currentPrice);
+        }
+        // Risk rejected, stopped or cancelled - return idle
         return await RETURN_IDLE_FN(this, currentPrice);
       }
 
@@ -9474,6 +10034,36 @@ export class ClientStrategy implements IStrategy {
           }
 
           return noRemainingResult;
+        }
+
+        // Infinity hold: the leftover of the scheduled array is not replayed here. Its
+        // length is arbitrary relative to the activation, so its last watch span would be
+        // a partial one and the grid of the position would carry that dent for good. The
+        // position is handed back "active" at the activation candle instead, and the
+        // orchestrator continues from there in whole watch spans (CHUNK_CANDLES_FN), so
+        // the grid is regular from the activation minute on. A finite hold keeps the
+        // in-array replay: its array covers the hold and the expiry is found exactly.
+        if (scheduled.minuteEstimatedTime === Infinity && this._pendingSignal) {
+          const pendingSignal = this._pendingSignal;
+          const activationCandle = candles[activationIndex];
+          const activationPrice = GET_AVG_PRICE_AT_FN(candles, activationIndex, GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT);
+          const publicSignal = TO_PUBLIC_SIGNAL("pending", pendingSignal, activationPrice);
+          const activatedResult: IStrategyTickResultActive = {
+            action: "active",
+            signal: publicSignal,
+            currentPrice: activationPrice,
+            strategyName: this.params.method.context.strategyName,
+            exchangeName: this.params.method.context.exchangeName,
+            frameName: this.params.method.context.frameName,
+            symbol: this.params.execution.context.symbol,
+            percentTp: 0,
+            percentSl: 0,
+            pnl: publicSignal.pnl,
+            backtest: this.params.execution.context.backtest,
+            createdAt: activationCandle.timestamp,
+            _backtestLastTimestamp: activationCandle.timestamp,
+          };
+          return activatedResult;
         }
 
         candles = remainingCandles;
@@ -10093,6 +10683,7 @@ export class ClientStrategy implements IStrategy {
       stopLossSignal: this._stopLossSignal,
       retryOpenSignal: this._retryOpenSignal,
       retryOpenCount: this._retryOpenCount,
+      retryActivateCount: this._retryActivateCount,
       retryCloseCount: this._retryCloseCount,
       isPaused: this._isPaused,
     };

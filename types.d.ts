@@ -102,16 +102,25 @@ interface IFrameCallbacks {
  *   (`getSignal`) and how often idle pings fire: the generated timeframe array
  *   is spaced by it. This is the "tick" of the backtest and the step the
  *   lockstep hand-off between parallel backtests follows.
- * - `watchInterval` — how often an OPEN or SCHEDULED signal is re-evaluated
- *   during its candle replay: TP / time-expiry checks, VWAP, active and
- *   schedule pings, partial / breakeven / trailing callbacks run once per
- *   watch span, at its last candle. Candles stay 1m; stop-loss, liquidation
- *   and scheduled activation / cancel look at the min low / max high of the
- *   whole span, so a touch on a skipped candle still fires, it is fixed at the
- *   span end (up to one span late). The hold of a position (`minuteEstimatedTime`)
- *   is exact: the trailing partial span is evaluated at the position's last
- *   candle. Long replays are windowed in whole watch spans, so the grid stays
- *   regular across candle fetches.
+ * - `watchInterval` — how often the strategy LOOKS at an open or scheduled
+ *   signal during its candle replay: VWAP, active and schedule pings,
+ *   partial / breakeven / trailing callbacks and the commit queue run once per
+ *   watch span, at its last candle. Candles stay 1m, and what the exchange does
+ *   on its own does not wait for the look: stop-loss / liquidation touches,
+ *   take-profit by VWAP, time expiry (`minuteEstimatedTime`), scheduled
+ *   activation / stop reject / wait timeout are found candle by candle inside
+ *   the span and executed on the candle they happened on, with the exact level
+ *   price and timestamp (an activated entry gets the minute of the touch as
+ *   `pendingAt`). The strategy's own protective events do not wait either: a
+ *   partial profit / loss level crossed or the breakeven threshold reached
+ *   inside the span gets its callbacks on that candle (a light look, no ping),
+ *   a commit issued between looks (its action is immediate) has its commit
+ *   event stamped on the next candle like a live tick a minute later, and the
+ *   peak / drawdown of the position are recorded candle by candle
+ *   (reported once, at the next look). Only the active / schedule pings and
+ *   the decisions taken in them keep the span cadence. Long replays are
+ *   windowed in whole watch spans, so the grid stays regular across candle
+ *   fetches.
  *
  * `interval` is an alias of `entryInterval` kept for the original schema
  * shape; a schema that sets both is rejected. `watchInterval` defaults to
@@ -160,9 +169,12 @@ interface IFrameSchema {
      */
     entryInterval?: FrameInterval;
     /**
-     * Stride of the candle loops that watch an open or scheduled signal: one
-     * evaluation per span, at its last candle, with stop-loss / liquidation /
-     * activation touches taken over the whole span. Independent of
+     * Stride of the candle loops that watch an open or scheduled signal: the
+     * strategy's pings come once per span, at its last candle; exchange-forced
+     * events (stop / liquidation / take-profit / time expiry / activation /
+     * timeout), partial levels, breakeven, queued commits and the peak /
+     * drawdown statistics still happen on the exact candle inside the span.
+     * Independent of
      * `entryInterval`: may be shorter (a 1h tick with a 15m watch) or longer
      * (a 1h tick with a 4h watch). Defaults to "1m" — every candle evaluated.
      */
@@ -1756,6 +1768,15 @@ interface OrderOpenContract extends OrderSyncBase {
     maxDrawdown: IStrategyPnL;
     /** Cost of the position at close (sum of all entry costs) */
     cost: number;
+    /**
+     * true when the row is a RESTING entry: type "schedule" is its placement, type "active"
+     * is its ACTIVATION — and both carry the SAME signalId. On an activation the adapter
+     * MUST first check whether the resting order it placed under clientOrderId = signalId
+     * has already resolved (filled / partially filled) and only then act, regardless of
+     * `attempt` (the activation counts its own attempts, the placement is a prior order
+     * under this id by definition). false on an immediate market entry.
+     */
+    scheduled: boolean;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Entry price at which the limit order was filled */
@@ -3487,6 +3508,14 @@ type StrategyStatus = {
      * Reset on a confirmed close and on any pending-signal transition.
      */
     retryCloseCount: number;
+    /**
+     * Number of activation-gate attempts STARTED for the current scheduled signal (pre-armed
+     * BEFORE each `onOrderOpenCommit` type "active" call that activates the resting entry).
+     * A transient refusal keeps the scheduled signal and retries the activation with the
+     * same id and `attempt + 1` up to CC_ORDER_OPEN_RETRY_ATTEMPTS. Restored CLAMPED to 1
+     * (only the reconcile bit survives a restart); reset on every scheduled-signal transition.
+     */
+    retryActivateCount: number;
     /**
      * Pause flag: while true nothing new opens — params.getSignal is NOT called and a
      * queued createSignal DTO is NOT consumed (it stays queued and drains after unpause);
@@ -9497,6 +9526,9 @@ declare const GLOBAL_CONFIG: {
      *   A(t0) B(t0) A(t1) B(t1) … and never drift apart by more than one timeframe.
      * - Every iteration starts behind a time barrier: it waits until every running peer has
      *   reached its timeframe (executed up to it, or parked on it with nothing left before it).
+     *   Ticks of the SAME timeframe are a tie and run in launch order (the FIFO of the mutex):
+     *   with a shared `Budget` that order is the priority at the money — the `Launcher`
+     *   symbol list decides who reserves first when several symbols signal in the same hour.
      * - A replay spans many timeframes in one iteration, so inside it `StrategyConnectionService`
      *   calls the orchestrator from its schedule / active ping callbacks (one per replayed candle)
      *   and on the last candle before every boundary the replay hands the lock off and waits until
@@ -9505,8 +9537,14 @@ declare const GLOBAL_CONFIG: {
      * - A strategy that blocks inside `getSignal` or a ping handler (an LLM call, a `sleep`)
      *   therefore parks its peers at the same `when`; shared state such as `Budget` sees the
      *   symbols in time order, a write from the middle of a replay included.
-     * - While the lock is held the generator still yields to its consumer, so a consumer that
-     *   waits for ANOTHER backtest's progress inside the `for await` body would deadlock.
+     * - While the lock is held the generator still yields to its consumer, and the progress /
+     *   tick listeners run under it too. The whole group therefore moves at the pace of its
+     *   SLOWEST consumer or listener: a `for await` body or a `listenBacktestProgress` handler
+     *   that writes to a database or a network per result slows every parallel backtest, not
+     *   only its own. This is a slowdown, never a hang, and the no-progress warning of the
+     *   peer wait does not fire for it (the slow party holds the lock, it is not outside it) —
+     *   keep consumers and listeners cheap, or batch their work. A consumer that waits for
+     *   ANOTHER backtest's progress inside the `for await` body would deadlock.
      * - Makes `CC_ENABLE_BACKTEST_PARALLEL_SPIN` redundant: `Candle.spinLock` is skipped while
      *   lockstep is on, the peers are parked on this mutex anyway.
      *
@@ -9525,6 +9563,19 @@ declare const GLOBAL_CONFIG: {
      * Default: true (parallel backtests advance one timeframe at a time)
      */
     CC_BACKTEST_LOCKSTEP: boolean;
+    /**
+     * How `Budget.reserve` / `Budget.withdraw` (and the context-free `Budget._reserve` /
+     * `Budget._withdraw`) report a refusal — a reserve above the free balance, a withdrawal
+     * above the held units. The `reject` row is written to the journal either way.
+     *
+     * - `false` (default): the call returns `false`; the strategy branches on the result
+     *   (`if (!(await fund.reserve(dto))) return null;`).
+     * - `true`: the call throws `BudgetRejectedError` — for code that treats a refusal as an
+     *   exception path or wants it to surface out of a listener into `listenError`.
+     *
+     * Default: false
+     */
+    CC_BUDGET_THROW_ON_REJECT: boolean;
     /**
      * Enables DCA (Dollar-Cost Averaging) logic even if antirecord is not broken.
      * Allows to commitAverageBuy if currentPrice is not the lowest price since entry, but still lower than priceOpen.
@@ -9816,6 +9867,7 @@ declare function getConfig(): {
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
     CC_ENABLE_BACKTEST_PARALLEL_SPIN: boolean;
     CC_BACKTEST_LOCKSTEP: boolean;
+    CC_BUDGET_THROW_ON_REJECT: boolean;
     CC_ENABLE_DCA_EVERYWHERE: boolean;
     CC_ENABLE_PPPL_EVERYWHERE: boolean;
     CC_ENABLE_LONG_SIGNAL: boolean;
@@ -9891,6 +9943,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
     CC_ENABLE_BACKTEST_PARALLEL_SPIN: boolean;
     CC_BACKTEST_LOCKSTEP: boolean;
+    CC_BUDGET_THROW_ON_REJECT: boolean;
     CC_ENABLE_DCA_EVERYWHERE: boolean;
     CC_ENABLE_PPPL_EVERYWHERE: boolean;
     CC_ENABLE_LONG_SIGNAL: boolean;
@@ -11564,6 +11617,8 @@ interface OrderFillBase {
 interface OrderFillOpenContract extends OrderFillBase {
     /** Discriminator for the confirmed open/placement */
     action: "signal-open";
+    /** true when the row is a resting entry (placement or its activation under the same signalId) */
+    scheduled: boolean;
     /** Cost of the position (sum of entry costs) */
     cost: number;
 }
@@ -11685,6 +11740,8 @@ interface OrderRejectBase {
 interface OrderRejectOpenContract extends OrderRejectBase {
     /** Discriminator for the rejected open/placement */
     action: "signal-open";
+    /** true when the row is a resting entry (placement or its activation under the same signalId) */
+    scheduled: boolean;
     /** Cost of the position (sum of entry costs) */
     cost: number;
 }
@@ -15800,6 +15857,14 @@ type StrategyData = {
      */
     retryCloseCount: number;
     /**
+     * Number of activation-gate attempts STARTED for the current scheduled signal (pre-armed
+     * BEFORE each `onOrderOpenCommit` type "active" call that activates the resting entry).
+     * A transient refusal keeps the scheduled signal and retries the activation with the
+     * same id and `attempt + 1` up to CC_ORDER_OPEN_RETRY_ATTEMPTS. Restored CLAMPED to 1
+     * (only the reconcile bit survives a restart); reset on every scheduled-signal transition.
+     */
+    retryActivateCount: number;
+    /**
      * Pause flag: while true nothing new opens — params.getSignal is NOT called and a
      * queued createSignal DTO is NOT consumed (it stays queued and drains after unpause);
      * an existing pending/scheduled signal keeps being monitored and closes normally.
@@ -19304,12 +19369,10 @@ declare class BudgetLiveAdapter implements TBudgetAdapter {
  *
  * // inside getSignal / any lifecycle callback:
  * const free = await fund.getFree();
- * try {
- *   await fund.reserve({ id, amount: cost });
- * } catch (error) {
- *   if (BudgetRejectedError.isBudgetRejectedError(error)) return null;
- *   throw error;
+ * if (!(await fund.reserve({ id, amount: cost }))) {
+ *   return null; // refused: not enough free capital at this logical time (a `reject` row is on record)
  * }
+ * // with CC_BUDGET_THROW_ON_REJECT the refusal is a BudgetRejectedError instead of `false`
  *
  * // outside the execution context (a listener): the context travels as the last argument
  * listenSignalBacktestClosed(({ data, pnl, timestamp }) =>
@@ -19412,15 +19475,16 @@ declare class Budget {
     static _getHistory: (context: IBudgetContext) => Promise<IBudgetHistoryRow[]>;
     /**
      * Context-free reserve: free → deployed under `dto.id` at `context.when`.
-     * Refused (a `reject` row, then BudgetRejectedError) when `dto.amount` exceeds
-     * the free balance as of `when`.
+     * Refused when `dto.amount` exceeds the free balance as of `when`: a `reject`
+     * row is written and the call returns `false`, or throws BudgetRejectedError
+     * when `CC_BUDGET_THROW_ON_REJECT` is on.
      * @param dto - Reserve id, amount and optional note
      * @param context - Record key, budget name, logical time and symbol
-     * @returns Balance after the reserve
-     * @throws BudgetRejectedError when the free balance is insufficient
+     * @returns `true` when the reserve was taken, `false` when it was refused
+     * @throws BudgetRejectedError when refused and `CC_BUDGET_THROW_ON_REJECT` is on
      * @throws Error if Budget is not enabled, the amount is invalid or the id is already open
      */
-    static _reserve: (dto: IBudgetReserveDto, context: IBudgetContext) => Promise<IBudgetBalance>;
+    static _reserve: (dto: IBudgetReserveDto, context: IBudgetContext) => Promise<boolean>;
     /**
      * Context-free release: deployed → free for `dto.id`, `dto.pnl` booked on capital.
      * A second release of the same id (or of an id never reserved) is a no-op.
@@ -19440,14 +19504,16 @@ declare class Budget {
     static _deposit: (dto: IBudgetDepositDto, context: IBudgetContext) => Promise<IBudgetBalance>;
     /**
      * Context-free withdrawal of `dto.amount` units of `dto.asset` at `context.when`.
-     * Refused (a `reject` row, then BudgetRejectedError) when more than held as of `when`.
+     * Refused when more than held as of `when`: a `reject` row is written and the
+     * call returns `false`, or throws BudgetRejectedError when
+     * `CC_BUDGET_THROW_ON_REJECT` is on.
      * @param dto - Asset, units and optional note
      * @param context - Record key, budget name, logical time and symbol
-     * @returns Balance after the withdrawal
-     * @throws BudgetRejectedError when the held amount is insufficient
+     * @returns `true` when the units were withdrawn, `false` when refused
+     * @throws BudgetRejectedError when refused and `CC_BUDGET_THROW_ON_REJECT` is on
      * @throws Error if Budget is not enabled or the amount is invalid
      */
-    static _withdraw: (dto: IBudgetWithdrawDto, context: IBudgetContext) => Promise<IBudgetBalance>;
+    static _withdraw: (dto: IBudgetWithdrawDto, context: IBudgetContext) => Promise<boolean>;
     /** Context of the instance methods: record key, logical time and symbol from the execution / method context */
     private getContext;
     /**
@@ -19471,11 +19537,11 @@ declare class Budget {
     /**
      * Reserve: free → deployed under `dto.id` at the current logical time.
      * @param dto - Reserve id, amount and optional note
-     * @returns Balance after the reserve
-     * @throws BudgetRejectedError when the free balance is insufficient
+     * @returns `true` when taken, `false` when refused (a `reject` row is on record)
+     * @throws BudgetRejectedError when refused and `CC_BUDGET_THROW_ON_REJECT` is on
      * @throws Error if no execution/method context
      */
-    reserve: (dto: IBudgetReserveDto) => Promise<IBudgetBalance>;
+    reserve: (dto: IBudgetReserveDto) => Promise<boolean>;
     /**
      * Release: deployed → free for `dto.id`, `dto.pnl` booked on capital, at the current logical time.
      * @param dto - Reserve id, optional realized pnl and note
@@ -19493,11 +19559,11 @@ declare class Budget {
     /**
      * Withdraw `dto.amount` units of `dto.asset` at the current logical time.
      * @param dto - Asset, units and optional note
-     * @returns Balance after the withdrawal
-     * @throws BudgetRejectedError when the held amount is insufficient
+     * @returns `true` when withdrawn, `false` when refused (a `reject` row is on record)
+     * @throws BudgetRejectedError when refused and `CC_BUDGET_THROW_ON_REJECT` is on
      * @throws Error if no execution/method context
      */
-    withdraw: (dto: IBudgetWithdrawDto) => Promise<IBudgetBalance>;
+    withdraw: (dto: IBudgetWithdrawDto) => Promise<boolean>;
 }
 /**
  * Global singleton instance of BudgetLiveAdapter.
@@ -38278,6 +38344,15 @@ declare const Worker: WorkerUtils;
 type BrokerOrderOpenPayload = {
     /** Which order is being opened: "active" — position entry, "schedule" — resting entry order placement */
     type: "schedule" | "active";
+    /**
+     * true when the row is a RESTING entry: type "schedule" is its placement, type "active"
+     * is its ACTIVATION — and both carry the SAME signalId. On an activation the adapter
+     * MUST first check whether the resting order it placed under clientOrderId = signalId
+     * has already resolved (filled / partially filled) and only then act, regardless of
+     * `attempt` (the activation counts its own attempts, the placement is a prior order
+     * under this id by definition). false on an immediate market entry.
+     */
+    scheduled: boolean;
     /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
     /** Unique signal identifier (UUID v4) the order belongs to */
@@ -39151,6 +39226,13 @@ interface IBroker {
      * strategy state, so it is also the open **gate**. Discriminated by `payload.type`:
      * - "active" — position entry (immediate open or activation fill of the resting order);
      * - "schedule" — PLACEMENT of the resting entry order at scheduled-signal creation.
+     * `payload.scheduled` tells the two "active" cases apart: true is the ACTIVATION of a
+     * resting order that was placed under the SAME signalId at type "schedule" — check
+     * whether that order has already resolved (filled / partially filled) BEFORE sending
+     * anything, whatever `attempt` says: the activation counts its own attempts, and the
+     * placement is a prior order under this id by definition. A retried market entry
+     * overtaken by the price is re-submitted as a resting order too (type "schedule",
+     * same id), so its later activation arrives with `scheduled: true` and `attempt` 0.
      *
      * MANUAL WIRING — EXCEPTION-BASED: place the real order here (tag the exchange order with
      * `clientOrderId = payload.signalId` so later `onOrderActiveCheck` / `onOrderScheduleCheck` /
@@ -39161,7 +39243,12 @@ interface IBroker {
      *   idle; type "schedule": scheduled not registered, risk reservation released) and
      *   retries IDENTITY-STABLY — the SAME signal row with the SAME signalId is re-submitted
      *   on the next tick with `payload.attempt` incremented, up to
-     *   CC_ORDER_OPEN_RETRY_ATTEMPTS. The attempt is PRE-ARMED (persisted before this hook
+     *   CC_ORDER_OPEN_RETRY_ATTEMPTS. The ACTIVATION of a resting order (type "active" fired
+     *   by the price touch or by activateScheduled) follows the same rule: the scheduled
+     *   signal stays registered and the activation is re-attempted on the next tick / candle
+     *   with `attempt + 1` — this gate fires exactly when the resting order is likely to
+     *   have filled, so reconcile by clientOrderId at `attempt > 0` instead of re-sending.
+     *   Exhaustion cancels the scheduled signal (reason "user") and signals a fatal exit. The attempt is PRE-ARMED (persisted before this hook
      *   runs), so even a crash mid-attempt resumes with `attempt >= 1`. Because the id is
      *   stable, the adapter MUST reconcile at `attempt > 0`: query the prior order by
      *   clientOrderId BEFORE re-sending and confirm the open if it filled. Do NOT rely on
@@ -50317,8 +50404,12 @@ declare class OrderRejectedError extends Error {
  * static guard — never by `instanceof`, so it survives duplicated module
  * instances across bundles.
  *
+ * Thrown only when `CC_BUDGET_THROW_ON_REJECT` is on; by default a refused
+ * reserve / withdraw returns `false` and leaves a `reject` row in the journal.
+ *
  * @example
  * ```typescript
+ * // CC_BUDGET_THROW_ON_REJECT: true
  * try {
  *   await fund.reserve({ id, amount: cost });
  * } catch (error) {
