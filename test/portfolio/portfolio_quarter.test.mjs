@@ -60,7 +60,7 @@ const PARTIAL_PERCENT = 33;
 /** Symbol → tape regime. Drift and volatility are per minute in log space. */
 const SYMBOLS = {
   ALPUSDT: { seed: 11, start: 100, drift: 2e-6, vol: 6e-4, note: "gentle uptrend; runs through Backtest.run next to the backgrounds" },
-  BRVUSDT: { seed: 23, start: 50, drift: 0, vol: 8e-4, gap: { from: START + 20 * DAY_MS + 10 * HOUR_MS, to: START + 20 * DAY_MS + 16 * HOUR_MS }, note: "flat, six hours of missing candles on day 20" },
+  BRVUSDT: { seed: 23, start: 50, drift: 0, vol: 8e-4, halt: { from: START + 20 * DAY_MS + 10 * HOUR_MS, to: START + 20 * DAY_MS + 16 * HOUR_MS }, note: "flat; trading halted for six hours on day 20: the adapter fills the hole with flat zero-volume candles, as the exchange contract demands" },
   CHRUSDT: { seed: 37, start: 20, drift: 9e-6, vol: 7e-4, note: "strong uptrend: take-profits and partials" },
   DLTUSDT: { seed: 41, start: 300, drift: -4e-6, vol: 9e-4, note: "downtrend: stops" },
   ECHUSDT: { seed: 53, start: 80, drift: 1e-6, vol: 7e-4, dies: START + 5 * DAY_MS, note: "its candle feed fails from day 5: the backtest dies and leaves its money deployed" },
@@ -77,6 +77,8 @@ const makeRandom = (seed) => {
   };
 };
 
+const inHalt = (spec, timestamp) => Boolean(spec.halt && timestamp >= spec.halt.from && timestamp < spec.halt.to);
+
 /** The whole tape of a symbol: one close per minute from TAPE_FROM to TAPE_TO */
 const buildTape = (spec) => {
   const random = makeRandom(spec.seed);
@@ -86,7 +88,8 @@ const buildTape = (spec) => {
   for (let m = 0; m < minutes; m++) {
     const timestamp = TAPE_FROM + m * MIN_MS;
     const z = (random() + random() + random() - 1.5) * 2; // roughly normal, unit variance
-    price *= Math.exp(spec.drift + spec.vol * z);
+    // a halted market does not move: the last print is held until trading resumes
+    if (!inHalt(spec, timestamp)) price *= Math.exp(spec.drift + spec.vol * z);
     // the crash day: a dip to -15 % between 10:00 and 14:00, half of it recovered by midnight
     const dayIndex = Math.floor((timestamp - START) / DAY_MS);
     if (dayIndex === CRASH_DAY) {
@@ -104,23 +107,29 @@ const buildTape = (spec) => {
 
 const TAPES = Object.fromEntries(Object.entries(SYMBOLS).map(([symbol, spec]) => [symbol, buildTape(spec)]));
 
+/**
+ * The exchange contract wants exactly `limit` contiguous candles per request (pages are
+ * cut by time and deduplicated by timestamp, so a hole in the feed would come back as a
+ * count mismatch and kill the backtest). A compliant adapter therefore fills a trading
+ * halt the way the Yahoo polyfill fills a closed session: flat candles at the last print
+ * with zero volume. That also drives the VWAP through its zero-volume branch.
+ */
 const candleAt = (symbol, index) => {
   const tape = TAPES[symbol];
+  const timestamp = TAPE_FROM + index * MIN_MS;
   const close = tape[index];
   const open = index > 0 ? tape[index - 1] : close;
+  if (inHalt(SYMBOLS[symbol], timestamp)) {
+    return { timestamp, open: close, high: close, low: close, close, volume: 0 };
+  }
   return {
-    timestamp: TAPE_FROM + index * MIN_MS,
+    timestamp,
     open,
     high: Math.max(open, close) * 1.0004,
     low: Math.min(open, close) * 0.9996,
     close,
     volume: 1_000,
   };
-};
-
-const inGap = (symbol, timestamp) => {
-  const gap = SYMBOLS[symbol].gap;
-  return Boolean(gap && timestamp >= gap.from && timestamp < gap.to);
 };
 
 /** Stable key of a position across runs: the symbol and the tick its entry was placed on */
@@ -193,8 +202,7 @@ const runQuarter = async ({ name, watch, order }) => {
       const out = [];
       let index = Math.max(0, Math.round((since.getTime() - TAPE_FROM) / MIN_MS));
       while (out.length < limit && index < TAPES[symbol].length) {
-        const timestamp = TAPE_FROM + index * MIN_MS;
-        if (!inGap(symbol, timestamp)) out.push(candleAt(symbol, index));
+        out.push(candleAt(symbol, index));
         index += 1;
       }
       return out;
@@ -288,7 +296,9 @@ const runQuarter = async ({ name, watch, order }) => {
   // a fatal backtest ends in process.exit(-1): record it and let the dying symbol's task unwind
   process.exit = (code) => { exits.push(code); };
   console.warn = (message) => { warnings.push(String(message)); };
-  console.error = () => void 0;
+  // the fatal path prints its reason through console.error before exiting: keep it for the verdict
+  const errors = [];
+  console.error = (...args) => { errors.push(args.map((a) => (a instanceof Error ? `${a.message}\n${a.stack}` : typeof a === "string" ? a : JSON.stringify(a))).join(" ")); };
   const startedAt = Date.now();
   try {
     for (const symbol of backgrounds) Backtest.background(symbol, context);
@@ -309,7 +319,7 @@ const runQuarter = async ({ name, watch, order }) => {
   const gaveUp = warnings.filter((m) => m.includes("lockstep gave up waiting")).length;
   const sortAll = (list) => [...list].sort();
   return {
-    name, watch, elapsedMs, ticks, done: [...done].sort(), gaveUp, exits,
+    name, watch, elapsedMs, ticks, done: [...done].sort(), gaveUp, exits, errors,
     exact: {
       journal: rows,
       activations: sortAll(collected.activations),
@@ -354,7 +364,7 @@ test(`PORTFOLIO QUARTER: ${DAYS} days, six symbols, one budget under lockstep �
     // Backtest.run symbol ticks fewer than DAYS × 24 times; it must have ticked and have run to the end
     if (!(r.ticks[symbols[0]] > 0)) return fail(`${r.name}: the Backtest.run symbol never ticked`);
     if (r.journal.some((row) => row.type === "reserve" && row.overdraft !== undefined)) return fail(`${r.name}: overdraft in the journal:\n${r.exact.journal.filter((l) => l.includes("OVERDRAFT")).join("\n")}`);
-    if (r.exits.length !== 1) return fail(`${r.name}: expected exactly one fatal exit (the dying symbol), got ${r.exits.length}`);
+    if (r.exits.length !== 1) return fail(`${r.name}: expected exactly one fatal exit (the dying symbol), got ${r.exits.length}; console.error said:\n${r.errors.join("\n---\n")}`);
     // every reserve is released by the end of the quarter, except what the dying symbol left deployed
     const released = new Set(r.journal.filter((row) => row.type === "release").map((row) => row.id));
     const stillOpen = r.journal.filter((row) => row.type === "reserve" && !released.has(row.id));

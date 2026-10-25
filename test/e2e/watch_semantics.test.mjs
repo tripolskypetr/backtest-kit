@@ -344,6 +344,32 @@ test("WATCH SEMANTICS: a user close rejected by the gate is retried on the next 
   pass(`1m: attempts ${results["1m"].attempts.join(" ")} closed@${results["1m"].at} | 1h: attempts ${results["1h"].attempts.join(" ")} closed@${results["1h"].at}`);
 });
 
+test("WATCH SEMANTICS: a stop-loss close refused by the gate is retried on the next candle, not on the next span, identically on a 1m and a 1h watch", async ({ pass, fail }) => {
+  // the stop (85) is touched by the candle lows on minutes 20..25 and the price is flat at 100 again
+  // afterwards; the gate refuses the first attempt (minute 20). The retry must land on minute 21 —
+  // a 1h watch that re-entered the loop at the next span end (60..119) would never see the stop
+  // again and would carry the position to its time expiry
+  const candleByMinute = Object.fromEntries(Array.from({ length: 6 }, (_, k) => [20 + k, { low: SL, close: SL }]));
+  const names = ["1m", "1h"].map((watch) => `watch-semantics-strategy-reject-stop-${watch}`);
+  const attempts = [];
+  rejectFirstCloseOf(names, attempts);
+  const results = {};
+  for (const watch of ["1m", "1h"]) {
+    const schema = buildCase(`reject-stop-${watch}`, { watch, candleByMinute, getSignal: () => marketLong(300) });
+    const { closed } = await runCase(schema);
+    if (closed.length !== 1) return fail(`${watch}: expected one close, got ${closed.length}`);
+    const own = attempts.filter((a) => a.strategyName === schema.strategyName);
+    results[watch] = { reason: closed[0].closeReason, at: minute(closed[0].closeTimestamp), price: closed[0].currentPrice, attempts: own.map((a) => `${a.attempt}@${a.at}`) };
+  }
+  if (results["1m"].reason !== "stop_loss" || results["1m"].attempts.join(",") !== "0@20,1@21" || results["1m"].at !== 21 || results["1m"].price !== SL) {
+    return fail(`1m watch: expected the refused stop at 20 to be retried and accepted on 21 at ${SL}, got ${JSON.stringify(results["1m"])}`);
+  }
+  if (JSON.stringify(results["1h"]) !== JSON.stringify(results["1m"])) {
+    return fail(`1h watch must retry the refused stop on the next candle like the 1m watch: ${JSON.stringify(results)}`);
+  }
+  pass(`stop_loss refused@20, accepted@21 at ${SL}, on both watches`);
+});
+
 test("WATCH SEMANTICS: a user close rejected through the whole last span of a replay window is retried on every candle across the window boundary", async ({ pass, fail }) => {
   // Infinity hold, 1h watch, 600-candle pages → windows of two whole spans (0..119 | 120..239 …).
   // The close is asked on the first look (minute 59) and refused on every candle of the
