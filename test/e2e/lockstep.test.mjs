@@ -2350,6 +2350,125 @@ test("LOCKSTEP: with a daily watchInterval on an hourly entry interval the day-3
   }
 });
 
+// ── WAIT_FOR_PEERS_FN: the two waits of the orchestrator, observed as event order ──
+
+/**
+ * Flat 1m candles; one strategy / frame pair per name with its own tick interval.
+ * `positions[symbol]` opens a market long at FRAME_START for that many minutes.
+ */
+const buildWaitCase = (name, { interval, positions = {} }) => {
+  const exchangeName = `lockstep-wait-exchange-${name}`;
+  const strategyName = `lockstep-wait-strategy-${name}`;
+  const frameName = `lockstep-wait-frame-${name}`;
+  addExchangeSchema({
+    exchangeName,
+    getCandles: async (_symbol, candleInterval, since, limit) => {
+      if (candleInterval !== "1m") throw new Error(`lockstep wait exchange: only 1m bars, got ${candleInterval}`);
+      const out = [];
+      let timestamp = Math.floor(since.getTime() / MIN_MS) * MIN_MS;
+      while (out.length < limit) {
+        out.push({ timestamp, open: 100, high: 100.5, low: 99.5, close: 100, volume: 1_000 });
+        timestamp += MIN_MS;
+      }
+      return out;
+    },
+    formatPrice: async (_s, p) => p.toFixed(8),
+    formatQuantity: async (_s, q) => q.toFixed(8),
+  });
+  addStrategySchema({
+    strategyName,
+    interval,
+    getSignal: async (symbol, when) => {
+      const minutes = positions[symbol];
+      if (minutes && when.getTime() === FRAME_START) {
+        return { position: "long", priceStopLoss: 85, priceTakeProfit: 119, cost: 1000, minuteEstimatedTime: minutes };
+      }
+      return null;
+    },
+  });
+  addFrameSchema({ frameName, interval, startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
+  return { exchangeName, strategyName, frameName };
+};
+
+/** Idle ticks and replayed candles of the named strategies, in arrival order, as minutes from FRAME_START */
+const recordWaitOrder = async (runs) => {
+  const order = [];
+  const names = new Set(runs.map(({ schema }) => schema.strategyName));
+  const unsubscribe = [
+    listenIdlePing((event) => { if (names.has(event.strategyName)) order.push({ symbol: event.symbol, kind: "tick", at: (event.when.getTime() - FRAME_START) / MIN_MS }); }),
+    listenActivePing((event) => { if (names.has(event.strategyName)) order.push({ symbol: event.symbol, kind: "candle", at: (event.timestamp - FRAME_START) / MIN_MS }); }),
+  ];
+  try {
+    const done = new Set();
+    const allDone = new Subject();
+    const frames = new Set(runs.map(({ schema }) => schema.frameName));
+    const unDone = listenDoneBacktest((event) => {
+      if (!frames.has(event.frameName)) return;
+      done.add(event.symbol);
+      if (done.size === runs.length) allDone.next();
+    });
+    try {
+      for (const { symbol, schema } of runs) Backtest.background(symbol, schema);
+      await Promise.race([allDone.toPromise(), sleep(ERROR_TIMEOUT_MS)]);
+      if (done.size !== runs.length) throw new Error(`only ${[...done].join(",")} finished within ${ERROR_TIMEOUT_MS} ms`);
+    } finally {
+      unDone();
+    }
+  } finally {
+    unsubscribe.forEach((un) => un());
+  }
+  return order;
+};
+
+const describeOrder = (order) => order.map((e) => `${e.symbol.replace("USDT", "")}:${e.kind === "tick" ? "T" : "C"}${e.at}`).join(" ");
+
+test("LOCKSTEP WAIT_FOR_PEERS: the start barrier makes a 1h tick wait for the 15m peer's 00:15 / 00:30 / 00:45 ticks (FIFO alone would run it right after 00:00)", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  const hourly = buildWaitCase("start-1h", { interval: "1h" });
+  const quarter = buildWaitCase("start-15m", { interval: "15m" });
+  const order = await recordWaitOrder([{ symbol: "HOURUSDT", schema: hourly }, { symbol: "QUARTUSDT", schema: quarter }]);
+  const ticks = order.filter((e) => e.kind === "tick");
+  if (ticks.filter((e) => e.symbol === "HOURUSDT").length < FRAME_HOURS || ticks.filter((e) => e.symbol === "QUARTUSDT").length < 4 * FRAME_HOURS) {
+    return fail(`expected ${FRAME_HOURS} hourly and ${4 * FRAME_HOURS} quarter-hour ticks, got ${describeOrder(ticks)}`);
+  }
+  // every hourly tick at h must come after every quarter-hour tick before h: without the start
+  // barrier the FIFO lock alternates the two and the 1h tick at 01:00 runs right after 00:00
+  for (const tick of ticks) {
+    if (tick.symbol !== "HOURUSDT" || tick.at === 0) continue;
+    const index = ticks.indexOf(tick);
+    const late = ticks.slice(index + 1).filter((e) => e.symbol === "QUARTUSDT" && e.at < tick.at);
+    if (late.length) {
+      return fail(`the 1h tick at ${tick.at} ran before the 15m ticks at ${late.map((e) => e.at).join(",")}: ${describeOrder(ticks.slice(0, index + late.length + 1))}`);
+    }
+  }
+  pass(`${ticks.length} ticks in order: ${describeOrder(ticks.slice(0, 11))} …`);
+});
+
+test("LOCKSTEP WAIT_FOR_PEERS: the hand-off wait makes a replay stop at every hour boundary until the idle peer has ticked it (one spin alone lets only one tick in)", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  const HOLD = 4 * 60;
+  const schema = buildWaitCase("handoff", { interval: "1h", positions: { REPLAYUSDT: HOLD } });
+  const order = await recordWaitOrder([{ symbol: "REPLAYUSDT", schema }, { symbol: "IDLEUSDT", schema }]);
+  const candles = order.filter((e) => e.kind === "candle" && e.symbol === "REPLAYUSDT");
+  if (candles.length < HOLD - 1) return fail(`expected a candle ping per replayed minute, got ${candles.length}`);
+  for (let hour = 1; hour < HOLD / 60; hour++) {
+    const boundary = hour * 60;
+    const tickIndex = order.findIndex((e) => e.symbol === "IDLEUSDT" && e.kind === "tick" && e.at === boundary);
+    const candleIndex = order.findIndex((e) => e.symbol === "REPLAYUSDT" && e.kind === "candle" && e.at >= boundary);
+    if (tickIndex === -1) return fail(`the idle peer never ticked at ${boundary}`);
+    if (candleIndex === -1) return fail(`the replay never reached minute ${boundary}`);
+    // the peer's tick at the boundary lands before the replay's first candle on or past it;
+    // without the hand-off wait the whole position replays before the peer's second tick
+    if (tickIndex > candleIndex) {
+      return fail(`the replay crossed ${boundary} (candle at ${order[candleIndex].at}) before the peer's tick at ${boundary}: ${describeOrder(order.filter((e, i) => i <= tickIndex && (e.kind === "tick" || e.at % 60 === 0 || e.at % 60 === 59)))}`);
+    }
+    // and the peer did not get ahead either: no tick past the boundary before the replay reached it
+    const early = order.slice(0, candleIndex).filter((e) => e.symbol === "IDLEUSDT" && e.kind === "tick" && e.at > boundary);
+    if (early.length) return fail(`the idle peer ticked at ${early.map((e) => e.at).join(",")} before the replay reached ${boundary}`);
+  }
+  pass(`replay of ${HOLD} minutes handed off at ${Array.from({ length: HOLD / 60 - 1 }, (_, i) => (i + 1) * 60).join("/")}: ${describeOrder(order.filter((e) => e.kind === "tick" || e.at % 60 === 0 || e.at % 60 === 59))}`);
+});
+
 // ── Different strategies on different timeframes ─────────────────────────────
 
 const MIXED_FINE_SYMBOL = "MIXEDFINEUSDT";
