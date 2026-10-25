@@ -69,6 +69,7 @@ import "./e2e/partial_note.test.mjs";
 import "./e2e/frame_end.test.mjs";
 import "./e2e/lockstep.test.mjs";
 import "./e2e/ping_interval.test.mjs";
+import "./e2e/signal_interval.test.mjs";
 
 import "./spec/audit.test.mjs";
 import "./spec/live.test.mjs";
