@@ -243,12 +243,17 @@ export const main = async () => {
 
   const run = async () => {
     if (commit === "signal-open") {
-      await commitOrderOpen({
-        type: "active",
+      // A market entry, not the activation of a resting order: `scheduled: false` (the
+      // flag that tells an adapter to check the resting order's resolution first).
+      // Built as a plain object, not a typed literal, so the file compiles both against
+      // a backtest-kit that already has the flag and against one that does not yet.
+      const openPayload = {
+        type: "active" as const,
+        scheduled: false,
         symbol,
         signalId,
         cost: 100,
-        position: "long",
+        position: "long" as const,
         priceOpen: currentPrice,
         priceTakeProfit,
         priceStopLoss,
@@ -259,7 +264,8 @@ export const main = async () => {
         context,
         when,
         backtest: true,
-      });
+      };
+      await commitOrderOpen(openPayload);
     }
 
     if (commit === "signal-close") {
