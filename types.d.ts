@@ -3500,6 +3500,14 @@ type StrategyStatus = {
      */
     retryCloseCount: number;
     /**
+     * Number of activation-gate attempts STARTED for the current scheduled signal (pre-armed
+     * BEFORE each `onOrderOpenCommit` type "active" call that activates the resting entry).
+     * A transient refusal keeps the scheduled signal and retries the activation with the
+     * same id and `attempt + 1` up to CC_ORDER_OPEN_RETRY_ATTEMPTS. Restored CLAMPED to 1
+     * (only the reconcile bit survives a restart); reset on every scheduled-signal transition.
+     */
+    retryActivateCount: number;
+    /**
      * Pause flag: while true nothing new opens — params.getSignal is NOT called and a
      * queued createSignal DTO is NOT consumed (it stays queued and drains after unpause);
      * an existing pending/scheduled signal keeps being monitored and closes normally.
@@ -15835,6 +15843,14 @@ type StrategyData = {
      * Reset on a confirmed close and on any pending-signal transition.
      */
     retryCloseCount: number;
+    /**
+     * Number of activation-gate attempts STARTED for the current scheduled signal (pre-armed
+     * BEFORE each `onOrderOpenCommit` type "active" call that activates the resting entry).
+     * A transient refusal keeps the scheduled signal and retries the activation with the
+     * same id and `attempt + 1` up to CC_ORDER_OPEN_RETRY_ATTEMPTS. Restored CLAMPED to 1
+     * (only the reconcile bit survives a restart); reset on every scheduled-signal transition.
+     */
+    retryActivateCount: number;
     /**
      * Pause flag: while true nothing new opens — params.getSignal is NOT called and a
      * queued createSignal DTO is NOT consumed (it stays queued and drains after unpause);
@@ -39198,7 +39214,12 @@ interface IBroker {
      *   idle; type "schedule": scheduled not registered, risk reservation released) and
      *   retries IDENTITY-STABLY — the SAME signal row with the SAME signalId is re-submitted
      *   on the next tick with `payload.attempt` incremented, up to
-     *   CC_ORDER_OPEN_RETRY_ATTEMPTS. The attempt is PRE-ARMED (persisted before this hook
+     *   CC_ORDER_OPEN_RETRY_ATTEMPTS. The ACTIVATION of a resting order (type "active" fired
+     *   by the price touch or by activateScheduled) follows the same rule: the scheduled
+     *   signal stays registered and the activation is re-attempted on the next tick / candle
+     *   with `attempt + 1` — this gate fires exactly when the resting order is likely to
+     *   have filled, so reconcile by clientOrderId at `attempt > 0` instead of re-sending.
+     *   Exhaustion cancels the scheduled signal (reason "user") and signals a fatal exit. The attempt is PRE-ARMED (persisted before this hook
      *   runs), so even a crash mid-attempt resumes with `attempt >= 1`. Because the id is
      *   stable, the adapter MUST reconcile at `attempt > 0`: query the prior order by
      *   clientOrderId BEFORE re-sending and confirm the open if it filled. Do NOT rely on

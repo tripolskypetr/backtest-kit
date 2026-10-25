@@ -72,6 +72,7 @@ import "./e2e/ping_interval.test.mjs";
 import "./e2e/signal_interval.test.mjs";
 import "./e2e/watch_semantics.test.mjs";
 import "./e2e/refuse_close.test.mjs";
+import "./e2e/refuse_activate.test.mjs";
 
 import "./spec/audit.test.mjs";
 import "./spec/live.test.mjs";

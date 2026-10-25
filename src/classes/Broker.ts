@@ -985,7 +985,12 @@ export interface IBroker {
    *   idle; type "schedule": scheduled not registered, risk reservation released) and
    *   retries IDENTITY-STABLY — the SAME signal row with the SAME signalId is re-submitted
    *   on the next tick with `payload.attempt` incremented, up to
-   *   CC_ORDER_OPEN_RETRY_ATTEMPTS. The attempt is PRE-ARMED (persisted before this hook
+   *   CC_ORDER_OPEN_RETRY_ATTEMPTS. The ACTIVATION of a resting order (type "active" fired
+   *   by the price touch or by activateScheduled) follows the same rule: the scheduled
+   *   signal stays registered and the activation is re-attempted on the next tick / candle
+   *   with `attempt + 1` — this gate fires exactly when the resting order is likely to
+   *   have filled, so reconcile by clientOrderId at `attempt > 0` instead of re-sending.
+   *   Exhaustion cancels the scheduled signal (reason "user") and signals a fatal exit. The attempt is PRE-ARMED (persisted before this hook
    *   runs), so even a crash mid-attempt resumes with `attempt >= 1`. Because the id is
    *   stable, the adapter MUST reconcile at `attempt > 0`: query the prior order by
    *   clientOrderId BEFORE re-sending and confirm the open if it filled. Do NOT rely on

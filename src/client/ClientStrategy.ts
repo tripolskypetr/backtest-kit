@@ -236,10 +236,11 @@ const CALL_ORDER_SYNC_OPEN_FN = trycatch(
       // Prior STARTED attempts for THIS id (counter is pre-armed before this call,
       // so count-1 = attempts that may have reached the exchange; >= 1 means the
       // adapter MUST reconcile by clientOrderId before re-sending). Activation
-      // paths (id not in the retry slot) always report 0.
+      // paths (id not in the retry slot) report their own started-attempts counter
+      // (_retryActivateCount, pre-armed by the activation before this call).
       attempt: self._retryOpenSignal?.id === pendingSignal.id
         ? Math.max(self._retryOpenCount - 1, 0)
-        : 0,
+        : Math.max(self._retryActivateCount - 1, 0),
       symbol: self.params.execution.context.symbol,
       strategyName: self.params.strategyName,
       exchangeName: self.params.exchangeName,
@@ -2016,6 +2017,10 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
       // must not burn the fresh retry budget — a stale streak from a long outage
       // would otherwise drop the signal on the first post-restart rejection.
       self._retryOpenCount = Math.min(strategyData.retryOpenCount ?? 0, 1);
+      // Started activation attempts of the restored scheduled signal, CLAMPED to 1 the
+      // same way: only the `attempt >= 1` reconcile bit survives a restart. A later
+      // placement resets it through setScheduledSignal.
+      self._retryActivateCount = Math.min(strategyData.retryActivateCount ?? 0, 1);
       // JSON serializes Infinity as null: restore eternal-hold rows the same way
       // as the pending/scheduled snapshots below.
       if (self._retryOpenSignal && self._retryOpenSignal.minuteEstimatedTime == null) {
@@ -2304,6 +2309,7 @@ const PERSIST_STRATEGY_FN = async (self: ClientStrategy): Promise<void> => {
       retryOpenSignal: self._retryOpenSignal,
       retryOpenCount: self._retryOpenCount,
       retryCloseCount: self._retryCloseCount,
+      retryActivateCount: self._retryActivateCount,
       isPaused: self._isPaused,
     },
     self.params.symbol,
@@ -2375,6 +2381,81 @@ const DROP_RETRY_OPEN_SIGNAL_FN = async (
     self._retryOpenCount = 0;
   }
   await PERSIST_STRATEGY_FN(self);
+};
+
+/**
+ * Resolves the outcome of the activation gate (`onOrderOpenCommit` type "active" for a
+ * resting entry — price touch or activateScheduled) into an actionable verdict:
+ *
+ * - "allow" — confirmed; the started-attempts counter resets.
+ * - "retry" — transient refusal within CC_ORDER_OPEN_RETRY_ATTEMPTS: the caller KEEPS the
+ *   scheduled signal (releasing only the risk slot the check reserved for this attempt)
+ *   and re-attempts the activation on the next tick / candle with the SAME id and
+ *   `attempt + 1`. The gate fires at the moment the price touched the entry — exactly
+ *   when a real resting order is likely to have filled — so a network blip there used to
+ *   cancel the signal, make the adapter cancel an already-filled order and leave the
+ *   position on the exchange without the engine; the retry lets the adapter reconcile
+ *   by clientOrderId instead, as the open gate does.
+ * - "cancel" — terminal rejection (OrderRejectedError) or transient attempts exhausted:
+ *   the caller cancels the scheduled signal (reason "user") and the id is consumed so a
+ *   deterministic strategy does not re-issue it. Exhaustion is a network failure, not a
+ *   business outcome: it is RETURNED as `fatalError` and the caller fires exitEmitter
+ *   only AFTER its teardown (same deferred-fatal pattern as the close gate).
+ *
+ * CC_ORDER_OPEN_RETRY_ATTEMPTS = 0 keeps the legacy behaviour: any refusal cancels.
+ */
+const RESOLVE_ACTIVATE_GATE_FN = (
+  self: ClientStrategy,
+  verdict: IBrokerOrderVerdict,
+  scheduled: IScheduledSignalRow
+): { verdict: "allow" | "retry" | "cancel"; fatalError: Error | null } => {
+  if (verdict.reason === "confirmed") {
+    self._retryActivateCount = 0;
+    return { verdict: "allow", fatalError: null };
+  }
+  const terminal = verdict.reason !== "transient";
+  if (!terminal && GLOBAL_CONFIG.CC_ORDER_OPEN_RETRY_ATTEMPTS <= 0) {
+    // Legacy (retry disabled): a transient refusal cancels the entry without consuming
+    // the id and without a fatal exit — the next tick may place a fresh one.
+    self._retryActivateCount = 0;
+    return { verdict: "cancel", fatalError: null };
+  }
+  const retryable = !terminal
+    && self._retryActivateCount <= GLOBAL_CONFIG.CC_ORDER_OPEN_RETRY_ATTEMPTS;
+  if (retryable) {
+    const message = "ClientStrategy RESOLVE_ACTIVATE_GATE_FN: transient activation refusal, the resting entry stays scheduled and the activation is retried";
+    const payload = {
+      symbol: self.params.execution.context.symbol,
+      strategyName: self.params.strategyName,
+      signalId: scheduled.id,
+      attempts: self._retryActivateCount,
+      maxAttempts: GLOBAL_CONFIG.CC_ORDER_OPEN_RETRY_ATTEMPTS,
+    };
+    self.params.logger.warn(message, payload);
+    console.warn(message, payload);
+    return { verdict: "retry", fatalError: null };
+  }
+  // Consume the id BEFORE the teardown (the callers persist right after): a
+  // deterministic strategy re-emitting the same id must not place another real order.
+  self._lastPendingId = scheduled.id;
+  if (terminal) {
+    self._retryActivateCount = 0;
+    return { verdict: "cancel", fatalError: null };
+  }
+  const message = "ClientStrategy RESOLVE_ACTIVATE_GATE_FN: activation attempts exhausted (network), cancelling the scheduled signal and signaling fatal exit";
+  const payload = {
+    symbol: self.params.execution.context.symbol,
+    strategyName: self.params.strategyName,
+    signalId: scheduled.id,
+    attempts: self._retryActivateCount,
+    maxAttempts: GLOBAL_CONFIG.CC_ORDER_OPEN_RETRY_ATTEMPTS,
+  };
+  self.params.logger.warn(message, payload);
+  console.warn(message, payload);
+  const error = new Error(message);
+  errorEmitter.next(error);
+  self._retryActivateCount = 0;
+  return { verdict: "cancel", fatalError: error };
 };
 
 /**
@@ -3478,6 +3559,10 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
   }
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
+  // PRE-ARM the started activation attempt (persisted before the gate, like the close
+  // gate): a crash after the order was POSTed restores attempt >= 1 for the reconcile.
+  self._retryActivateCount += 1;
+  await PERSIST_STRATEGY_FN(self);
   const syncOpenAllowed = await CALL_ORDER_SYNC_OPEN_FN(
     activationTime,
     activatedSignal.priceOpen,
@@ -3497,10 +3582,19 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
     // тиком: новое РЕАЛЬНОЕ размещение resting-ордера → новая активация → новый
     // реальный реджект — по паре отклонённых ордеров на бирже за цикл, вечно,
     // пока цена в entry-диапазоне. Транзиентный реджект id не потребляет.
-    if (syncOpenAllowed.reason !== "transient") {
-      self._lastPendingId = scheduled.id;
-      await PERSIST_STRATEGY_FN(self);
+    const activateGate = RESOLVE_ACTIVATE_GATE_FN(self, syncOpenAllowed, scheduled);
+    if (activateGate.verdict === "retry") {
+      // the resting entry stays scheduled; only the slot reserved by the risk check
+      // above is released — the next attempt re-reserves it
+      await CALL_RISK_REMOVE_SIGNAL_FN(
+        self,
+        self.params.execution.context.symbol,
+        activationTime,
+        self.params.execution.context.backtest
+      );
+      return null;
     }
+    await PERSIST_STRATEGY_FN(self);
     await self.setScheduledSignal(null);
     // Release the slot reserved by checkSignalAndReserve above
     await CALL_RISK_REMOVE_SIGNAL_FN(
@@ -3532,6 +3626,9 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
       signal: publicSignal,
       note: scheduled.note,
     });
+    if (activateGate.fatalError) {
+      exitEmitter.next(activateGate.fatalError);
+    }
     return null;
   }
 
@@ -5726,6 +5823,10 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
   }
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
+  // PRE-ARM the started activation attempt (persisted before the gate, like the close
+  // gate): a crash after the order was POSTed restores attempt >= 1 for the reconcile.
+  self._retryActivateCount += 1;
+  await PERSIST_STRATEGY_FN(self);
   const syncOpenAllowed = await CALL_ORDER_SYNC_OPEN_FN(
     activationTime,
     activatedSignal.priceOpen,
@@ -5741,8 +5842,16 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     });
     // Терминальный реджект активации — потребить id (зеркало live-ветки):
     // иначе детерминированная стратегия реиграет тот же сигнал каждую свечу.
-    if (syncOpenAllowed.reason !== "transient") {
-      self._lastPendingId = scheduled.id;
+    const activateGate = RESOLVE_ACTIVATE_GATE_FN(self, syncOpenAllowed, scheduled);
+    if (activateGate.verdict === "retry") {
+      // the resting entry stays scheduled; the loop retries on the next candle
+      await CALL_RISK_REMOVE_SIGNAL_FN(
+        self,
+        self.params.execution.context.symbol,
+        activationTime,
+        self.params.execution.context.backtest
+      );
+      return false;
     }
     await self.setScheduledSignal(null);
     // Release the slot reserved by checkSignalAndReserve above
@@ -5775,6 +5884,9 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       signal: publicSignal,
       note: scheduled.note,
     });
+    if (activateGate.fatalError) {
+      exitEmitter.next(activateGate.fatalError);
+    }
     return false;
   }
 
@@ -6477,6 +6589,9 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       }
 
       // Sync open: if external system rejects — cancel scheduled signal instead of opening
+      // PRE-ARM the started activation attempt (see RESOLVE_ACTIVATE_GATE_FN)
+      self._retryActivateCount += 1;
+      await PERSIST_STRATEGY_FN(self);
       const syncOpenAllowed = await CALL_ORDER_SYNC_OPEN_FN(
         candle.timestamp,
         pendingSignal.priceOpen,
@@ -6492,8 +6607,22 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         });
         // Терминальный реджект активации — потребить id (зеркало live-ветки):
         // иначе детерминированная стратегия реиграет тот же сигнал каждую свечу.
-        if (syncOpenAllowed.reason !== "transient") {
-          self._lastPendingId = activatedSignal.id;
+        const activateGate = RESOLVE_ACTIVATE_GATE_FN(self, syncOpenAllowed, activatedSignal);
+        if (activateGate.verdict === "retry") {
+          // the resting entry stays scheduled; the user activation is re-queued and the
+          // loop retries it on the next candle (re-entered on the same span end)
+          await CALL_RISK_REMOVE_SIGNAL_FN(
+            self,
+            self.params.execution.context.symbol,
+            candle.timestamp,
+            self.params.execution.context.backtest
+          );
+          self._activatedSignal = activatedSignal;
+          if (evalIndex < i) {
+            spanStart = evalIndex + 1;
+            holdIndex = true;
+          }
+          continue;
         }
         await self.setScheduledSignal(null);
         // Release the slot reserved by checkSignalAndReserve above
@@ -6550,6 +6679,9 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
             candle.timestamp,
             self.params.execution.context.backtest
           );
+          if (activateGate.fatalError) {
+            exitEmitter.next(activateGate.fatalError);
+          }
           return { outcome: "cancelled", result };
         }
       }
@@ -6689,6 +6821,15 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
 
     if (shouldActivate) {
       const activated = await ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN(self, scheduled, candle.timestamp);
+      if (!activated && self._scheduledSignal) {
+        // transient refusal of the activation gate: the entry stays scheduled and the
+        // touch is re-evaluated on the next candle (the span is re-entered, not skipped)
+        if (evalIndex < i) {
+          spanStart = evalIndex + 1;
+          holdIndex = true;
+        }
+        continue;
+      }
       if (!activated) {
         // Activation was rejected (stopped/risk/sync) — ACTIVATE_... already
         // released the reservation and emitted the cancel commit + schedule
@@ -7487,6 +7628,16 @@ export class ClientStrategy implements IStrategy {
    * loudly — see RESOLVE_CLOSE_GATE_FN.
    */
   _retryCloseCount = 0;
+  /**
+   * Number of activation-gate attempts STARTED for the current scheduled signal
+   * (pre-armed BEFORE each `onOrderOpenCommit` type "active" call that activates a
+   * resting entry — by price touch or by activateScheduled). A transient refusal keeps
+   * the scheduled signal and retries the activation on the next tick / candle with the
+   * SAME id and `attempt + 1`, up to CC_ORDER_OPEN_RETRY_ATTEMPTS; the adapter reconciles
+   * by clientOrderId at `attempt > 0` (the resting order may have filled). Reset on a
+   * confirmed activation and on every scheduled-signal transition.
+   */
+  _retryActivateCount = 0;
 
   /**
    * Number of CONSECUTIVE failed order-check pings (active OR scheduled — the states are
@@ -7633,6 +7784,8 @@ export class ClientStrategy implements IStrategy {
     // отложенная отмена стирается здесь, и дренаж не эмитит дубль.
     this._cancelledSignal = null;
     this._activatedSignal = null;
+    // the started activation attempts belong to the signal too (see RESOLVE_ACTIVATE_GATE_FN)
+    this._retryActivateCount = 0;
 
     // Счётчик последовательных сбоев order-check привязан к сигналу — новый
     // (или снятый) scheduled не должен наследовать чужую историю отказов.
@@ -9007,6 +9160,9 @@ export class ClientStrategy implements IStrategy {
         pendingSignal._fall = { price: pendingSignal.priceOpen, timestamp: currentTime, pnlPercentage, pnlCost, priceClose, pnlEntries, pnlDividends, priceOpen };
       }
 
+      // PRE-ARM the started activation attempt (see RESOLVE_ACTIVATE_GATE_FN)
+      this._retryActivateCount += 1;
+      await PERSIST_STRATEGY_FN(this);
       const syncOpenAllowed = await CALL_ORDER_SYNC_OPEN_FN(currentTime, currentPrice, pendingSignal, this);
       if (syncOpenAllowed.reason !== "confirmed") {
         this.params.logger.info("ClientStrategy tick: user-activated signal rejected by sync", {
@@ -9018,10 +9174,24 @@ export class ClientStrategy implements IStrategy {
         // ACTIVATE_SCHEDULED_SIGNAL_FN): без консумации детерминированная
         // стратегия ре-издаёт тот же id и выдаёт по реальному отклонённому
         // ордеру за цикл. Транзиентный реджект id не потребляет.
-        if (syncOpenAllowed.reason !== "transient") {
-          this._lastPendingId = activatedSignal.id;
+        const activateGate = RESOLVE_ACTIVATE_GATE_FN(this, syncOpenAllowed, activatedSignal);
+        if (activateGate.verdict === "retry") {
+          // the resting entry stays scheduled; the user activation is re-queued and the
+          // next tick drains it again with attempt + 1
+          await CALL_RISK_REMOVE_SIGNAL_FN(
+            this,
+            this.params.execution.context.symbol,
+            currentTime,
+            this.params.execution.context.backtest
+          );
+          this._activatedSignal = activatedSignal;
           await PERSIST_STRATEGY_FN(this);
+          if (this._scheduledSignal) {
+            return await RETURN_SCHEDULED_SIGNAL_ACTIVE_FN(this, this._scheduledSignal, currentPrice);
+          }
+          return await RETURN_IDLE_FN(this, currentPrice);
         }
+        await PERSIST_STRATEGY_FN(this);
         await this.setScheduledSignal(null);
         // Release the slot reserved by checkSignalAndReserve above
         await CALL_RISK_REMOVE_SIGNAL_FN(
@@ -9053,6 +9223,9 @@ export class ClientStrategy implements IStrategy {
           signal: publicSignal,
           note: activatedSignal.activateNote ?? activatedSignal.note,
         });
+        if (activateGate.fatalError) {
+          exitEmitter.next(activateGate.fatalError);
+        }
         return await RETURN_IDLE_FN(this, currentPrice);
       }
 
@@ -9266,7 +9439,11 @@ export class ClientStrategy implements IStrategy {
         if (activateResult) {
           return activateResult;
         }
-        // Risk rejected or stopped - return idle
+        // Transient activation refusal: the entry is still scheduled, keep waiting
+        if (this._scheduledSignal) {
+          return await RETURN_SCHEDULED_SIGNAL_ACTIVE_FN(this, this._scheduledSignal, currentPrice);
+        }
+        // Risk rejected, stopped or cancelled - return idle
         return await RETURN_IDLE_FN(this, currentPrice);
       }
 
@@ -10501,6 +10678,7 @@ export class ClientStrategy implements IStrategy {
       stopLossSignal: this._stopLossSignal,
       retryOpenSignal: this._retryOpenSignal,
       retryOpenCount: this._retryOpenCount,
+      retryActivateCount: this._retryActivateCount,
       retryCloseCount: this._retryCloseCount,
       isPaused: this._isPaused,
     };
