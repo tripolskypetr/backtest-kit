@@ -293,7 +293,7 @@ test("REFUSED ACTIVATE (live): a transient refusal of the activation gate keeps 
   const unSync = listenSync((event) => {
     if (event.strategyName !== context.strategyName) return;
     if (event.action !== "signal-open" || event.type !== "active") return;
-    activations.push({ id: event.signalId, attempt: event.attempt });
+    activations.push({ id: event.signalId, attempt: event.attempt, scheduled: event.scheduled });
     if (activations.length === 1) throw new Error("live activate attack: transient refusal");
   }, true);
   try {
@@ -308,9 +308,10 @@ test("REFUSED ACTIVATE (live): a transient refusal of the activation gate keeps 
     if (attempts !== "0,1" || activations[0].id !== activations[1].id || tick3.signal.id !== activations[0].id) {
       return fail(`expected activation attempts 0,1 on the same id, got ${JSON.stringify(activations)} opened=${tick3.signal.id}`);
     }
+    if (!activations.every((a) => a.scheduled === true)) return fail(`every activation event must carry scheduled=true (a resting order exists under this id), got ${JSON.stringify(activations)}`);
     await settle();
     if (exits !== 0) return fail(`a transient activation refusal within the budget must not signal exit, got ${exits}`);
-    pass(`placed, activation refused (attempt 0) → waiting, retried (attempt 1) → opened ${tick3.signal.id}`);
+    pass(`placed, activation refused (attempt 0) → waiting, retried (attempt 1) → opened ${tick3.signal.id}, scheduled=true on both`);
   } finally {
     unSync();
     unExit();

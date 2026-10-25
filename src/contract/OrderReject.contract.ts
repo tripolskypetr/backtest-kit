@@ -104,6 +104,8 @@ interface OrderRejectBase {
 export interface OrderRejectOpenContract extends OrderRejectBase {
   /** Discriminator for the rejected open/placement */
   action: "signal-open";
+  /** true when the row is a resting entry (placement or its activation under the same signalId) */
+  scheduled: boolean;
   /** Cost of the position (sum of entry costs) */
   cost: number;
 }

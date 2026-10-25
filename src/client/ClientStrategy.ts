@@ -233,6 +233,10 @@ const CALL_ORDER_SYNC_OPEN_FN = trycatch(
     return await CALL_ORDER_SYNC_GUARDED_FN(self, {
       action: "signal-open",
       type: "active",
+      // The activation of a resting entry: the placement already went to the exchange
+      // under this signalId (the scheduled row is still registered while the gate runs),
+      // so the adapter must check that order's resolution first. false on a market entry.
+      scheduled: self._scheduledSignal?.id === pendingSignal.id,
       // Prior STARTED attempts for THIS id (counter is pre-armed before this call,
       // so count-1 = attempts that may have reached the exchange; >= 1 means the
       // adapter MUST reconcile by clientOrderId before re-sending). Activation
@@ -309,6 +313,7 @@ const CALL_ORDER_SYNC_SCHEDULE_OPEN_FN = trycatch(
     return await CALL_ORDER_SYNC_GUARDED_FN(self, {
       action: "signal-open",
       type: "schedule",
+      scheduled: true,
       // Prior STARTED placement attempts for THIS id (counter pre-armed before this
       // call; >= 1 means a prior placement may have reached the exchange)
       attempt: self._retryOpenSignal?.id === scheduledSignal.id

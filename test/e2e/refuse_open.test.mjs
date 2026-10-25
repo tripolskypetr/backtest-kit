@@ -60,7 +60,7 @@ const GATES = new Map();
       const original = strategy.params.onOrderSync;
       strategy.params.onOrderSync = async (event) => {
         if (event.action === "signal-open") {
-          const record = { type: event.type, attempt: event.attempt, at: minute(event.timestamp), id: event.signalId, index: gate.attempts.length };
+          const record = { type: event.type, attempt: event.attempt, at: minute(event.timestamp), id: event.signalId, index: gate.attempts.length, scheduled: event.scheduled };
           gate.attempts.push(record);
           const verdict = gate.refuse(record);
           if (verdict === "terminal") throw new OrderRejectedError("open attack: terminal rejection");
@@ -138,6 +138,7 @@ const runCase = async (schema) => {
   const gate = GATES.get(schema.strategyName);
   return {
     attempts: gate.attempts.map((a) => `${a.type}:${a.attempt}@${a.at}`),
+    scheduledFlags: gate.attempts.map((a) => a.scheduled),
     ids: new Set(gate.attempts.map((a) => a.id)).size,
     getSignalAt: schema.state.calls,
     scheduled: events.scheduled,
@@ -179,7 +180,8 @@ test("REFUSED OPEN: a transient refusal of the market entry re-submits the SAME 
   const results = await runOnWatches("transient", { signal: marketLong, refuse: first });
   const expected = { attempts: ["active:0@0", "active:1@60"], ids: 1, getSignalAt: [0], scheduled: [], opened: [60], closed: expired(60), exits: 0 };
   if (expectOracle(results, expected, fail, "transient")) return;
-  pass(`open refused@0, same row re-submitted@60 as attempt 1 (getSignal not asked again), opened@60 on ${WATCHES.join("/")}`);
+  if (results["1m"].scheduledFlags.join(",") !== "false,false") return fail(`a market entry must carry scheduled=false on every attempt, got ${results["1m"].scheduledFlags.join(",")}`);
+  pass(`open refused@0, same row re-submitted@60 as attempt 1 (getSignal not asked again), opened@60, scheduled=false on ${WATCHES.join("/")}`);
 });
 
 test("REFUSED OPEN: a terminal OrderRejectedError drops the row without arming the retry — the next tick generates a FRESH id with attempt 0", async ({ pass, fail }) => {
@@ -231,7 +233,9 @@ test("REFUSED OPEN: a retried market row overtaken by the price is re-submitted 
   const results = await runOnWatches("overtaken", { signal: marketLong, candleByMinute: spike, refuse: first });
   const expected = { attempts: ["active:0@0", "schedule:1@60", "active:0@111"], ids: 1, getSignalAt: [0], scheduled: [60], opened: [111], closed: expired(111), exits: 0 };
   if (expectOracle(results, expected, fail, "overtaken")) return;
-  pass(`refused@0 at 100, re-submitted@60 as a resting entry at 100 (attempt 1, same id), activated@111 on ${WATCHES.join("/")}`);
+  // the flag is what tells the adapter to check the resting order's resolution at the activation
+  if (results["1m"].scheduledFlags.join(",") !== "false,true,true") return fail(`expected scheduled flags false,true,true (market attempt, placement, activation), got ${results["1m"].scheduledFlags.join(",")}`);
+  pass(`refused@0 at 100, re-submitted@60 as a resting entry at 100 (attempt 1, same id), activated@111 with scheduled=true on ${WATCHES.join("/")}`);
 });
 
 test("REFUSED OPEN: a strategy-supplied id rejected terminally is consumed — the same id re-issued on later ticks never reaches the gate again", async ({ pass, fail }) => {
@@ -252,7 +256,8 @@ test("REFUSED OPEN: a transient refusal of the resting-order placement re-submit
   const results = await runOnWatches("placement", { signal: restingLong, candleByMinute: touch, refuse: (a) => a.type === "schedule" && a.index === 0 });
   const expected = { attempts: ["schedule:0@0", "schedule:1@60", "active:0@80"], ids: 1, getSignalAt: [0], scheduled: [60], opened: [80], closed: expired(80), exits: 0 };
   if (expectOracle(results, expected, fail, "placement")) return;
-  pass(`placement refused@0, same row placed@60 as attempt 1, activated@80 as attempt 0 on ${WATCHES.join("/")}`);
+  if (results["1m"].scheduledFlags.join(",") !== "true,true,true") return fail(`a resting entry must carry scheduled=true on placement and activation, got ${results["1m"].scheduledFlags.join(",")}`);
+  pass(`placement refused@0, same row placed@60 as attempt 1, activated@80 as attempt 0, scheduled=true throughout, on ${WATCHES.join("/")}`);
 });
 
 test("REFUSED OPEN: a terminal rejection of the placement drops the row; the fresh row is placed on the next tick and activates normally", async ({ pass, fail }) => {
@@ -304,7 +309,7 @@ test("REFUSED OPEN (live): a transient refusal of the market entry leaves the ti
   const unSync = listenSync((event) => {
     if (event.strategyName !== context.strategyName) return;
     if (event.action !== "signal-open" || event.type !== "active") return;
-    opens.push({ id: event.signalId, attempt: event.attempt });
+    opens.push({ id: event.signalId, attempt: event.attempt, scheduled: event.scheduled });
     if (opens.length === 1) throw new Error("live open attack: transient refusal");
   }, true);
   try {
@@ -314,6 +319,7 @@ test("REFUSED OPEN (live): a transient refusal of the market entry leaves the ti
     if (tick2.action !== "opened") return fail(`tick #2 expected "opened" (same row re-submitted), got "${tick2.action}"`);
     if (opens.map((o) => o.attempt).join(",") !== "0,1" || opens[0].id !== opens[1].id || tick2.signal.id !== opens[0].id) return fail(`expected attempts 0,1 on one id, got ${JSON.stringify(opens)} opened=${tick2.signal.id}`);
     if (getSignalCalls() !== 1) return fail(`the retry slot must bypass getSignal, got ${getSignalCalls()} calls`);
+    if (!opens.every((o) => o.scheduled === false)) return fail(`a market entry must carry scheduled=false, got ${JSON.stringify(opens)}`);
     await settle();
     if (exits !== 0) return fail(`a transient refusal within the budget must not signal exit, got ${exits}`);
     pass(`open refused (attempt 0) → idle, re-submitted (attempt 1) → opened ${tick2.signal.id}, getSignal asked once`);

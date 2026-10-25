@@ -316,7 +316,7 @@ test("broker openCommit transient throw (active) at scheduled activation keeps t
     async onOrderOpenCommit(p) {
       calls.push({ m: "openCommit", type: p.type });
       if (p.type === "active") {
-        activations.push({ id: p.signalId, attempt: p.attempt });
+        activations.push({ id: p.signalId, attempt: p.attempt, scheduled: p.scheduled });
         if (activations.length === 1) throw new Error("exchange timed out, fill status unknown");
       }
     }
@@ -350,5 +350,6 @@ test("broker openCommit transient throw (active) at scheduled activation keeps t
     return;
   }
   if (!signals.includes("opened")) { t.fail("opened event missing after the retried activation"); return; }
-  t.pass("transient activation refusal keeps the resting order, next tick activates with attempt 1 on the same id");
+  if (!activations.every((a) => a.scheduled === true)) { t.fail(`activation payloads must carry scheduled=true: ${JSON.stringify(activations)}`); return; }
+  t.pass("transient activation refusal keeps the resting order, next tick activates with attempt 1 on the same id, scheduled=true");
 });

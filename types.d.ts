@@ -1768,6 +1768,15 @@ interface OrderOpenContract extends OrderSyncBase {
     maxDrawdown: IStrategyPnL;
     /** Cost of the position at close (sum of all entry costs) */
     cost: number;
+    /**
+     * true when the row is a RESTING entry: type "schedule" is its placement, type "active"
+     * is its ACTIVATION — and both carry the SAME signalId. On an activation the adapter
+     * MUST first check whether the resting order it placed under clientOrderId = signalId
+     * has already resolved (filled / partially filled) and only then act, regardless of
+     * `attempt` (the activation counts its own attempts, the placement is a prior order
+     * under this id by definition). false on an immediate market entry.
+     */
+    scheduled: boolean;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Entry price at which the limit order was filled */
@@ -11608,6 +11617,8 @@ interface OrderFillBase {
 interface OrderFillOpenContract extends OrderFillBase {
     /** Discriminator for the confirmed open/placement */
     action: "signal-open";
+    /** true when the row is a resting entry (placement or its activation under the same signalId) */
+    scheduled: boolean;
     /** Cost of the position (sum of entry costs) */
     cost: number;
 }
@@ -11729,6 +11740,8 @@ interface OrderRejectBase {
 interface OrderRejectOpenContract extends OrderRejectBase {
     /** Discriminator for the rejected open/placement */
     action: "signal-open";
+    /** true when the row is a resting entry (placement or its activation under the same signalId) */
+    scheduled: boolean;
     /** Cost of the position (sum of entry costs) */
     cost: number;
 }
@@ -38331,6 +38344,15 @@ declare const Worker: WorkerUtils;
 type BrokerOrderOpenPayload = {
     /** Which order is being opened: "active" — position entry, "schedule" — resting entry order placement */
     type: "schedule" | "active";
+    /**
+     * true when the row is a RESTING entry: type "schedule" is its placement, type "active"
+     * is its ACTIVATION — and both carry the SAME signalId. On an activation the adapter
+     * MUST first check whether the resting order it placed under clientOrderId = signalId
+     * has already resolved (filled / partially filled) and only then act, regardless of
+     * `attempt` (the activation counts its own attempts, the placement is a prior order
+     * under this id by definition). false on an immediate market entry.
+     */
+    scheduled: boolean;
     /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
     /** Unique signal identifier (UUID v4) the order belongs to */
@@ -39204,6 +39226,13 @@ interface IBroker {
      * strategy state, so it is also the open **gate**. Discriminated by `payload.type`:
      * - "active" — position entry (immediate open or activation fill of the resting order);
      * - "schedule" — PLACEMENT of the resting entry order at scheduled-signal creation.
+     * `payload.scheduled` tells the two "active" cases apart: true is the ACTIVATION of a
+     * resting order that was placed under the SAME signalId at type "schedule" — check
+     * whether that order has already resolved (filled / partially filled) BEFORE sending
+     * anything, whatever `attempt` says: the activation counts its own attempts, and the
+     * placement is a prior order under this id by definition. A retried market entry
+     * overtaken by the price is re-submitted as a resting order too (type "schedule",
+     * same id), so its later activation arrives with `scheduled: true` and `attempt` 0.
      *
      * MANUAL WIRING — EXCEPTION-BASED: place the real order here (tag the exchange order with
      * `clientOrderId = payload.signalId` so later `onOrderActiveCheck` / `onOrderScheduleCheck` /

@@ -119,7 +119,7 @@ const TO_ORDER_FILL_FN = (event: OrderSyncContract): OrderFillContract => {
     totalPartials: event.totalPartials,
   };
   if (event.action === "signal-open") {
-    return { ...base, action: "signal-open", cost: event.cost };
+    return { ...base, action: "signal-open", cost: event.cost, scheduled: event.scheduled };
   }
   return { ...base, action: "signal-close", closeReason: event.closeReason };
 };
@@ -160,7 +160,7 @@ const TO_ORDER_REJECT_FN = (event: OrderSyncContract, message: string): OrderRej
     message,
   };
   if (event.action === "signal-open") {
-    return { ...base, action: "signal-open", cost: event.cost };
+    return { ...base, action: "signal-open", cost: event.cost, scheduled: event.scheduled };
   }
   return { ...base, action: "signal-close", closeReason: event.closeReason };
 };
