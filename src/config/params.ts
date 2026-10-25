@@ -468,6 +468,9 @@ export const GLOBAL_CONFIG = {
    *   A(t0) B(t0) A(t1) B(t1) … and never drift apart by more than one timeframe.
    * - Every iteration starts behind a time barrier: it waits until every running peer has
    *   reached its timeframe (executed up to it, or parked on it with nothing left before it).
+   *   Ticks of the SAME timeframe are a tie and run in launch order (the FIFO of the mutex):
+   *   with a shared `Budget` that order is the priority at the money — the `Launcher`
+   *   symbol list decides who reserves first when several symbols signal in the same hour.
    * - A replay spans many timeframes in one iteration, so inside it `StrategyConnectionService`
    *   calls the orchestrator from its schedule / active ping callbacks (one per replayed candle)
    *   and on the last candle before every boundary the replay hands the lock off and waits until

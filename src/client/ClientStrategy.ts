@@ -7021,6 +7021,15 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         return closeResult;
       }
 
+      // With a watch stride the rest of the span must not be skipped after the refusal:
+      // after this candle's look below the iteration is re-entered on the same span end
+      // from the next candle, like the user-close path — the retry lands on the next
+      // candle on every watch.
+      if (evalIndex < i) {
+        spanStart = evalIndex + 1;
+        holdIndex = true;
+      }
+
       // Sync close rejected (e.g. broker rejected the order) — _pendingSignal is left
       // intact (not cleared on rejection). Do NOT return/continue: fall through to the
       // active-monitoring block below so this candle is processed exactly like live
