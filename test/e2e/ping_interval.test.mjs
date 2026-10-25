@@ -340,3 +340,52 @@ test("PING INTERVAL GRID: idle deliveries follow the contract for every entryInt
   }
   pass(report.join(" | "));
 });
+
+test("PING INTERVAL GRID: a position between idle pings does not move the idle anchor, the grid stays on the first idle ping", async ({ pass, fail }) => {
+  // entry 1h, listener 2h over a 10h frame: grid points at 120, 240, 360, 480, 600 from the first idle ping at 0
+  const cases = [
+    // the position opens on the tick at 60 and lives 90 minutes: idle pings 0, 180, 240, 300 …
+    // a re-anchor on the first idle ping after the close (180) would deliver 180, 300, 420 instead
+    { openAt: 60, hold: 90, expected: [0, 180, 240, 360, 480, 600] },
+    // the position opens exactly on the grid point 120 and swallows it: 120 and 240 are both covered by the idle ping at 240
+    { openAt: 120, hold: 90, expected: [0, 240, 360, 480, 600] },
+  ];
+  const report = [];
+  for (const { openAt, hold, expected } of cases) {
+    const name = `grid-idle-anchor-${openAt}`;
+    let issued = false;
+    const schema = buildCase(name, {
+      interval: "1h",
+      frameHours: 10,
+      getSignal: async (_symbol, when) => {
+        if (issued || when.getTime() !== FRAME_START + openAt * MIN_MS) return null;
+        issued = true;
+        return { position: "long", priceStopLoss: 85, priceTakeProfit: 119, cost: 1000, minuteEstimatedTime: hold };
+      },
+    });
+    const idle = [];
+    const delivered = [];
+    const closed = [];
+    const unsubscribe = [
+      listenIdlePing((event) => { if (event.strategyName === schema.strategyName) idle.push((event.timestamp - FRAME_START) / MIN_MS); }),
+      listenIdlePingInterval((event) => { if (event.strategyName === schema.strategyName) delivered.push((event.timestamp - FRAME_START) / MIN_MS); }, { interval: "2h" }),
+      listenSignalBacktest((event) => { if (event.strategyName === schema.strategyName && event.action === "closed") closed.push((event.closeTimestamp - FRAME_START) / MIN_MS); }),
+    ];
+    try {
+      await drain("SOLUSDT", schema);
+    } finally {
+      unsubscribe.forEach((un) => un());
+    }
+    if (closed.join(",") !== `${openAt + hold}`) return fail(`${name}: expected one close at +${openAt + hold}, got ${closed.join(",")}`);
+    // the opening tick and the replayed ticks produce no idle ping
+    const gap = idle.filter((t) => t >= openAt && t <= openAt + hold);
+    if (gap.length) return fail(`${name}: idle pings inside the position: ${gap.join(",")}`);
+    const oracle = expectedGrid(idle, 120, { skipFirst: false });
+    if (oracle.join(",") !== expected.join(",")) return fail(`${name}: the scenario does not produce the intended idle stream: oracle ${oracle.join(",")} vs spelled-out ${expected.join(",")} (idle ${idle.join(",")})`);
+    if (delivered.join(",") !== expected.join(",")) {
+      return fail(`${name}: deliveries ${delivered.join(",")}, expected ${expected.join(",")} anchored on the first idle ping (idle pings ${idle.join(",")})`);
+    }
+    report.push(`position +${openAt}..+${openAt + hold}: idle ${idle.join(",")} → delivered +${delivered.join("/+")}`);
+  }
+  pass(report.join(" | "));
+});
