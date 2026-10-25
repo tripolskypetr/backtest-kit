@@ -9,6 +9,8 @@ import {
   listenPartialProfitAvailable,
   commitClosePending,
   lib,
+  setConfig,
+  listenActivePing,
 } from "../../build/index.mjs";
 
 // What a coarse watchInterval may and may not change. The strategy LOOKS once per
@@ -180,11 +182,12 @@ test("WATCH SEMANTICS: a partial-profit level crossed and given back inside a sp
 });
 
 /**
- * Rejects the first close attempt of the named strategies at the order gate. Backtest
- * gates short-circuit to "confirmed", so the refusal is fed through params.onOrderSync of
- * the strategy instance (the same hook the retry-close tests use).
+ * Rejects the close attempts of the named strategies at the order gate while
+ * `rejectWhile(attempt)` holds (default: the first attempt only). Backtest gates
+ * short-circuit to "confirmed", so the refusal is fed through params.onOrderSync of the
+ * strategy instance (the same hook the retry-close tests use).
  */
-const rejectFirstCloseOf = (strategyNames, attempts) => {
+const rejectFirstCloseOf = (strategyNames, attempts, rejectWhile = (attempt) => attempt === 0) => {
   const realService = Object.getPrototypeOf(lib.strategyConnectionService);
   const originalGetStrategy = realService.getStrategy;
   const wrapped = (...args) => {
@@ -195,7 +198,7 @@ const rejectFirstCloseOf = (strategyNames, attempts) => {
       strategy.params.onOrderSync = async (event) => {
         if (event.action === "signal-close") {
           attempts.push({ strategyName: strategy.params.strategyName, attempt: event.attempt, at: minute(event.timestamp) });
-          if (event.attempt === 0) throw new Error("watch semantics: first close attempt rejected");
+          if (rejectWhile(event.attempt)) throw new Error("watch semantics: close attempt rejected");
         }
         return await original(event);
       };
@@ -243,4 +246,85 @@ test("WATCH SEMANTICS: a user close rejected by the gate is retried on the next 
     return fail(`1m watch: expected the rejected close at 1 to be retried and accepted on 2, got ${JSON.stringify(results["1m"])}`);
   }
   pass(`1m: attempts ${results["1m"].attempts.join(" ")} closed@${results["1m"].at} | 1h: attempts ${results["1h"].attempts.join(" ")} closed@${results["1h"].at}`);
+});
+
+test("WATCH SEMANTICS: a user close rejected through the whole last span of a replay window is retried on every candle across the window boundary", async ({ pass, fail }) => {
+  // Infinity hold, 1h watch, 600-candle pages → windows of two whole spans (0..119 | 120..239 …).
+  // The close is asked on the first look (minute 59) and refused on every candle of the
+  // window's last span (60..119); the first accepted attempt must be minute 120, with one
+  // attempt per candle in between — nothing skipped at the window edge, nothing replayed.
+  setConfig({ CC_MAX_CANDLES_PER_REQUEST: 600, CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity, CC_ORDER_CLOSE_RETRY_ATTEMPTS: 0 }, true);
+  const strategyName = "watch-semantics-strategy-reject-close-edge";
+  const attempts = [];
+  rejectFirstCloseOf([strategyName], attempts, (attempt) => attempt < 60);
+  try {
+    let requested = false;
+    const schema = buildCase("reject-close-edge", {
+      watch: "1h",
+      frameHours: 8,
+      getSignal: () => marketLong(Infinity),
+      callbacks: {
+        onActivePing: async (symbol) => {
+          if (requested) return;
+          requested = true;
+          await commitClosePending(symbol);
+        },
+      },
+    });
+    const pings = [];
+    const unPing = listenActivePing((event) => { if (event.strategyName === strategyName) pings.push(minute(event.timestamp)); });
+    let closed;
+    try {
+      ({ closed } = await runCase(schema));
+    } finally {
+      unPing();
+    }
+    if (closed.length !== 1 || closed[0].closeReason !== "closed") return fail(`expected one user close, got ${JSON.stringify(closed.map((c) => c.closeReason))}`);
+    const minutes = attempts.map((a) => a.at);
+    const expected = Array.from({ length: 61 }, (_, i) => 60 + i);
+    if (minutes.join(",") !== expected.join(",")) {
+      return fail(`expected one close attempt per candle from 60 to 120, got ${minutes.length} attempts: ${minutes.slice(0, 6).join(",")}…${minutes.slice(-3).join(",")}`);
+    }
+    if (minute(closed[0].closeTimestamp) !== 120) return fail(`expected the close on minute 120, got ${minute(closed[0].closeTimestamp)}`);
+    // the only look before the close was the one that asked for it; no span was replayed
+    if (pings.join(",") !== "59") return fail(`expected a single active ping on minute 59, got ${pings.join(",")}`);
+    pass(`61 attempts on minutes 60..120 across the window edge, closed@120, pings: ${pings.join(",")}`);
+  } finally {
+    setConfig({ CC_MAX_CANDLES_PER_REQUEST: 1000, CC_MAX_SIGNAL_LIFETIME_MINUTES: 999999, CC_ORDER_CLOSE_RETRY_ATTEMPTS: 5 }, true);
+  }
+});
+
+test("WATCH SEMANTICS: an Infinity hold activated from a scheduled entry keeps a regular watch grid from the activation minute across replay windows", async ({ pass, fail }) => {
+  // resting long activated on minute 100; 1h watch with the default 1000-candle page → windows of 16 spans.
+  // Without the hand-back at activation the leftover of the scheduled array ended on a partial span.
+  setConfig({ CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity }, true);
+  try {
+    const schema = buildCase("activate-infinity", {
+      watch: "1h",
+      frameHours: 40,
+      candleByMinute: { 100: { low: 94 } },
+      getSignal: () => ({ ...marketLong(Infinity), priceOpen: 95 }),
+    });
+    const pings = [];
+    const unPing = listenActivePing((event) => { if (event.strategyName === schema.strategyName) pings.push(minute(event.timestamp)); });
+    let opened;
+    try {
+      ({ opened } = await runCase(schema));
+    } finally {
+      unPing();
+    }
+    if (opened.length !== 1 || minute(opened[0].signal.pendingAt) !== 100) return fail(`expected the activation on minute 100, got ${opened.map((o) => minute(o.signal.pendingAt)).join(",")}`);
+    // the span count starts on the candle after the activation one (the scheduled loop consumed it):
+    // evaluations at +60, +120, +180 … from the activation, every one 60 minutes after the previous;
+    // the frame end may cut the last span
+    const gaps = pings.map((p, i) => (i ? p - pings[i - 1] : p - 100));
+    const regular = gaps.slice(0, -1);
+    if (regular.some((g) => g !== 60)) {
+      return fail(`expected evaluations at +60, +120, +180 … from the activation, got offsets ${pings.map((p) => p - 100).slice(0, 24).join(",")}… (gaps ${gaps.slice(0, 24).join(",")})`);
+    }
+    if (pings.length < 30) return fail(`expected the grid to cross at least one window boundary (16 spans), got ${pings.length} evaluations`);
+    pass(`${pings.length} evaluations, gaps ${[...new Set(regular)].join(",")} min, first at activation+${gaps[0]}`);
+  } finally {
+    setConfig({ CC_MAX_SIGNAL_LIFETIME_MINUTES: 999999 }, true);
+  }
 });

@@ -6588,14 +6588,22 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   const lastIndex = candles.length - 1;
   let spanStart = bufferCandlesCount;
 
+  // A user close rejected by the gate is retried on the NEXT CANDLE. With a watch
+  // stride that retry must not wait for the next span (nor skip the rest of this
+  // one), so the iteration is re-entered on the same span end `i` with spanStart
+  // moved past the rejected candle — `holdIndex` keeps the for-update from
+  // advancing `i`. The watch grid itself stays where it was.
+  let holdIndex = false;
+
   // КРИТИЧНО: проверяем TP/SL на каждой ИТЕРАЦИИ начиная после буфера.
   // Первые bufferCandlesCount свечей - это буфер для VWAP
   // (BacktestLogicPrivateService запросил свечи начиная с when - bufferMinutes)
   for (
     let i = GET_FIRST_STEP_INDEX_FN(bufferCandlesCount, stepCandles, lastIndex);
     i <= lastIndex;
-    i = GET_NEXT_STEP_INDEX_FN(i, stepCandles, lastIndex)
+    i = holdIndex ? i : GET_NEXT_STEP_INDEX_FN(i, stepCandles, lastIndex)
   ) {
+    holdIndex = false;
     // a user close / fill queued at the previous evaluation applies on the first candle of
     // the span; otherwise the span is evaluated on its first forced event, or on its last
     // candle when nothing forced happened
@@ -6649,12 +6657,15 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       // kept and we skip this candle: live tick returns idle on a rejected user close
       // (it does NOT fall into the TP/SL or active-monitoring path), so the candle is
       // skipped here and the close is re-attempted on the next candle. With a watch
-      // stride the rest of the span is not skipped with it: the next iteration scans
-      // from the candle after this one.
+      // stride the rest of the span is not skipped with it: the iteration is re-entered
+      // on the same span end, scanning from the candle after this one.
       if (userCloseResult) {
         return userCloseResult;
       }
-      spanStart = evalIndex + 1;
+      if (evalIndex < i) {
+        spanStart = evalIndex + 1;
+        holdIndex = true;
+      }
       continue;
     }
 
@@ -9579,6 +9590,36 @@ export class ClientStrategy implements IStrategy {
           }
 
           return noRemainingResult;
+        }
+
+        // Infinity hold: the leftover of the scheduled array is not replayed here. Its
+        // length is arbitrary relative to the activation, so its last watch span would be
+        // a partial one and the grid of the position would carry that dent for good. The
+        // position is handed back "active" at the activation candle instead, and the
+        // orchestrator continues from there in whole watch spans (CHUNK_CANDLES_FN), so
+        // the grid is regular from the activation minute on. A finite hold keeps the
+        // in-array replay: its array covers the hold and the expiry is found exactly.
+        if (scheduled.minuteEstimatedTime === Infinity && this._pendingSignal) {
+          const pendingSignal = this._pendingSignal;
+          const activationCandle = candles[activationIndex];
+          const activationPrice = GET_AVG_PRICE_AT_FN(candles, activationIndex, GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT);
+          const publicSignal = TO_PUBLIC_SIGNAL("pending", pendingSignal, activationPrice);
+          const activatedResult: IStrategyTickResultActive = {
+            action: "active",
+            signal: publicSignal,
+            currentPrice: activationPrice,
+            strategyName: this.params.method.context.strategyName,
+            exchangeName: this.params.method.context.exchangeName,
+            frameName: this.params.method.context.frameName,
+            symbol: this.params.execution.context.symbol,
+            percentTp: 0,
+            percentSl: 0,
+            pnl: publicSignal.pnl,
+            backtest: this.params.execution.context.backtest,
+            createdAt: activationCandle.timestamp,
+            _backtestLastTimestamp: activationCandle.timestamp,
+          };
+          return activatedResult;
         }
 
         candles = remainingCandles;
