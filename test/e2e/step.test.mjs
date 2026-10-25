@@ -164,9 +164,9 @@ test("watchInterval 1d: a stop-loss touched on a SKIPPED candle still fires", as
       return;
     }
 
-    // The touch is detected on the evaluation point of the span containing
-    // the wick: the END of day 1 (open + 1439 minutes)
-    const expectedCloseTimestamp = startTime + (STEP_MINUTES - 1) * MINUTE_MS;
+    // The touch is executed on the candle it happened on, not at the end of the
+    // daily span: minute 700 of day 1
+    const expectedCloseTimestamp = startTime + 700 * MINUTE_MS;
     if (closed[0].closeTimestamp !== expectedCloseTimestamp) {
       fail(`Expected close at ${new Date(expectedCloseTimestamp).toISOString()}, got ${new Date(closed[0].closeTimestamp).toISOString()}`);
       return;
@@ -177,7 +177,7 @@ test("watchInterval 1d: a stop-loss touched on a SKIPPED candle still fires", as
       return;
     }
 
-    pass("Span-aggregated low caught the SL wick on a skipped candle; closed at the SL level at the span end");
+    pass("The SL wick on a skipped candle closed at the SL level on the wick's own minute");
   } finally {
     // nothing to restore: the stride lives in the frame schema
   }
@@ -242,11 +242,10 @@ test("watchInterval 1d longer than the exchange page: the replay window is one w
     }
 
     const closeMinute = (closed[0].closeTimestamp - startTime) / MINUTE_MS;
-    // Detected at the end of the daily span that contains the wick, not at the
-    // end of a 1000-candle chunk: the window is rounded to whole spans
-    const expectedClose = (Math.floor(WICK_MINUTE / STEP_MINUTES) + 1) * STEP_MINUTES - 1;
-    if (closeMinute !== expectedClose) {
-      fail(`Expected the close at the end of the daily span holding minute ${WICK_MINUTE} (minute ${expectedClose}), got minute ${closeMinute}`);
+    // Executed on the wick's own candle inside the daily span of the second
+    // whole-day window (the window is rounded to whole spans, not to the 1000-candle page)
+    if (closeMinute !== WICK_MINUTE) {
+      fail(`Expected the close on the wick's minute ${WICK_MINUTE}, got minute ${closeMinute}`);
       return;
     }
 

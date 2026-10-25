@@ -1625,27 +1625,86 @@ const GET_NEXT_STEP_INDEX_FN = (
 };
 
 /**
- * Touch extremes for one loop iteration: the min low / max high over
- * candles[spanStart .. index] — every candle since the previous evaluation
- * (inclusive of the evaluated one). With step 1 the span is exactly
- * candles[index], i.e. the legacy single-candle touch check. A stop-loss /
- * liquidation / scheduled activation that happened on a skipped candle
- * therefore still fires on this iteration instead of being lost. The caller
- * advances spanStart to index + 1 after each iteration, so spans never overlap.
+ * VWAP of the backtest loops at candle `index`: the last CC_AVG_PRICE_CANDLES_COUNT
+ * candles up to and including it (the buffer in front of the array guarantees
+ * the window is complete for every index the loops evaluate).
  */
-const GET_TOUCH_RANGE_FN = (
+const GET_AVG_PRICE_AT_FN = (candles: ICandleData[], index: number, candlesCount: number): number =>
+  GET_AVG_PRICE_FN(candles.slice(Math.max(0, index - (candlesCount - 1)), index + 1));
+
+/**
+ * First candle of the span candles[spanStart .. spanEnd] on which the exchange
+ * would have acted on the SCHEDULED signal without the strategy looking: the
+ * frame end passed, the wait timed out (CC_SCHEDULE_AWAIT_MINUTES from
+ * scheduledAt), the stop was touched (price_reject) or the entry price was
+ * touched (activation). The touch is the candle's own low / high, like the
+ * last closed candle in live. Returns -1 when nothing happened in the span.
+ *
+ * With a watch stride the loop evaluates one candle per span; these events do
+ * not wait for that candle — the loop re-evaluates the span at the candle
+ * returned here, so an activation gets the exact minute (and `pendingAt`) of
+ * the touch and a timeout the exact minute it expired. With step 1 the span is
+ * the evaluated candle itself and this is the legacy per-candle check.
+ */
+const FIND_SCHEDULED_FORCED_INDEX_FN = (
+  scheduled: IScheduledSignalRow,
   candles: ICandleData[],
   spanStart: number,
-  index: number
-): { low: number; high: number } => {
-  let low = candles[index].low;
-  let high = candles[index].high;
-  for (let j = spanStart; j < index; j++) {
-    const c = candles[j];
-    if (c.low < low) low = c.low;
-    if (c.high > high) high = c.high;
+  spanEnd: number,
+  frameEndTime: number,
+  maxTimeToWait: number
+): number => {
+  for (let k = spanStart; k <= spanEnd; k++) {
+    const c = candles[k];
+    if (c.timestamp > frameEndTime) return k;
+    if (c.timestamp - scheduled.scheduledAt >= maxTimeToWait) return k;
+    if (scheduled.position === "long" && (c.low <= scheduled.priceStopLoss || c.low <= scheduled.priceOpen)) return k;
+    if (scheduled.position === "short" && (c.high >= scheduled.priceStopLoss || c.high >= scheduled.priceOpen)) return k;
   }
-  return { low, high };
+  return -1;
+};
+
+/**
+ * First candle of the span candles[spanStart .. spanEnd] on which the exchange
+ * would have closed the PENDING signal without the strategy looking: the frame
+ * end passed, the hold ran out (`minuteEstimatedTime` from pendingAt), the stop
+ * or liquidation level was touched by the candle's low / high, or the VWAP at
+ * that candle reached the take-profit (TP follows VWAP, not the wick — the
+ * same asymmetric rule as CHECK_PENDING_SIGNAL_COMPLETION_FN). Returns -1 when
+ * nothing happened in the span.
+ *
+ * Trailing levels are frozen during the scan: they move only at the span's
+ * evaluation, where the strategy looks. With step 1 this is the legacy
+ * per-candle check.
+ */
+const FIND_PENDING_FORCED_INDEX_FN = (
+  signal: ISignalRow,
+  candles: ICandleData[],
+  spanStart: number,
+  spanEnd: number,
+  frameEndTime: number,
+  candlesCount: number
+): number => {
+  const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
+  const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+  const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+  const liquidationPrice = signal.isolated ? GET_LIQUIDATION_PRICE(signal) : null;
+  for (let k = spanStart; k <= spanEnd; k++) {
+    const c = candles[k];
+    if (c.timestamp > frameEndTime) return k;
+    if (c.timestamp - signal.pendingAt >= maxTimeToWait) return k;
+    if (signal.position === "long") {
+      const stopPrice = liquidationPrice !== null && liquidationPrice > effectiveStopLoss ? liquidationPrice : effectiveStopLoss;
+      if (c.low <= stopPrice) return k;
+      if (GET_AVG_PRICE_AT_FN(candles, k, candlesCount) >= effectiveTakeProfit) return k;
+    }
+    if (signal.position === "short") {
+      const stopPrice = liquidationPrice !== null && liquidationPrice < effectiveStopLoss ? liquidationPrice : effectiveStopLoss;
+      if (c.high >= stopPrice) return k;
+      if (GET_AVG_PRICE_AT_FN(candles, k, candlesCount) <= effectiveTakeProfit) return k;
+    }
+  }
+  return -1;
 };
 
 // Static reads (like WAIT_FOR_DISPOSE_FN): symbol/strategyName/exchangeName/
@@ -5958,9 +6017,11 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
   const maxTimeToWait = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES * 60 * 1000;
   const bufferCandlesCount = candlesCount - 1;
   // watchInterval of the frame: stride of the loop in 1m candles (1 = every candle).
-  // Each span is evaluated at its END (VWAP window fully inside the span) and
-  // activation/cancel touches are taken over the whole span (see
-  // GET_TOUCH_RANGE_FN), so a coarse stride does not miss an intra-span breach.
+  // The strategy looks once per span, at its END (VWAP window fully inside the
+  // span); the exchange-forced events of the span — timeout, stop touch, entry
+  // touch, frame end — are found candle by candle (FIND_SCHEDULED_FORCED_INDEX_FN)
+  // and executed on the candle they happened on, so a coarse stride neither
+  // misses an intra-span breach nor delays it to the span end.
   const stepCandles = GET_BACKTEST_STEP_CANDLES_FN(self);
   const lastIndex = candles.length - 1;
   let spanStart = bufferCandlesCount;
@@ -5972,11 +6033,17 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     i <= lastIndex;
     i = GET_NEXT_STEP_INDEX_FN(i, stepCandles, lastIndex)
   ) {
-    const candle = candles[i];
-
-    const recentCandles = candles.slice(Math.max(0, i - (candlesCount - 1)), i + 1);
-    const averagePrice = GET_AVG_PRICE_FN(recentCandles);
-    const { low: touchLow, high: touchHigh } = GET_TOUCH_RANGE_FN(candles, spanStart, i);
+    // a user cancel / activation queued at the previous evaluation applies on the first
+    // candle of the span; otherwise the span is evaluated on its first forced event, or
+    // on its last candle when nothing forced happened
+    const forcedIndex = (self._cancelledSignal || self._activatedSignal)
+      ? spanStart
+      : FIND_SCHEDULED_FORCED_INDEX_FN(scheduled, candles, spanStart, i, frameEndTime, maxTimeToWait);
+    const evalIndex = forcedIndex === -1 ? i : forcedIndex;
+    const candle = candles[evalIndex];
+    const averagePrice = GET_AVG_PRICE_AT_FN(candles, evalIndex, candlesCount);
+    const touchLow = candle.low;
+    const touchHigh = candle.high;
     spanStart = i + 1;
 
     // Если timestamp свечи вышел за frameEndTime — отменяем scheduled сигнал
@@ -6319,7 +6386,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         self.params.execution.context.backtest
       );
 
-      return { outcome: "activated", activationIndex: i };
+      return { outcome: "activated", activationIndex: evalIndex };
     }
 
     // КРИТИЧНО: Проверяем timeout ПЕРЕД проверкой цены
@@ -6413,7 +6480,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         );
         return { outcome: "cancelled", result };
       }
-      return { outcome: "activated", activationIndex: i };
+      return { outcome: "activated", activationIndex: evalIndex };
     }
 
     await CALL_SCHEDULE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, scheduled, candle.timestamp, true, averagePrice);
@@ -6498,9 +6565,12 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
   const bufferCandlesCount = candlesCount - 1;
   // watchInterval of the frame: stride of the loop in 1m candles (1 = every candle).
-  // Each span is evaluated at its END (VWAP window fully inside the span) and
-  // stop/liquidation touches are taken over the whole span (see
-  // GET_TOUCH_RANGE_FN), so a coarse stride does not miss an intra-span touch.
+  // The strategy looks once per span, at its END (VWAP window fully inside the
+  // span): pings, partial / breakeven / trailing, the commit queue. The
+  // exchange-forced events of the span — time expiry, stop / liquidation touch,
+  // take-profit by VWAP, frame end — are found candle by candle
+  // (FIND_PENDING_FORCED_INDEX_FN) and executed on the candle they happened on,
+  // so a coarse stride neither misses an intra-span touch nor delays it.
   const stepCandles = GET_BACKTEST_STEP_CANDLES_FN(self);
   const lastIndex = candles.length - 1;
   let spanStart = bufferCandlesCount;
@@ -6513,14 +6583,20 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     i <= lastIndex;
     i = GET_NEXT_STEP_INDEX_FN(i, stepCandles, lastIndex)
   ) {
-    const currentCandle = candles[i];
+    // a user close / fill queued at the previous evaluation applies on the first candle of
+    // the span; otherwise the span is evaluated on its first forced event, or on its last
+    // candle when nothing forced happened
+    const forcedIndex = (self._closedSignal || self._takeProfitSignal || self._stopLossSignal)
+      ? spanStart
+      : FIND_PENDING_FORCED_INDEX_FN(signal, candles, spanStart, i, frameEndTime, candlesCount);
+    const evalIndex = forcedIndex === -1 ? i : forcedIndex;
+    const currentCandle = candles[evalIndex];
     const currentCandleTimestamp = currentCandle.timestamp;
 
-    // Берем последние candlesCount свечей для VWAP (включая буфер)
-    const startIndex = Math.max(0, i - (candlesCount - 1));
-    const recentCandles = candles.slice(startIndex, i + 1);
-    const averagePrice = GET_AVG_PRICE_FN(recentCandles);
-    const { low: touchLow, high: touchHigh } = GET_TOUCH_RANGE_FN(candles, spanStart, i);
+    // VWAP: the last candlesCount candles up to the evaluated one (buffer included)
+    const averagePrice = GET_AVG_PRICE_AT_FN(candles, evalIndex, candlesCount);
+    const touchLow = currentCandle.low;
+    const touchHigh = currentCandle.high;
     spanStart = i + 1;
 
     // Если timestamp свечи вышел за frameEndTime — закрываем pending сигнал по time_expired
