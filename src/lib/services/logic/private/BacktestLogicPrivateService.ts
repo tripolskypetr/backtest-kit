@@ -123,10 +123,17 @@ const LOCKSTEP_STEP_FN = (): number =>
  * spinning forever. A lagging peer that is still joining (sleeping on the
  * join timer, see JOIN_PEERS_FN) is not blocked, it only holds no lock: such a
  * round sleeps one join beat instead of giving up, bounded like the join
- * itself. `spinFirst` forces one spin even when nobody lags: inside a replay
- * that FIFO turn is what keeps the peers interleaved.
+ * itself. Giving up is logged (loggerService.warn + console.warn) with the
+ * lagging peers: in a healthy run it never happens — every await of an
+ * iteration, the yields included, sits under the lock — so a hit means a peer
+ * is dying (its cursor goes away once its error handling is done) or has been
+ * left outside the lock by a code change, and the clocks will drift by what
+ * this caller writes before that peer returns. `spinFirst` forces one spin
+ * even when nobody lags: inside a replay that FIFO turn is what keeps the
+ * peers interleaved.
  */
 const WAIT_FOR_PEERS_FN = async (
+  self: BacktestLogicPrivateService,
   cursor: TLockstepCursor,
   at: number,
   kind: "start" | "handoff",
@@ -146,7 +153,9 @@ const WAIT_FOR_PEERS_FN = async (
     return peer.parked.kind === "handoff" ? peer.parked.at >= at : peer.parked.at > at;
   };
   const lagging = () => Array.from(LOCKSTEP_CURSORS.values()).filter((peer) => peer !== cursor && !caughtUp(peer));
-  const snapshot = () => lagging().map((peer) => `${peer.clock}/${peer.parked ? `${peer.parked.kind}@${peer.parked.at}` : "-"}/${peer.joining}`).join(",");
+  const describe = (peer: TLockstepCursor) => `${peer.clock}/${peer.parked ? `${peer.parked.kind}@${peer.parked.at}` : "-"}/${peer.joining}`;
+  const snapshot = () => lagging().map(describe).join(",");
+  const keyOf = (target: TLockstepCursor) => Array.from(LOCKSTEP_CURSORS.entries()).find(([, peer]) => peer === target)?.[0] ?? "";
   let before = snapshot();
   let spin = spinFirst;
   let joinRounds = 0;
@@ -158,6 +167,22 @@ const WAIT_FOR_PEERS_FN = async (
       if (lagging().some((peer) => peer.joining) && joinRounds++ < LOCKSTEP_JOIN_ROUNDS) {
         await sleep(LOCKSTEP_JOIN_DELAY);
         continue;
+      }
+      {
+        const message = "backtestLogicPrivateService lockstep gave up waiting for peers that make no progress";
+        const payload = {
+          backtest: keyOf(cursor),
+          kind,
+          at: new Date(at).toISOString(),
+          lagging: lagging().map((peer) => ({
+            backtest: keyOf(peer),
+            clock: new Date(peer.clock).toISOString(),
+            parked: peer.parked ? `${peer.parked.kind}@${new Date(peer.parked.at).toISOString()}` : null,
+            joining: peer.joining,
+          })),
+        };
+        self.loggerService.warn(message, payload);
+        console.warn(message, payload);
       }
       break;
     }
@@ -226,7 +251,7 @@ const HANDOFF_FN = async (
     timestamp,
     boundary,
   });
-  await WAIT_FOR_PEERS_FN(cursor, boundary, "handoff", true);
+  await WAIT_FOR_PEERS_FN(self, cursor, boundary, "handoff", true);
 };
 
 const SYMBOL_FN_ERROR = Symbol("backtest-fn-error");
@@ -1018,7 +1043,7 @@ export class BacktestLogicPrivateService {
           cursor.nextBoundary = when.getTime() + LOCKSTEP_STEP_FN();
           // time barrier: no iteration starts before every running peer has reached its timeframe
           if (GLOBAL_CONFIG.CC_BACKTEST_LOCKSTEP) {
-            await WAIT_FOR_PEERS_FN(cursor, when.getTime(), "start", false);
+            await WAIT_FOR_PEERS_FN(this, cursor, when.getTime(), "start", false);
           }
           cursor.clock = when.getTime();
 
