@@ -408,7 +408,7 @@ const CANDLES_UNTIL_FRAME_END_FN = (since: Date, frameEndTime: number): number =
   Math.max(0, Math.floor((frameEndTime - since.getTime()) / 60_000) + 2);
 
 /**
- * Size (in 1m candles) of one replay window of an Infinity-hold signal: the
+ * Size (in 1m candles) of one replay window of a position (every hold): the
  * VWAP buffer plus the candles ClientStrategy.backtest evaluates before the
  * orchestrator fetches the next window.
  *
@@ -654,9 +654,10 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
 
   const bufferMinutes = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - ACTIVE_CANDLE_INCLUDED;
   const bufferStartTime = new Date(when.getTime() - bufferMinutes * 60 * 1000);
-  const pendingPhaseMinutes = signal.minuteEstimatedTime === Infinity
-    ? CHUNK_CANDLES_FN(self, bufferMinutes, bufferStartTime.getTime() + bufferMinutes * 60_000, bufferStartTime.getTime() + bufferMinutes * 60_000) - bufferMinutes
-    : signal.minuteEstimatedTime;
+  // The scheduled array covers the wait phase plus one replay window: after the activation
+  // the position is handed back at the activation candle for every hold and continues in
+  // bounded windows of whole watch spans (the whole hold is never fetched at once).
+  const pendingPhaseMinutes = CHUNK_CANDLES_FN(self, bufferMinutes, bufferStartTime.getTime() + bufferMinutes * 60_000, bufferStartTime.getTime() + bufferMinutes * 60_000) - bufferMinutes;
   const candlesNeeded = Math.min(
     bufferMinutes + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + pendingPhaseMinutes + SCHEDULE_ACTIVATION_CANDLE_SKIP,
     CANDLES_UNTIL_FRAME_END_FN(bufferStartTime, frameEndTime),
@@ -769,7 +770,8 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
 };
 
 /**
- * Runs the chunked candle replay for an opened signal with `minuteEstimatedTime === Infinity`.
+ * Runs the chunked candle replay for an opened signal — every hold, finite or Infinity:
+ * windows of whole watch spans (CHUNK_CANDLES_FN) until the replay returns a close.
  *
  * @returns The resolved (closed/cancelled) result, a {@link TFnError} on sub-operation
  *   failure, or `null` when no candles are available at all for the first chunk —
@@ -868,47 +870,13 @@ const PROCESS_OPENED_SIGNAL_FN = async function*(
 
   let backtestResult: IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive | undefined;
 
-  if (signal.minuteEstimatedTime !== Infinity) {
-    const totalCandles = Math.min(
-      signal.minuteEstimatedTime + GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT,
-      CANDLES_UNTIL_FRAME_END_FN(bufferStartTime, frameEndTime),
-    );
-
-    const candles = await GET_CANDLES_FN(self, symbol, totalCandles, bufferStartTime, { signalId: signal.id, totalCandles, bufferMinutes });
-    if ("__error__" in candles) {
-      console.error(`backtestLogicPrivateService opened signal: getCandles failed, stopping backtest symbol=${symbol} signalId=${signal.id} reason=${candles.reason} message=${candles.message}`);
-      return candles;
-    }
-
-    if (!candles.length) {
-      return { type: "skip" };
-    }
-
-    self.loggerService.info("backtestLogicPrivateService candles fetched", {
-      symbol,
-      signalId: signal.id,
-      candlesCount: candles.length,
-    });
-
-    const firstResult = await BACKTEST_FN(self, symbol, candles, frameEndTime, when, context, { signalId: signal.id });
-    if ("__error__" in firstResult) {
-      console.error(`backtestLogicPrivateService opened signal: backtest failed, stopping backtest symbol=${symbol} signalId=${signal.id} reason=${firstResult.reason} message=${firstResult.message}`);
-      return firstResult;
-    }
-    backtestResult = firstResult;
-    // The window covers the hold, so the replay normally ends with a close. It hands the
-    // position back "active" when a close was refused by the broker gate on the window's
-    // last candle (the expiry candle): the retry belongs to the next candle, not to the
-    // same one, so the replay continues in whole watch spans until the close is accepted.
-    if (firstResult.action === "active") {
-      const chunkResult = await RUN_INFINITY_CHUNK_LOOP_FN(self, symbol, when, context, firstResult, bufferMinutes * 60_000, signal.id, frameEndTime, candles);
-      if ("__error__" in chunkResult) {
-        console.error(`backtestLogicPrivateService opened signal: chunk loop after a refused close failed, stopping backtest symbol=${symbol} signalId=${signal.id} reason=${chunkResult.reason} message=${chunkResult.message}`);
-        return chunkResult;
-      }
-      backtestResult = chunkResult;
-    }
-  } else {
+  // Every hold — finite or Infinity — is replayed in bounded windows of whole watch
+  // spans: the whole hold is never fetched at once (a year of 1m candles would be half a
+  // million objects per symbol, times the parallel symbols that all open on the same
+  // tick). The replay hands the position back at every window end and the loop below
+  // continues it until the close; a finite hold finds its expiry on the exact candle of a
+  // later window.
+  {
     const bufferMs = bufferMinutes * 60_000;
     const chunkResult = await RUN_OPENED_CHUNK_LOOP_FN(self, symbol, when, context, bufferStartTime, bufferMs, signal.id, frameEndTime);
     if (chunkResult === null) {
@@ -919,12 +887,6 @@ const PROCESS_OPENED_SIGNAL_FN = async function*(
       return chunkResult;
     }
     backtestResult = chunkResult;
-  }
-
-  if (backtestResult.action === "active") {
-    throw new Error(
-      `backtestLogicPrivateService: unexpected active result for signal ${signal.id} — infinite chunk loop logic error`
-    );
   }
 
   self.loggerService.info("backtestLogicPrivateService signal closed", {

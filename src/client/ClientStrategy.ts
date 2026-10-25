@@ -7450,7 +7450,19 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   // construction) got one same-candle retry and then killed the backtest, instead of the
   // per-candle retries up to CC_ORDER_CLOSE_RETRY_ATTEMPTS every other close gets. Only
   // while candles can still exist: on the frame end the refusal stays fatal below.
-  const handBack = signal.minuteEstimatedTime === Infinity || (lastCandleRefused && closeTimestamp < frameEndTime);
+  // A finite hold is replayed in the same bounded windows of whole watch spans as an
+  // Infinity hold (the whole hold is never materialized at once — a year of 1m candles is
+  // half a million objects per symbol). When the window ends before the expiry the
+  // position is handed back the same way and the expiry is found on its exact candle in a
+  // later window. On the frame end nothing is handed back: the position expires with the
+  // frame below.
+  const signalTime = signal.pendingAt;
+  const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
+  const elapsedTime = closeTimestamp - signalTime;
+  const reachedFrameEnd = closeTimestamp >= frameEndTime;
+  const handBack = signal.minuteEstimatedTime === Infinity
+    || (lastCandleRefused && closeTimestamp < frameEndTime)
+    || (elapsedTime < maxTimeToWait && !reachedFrameEnd);
   if (handBack) {
     const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, lastPrice);
     const result: IStrategyTickResultActive = {
@@ -7471,33 +7483,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     return result;
   }
 
-  const signalTime = signal.pendingAt;
-  const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
-  const elapsedTime = closeTimestamp - signalTime;
-
-  // A series that stops ON the frame end (a source cut by the frame, no candle
-  // past frameEndTime) is complete for this backtest: the position expires with
-  // the frame, it does not lack data.
-  const reachedFrameEnd = closeTimestamp >= frameEndTime;
-
-  if (elapsedTime < maxTimeToWait && !reachedFrameEnd) {
-    const bufferCandlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
-    const requiredCandlesCount = signal.minuteEstimatedTime + bufferCandlesCount + 1;
-    throw new Error(
-      str.newline(
-        `ClientStrategy backtest: Insufficient candle data for pending signal. ` +
-        `Signal opened at ${new Date(signal.pendingAt).toISOString()}, ` +
-        `last candle at ${new Date(closeTimestamp).toISOString()}. ` +
-        `Elapsed: ${Math.floor(elapsedTime / 60000)}min of ${signal.minuteEstimatedTime}min required. ` +
-        `Provided ${candles.length} candles, but need at least ${requiredCandlesCount} candles. ` +
-        `\nBreakdown: ${signal.minuteEstimatedTime} candles for signal lifetime + ${bufferCandlesCount} buffer candles. ` +
-        `\nBuffer explanation: VWAP calculation requires ${GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT} candles, ` +
-        `so first ${bufferCandlesCount} candles are skipped to ensure accurate price averaging. ` +
-        `Provide complete candle range: [pendingAt - ${bufferCandlesCount}min, pendingAt + ${signal.minuteEstimatedTime}min].`
-      )
-    );
-  }
-
+  // The array ended on the expiry candle or on the frame end: close by time here.
   const timeExpiredResult = await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
     self,
     signal,
@@ -10036,14 +10022,14 @@ export class ClientStrategy implements IStrategy {
           return noRemainingResult;
         }
 
-        // Infinity hold: the leftover of the scheduled array is not replayed here. Its
-        // length is arbitrary relative to the activation, so its last watch span would be
-        // a partial one and the grid of the position would carry that dent for good. The
-        // position is handed back "active" at the activation candle instead, and the
-        // orchestrator continues from there in whole watch spans (CHUNK_CANDLES_FN), so
-        // the grid is regular from the activation minute on. A finite hold keeps the
-        // in-array replay: its array covers the hold and the expiry is found exactly.
-        if (scheduled.minuteEstimatedTime === Infinity && this._pendingSignal) {
+        // The leftover of the scheduled array is not replayed here. Its length is
+        // arbitrary relative to the activation, so its last watch span would be a partial
+        // one and the grid of the position would carry that dent for good. The position is
+        // handed back "active" at the activation candle instead, and the orchestrator
+        // continues from there in whole watch spans (CHUNK_CANDLES_FN), so the grid is
+        // regular from the activation minute on — for every hold: a finite hold is replayed
+        // in the same bounded windows and its expiry is found on its exact candle there.
+        if (this._pendingSignal) {
           const pendingSignal = this._pendingSignal;
           const activationCandle = candles[activationIndex];
           const activationPrice = GET_AVG_PRICE_AT_FN(candles, activationIndex, GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT);

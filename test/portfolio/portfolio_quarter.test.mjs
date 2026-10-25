@@ -63,7 +63,12 @@ const SYMBOLS = {
   BRVUSDT: { seed: 23, start: 50, drift: 0, vol: 8e-4, halt: { from: START + 20 * DAY_MS + 10 * HOUR_MS, to: START + 20 * DAY_MS + 16 * HOUR_MS }, note: "flat; trading halted for six hours on day 20: the adapter fills the hole with flat zero-volume candles, as the exchange contract demands" },
   CHRUSDT: { seed: 37, start: 20, drift: 9e-6, vol: 7e-4, note: "strong uptrend: take-profits and partials" },
   DLTUSDT: { seed: 41, start: 300, drift: -4e-6, vol: 9e-4, note: "downtrend: stops" },
-  ECHUSDT: { seed: 53, start: 80, drift: 1e-6, vol: 7e-4, dies: START + 5 * DAY_MS, note: "its candle feed fails from day 5: the backtest dies and leaves its money deployed" },
+  // The feed dies INSIDE the first replay window (the scheduled wait array is at least buffer +
+  // CC_SCHEDULE_AWAIT_MINUTES + one window ≈ 1100 candles): the first fetch of the symbol crosses
+  // the death and the backtest dies at its first entry on every watch. A later death would fall
+  // into a window whose start depends on the watch (1000 candles on 1m, one span on 1d), the
+  // dying minute would differ by watch and, through the shared budget, so would everything after it.
+  ECHUSDT: { seed: 53, start: 80, drift: 1e-6, vol: 7e-4, dies: START + 6 * HOUR_MS, note: "its candle feed fails from the sixth hour: the first window crosses it, the backtest dies at its first entry and leaves its money deployed" },
   FOXUSDT: { seed: 67, start: 10, drift: 0, vol: 1.5e-4, greedy: true, note: "sideways and quiet: resting entries time out; places orders without checking the budget" },
 };
 const CRASH_DAY = 40;                        // -15 % intraday on every symbol, half recovered by the close
@@ -317,6 +322,12 @@ const runQuarter = async ({ name, watch, order }) => {
   const rows = journal.map((r) => `${r.type}:${r.symbol}@${minute(r.timestamp)} ${r.type === "reject" ? `${r.requested}/${r.available}` : r.type === "release" ? `${r.amount} pnl=${round(r.pnl)}` : r.amount} free=${round(r.balance.free)}${r.overdraft !== undefined ? " OVERDRAFT" : ""}`);
   const balance = await Budget._getBalance({ ...budgetKey, symbol: null, when: new Date(END + DAY_MS) });
   const gaveUp = warnings.filter((m) => m.includes("lockstep gave up waiting")).length;
+  if (process.env.PORTFOLIO_DUMP) {
+    console.error(`--- ${name}: journal ${rows.length} rows, activations ${collected.activations.length}, closes ${collected.closes.length}, scheduled ${collected.scheduled.length}, cancelled ${collected.cancelled.length}`);
+    console.error(rows.slice(0, Number(process.env.PORTFOLIO_DUMP)).map((r, i) => `#${i + 1} ${r}`).join("\n"));
+    const early = (list) => list.filter((x) => Number(String(x).split("@")[1]?.split(/[^0-9.]/)[0]) <= 400);
+    console.error(`activations: ${early(collected.activations).join(" ")}\ncancelled: ${early(collected.cancelled).join(" ")}\nscheduled: ${early(collected.scheduled).join(" ")}`);
+  }
   const sortAll = (list) => [...list].sort();
   return {
     name, watch, elapsedMs, ticks, done: [...done].sort(), gaveUp, exits, errors,

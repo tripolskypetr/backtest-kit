@@ -470,7 +470,10 @@ export class ClientExchange implements IExchange {
       throw new Error(
         `ClientExchange getCandles: candle count mismatch. ` +
         `Expected ${limit} candles, got ${uniqueData.length}. ` +
-        `Adapter must return exact number of candles requested.`,
+        `Adapter must return exact number of candles requested. ` +
+        `Requested range: openTime=${sinceTimestamp} (${new Date(sinceTimestamp).toISOString()}) ` +
+        `to openTime=${alignedWhen - stepMs} (${new Date(alignedWhen - stepMs).toISOString()}), interval=${interval} — ` +
+        `the adapter must fill every candle of the range (a closed session, a halt or a feed hole as flat candles), not skip it.`,
       );
     }
 
@@ -614,7 +617,10 @@ export class ClientExchange implements IExchange {
       throw new Error(
         `ClientExchange getNextCandles: candle count mismatch. ` +
         `Expected ${limit} candles, got ${uniqueData.length}. ` +
-        `Adapter must return exact number of candles requested.`,
+        `Adapter must return exact number of candles requested. ` +
+        `Requested range: openTime=${sinceTimestamp} (${new Date(sinceTimestamp).toISOString()}) ` +
+        `to openTime=${endTime - stepMs} (${new Date(endTime - stepMs).toISOString()}), interval=${interval} — ` +
+        `the adapter must fill every candle of the range (a closed session, a halt or a feed hole as flat candles), not skip it.`,
       );
     }
 
