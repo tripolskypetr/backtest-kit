@@ -1,4 +1,8 @@
-# 💰 Shared Budget (v23.3.0, 25/10/2026)
+# 🧮 Multi-Symbol Budget (v23.3.0, 25/10/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/23.3.0)
+
+> 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
 
 ## Budget API
 
@@ -55,6 +59,109 @@ The spans are on the time axis, anchored at the signal (`pendingAt` / `scheduled
 - A transient refusal of the broker gate on the ACTIVATION of a resting entry (`onOrderOpenCommit` type "active", fired by the price touch or by `activateScheduled`) no longer cancels the scheduled signal. The gate fires exactly when a real resting order is likely to have filled, so the cancel made the adapter cancel a filled order and left the position on the exchange without the engine. The activation is now retried on the next tick / candle with the same id and `attempt + 1` up to `CC_ORDER_OPEN_RETRY_ATTEMPTS` (the new `retryActivateCount` in the strategy snapshot carries the reconcile bit across a restart); a terminal `OrderRejectedError` still cancels at once, exhaustion cancels and signals the fatal exit, and `CC_ORDER_OPEN_RETRY_ATTEMPTS: 0` keeps the old cancel-on-refusal rule. `test/e2e/refuse_activate.test.mjs` covers it on every watch and through the live tick.
 - The open gate carries a `scheduled` flag (`OrderOpenContract`, `BrokerOrderOpenPayload`, mirrored on the fill and reject channels): true when the row is a resting entry — type "schedule" is its placement, type "active" its activation — and both arrive under the same `signalId`. On an activation the adapter must check whether the resting order it placed under that `clientOrderId` has already resolved before sending anything, whatever `attempt` says: the activation counts its own attempts, and the placement is a prior order under this id by definition. The flag also marks a retried market entry that the price overtook: it is re-submitted as a resting order at its original price (same id) and later activates with `scheduled: true`.
 - `listenError`, `listenExit` and `listenValidation` catch a throwing listener and log it: those channels are emitted fire-and-forget and a throw used to become an unhandled rejection.
+
+
+
+
+# 📅 Daily bars, stocks and Yahoo Finance (v22.0.0, 19/10/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/22.0.0)
+
+
+> 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
+
+The engine simulates every position on **1m candles** and asks the exchange adapter for them. That is the right granularity for Binance and the wrong one for everything that only has daily bars: stocks, indices, futures, gold — anything you would pull from **Yahoo Finance**, which serves intraday data for the last 60 days only and daily bars for decades. This major makes a daily-bar source a first-class backtest input without touching the engine's candle contract: the adapter still answers `"1m"`, a sampler fabricates the minutes from the daily bar, the backtest loop learns to step a whole day at a time, and the candle validation learns the difference between a bad tick and a crash.
+
+## Sampling daily bars into the minute feed
+
+Two helpers turn a daily-only source into an adapter the engine accepts. Both take a raw fetcher — `(symbol, interval, since, limit) => Promise<[timestamp, open, high, low, close, volume][]>` — and a params object, plus a new **third argument: a config object**.
+
+**`getCandlesSampled`** answers any interval that divides the source's native one. Every synthesized candle inside a daily bar is a copy of that bar — same open/high/low/close — with the volume split evenly so the minutes sum back to the day. `interval === nativeInterval` passes the native bars through unchanged; an interval that does not divide the native one (`"7m"` into `"1d"`) or is larger than it is rejected. The accepted trade-off is written into the function's own documentation: every minute of a day carries that day's high, low and close, which is harmless for a daily evaluation step and a lie for intraday stops.
+
+**`getCandlesFilled`** reads the native window and puts it on a continuous calendar grid: weekends, holidays and exchange downtime become a flat candle at the last known close with zero volume, strictly without look-ahead (a gap at the start of the window is filled from the last sane close *before* the window). The sampler reads its native bars through it, so a daily source with holes is still a complete minute feed.
+
+```typescript
+// modules/backtest.module.ts — Yahoo has daily bars only; the engine asks for "1m"
+import { addExchangeSchema, addFrameSchema, getCandlesSampled } from "backtest-kit";
+import { YahooFinance } from "../classes/YahooFinance"; // (ticker, "1d", since, limit) => raw rows
+
+addExchangeSchema({
+  exchangeName: "yahoo",
+  getCandles: async (symbol, interval, since, limit) =>
+    getCandlesSampled(
+      YahooFinance.getCandles,
+      { symbol: toTicker(symbol), interval, since, limit },
+      { nativeInterval: "1d" }, // the source's real interval; "1d" is the default
+    ),
+  formatPrice: async (_symbol, price) => price.toFixed(2),
+  formatQuantity: async (_symbol, quantity) => quantity.toFixed(4),
+});
+
+addFrameSchema({
+  frameName: "sep_2020",
+  interval: "1d", // one tick per day between signals
+  startDate: new Date("2020-09-01T00:00:00Z"),
+  endDate: new Date("2020-09-30T00:00:00Z"),
+});
+```
+
+```typescript
+// main.strategy.ts — the engine evaluates each position once per daily bar
+import { setConfig, PersistCandleAdapter } from "backtest-kit";
+
+setConfig({ CC_BACKTEST_STEP_MINUTES: 24 * 60 });
+PersistCandleAdapter.useDummy(); // 1440 synthesized minutes per day do not belong in the candle cache
+```
+
+## The backtest step: one evaluation per bar
+
+A sampled day is 1440 identical minutes. The candle loops inside `ClientStrategy.backtest` — pending TP/SL monitoring and scheduled activation — used to visit every one of them: 1440 pings, 1440 partial/breakeven callbacks, 1440 commit-queue drains per day for the same answer. **`CC_BACKTEST_STEP_MINUTES`** (default `0`, legacy per-candle loop) sets the stride of those loops in 1m candles. With `24 * 60` the backtest evaluates one candle per day.
+
+The stride does not skip information:
+
+- **Touches are aggregated over the whole skipped span.** Stop-loss, liquidation and scheduled activation/cancel are checked against the *minimum low and maximum high* of every candle since the previous evaluation, so an intra-span breach still fires, at the exact level, on the next evaluation point.
+- **Each span is evaluated at its last candle, not its first.** The VWAP window (`CC_AVG_PRICE_CANDLES_COUNT` candles) lies entirely inside the span: with a daily stride the price the engine lives on is the day's own typical price, never a 4-to-1 blend of yesterday and today. A close therefore lands on 23:59 of the day, which keeps the next day's 00:00 tick available for the next signal.
+- **A trailing partial span, or a candle chunk shorter than the stride, is evaluated at its last candle.** Infinity-hold signals are replayed in chunks of `CC_MAX_CANDLES_PER_REQUEST` (1000 minutes, less than a day): every chunk still gets at least one evaluation instead of being skipped.
+
+What the step does *not* change: the candles stay 1m, the fetch counts stay the same, the tick cadence between signals stays the frame schema `interval`, and live/paper runs are untouched. With `interval: "1d"` on the frame and the step at a day, a position in a daily-bar backtest enters on the previous bar's typical price, is stopped by the day's low (or liquidated, pessimistic tie-break over take-profit), takes profit on the day's typical price and expires on it — the conservative reading of a daily bar.
+
+## Candle validation that knows a crash from a bad tick
+
+**`validateCandles`** (run by the engine on every batch an adapter returns) used to compare every price against the *median of the whole batch* divided by `CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR`. That rule catches Binance's incomplete candle at 0.1 when the price is 42,000 — and it also brands the entire post-crash tail of LUNA (May 2022, 80 → 0.0001 in ten days) as corrupt and aborts the run, because the batch median sits in the pre-crash world. The reference is now **local**: the median close of the structurally sane candles within two positions on each side, the candle itself included, checked in both directions. A bad tick is thousands of times off its neighbours and still fails; a genuine crash moves in 10–100x daily steps and passes bar by bar; a 5000x spike *above* its neighbours is rejected too. The same detector is exported as **`getCandleAnomalyFlags`** and shared with the helpers, so there is one definition of "anomalous" in the whole pipeline.
+
+**`getCandlesFilled` repairs instead of forwarding.** An anomalous source row — by the same rule, applied to the raw rows before the grid is built — is treated like a gap: replaced by a flat candle at the last sane close. The fill price itself is always the close of a sane row; a broken close before the window is skipped. Repair has limits, and both are counted **across request boundaries**, from the last sane candle before the window, so a broken stretch cannot be laundered by the engine's 1–2 bar requests into a chain of short, tolerated streaks:
+
+- **`maxAnomalyStreak`** (default **`CC_GET_CANDLES_MAX_ANOMALY_STREAK`** = 3): more consecutive anomalous rows than this throw — a feed that is broken for that long must not be replaced by a fabricated flat market.
+- **`maxGapStreak`** (default **`CC_GET_CANDLES_MAX_GAP_STREAK`** = 7): more consecutive grid positions *without a sane candle* — missing rows and anomalous rows together — than this throw. It tells a long weekend or a short outage from a delisting or a suspension. The default is sized for daily feeds (one trading week); a 1m feed should set the limit to the longest maintenance window it accepts, or `Infinity` to restore the unbounded fill.
+- **A row without a volume** is a source contract violation, not a bad tick: it throws its own error at once (put `0` when the exchange has no volume) instead of being counted as an anomaly.
+
+Both limits are GLOBAL_CONFIG defaults **consumed only by the helpers** — the engine never reads them, and their JSDoc says so. Per-call overrides go into the third argument of either helper.
+
+## Breaking Changes
+
+- **`CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN` is removed.** The whole-batch median it parametrized no longer exists; `validateCandles` uses a fixed local window of two neighbours on each side. A `setConfig` that still passes the key is ignored.
+- **`validateCandles` semantics changed.** Prices are judged against neighbouring candles, not the batch median, and a price too *high* is now rejected as well as one too low. Adapters whose batches contained a legitimate >1000x move no longer fail; adapters that relied on an upward spike passing now do.
+- **`getCandlesFilled` behaviour changed.** Anomalous rows are repaired (up to 3 in a row) instead of being passed through to the engine, and gaps are capped at 7 consecutive candles by default instead of unlimited. Adapters wrapping a 1m feed should pass `{ maxGapStreak }` sized to their exchange's maintenance windows.
+- **`getCandlesSampled` takes its options in a third argument.** `nativeInterval` (and the streak limits) live in the config object, not in the params object.
+
+## New Public API
+
+- `CC_BACKTEST_STEP_MINUTES` — stride of the backtest candle loops in 1m candles (default `0`, per-candle); span-aggregated touches, evaluation at span end.
+- `CC_GET_CANDLES_MAX_ANOMALY_STREAK` (3), `CC_GET_CANDLES_MAX_GAP_STREAK` (7, `Infinity` allowed) — helper-only defaults for `maxAnomalyStreak` / `maxGapStreak`.
+- `getCandlesSampled(fetchOHLCV, params, config?)` — daily (native) bars sampled into any dividing interval; `IGetCandlesSampledConfig = { nativeInterval?, maxAnomalyStreak?, maxGapStreak? }`.
+- `getCandlesFilled(fetchOHLCV, params, config?)` — continuous grid with gap and anomaly repair; `IGetCandlesFilledConfig = { maxAnomalyStreak?, maxGapStreak? }`.
+- `getCandleAnomalyFlags(candles)` — the neighbour-based anomaly detector behind `validateCandles`, one boolean per candle.
+
+## Testing
+
+- `test/e2e/step.test.mjs` — daily stride over a "1m" feed: 3 pings over 4320 candles, a stop-loss wick on a skipped minute closes at the SL level at the span end, a 1000-candle chunk under a 1440 stride is still evaluated.
+- `test/spec/sample.test.mjs` — 1d → 1m / 1h sampling, mid-day `since`, holiday fill, native passthrough, divisor rejection.
+- `test/spec/filled.test.mjs` — bad-tick repair, fill price from a sane close, anomaly and gap streaks exact at the limit and counted across the window boundary, engine-like 1-bar request sequences over a broken and over a dead feed, missing-volume error, LUNA-shaped crash accepted.
+- `test/spec/validation.test.mjs` — the same cases against `validateCandles` / `getCandleAnomalyFlags`: crash accepted, incomplete Binance candle and Yahoo bad low rejected, single-candle bad low, high spike, two adjacent fully broken candles.
+
+
+
+
 
 # 🧵 Strategy Sharding (v21.7.0, 08/10/2026)
 
