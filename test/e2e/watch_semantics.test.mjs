@@ -11,6 +11,10 @@ import {
   lib,
   setConfig,
   listenActivePing,
+  listenBreakevenAvailable,
+  listenHighestProfit,
+  listenSignalBacktest,
+  listenStrategyCommit,
 } from "../../build/index.mjs";
 
 // What a coarse watchInterval may and may not change. The strategy LOOKS once per
@@ -71,10 +75,14 @@ const buildCase = (name, { watch, candleByMinute = {}, getSignal, callbacks = un
 
 /** Runs the case; returns opened / closed / cancelled results and the partial-profit levels seen */
 const runCase = async (schema) => {
-  const events = { opened: [], closed: [], cancelled: [], partials: [] };
-  const unsubscribe = listenPartialProfitAvailable((event) => {
-    if (event.strategyName === schema.strategyName) events.partials.push({ level: event.level, at: (event.timestamp - FRAME_START) / MIN_MS });
-  });
+  const events = { opened: [], closed: [], cancelled: [], partials: [], pings: [], breakevens: [], peaks: [] };
+  const own = (event) => event.strategyName === schema.strategyName;
+  const unsubscribe = [
+    listenPartialProfitAvailable((event) => { if (own(event)) events.partials.push({ level: event.level, at: (event.timestamp - FRAME_START) / MIN_MS }); }),
+    listenActivePing((event) => { if (own(event)) events.pings.push((event.timestamp - FRAME_START) / MIN_MS); }),
+    listenBreakevenAvailable((event) => { if (own(event)) events.breakevens.push((event.timestamp - FRAME_START) / MIN_MS); }),
+    listenHighestProfit((event) => { if (own(event)) events.peaks.push({ at: (event.timestamp - FRAME_START) / MIN_MS, price: event.currentPrice }); }),
+  ];
   try {
     for await (const result of Backtest.run("BTCUSDT", schema)) {
       if (result.action === "opened") events.opened.push(result);
@@ -82,7 +90,7 @@ const runCase = async (schema) => {
       if (result.action === "cancelled") events.cancelled.push(result);
     }
   } finally {
-    unsubscribe();
+    unsubscribe.forEach((un) => un());
   }
   return events;
 };
@@ -165,20 +173,103 @@ test("WATCH SEMANTICS: a scheduled entry that is never touched is cancelled exac
   pass(report.join(" | "));
 });
 
-test("WATCH SEMANTICS: a partial-profit level crossed and given back inside a span is seen on a 1m watch and not on a 1h watch (the strategy looks once per span)", async ({ pass, fail }) => {
-  // +10% for five candles (VWAP 110 on minute 74, 52% of the way to the TP), flat again by the span end
+test("WATCH SEMANTICS: a partial-profit level crossed inside a span fires on its candle on a 1h watch, like on a 1m watch, while the pings keep the span cadence", async ({ pass, fail }) => {
+  // +10% for five candles (VWAP 110 on minute 74, 52% of the way to the TP), flat again by the span end:
+  // the levels 10..50 are crossed on minutes 70..74 and must be reported there on both watches
   const candleByMinute = spike(70, 110);
   const seen = {};
   for (const watch of ["1m", "1h"]) {
     const schema = buildCase(`partial-${watch}`, { watch, candleByMinute, getSignal: () => marketLong(300) });
-    const { closed, partials } = await runCase(schema);
+    const { closed, partials, pings } = await runCase(schema);
     if (closed.length !== 1 || closed[0].closeReason !== "time_expired") return fail(`${watch}: the position must live to its hold, got ${JSON.stringify(closed.map((c) => c.closeReason))}`);
-    seen[watch] = partials;
+    seen[watch] = { partials, pings };
   }
-  if (!seen["1m"].length) return fail("the 1m watch must report the partial-profit levels crossed on minutes 70..74");
-  if (seen["1m"].some((p) => p.at < 70 || p.at > 74)) return fail(`1m partial events outside the spike: ${JSON.stringify(seen["1m"])}`);
-  if (seen["1h"].length) return fail(`the 1h watch looks only at span ends, where the price is back at ${BASE}: expected no partial events, got ${JSON.stringify(seen["1h"])}`);
-  pass(`1m watch: levels ${seen["1m"].map((p) => p.level).join(",")} on minutes ${[...new Set(seen["1m"].map((p) => p.at))].join(",")}; 1h watch: none`);
+  if (!seen["1m"].partials.length) return fail("the 1m watch must report the partial-profit levels crossed on minutes 70..74");
+  if (JSON.stringify(seen["1h"].partials) !== JSON.stringify(seen["1m"].partials)) {
+    return fail(`1h watch partial events differ from 1m: ${JSON.stringify(seen["1h"].partials)} vs ${JSON.stringify(seen["1m"].partials)}`);
+  }
+  // the light look on the level candles is not a ping: 1h pings stay on the span ends only
+  if (seen["1h"].pings.some((p) => p % 60 !== 59)) return fail(`1h watch pings must stay on span ends, got ${seen["1h"].pings.join(",")}`);
+  pass(`levels ${seen["1m"].partials.map((p) => p.level).join(",")} on minutes ${[...new Set(seen["1m"].partials.map((p) => p.at))].join(",")} on both watches; 1h pings ${seen["1h"].pings.join(",")}`);
+});
+
+test("WATCH SEMANTICS: breakeven becomes available on the candle its threshold is crossed, identically on both watches, with no extra ping", async ({ pass, fail }) => {
+  // +5% for five candles from minute 30: the VWAP crosses the breakeven threshold (entry + fees + slippage + CC_BREAKEVEN_THRESHOLD)
+  // on minute 30 or 31 and the price is back at 100 long before the span end
+  const candleByMinute = spike(30, 105);
+  const seen = {};
+  for (const watch of ["1m", "1h"]) {
+    const schema = buildCase(`breakeven-${watch}`, { watch, candleByMinute, getSignal: () => marketLong(300) });
+    const { closed, breakevens, pings } = await runCase(schema);
+    if (closed.length !== 1 || closed[0].closeReason !== "time_expired") return fail(`${watch}: the position must live to its hold, got ${JSON.stringify(closed.map((c) => c.closeReason))}`);
+    seen[watch] = { breakevens, pings };
+  }
+  if (seen["1m"].breakevens.length !== 1 || seen["1m"].breakevens[0] < 30 || seen["1m"].breakevens[0] > 34) return fail(`1m watch: expected one breakeven event inside the spike, got ${seen["1m"].breakevens.join(",")}`);
+  if (seen["1h"].breakevens.join(",") !== seen["1m"].breakevens.join(",")) return fail(`1h watch breakeven minute ${seen["1h"].breakevens.join(",")} differs from 1m ${seen["1m"].breakevens.join(",")}`);
+  if (seen["1h"].pings.some((p) => p % 60 !== 59)) return fail(`1h watch pings must stay on span ends, got ${seen["1h"].pings.join(",")}`);
+  pass(`breakeven on minute ${seen["1m"].breakevens[0]} on both watches; 1h pings ${seen["1h"].pings.join(",")}`);
+});
+
+test("WATCH SEMANTICS: a commit issued between looks changes the position at once and its commit event is stamped on the next candle, not on the next span end", async ({ pass, fail }) => {
+  // commitTrailingStop & co. mutate the position immediately; what the commit queue defers is the
+  // commit EVENT (listenStrategyCommit, strategy.jsonl) and its timestamp. The queue is drained inside
+  // every look, so a commit issued from a ping lands in the same look. One issued from a listener of the
+  // tick result — emitted after the drain — waits for the next drain: on a 1h watch that used to be the
+  // next span end (119); now it is the next candle (60), like a live tick a minute later.
+  // The stop itself (15% → 1.5% under the entry) is active immediately: the dip to 98 on minute 70 stops out on both watches.
+  const candleByMinute = { 70: { low: 98 } };
+  const results = {};
+  for (const watch of ["1m", "1h"]) {
+    const schema = buildCase(`trail-${watch}`, { watch, candleByMinute, getSignal: () => marketLong(300) });
+    let trailed = false;
+    const commits = [];
+    const unsubscribe = [
+      listenSignalBacktest(async (event) => {
+        if (event.strategyName !== schema.strategyName || event.action !== "active" || trailed) return;
+        trailed = true;
+        await Backtest.commitTrailingStop(event.symbol, -13.5, event.currentPrice, schema);
+      }),
+      listenStrategyCommit((event) => {
+        if (event.strategyName === schema.strategyName && event.action === "trailing-stop") commits.push(minute(event.timestamp));
+      }),
+    ];
+    let closed;
+    try {
+      ({ closed } = await runCase(schema));
+    } finally {
+      unsubscribe.forEach((un) => un());
+    }
+    if (closed.length !== 1) return fail(`${watch}: expected one close, got ${closed.length}`);
+    results[watch] = { reason: closed[0].closeReason, at: minute(closed[0].closeTimestamp), price: closed[0].currentPrice, commits };
+  }
+  for (const watch of ["1m", "1h"]) {
+    const r = results[watch];
+    if (r.reason !== "stop_loss" || r.at !== 70 || r.price < 98 || r.price > 99) return fail(`${watch} watch must stop out on minute 70 at the trailed level (~98.5): ${JSON.stringify(r)}`);
+  }
+  // the first look is minute 0 on a 1m watch and 59 on a 1h watch; the commit event comes on the candle after it
+  if (results["1m"].commits.join(",") !== "1") return fail(`1m watch: expected the trailing-stop commit event on minute 1, got ${results["1m"].commits.join(",")}`);
+  if (results["1h"].commits.join(",") !== "60") return fail(`1h watch: expected the trailing-stop commit event on minute 60 (the candle after the look on 59), got ${results["1h"].commits.join(",")}`);
+  pass(`stop ${results["1m"].price} hit on minute 70 on both watches; commit event on minute ${results["1m"].commits[0]} (1m) and ${results["1h"].commits[0]} (1h)`);
+});
+
+test("WATCH SEMANTICS: the peak of a position is recorded on the exact candle on a 1h watch and reported once at the next look", async ({ pass, fail }) => {
+  // +10% on minutes 70..74 then flat: the peak is minute 74 at VWAP 110 on both watches
+  const candleByMinute = spike(70, 110);
+  const seen = {};
+  for (const watch of ["1m", "1h"]) {
+    const schema = buildCase(`peak-${watch}`, { watch, candleByMinute, getSignal: () => marketLong(300) });
+    const { closed, peaks } = await runCase(schema);
+    if (closed.length !== 1) return fail(`${watch}: expected one close, got ${closed.length}`);
+    const peak = closed[0].signal.peakProfit;
+    seen[watch] = { peakPrice: peak.priceClose, peakAt: minute(peak.timestamp ?? 0), pnl: peak.pnlPercentage, lastEvent: peaks[peaks.length - 1], events: peaks.length };
+  }
+  if (seen["1m"].pnl <= 0) return fail(`1m watch must record a positive peak: ${JSON.stringify(seen["1m"])}`);
+  if (seen["1h"].pnl !== seen["1m"].pnl) return fail(`peak pnl differs: 1h ${seen["1h"].pnl} vs 1m ${seen["1m"].pnl}`);
+  if (!seen["1h"].lastEvent || seen["1h"].lastEvent.at !== seen["1m"].lastEvent.at || seen["1h"].lastEvent.price !== seen["1m"].lastEvent.price) {
+    return fail(`the highest-profit event must carry the peak candle on both watches: 1h ${JSON.stringify(seen["1h"].lastEvent)} vs 1m ${JSON.stringify(seen["1m"].lastEvent)}`);
+  }
+  if (seen["1h"].events !== 1) return fail(`1h watch must report the peak once, at the next look, got ${seen["1h"].events} events`);
+  pass(`peak pnl ${seen["1m"].pnl.toFixed(2)}% on minute ${seen["1m"].lastEvent.at} on both watches; 1h reported it ${seen["1h"].events} time`);
 });
 
 /**

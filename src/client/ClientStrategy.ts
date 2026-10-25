@@ -1707,6 +1707,175 @@ const FIND_PENDING_FORCED_INDEX_FN = (
   return -1;
 };
 
+/** Width of the partial profit / loss levels (ClientPartial's PROFIT_LEVELS / LOSS_LEVELS: 10, 20, … 100) */
+const PARTIAL_LEVEL_STEP_PERCENT = 10;
+
+/**
+ * Progress of a pending signal at `averagePrice`: towards the take-profit (`tp`,
+ * 0..100) when the price is on the profit side of the effective entry, towards the
+ * stop-loss (`sl`, 0..100) when it is on the loss side — the percentTp / percentSl
+ * the span-end look computes.
+ */
+const GET_PENDING_PROGRESS_FN = (signal: ISignalRow, averagePrice: number): { tp: number; sl: number } => {
+  const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(signal);
+  const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+  const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+  const currentDistance = signal.position === "long" ? averagePrice - effectivePriceOpen : effectivePriceOpen - averagePrice;
+  if (currentDistance > 0) {
+    const tpDistance = signal.position === "long" ? effectiveTakeProfit - effectivePriceOpen : effectivePriceOpen - effectiveTakeProfit;
+    return { tp: GET_PROGRESS_PERCENT_FN(currentDistance, tpDistance), sl: 0 };
+  }
+  if (currentDistance < 0) {
+    const slDistance = signal.position === "long" ? effectivePriceOpen - effectiveStopLoss : effectiveStopLoss - effectivePriceOpen;
+    return { tp: 0, sl: GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance) };
+  }
+  return { tp: 0, sl: 0 };
+};
+
+/**
+ * Breakeven threshold price of a pending signal, ClientBreakeven's rule: the
+ * zero-PNL close price shifted by CC_BREAKEVEN_THRESHOLD in the profit
+ * direction; null when nothing is left to protect.
+ */
+const GET_BREAKEVEN_THRESHOLD_FN = (signal: ISignalRow): number | null => {
+  const breakevenPrice = GET_BREAKEVEN_PRICE(signal);
+  if (breakevenPrice === null) {
+    return null;
+  }
+  const shift = GLOBAL_CONFIG.CC_BREAKEVEN_THRESHOLD / 100;
+  return signal.position === "long" ? breakevenPrice * (1 + shift) : breakevenPrice * (1 - shift);
+};
+
+/**
+ * First candle STRICTLY inside the span candles[spanStart .. spanEnd) on which the
+ * strategy has something to react to without waiting for the span-end look:
+ * - commit events queued since the previous look (`_commitQueue`; the actions
+ *   themselves were applied at once): emitted on the very next candle, the way a
+ *   live tick emits them a minute later → `spanStart`;
+ * - a partial profit / loss level crossed between two consecutive candles;
+ * - the breakeven threshold crossed between two consecutive candles.
+ * The candle gets a light look (EVALUATE_PENDING_EVENT_FN): the related callbacks
+ * and the commit queue, no ping. The services dedupe the levels, so a level
+ * re-crossed after a pullback costs a check and emits nothing. Returns -1 when
+ * nothing happened before the span end; with step 1 the range is empty.
+ */
+const FIND_PENDING_STRATEGY_EVENT_INDEX_FN = (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  candles: ICandleData[],
+  spanStart: number,
+  spanEnd: number,
+  candlesCount: number
+): number => {
+  if (spanStart >= spanEnd) {
+    return -1;
+  }
+  if (self._commitQueue.length > 0) {
+    return spanStart;
+  }
+  const threshold = GET_BREAKEVEN_THRESHOLD_FN(signal);
+  let previousPrice = GET_AVG_PRICE_AT_FN(candles, spanStart - 1, candlesCount);
+  let previous = GET_PENDING_PROGRESS_FN(signal, previousPrice);
+  for (let k = spanStart; k < spanEnd; k++) {
+    const averagePrice = GET_AVG_PRICE_AT_FN(candles, k, candlesCount);
+    const progress = GET_PENDING_PROGRESS_FN(signal, averagePrice);
+    if (Math.floor(progress.tp / PARTIAL_LEVEL_STEP_PERCENT) > Math.floor(previous.tp / PARTIAL_LEVEL_STEP_PERCENT)) return k;
+    if (Math.floor(progress.sl / PARTIAL_LEVEL_STEP_PERCENT) > Math.floor(previous.sl / PARTIAL_LEVEL_STEP_PERCENT)) return k;
+    if (threshold !== null) {
+      const reached = signal.position === "long" ? averagePrice >= threshold : averagePrice <= threshold;
+      const wasReached = signal.position === "long" ? previousPrice >= threshold : previousPrice <= threshold;
+      if (reached && !wasReached) return k;
+    }
+    previousPrice = averagePrice;
+    previous = progress;
+  }
+  return -1;
+};
+
+/** Peaks / troughs recorded since the last span-end look: emitted there, once */
+type TPendingExtremes = { peak: boolean; fall: boolean };
+
+/**
+ * Updates the peak (`_peak`) and trough (`_fall`) snapshots of a pending signal with
+ * the VWAP of one candle — the same rule as the span-end look: a peak is a real
+ * plus only. Marks `extremes` so the look emits onHighestProfit / onMaxDrawdown
+ * once with the recorded extreme. Runs for every candle the loop skips, so the
+ * statistics of the position do not depend on the watch stride.
+ */
+const TRACK_PENDING_EXTREMES_FN = (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  averagePrice: number,
+  timestamp: number,
+  extremes: TPendingExtremes
+): void => {
+  const isPeak = signal.position === "long" ? averagePrice > signal._peak.price : averagePrice < signal._peak.price;
+  if (isPeak) {
+    const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
+    if (pnl.pnlPercentage > 0) {
+      signal._peak = { price: averagePrice, timestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
+      if (self.params.callbacks?.onWrite) {
+        self.params.callbacks.onWrite(signal.symbol, signal, averagePrice, new Date(timestamp), true);
+      }
+      extremes.peak = true;
+    }
+  }
+  const isFall = signal.position === "long" ? averagePrice < signal._fall.price : averagePrice > signal._fall.price;
+  if (isFall) {
+    const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
+    signal._fall = { price: averagePrice, timestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
+    if (self.params.callbacks?.onWrite) {
+      self.params.callbacks.onWrite(signal.symbol, signal, averagePrice, new Date(timestamp), true);
+    }
+    extremes.fall = true;
+  }
+};
+
+/** TRACK_PENDING_EXTREMES_FN over candles[from .. to) */
+const TRACK_PENDING_EXTREMES_RANGE_FN = (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  candles: ICandleData[],
+  from: number,
+  to: number,
+  candlesCount: number,
+  extremes: TPendingExtremes
+): void => {
+  for (let k = from; k < to; k++) {
+    TRACK_PENDING_EXTREMES_FN(self, signal, GET_AVG_PRICE_AT_FN(candles, k, candlesCount), candles[k].timestamp, extremes);
+  }
+};
+
+/**
+ * The light look at a strategy-event candle inside a span (see
+ * FIND_PENDING_STRATEGY_EVENT_INDEX_FN): extremes, the breakeven check and the
+ * partial profit / loss callbacks for the side the price is on, then the commit
+ * queue — everything the strategy needs to react on this candle. No active ping
+ * and no tick result: the pings keep the watch cadence.
+ */
+const EVALUATE_PENDING_EVENT_FN = async (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  candles: ICandleData[],
+  index: number,
+  candlesCount: number,
+  extremes: TPendingExtremes
+): Promise<void> => {
+  const timestamp = candles[index].timestamp;
+  const averagePrice = GET_AVG_PRICE_AT_FN(candles, index, candlesCount);
+  const symbol = self.params.execution.context.symbol;
+  const backtest = self.params.execution.context.backtest;
+  TRACK_PENDING_EXTREMES_FN(self, signal, averagePrice, timestamp, extremes);
+  const { tp, sl } = GET_PENDING_PROGRESS_FN(signal, averagePrice);
+  if (tp > 0) {
+    await CALL_BREAKEVEN_CHECK_FN(self, symbol, signal, averagePrice, timestamp, backtest);
+    await CALL_PARTIAL_PROFIT_CALLBACKS_FN(self, symbol, signal, averagePrice, tp, timestamp, backtest);
+  } else if (sl > 0) {
+    await CALL_PARTIAL_LOSS_CALLBACKS_FN(self, symbol, signal, averagePrice, sl, timestamp, backtest);
+  }
+  await PROCESS_COMMIT_QUEUE_FN(self, averagePrice, timestamp);
+};
+
 // Static reads (like WAIT_FOR_DISPOSE_FN): symbol/strategyName/exchangeName/
 // frameName/backtest come from ctor params — the same values the instance is
 // memoized by — so those no longer touch method/execution contexts. The RESTORE
@@ -6028,17 +6197,37 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
 
   // КРИТИЧНО: Пропускаем первые bufferCandlesCount свечей (буфер для VWAP)
   // BacktestLogicPrivateService запросил свечи начиная с (when - bufferMinutes)
+  // commits queued at a schedule ping are applied on the next candle (like a live tick);
+  // the iteration is then re-entered on the same span end, see the pending loop
+  let holdIndex = false;
+
   for (
     let i = GET_FIRST_STEP_INDEX_FN(bufferCandlesCount, stepCandles, lastIndex);
     i <= lastIndex;
-    i = GET_NEXT_STEP_INDEX_FN(i, stepCandles, lastIndex)
+    i = holdIndex ? i : GET_NEXT_STEP_INDEX_FN(i, stepCandles, lastIndex)
   ) {
+    holdIndex = false;
     // a user cancel / activation queued at the previous evaluation applies on the first
     // candle of the span; otherwise the span is evaluated on its first forced event, or
     // on its last candle when nothing forced happened
     const forcedIndex = (self._cancelledSignal || self._activatedSignal)
       ? spanStart
       : FIND_SCHEDULED_FORCED_INDEX_FN(scheduled, candles, spanStart, i, frameEndTime, maxTimeToWait);
+    if (!self._cancelledSignal && !self._activatedSignal && self._commitQueue.length > 0 && spanStart < i && (forcedIndex === -1 || spanStart < forcedIndex)) {
+      const drainCandle = candles[spanStart];
+      await self.params.onHandoff(
+        self.params.execution.context.symbol,
+        self.params.strategyName,
+        self.params.exchangeName,
+        self.params.frameName,
+        drainCandle.timestamp,
+        self.params.execution.context.backtest
+      );
+      await PROCESS_COMMIT_QUEUE_FN(self, GET_AVG_PRICE_AT_FN(candles, spanStart, candlesCount), drainCandle.timestamp);
+      spanStart = spanStart + 1;
+      holdIndex = true;
+      continue;
+    }
     const evalIndex = forcedIndex === -1 ? i : forcedIndex;
     const candle = candles[evalIndex];
     const averagePrice = GET_AVG_PRICE_AT_FN(candles, evalIndex, candlesCount);
@@ -6588,12 +6777,16 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   const lastIndex = candles.length - 1;
   let spanStart = bufferCandlesCount;
 
-  // A user close rejected by the gate is retried on the NEXT CANDLE. With a watch
-  // stride that retry must not wait for the next span (nor skip the rest of this
-  // one), so the iteration is re-entered on the same span end `i` with spanStart
-  // moved past the rejected candle — `holdIndex` keeps the for-update from
-  // advancing `i`. The watch grid itself stays where it was.
+  // A user close rejected by the gate is retried on the NEXT CANDLE, and a
+  // strategy event inside the span (a commit queued at the previous look, a
+  // partial level, breakeven) gets its light look on its own candle. Neither
+  // may wait for the next span nor skip the rest of this one, so the iteration
+  // is re-entered on the same span end `i` with spanStart moved past the handled
+  // candle — `holdIndex` keeps the for-update from advancing `i`. The watch grid
+  // itself stays where it was.
   let holdIndex = false;
+  // peaks / troughs recorded on skipped candles, emitted at the next span-end look
+  const extremes: TPendingExtremes = { peak: false, fall: false };
 
   // КРИТИЧНО: проверяем TP/SL на каждой ИТЕРАЦИИ начиная после буфера.
   // Первые bufferCandlesCount свечей - это буфер для VWAP
@@ -6604,13 +6797,36 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     i = holdIndex ? i : GET_NEXT_STEP_INDEX_FN(i, stepCandles, lastIndex)
   ) {
     holdIndex = false;
-    // a user close / fill queued at the previous evaluation applies on the first candle of
-    // the span; otherwise the span is evaluated on its first forced event, or on its last
-    // candle when nothing forced happened
-    const forcedIndex = (self._closedSignal || self._takeProfitSignal || self._stopLossSignal)
-      ? spanStart
-      : FIND_PENDING_FORCED_INDEX_FN(signal, candles, spanStart, i, frameEndTime, candlesCount);
+    const spanFrom = spanStart;
+    const userQueued = Boolean(self._closedSignal || self._takeProfitSignal || self._stopLossSignal);
+    // a user close / fill queued at the previous look applies on the first candle of the span;
+    // otherwise the span is evaluated on its first exchange-forced event, or on its last candle
+    const forcedIndex = userQueued
+      ? spanFrom
+      : FIND_PENDING_FORCED_INDEX_FN(signal, candles, spanFrom, i, frameEndTime, candlesCount);
+    // the strategy's own events inside the span — commits queued at the previous look, a partial
+    // level crossed, breakeven reached — get a light look on their candle (no ping) and the span
+    // goes on to its end; an exchange-forced event on the same or an earlier candle wins
+    const eventIndex = userQueued ? -1 : FIND_PENDING_STRATEGY_EVENT_INDEX_FN(self, signal, candles, spanFrom, i, candlesCount);
+    if (eventIndex !== -1 && eventIndex < i && (forcedIndex === -1 || eventIndex < forcedIndex)) {
+      TRACK_PENDING_EXTREMES_RANGE_FN(self, signal, candles, spanFrom, eventIndex, candlesCount, extremes);
+      // CC_BACKTEST_LOCKSTEP: the strategy writes on this candle, the peers must have reached its boundary
+      await self.params.onHandoff(
+        self.params.execution.context.symbol,
+        self.params.strategyName,
+        self.params.exchangeName,
+        self.params.frameName,
+        candles[eventIndex].timestamp,
+        self.params.execution.context.backtest
+      );
+      await EVALUATE_PENDING_EVENT_FN(self, signal, candles, eventIndex, candlesCount, extremes);
+      spanStart = eventIndex + 1;
+      holdIndex = true;
+      continue;
+    }
     const evalIndex = forcedIndex === -1 ? i : forcedIndex;
+    // peaks / troughs of the candles skipped before the evaluated one: the statistics do not wait for the look
+    TRACK_PENDING_EXTREMES_RANGE_FN(self, signal, candles, spanFrom, evalIndex, candlesCount, extremes);
     const currentCandle = candles[evalIndex];
     const currentCandleTimestamp = currentCandle.timestamp;
 
@@ -6801,7 +7017,6 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           // The peak snapshot is updated BEFORE the active ping (the ping carries it) and
           // the onHighestProfit callback fires AFTER it: the ping is where a parallel backtest
           // hands the lockstep lock off, so every listener of this candle runs behind it.
-          let peakReached = false;
           if (averagePrice > signal._peak.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             // Пик — только реальный плюс (зеркало live-ветки): реализуемый
@@ -6817,18 +7032,11 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
                   true
                 );
               }
-              peakReached = true;
+              extremes.peak = true;
             }
           }
 
           await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
-          if (peakReached) {
-            await self.params.onHighestProfit(
-              TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
-              averagePrice,
-              currentCandleTimestamp
-            );
-          }
 
           await CALL_BREAKEVEN_CHECK_FN(
             self,
@@ -6855,7 +7063,6 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const progressPercent = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
           percentSl = progressPercent;
           // Same as the peak: the fall snapshot before the ping, the callback after it.
-          let fallReached = false;
           if (averagePrice < signal._fall.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
@@ -6868,16 +7075,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
                 true
               );
             }
-            fallReached = true;
+            extremes.fall = true;
           }
           await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
-          if (fallReached) {
-            await self.params.onMaxDrawdown(
-              TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
-              averagePrice,
-              currentCandleTimestamp
-            );
-          }
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
             self.params.execution.context.symbol,
@@ -6904,7 +7104,6 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           // The peak snapshot is updated BEFORE the active ping (the ping carries it) and
           // the onHighestProfit callback fires AFTER it: the ping is where a parallel backtest
           // hands the lockstep lock off, so every listener of this candle runs behind it.
-          let peakReached = false;
           if (averagePrice < signal._peak.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             // Пик — только реальный плюс (зеркало live-ветки): реализуемый
@@ -6920,18 +7119,11 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
                   true
                 );
               }
-              peakReached = true;
+              extremes.peak = true;
             }
           }
 
           await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
-          if (peakReached) {
-            await self.params.onHighestProfit(
-              TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
-              averagePrice,
-              currentCandleTimestamp
-            );
-          }
 
           await CALL_BREAKEVEN_CHECK_FN(
             self,
@@ -6958,7 +7150,6 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const progressPercent = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
           percentSl = progressPercent;
           // Same as the peak: the fall snapshot before the ping, the callback after it.
-          let fallReached = false;
           if (averagePrice > signal._fall.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
@@ -6971,16 +7162,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
                 true
               );
             }
-            fallReached = true;
+            extremes.fall = true;
           }
           await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
-          if (fallReached) {
-            await self.params.onMaxDrawdown(
-              TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
-              averagePrice,
-              currentCandleTimestamp
-            );
-          }
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
             self.params.execution.context.symbol,
@@ -6997,6 +7181,25 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     }
 
     // Process queued commit events with candle timestamp
+    // the extremes recorded since the previous look — on this candle or on the skipped ones —
+    // are reported once, after the ping (the ping is where a parallel backtest hands off)
+    if (extremes.peak) {
+      extremes.peak = false;
+      await self.params.onHighestProfit(
+        TO_PUBLIC_SIGNAL("pending", signal, signal._peak.price),
+        signal._peak.price,
+        signal._peak.timestamp
+      );
+    }
+    if (extremes.fall) {
+      extremes.fall = false;
+      await self.params.onMaxDrawdown(
+        TO_PUBLIC_SIGNAL("pending", signal, signal._fall.price),
+        signal._fall.price,
+        signal._fall.timestamp
+      );
+    }
+
     await PROCESS_COMMIT_QUEUE_FN(self, averagePrice, currentCandleTimestamp);
 
     // Эмуляция live-тика (report-паритет): live эмитит "active" на каждый тик

@@ -111,9 +111,14 @@ interface IFrameCallbacks {
  *   activation / stop reject / wait timeout are found candle by candle inside
  *   the span and executed on the candle they happened on, with the exact level
  *   price and timestamp (an activated entry gets the minute of the touch as
- *   `pendingAt`). What the span does change: a level the strategy would have
- *   reacted to on a 1m watch (a partial level crossed and given back inside
- *   the span, a trailing move) is seen only at the span end. Long replays are
+ *   `pendingAt`). The strategy's own protective events do not wait either: a
+ *   partial profit / loss level crossed or the breakeven threshold reached
+ *   inside the span gets its callbacks on that candle (a light look, no ping),
+ *   a commit issued between looks (its action is immediate) has its commit
+ *   event stamped on the next candle like a live tick a minute later, and the
+ *   peak / drawdown of the position are recorded candle by candle
+ *   (reported once, at the next look). Only the active / schedule pings and
+ *   the decisions taken in them keep the span cadence. Long replays are
  *   windowed in whole watch spans, so the grid stays regular across candle
  *   fetches.
  *
@@ -165,9 +170,11 @@ interface IFrameSchema {
     entryInterval?: FrameInterval;
     /**
      * Stride of the candle loops that watch an open or scheduled signal: the
-     * strategy looks once per span, at its last candle; exchange-forced events
-     * (stop / liquidation / take-profit / time expiry / activation / timeout)
-     * still execute on the exact candle inside the span. Independent of
+     * strategy's pings come once per span, at its last candle; exchange-forced
+     * events (stop / liquidation / take-profit / time expiry / activation /
+     * timeout), partial levels, breakeven, queued commits and the peak /
+     * drawdown statistics still happen on the exact candle inside the span.
+     * Independent of
      * `entryInterval`: may be shorter (a 1h tick with a 15m watch) or longer
      * (a 1h tick with a 4h watch). Defaults to "1m" — every candle evaluated.
      */
