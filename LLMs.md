@@ -2436,7 +2436,7 @@ Set with `setConfig(partial)` **before running any strategy**. `getConfig()` ret
 | `CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN` | `5` | Below this count, use average instead of median for anomaly reference. |
 | `CC_ENABLE_CANDLE_FETCH_MUTEX` | `true` | Serialize concurrent fetches of identical candles. |
 | `CC_ENABLE_BACKTEST_PARALLEL_SPIN` | `true` | Cooperative round-robin interleaving of parallel backtests after each fetch (skipped when single workload, mutex off or lockstep on). |
-| `CC_BACKTEST_LOCKSTEP` | `true` | Parallel backtests advance in logical time together under a FIFO mutex (`Lockstep`): every iteration waits for its peers to reach its timeframe, and a candle replay hands the lock off on the finest timeframe grid among the running backtests via its own pings, so a strategy blocked in `getSignal` or a ping handler parks its peers at the same `when`. |
+| `CC_BACKTEST_LOCKSTEP` | `true` | Parallel backtests advance in logical time together under a FIFO mutex (`Lockstep`): every iteration waits for its peers to reach its timeframe, and a candle replay hands the lock off on the finest timeframe grid among the running backtests via its own pings, so a strategy blocked in `getSignal` or a ping handler parks its peers at the same `when`. The lock is held while a result is yielded and while progress / tick listeners run: the group moves at the pace of its slowest consumer or listener — a slowdown, not a hang — so keep `for await` bodies and listeners cheap. |
 
 ### 26.4 Order book & aggregated trades
 

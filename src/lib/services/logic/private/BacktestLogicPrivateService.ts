@@ -423,14 +423,26 @@ const CANDLES_UNTIL_FRAME_END_FN = (since: Date, frameEndTime: number): number =
  * CC_MAX_CANDLES_PER_REQUEST, that limit stays the exchange's request size;
  * the window is what the replay sees.
  */
-const CHUNK_CANDLES_FN = (self: BacktestLogicPrivateService, bufferMinutes: number): number => {
+const CHUNK_CANDLES_FN = (
+  self: BacktestLogicPrivateService,
+  bufferMinutes: number,
+  firstEvaluableMs: number,
+  anchorMs: number
+): number => {
   const maxCandles = GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST;
-  const step = intervalStepMs(self.frameSchemaService.getWatchInterval(self.methodContextService.context.frameName)) / 60_000;
+  const stepMs = intervalStepMs(self.frameSchemaService.getWatchInterval(self.methodContextService.context.frameName));
+  const step = stepMs / 60_000;
   if (step <= 1) {
     return maxCandles;
   }
   const spans = Math.max(1, Math.floor((maxCandles - bufferMinutes) / step));
-  return bufferMinutes + spans * step;
+  // The watch grid of ClientStrategy.backtest is anchored at the signal (pendingAt), not at the
+  // window: a window that starts off the grid (the candle after a scheduled activation) would end
+  // on a boundary and leave one lone candle to a span of its own. Trim the window by the phase of
+  // its first evaluable candle so it ends on the candle before a boundary.
+  const phaseMinutes = (((firstEvaluableMs - anchorMs) % stepMs) + stepMs) % stepMs / 60_000;
+  const usable = spans * step - phaseMinutes;
+  return bufferMinutes + (usable > 0 ? usable : spans * step);
 };
 
 const BACKTEST_FN = async (
@@ -498,7 +510,7 @@ const RUN_INFINITY_CHUNK_LOOP_FN = async (
   initialCandles: ICandleData[]
 ): Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | TFnError> => {
   let backtestResult: IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive = initialResult;
-  const CHUNK = CHUNK_CANDLES_FN(self, bufferMs / 60_000);
+  const anchor = initialResult.signal.pendingAt;
   // Seed with the candles already replayed by the caller so CLOSE_PENDING_FN
   // never receives an empty array when the very first chunk fetch comes back
   // empty (frame ending near the present moment).
@@ -506,7 +518,8 @@ const RUN_INFINITY_CHUNK_LOOP_FN = async (
   let chunkStart = new Date(initialResult._backtestLastTimestamp + 60_000 - bufferMs);
 
   while (backtestResult.action === "active") {
-    const chunkLimit = Math.min(CHUNK, CANDLES_UNTIL_FRAME_END_FN(chunkStart, frameEndTime));
+    const window = CHUNK_CANDLES_FN(self, bufferMs / 60_000, chunkStart.getTime() + bufferMs, anchor);
+    const chunkLimit = Math.min(window, CANDLES_UNTIL_FRAME_END_FN(chunkStart, frameEndTime));
     const chunkCandles = chunkLimit > 0
       ? await GET_CANDLES_FN(self, symbol, chunkLimit, chunkStart, { signalId, chunkLimit })
       : [];
@@ -642,7 +655,7 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
   const bufferMinutes = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - ACTIVE_CANDLE_INCLUDED;
   const bufferStartTime = new Date(when.getTime() - bufferMinutes * 60 * 1000);
   const pendingPhaseMinutes = signal.minuteEstimatedTime === Infinity
-    ? CHUNK_CANDLES_FN(self, bufferMinutes) - bufferMinutes
+    ? CHUNK_CANDLES_FN(self, bufferMinutes, bufferStartTime.getTime() + bufferMinutes * 60_000, bufferStartTime.getTime() + bufferMinutes * 60_000) - bufferMinutes
     : signal.minuteEstimatedTime;
   const candlesNeeded = Math.min(
     bufferMinutes + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + pendingPhaseMinutes + SCHEDULE_ACTIVATION_CANDLE_SKIP,
@@ -775,12 +788,13 @@ const RUN_OPENED_CHUNK_LOOP_FN = async (
   signalId: string,
   frameEndTime: number
 ): Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | TFnError | null> => {
-  const CHUNK = CHUNK_CANDLES_FN(self, bufferMs / 60_000);
+  const anchor = when.getTime();
   let chunkStart = bufferStartTime;
   let lastChunkCandles: ICandleData[] = [];
 
   while (true) {
-    const chunkLimit = Math.min(CHUNK, CANDLES_UNTIL_FRAME_END_FN(chunkStart, frameEndTime));
+    const window = CHUNK_CANDLES_FN(self, bufferMs / 60_000, chunkStart.getTime() + bufferMs, anchor);
+    const chunkLimit = Math.min(window, CANDLES_UNTIL_FRAME_END_FN(chunkStart, frameEndTime));
     const chunkCandles = chunkLimit > 0
       ? await GET_CANDLES_FN(self, symbol, chunkLimit, chunkStart, { signalId, bufferMs, chunkLimit })
       : [];

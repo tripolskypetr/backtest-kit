@@ -25,6 +25,10 @@ const LOGGER_SERVICE = new LoggerService();
  * candle before every timeframe boundary: the lock is released and taken
  * again, and the FIFO queue runs every waiting peer up to that boundary first.
  *
+ * The lock is held while the generator yields and while the progress / tick
+ * listeners run, so the group moves at the pace of its slowest consumer or
+ * listener (a slowdown, not a hang): keep them cheap.
+ *
  * All three operations are no-ops when `CC_BACKTEST_LOCKSTEP` is `false`. The
  * flag is read at every call, so it must not change while backtests run: an
  * acquire under `true` released under `false` would leave the mutex held.

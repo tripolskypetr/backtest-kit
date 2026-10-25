@@ -42,6 +42,7 @@ import toProfitLossDto from "../helpers/toProfitLossDto";
 import { getEffectivePriceOpen as GET_EFFECTIVE_PRICE_OPEN } from "../helpers/getEffectivePriceOpen";
 import { getLiquidationPrice as GET_LIQUIDATION_PRICE } from "../helpers/getLiquidationPrice";
 import { getBreakevenPrice as GET_BREAKEVEN_PRICE } from "../helpers/getBreakevenPrice";
+import { PROFIT_LEVELS as PARTIAL_PROFIT_LEVELS, LOSS_LEVELS as PARTIAL_LOSS_LEVELS } from "./ClientPartial";
 import { ICandleData } from "../interfaces/Exchange.interface";
 import { PersistSignalAdapter, PersistScheduleAdapter, PersistRecentAdapter, PersistStrategyAdapter } from "../classes/Persist";
 import { ExecutionContextService } from "../lib/services/context/ExecutionContextService";
@@ -1575,53 +1576,84 @@ const GET_AVG_PRICE_FN = (candles: ICandleData[]): number => {
 };
 
 /**
- * Number of 1m candles the backtest candle loops advance per iteration: the
- * frame's `watchInterval` (IStrategyParams.watchInterval; "1m" = per-candle
- * loop). The backtest candle feed is always 1m, so minutes map 1:1 to candles.
+ * Watch grid of one candle array: spans of the frame's `watchInterval` on the
+ * TIME axis, anchored at the signal (`pendingAt` of a position, `scheduledAt`
+ * of a resting entry): boundary k = anchor + k·step. `nextBoundary` is the
+ * exclusive end of the span the loop is in. Anchoring at the signal, not at
+ * the array, keeps the grid in place across replay windows and across the
+ * hand-back after a scheduled activation.
  */
-const GET_BACKTEST_STEP_CANDLES_FN = (self: ClientStrategy): number =>
-  intervalStepMs(self.params.watchInterval) / 60_000;
+type TWatchGrid = { stepMs: number; nextBoundary: number };
 
 /**
- * First evaluation index of a strided candle loop: the END of the first span
- * (`buffer + step - 1`), not its start. Evaluating at the span end keeps the
- * VWAP window (the last CC_AVG_PRICE_CANDLES_COUNT candles) entirely inside the
- * span — at the span START the window would straddle the previous span (e.g.
- * 4 candles of yesterday + 1 of today on a daily stride) and blend two days'
- * prices into every TP check / time_expired close. With step 1 this is
- * `buffer`, the legacy first index.
- *
- * When the array is shorter than one span (a chunk of CC_MAX_CANDLES_PER_REQUEST
- * candles smaller than the stride for an Infinity-hold signal) the last candle
- * is evaluated instead, so every chunk gets at least one evaluation.
+ * Creates the watch grid of a candle array: the first boundary strictly after
+ * the first evaluable candle (candles[bufferCandlesCount]). For a position
+ * opened on that candle this is `pendingAt + step`; for a continuation window
+ * that starts on a boundary it is the next one.
  */
-const GET_FIRST_STEP_INDEX_FN = (
+const CREATE_WATCH_GRID_FN = (
+  self: ClientStrategy,
+  candles: ICandleData[],
   bufferCandlesCount: number,
-  stepCandles: number,
-  lastIndex: number
-): number => {
-  const first = bufferCandlesCount + stepCandles - 1;
-  if (first <= lastIndex) {
-    return first;
+  anchor: number
+): TWatchGrid => {
+  const stepMs = intervalStepMs(self.params.watchInterval);
+  const first = candles[Math.min(bufferCandlesCount, candles.length - 1)]?.timestamp ?? anchor;
+  let nextBoundary = anchor + stepMs;
+  while (nextBoundary <= first) {
+    nextBoundary += stepMs;
   }
-  return lastIndex >= bufferCandlesCount ? lastIndex : lastIndex + 1;
+  return { stepMs, nextBoundary };
 };
 
 /**
- * Next evaluation index of a strided candle loop: `index + step`, clamped to the
- * last candle so a trailing partial span (array length not a multiple of the
- * stride) is still evaluated at its end. Returns `lastIndex + 1` (loop exit)
- * once the last candle has been evaluated. With step 1 this is `index + 1`.
+ * Index of the span end from `from`: the LAST candle before `grid.nextBoundary`.
+ * The loops evaluate a span at its end so the VWAP window (the last
+ * CC_AVG_PRICE_CANDLES_COUNT candles) lies inside the span — at the span start
+ * it would straddle the previous one and blend two spans' prices into every
+ * check. The grid is on the time axis, not on indexes: a gap in the 1m feed (a
+ * maintenance window, a missing minute) shortens the span's candle count and
+ * leaves the boundary where it is; a gap that swallows whole spans moves the
+ * boundary past the first available candle. Clamps to `lastIndex`, so the
+ * trailing part of an array (the end of a hold, the end of a replay window) is
+ * still evaluated at its last candle. Returns `lastIndex + 1` (loop exit) when
+ * `from` is past the array.
  */
-const GET_NEXT_STEP_INDEX_FN = (
+const GET_SPAN_END_INDEX_FN = (
+  candles: ICandleData[],
+  from: number,
+  grid: TWatchGrid,
+  lastIndex: number
+): number => {
+  if (from > lastIndex) {
+    return lastIndex + 1;
+  }
+  while (candles[from].timestamp >= grid.nextBoundary) {
+    grid.nextBoundary += grid.stepMs;
+  }
+  let index = from;
+  while (index < lastIndex && candles[index + 1].timestamp < grid.nextBoundary) {
+    index += 1;
+  }
+  return index;
+};
+
+/**
+ * Span end after the one evaluated at `index`: the boundary moves one step on
+ * and GET_SPAN_END_INDEX_FN finds the last candle before it. With a 1m watch
+ * on a complete feed this is `index + 1`, the legacy per-candle loop.
+ */
+const GET_NEXT_SPAN_END_INDEX_FN = (
+  candles: ICandleData[],
   index: number,
-  stepCandles: number,
+  grid: TWatchGrid,
   lastIndex: number
 ): number => {
   if (index >= lastIndex) {
     return lastIndex + 1;
   }
-  return Math.min(index + stepCandles, lastIndex);
+  grid.nextBoundary += grid.stepMs;
+  return GET_SPAN_END_INDEX_FN(candles, index + 1, grid, lastIndex);
 };
 
 /**
@@ -1707,8 +1739,9 @@ const FIND_PENDING_FORCED_INDEX_FN = (
   return -1;
 };
 
-/** Width of the partial profit / loss levels (ClientPartial's PROFIT_LEVELS / LOSS_LEVELS: 10, 20, … 100) */
-const PARTIAL_LEVEL_STEP_PERCENT = 10;
+/** A level of `levels` lies in (previous, current]: crossed on this candle */
+const CROSSED_LEVEL_FN = (levels: readonly number[], previous: number, current: number): boolean =>
+  levels.some((level) => current >= level && previous < level);
 
 /**
  * Progress of a pending signal at `averagePrice`: towards the take-profit (`tp`,
@@ -1752,7 +1785,8 @@ const GET_BREAKEVEN_THRESHOLD_FN = (signal: ISignalRow): number | null => {
  * - commit events queued since the previous look (`_commitQueue`; the actions
  *   themselves were applied at once): emitted on the very next candle, the way a
  *   live tick emits them a minute later → `spanStart`;
- * - a partial profit / loss level crossed between two consecutive candles;
+ * - a partial profit / loss level (ClientPartial's PROFIT_LEVELS / LOSS_LEVELS)
+ *   crossed between two consecutive candles;
  * - the breakeven threshold crossed between two consecutive candles.
  * The candle gets a light look (EVALUATE_PENDING_EVENT_FN): the related callbacks
  * and the commit queue, no ping. The services dedupe the levels, so a level
@@ -1779,8 +1813,8 @@ const FIND_PENDING_STRATEGY_EVENT_INDEX_FN = (
   for (let k = spanStart; k < spanEnd; k++) {
     const averagePrice = GET_AVG_PRICE_AT_FN(candles, k, candlesCount);
     const progress = GET_PENDING_PROGRESS_FN(signal, averagePrice);
-    if (Math.floor(progress.tp / PARTIAL_LEVEL_STEP_PERCENT) > Math.floor(previous.tp / PARTIAL_LEVEL_STEP_PERCENT)) return k;
-    if (Math.floor(progress.sl / PARTIAL_LEVEL_STEP_PERCENT) > Math.floor(previous.sl / PARTIAL_LEVEL_STEP_PERCENT)) return k;
+    if (CROSSED_LEVEL_FN(PARTIAL_PROFIT_LEVELS, previous.tp, progress.tp)) return k;
+    if (CROSSED_LEVEL_FN(PARTIAL_LOSS_LEVELS, previous.sl, progress.sl)) return k;
     if (threshold !== null) {
       const reached = signal.position === "long" ? averagePrice >= threshold : averagePrice <= threshold;
       const wasReached = signal.position === "long" ? previousPrice >= threshold : previousPrice <= threshold;
@@ -6190,9 +6224,10 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
   // span); the exchange-forced events of the span — timeout, stop touch, entry
   // touch, frame end — are found candle by candle (FIND_SCHEDULED_FORCED_INDEX_FN)
   // and executed on the candle they happened on, so a coarse stride neither
-  // misses an intra-span breach nor delays it to the span end.
-  const stepCandles = GET_BACKTEST_STEP_CANDLES_FN(self);
+  // misses an intra-span breach nor delays it to the span end. The spans are
+  // on the time axis, anchored at scheduledAt (TWatchGrid).
   const lastIndex = candles.length - 1;
+  const grid = CREATE_WATCH_GRID_FN(self, candles, bufferCandlesCount, scheduled.scheduledAt);
   let spanStart = bufferCandlesCount;
 
   // КРИТИЧНО: Пропускаем первые bufferCandlesCount свечей (буфер для VWAP)
@@ -6202,9 +6237,9 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
   let holdIndex = false;
 
   for (
-    let i = GET_FIRST_STEP_INDEX_FN(bufferCandlesCount, stepCandles, lastIndex);
+    let i = GET_SPAN_END_INDEX_FN(candles, bufferCandlesCount, grid, lastIndex);
     i <= lastIndex;
-    i = holdIndex ? i : GET_NEXT_STEP_INDEX_FN(i, stepCandles, lastIndex)
+    i = holdIndex ? i : GET_NEXT_SPAN_END_INDEX_FN(candles, i, grid, lastIndex)
   ) {
     holdIndex = false;
     // a user cancel / activation queued at the previous evaluation applies on the first
@@ -6772,9 +6807,10 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   // exchange-forced events of the span — time expiry, stop / liquidation touch,
   // take-profit by VWAP, frame end — are found candle by candle
   // (FIND_PENDING_FORCED_INDEX_FN) and executed on the candle they happened on,
-  // so a coarse stride neither misses an intra-span touch nor delays it.
-  const stepCandles = GET_BACKTEST_STEP_CANDLES_FN(self);
+  // so a coarse stride neither misses an intra-span touch nor delays it. The
+  // spans are on the time axis, anchored at pendingAt (TWatchGrid).
   const lastIndex = candles.length - 1;
+  const grid = CREATE_WATCH_GRID_FN(self, candles, bufferCandlesCount, signal.pendingAt);
   let spanStart = bufferCandlesCount;
 
   // A user close rejected by the gate is retried on the NEXT CANDLE, and a
@@ -6792,9 +6828,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   // Первые bufferCandlesCount свечей - это буфер для VWAP
   // (BacktestLogicPrivateService запросил свечи начиная с when - bufferMinutes)
   for (
-    let i = GET_FIRST_STEP_INDEX_FN(bufferCandlesCount, stepCandles, lastIndex);
+    let i = GET_SPAN_END_INDEX_FN(candles, bufferCandlesCount, grid, lastIndex);
     i <= lastIndex;
-    i = holdIndex ? i : GET_NEXT_STEP_INDEX_FN(i, stepCandles, lastIndex)
+    i = holdIndex ? i : GET_NEXT_SPAN_END_INDEX_FN(candles, i, grid, lastIndex)
   ) {
     holdIndex = false;
     const spanFrom = spanStart;

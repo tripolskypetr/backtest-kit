@@ -476,8 +476,14 @@ export const GLOBAL_CONFIG = {
    * - A strategy that blocks inside `getSignal` or a ping handler (an LLM call, a `sleep`)
    *   therefore parks its peers at the same `when`; shared state such as `Budget` sees the
    *   symbols in time order, a write from the middle of a replay included.
-   * - While the lock is held the generator still yields to its consumer, so a consumer that
-   *   waits for ANOTHER backtest's progress inside the `for await` body would deadlock.
+   * - While the lock is held the generator still yields to its consumer, and the progress /
+   *   tick listeners run under it too. The whole group therefore moves at the pace of its
+   *   SLOWEST consumer or listener: a `for await` body or a `listenBacktestProgress` handler
+   *   that writes to a database or a network per result slows every parallel backtest, not
+   *   only its own. This is a slowdown, never a hang, and the no-progress warning of the
+   *   peer wait does not fire for it (the slow party holds the lock, it is not outside it) —
+   *   keep consumers and listeners cheap, or batch their work. A consumer that waits for
+   *   ANOTHER backtest's progress inside the `for await` body would deadlock.
    * - Makes `CC_ENABLE_BACKTEST_PARALLEL_SPIN` redundant: `Candle.spinLock` is skipped while
    *   lockstep is on, the peers are parked on this mutex anyway.
    *

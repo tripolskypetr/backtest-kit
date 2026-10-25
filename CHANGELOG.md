@@ -1,3 +1,33 @@
+# Watch interval & exact exchange events (v23.3.0, 25/10/2026)
+
+## Frame cadences
+
+`IFrameSchema` has two cadences now. `entryInterval` is the tick: how often `getSignal` runs and idle pings fire (the lockstep hand-off follows it). `watchInterval` is the stride of the candle loops that watch an open or scheduled signal. `interval` stays as an alias of `entryInterval`; a schema that sets both throws. `watchInterval` defaults to `"1m"`, so existing frames keep their per-minute replay. The process-wide `CC_BACKTEST_STEP_MINUTES` is removed: the stride is a property of the frame. A daily-bar source polyfilled to minutes (the Yahoo template) sets `watchInterval: "1d"` on its frame and gets one evaluation per real bar.
+
+## What a coarse watch may and may not change
+
+Candles stay 1m. The strategy looks at a position once per watch span, at its last candle: pings and whatever it decides in them. Everything else happens on the exact candle inside the span, identically to a 1m watch:
+
+- exchange-forced events — stop-loss / liquidation touch, take-profit by VWAP (the 5-candle window computed on every minute), `minuteEstimatedTime` expiry, scheduled activation (with the touch minute as `pendingAt`), stop reject and wait timeout, frame end; the first event in time wins, not the span-end priority;
+- the strategy's protective events — a partial profit / loss level crossed or the breakeven threshold reached gets its callbacks on that candle through a light look without a ping;
+- a commit issued between looks (the action itself was always immediate) has its commit event stamped on the next candle, like a live tick a minute later;
+- the peak and the drawdown of the position are recorded candle by candle and reported once at the next look;
+- a user close rejected by the order gate is retried on the next candle across replay-window edges.
+
+The spans are on the time axis, anchored at the signal (`pendingAt` / `scheduledAt`): a gap in the 1m feed shortens a span's candle count and leaves its boundary in place, and the grid survives replay windows and the hand-back after a scheduled activation. Replay windows of Infinity positions hold a whole number of spans (the largest multiple of the step within `CC_MAX_CANDLES_PER_REQUEST`, paged by the exchange layer).
+
+## Behaviour changes to note
+
+- `onHighestProfit` / `onMaxDrawdown` are emitted once per look, after the ping and after the breakeven / partial callbacks of that look, carrying the price and the minute of the recorded extreme. On a 1m watch they used to come between the ping and the breakeven check.
+- A rejected user close is retried on every following candle (as in live); with `CC_ORDER_CLOSE_RETRY_ATTEMPTS: 0` and a gate that keeps refusing, that is one gate call per minute.
+- Lockstep hands the lock off before a forced event or a light look inside a span, not only at the span-end ping, so a peer's tick on the crossed boundary lands before the write. The peer wait logs a warning (logger + console) when it gives up on peers that make no progress; in a healthy run it never fires.
+- Lockstep moves the whole group at the pace of its slowest `Backtest.run` consumer or progress listener: a slowdown, not a hang. Keep them cheap.
+
+## New listeners and reports
+
+- `listenActivePingInterval`, `listenSchedulePingInterval`, `listenIdlePingInterval` (`fn, { interval }`): the ping channels on a time grid anchored at the position's open (first ping skipped) or, for idle, at the first idle ping.
+- `budget.jsonl` report, the `Budget` markdown report (`Budget.getData` / `getReport` / `dump`), `listenBudget` / `listenBudgetOnce`, `BudgetContract`, `BudgetMissingError`.
+
 # 🧵 Strategy Sharding (v21.7.0, 08/10/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/21.7.0)

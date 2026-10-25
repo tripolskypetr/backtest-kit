@@ -20,13 +20,13 @@ const NEED_FETCH = Symbol("need_fetch");
  * Array of profit level milestones to track (10%, 20%, ..., 100%).
  * Each level is checked during profit() method to emit events for newly reached levels.
  */
-const PROFIT_LEVELS: PartialLevel[] = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+export const PROFIT_LEVELS: PartialLevel[] = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
 /**
  * Array of loss level milestones to track (-10%, -20%, ..., -100%).
  * Each level is checked during loss() method to emit events for newly reached levels.
  */
-const LOSS_LEVELS: PartialLevel[] = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+export const LOSS_LEVELS: PartialLevel[] = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
 /**
  * Internal profit handler function for ClientPartial.

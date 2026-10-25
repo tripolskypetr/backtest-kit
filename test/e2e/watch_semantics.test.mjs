@@ -35,7 +35,7 @@ const SL = 85;
  * Flat candles at BASE with per-minute overrides (minute counted from FRAME_START);
  * the frame ticks hourly, the strategy opens whatever `getSignal` returns on the first tick.
  */
-const buildCase = (name, { watch, candleByMinute = {}, getSignal, callbacks = undefined, frameHours = 6 }) => {
+const buildCase = (name, { watch, candleByMinute = {}, skipMinutes = new Set(), getSignal, callbacks = undefined, frameHours = 6 }) => {
   const exchangeName = `watch-semantics-exchange-${name}`;
   const strategyName = `watch-semantics-strategy-${name}`;
   const frameName = `watch-semantics-frame-${name}`;
@@ -47,6 +47,11 @@ const buildCase = (name, { watch, candleByMinute = {}, getSignal, callbacks = un
       let timestamp = Math.floor(since.getTime() / MIN_MS) * MIN_MS;
       while (out.length < limit) {
         const minute = Math.round((timestamp - FRAME_START) / MIN_MS);
+        if (skipMinutes.has(minute)) {
+          // a hole in the feed: the exchange has no candle for this minute
+          timestamp += MIN_MS;
+          continue;
+        }
         const custom = candleByMinute[minute];
         out.push(custom
           ? { timestamp, open: BASE, high: BASE, low: BASE, close: BASE, volume: 1_000, ...custom }
@@ -405,17 +410,39 @@ test("WATCH SEMANTICS: an Infinity hold activated from a scheduled entry keeps a
       unPing();
     }
     if (opened.length !== 1 || minute(opened[0].signal.pendingAt) !== 100) return fail(`expected the activation on minute 100, got ${opened.map((o) => minute(o.signal.pendingAt)).join(",")}`);
-    // the span count starts on the candle after the activation one (the scheduled loop consumed it):
-    // evaluations at +60, +120, +180 … from the activation, every one 60 minutes after the previous;
-    // the frame end may cut the last span
+    // the grid is anchored at pendingAt (the activation minute), like a market open: evaluations at
+    // +59, +119, +179 … from the activation, every one 60 minutes after the previous; the frame end may cut the last span
     const gaps = pings.map((p, i) => (i ? p - pings[i - 1] : p - 100));
-    const regular = gaps.slice(0, -1);
-    if (regular.some((g) => g !== 60)) {
-      return fail(`expected evaluations at +60, +120, +180 … from the activation, got offsets ${pings.map((p) => p - 100).slice(0, 24).join(",")}… (gaps ${gaps.slice(0, 24).join(",")})`);
+    const regular = gaps.slice(1, -1);
+    if (gaps[0] !== 59 || regular.some((g) => g !== 60)) {
+      return fail(`expected evaluations at +59, +119, +179 … from the activation, got offsets ${pings.map((p) => p - 100).slice(0, 24).join(",")}… (gaps ${gaps.slice(0, 24).join(",")})`);
     }
     if (pings.length < 30) return fail(`expected the grid to cross at least one window boundary (16 spans), got ${pings.length} evaluations`);
-    pass(`${pings.length} evaluations, gaps ${[...new Set(regular)].join(",")} min, first at activation+${gaps[0]}`);
+    pass(`${pings.length} evaluations, first at activation+${gaps[0]}, then every ${[...new Set(regular)].join(",")} min`);
   } finally {
     setConfig({ CC_MAX_SIGNAL_LIFETIME_MINUTES: 999999 }, true);
   }
+});
+
+test("WATCH SEMANTICS: the watch grid is on the time axis — a hole in the 1m feed leaves the span boundaries in place", async ({ pass, fail }) => {
+  // 1h watch, a 200-minute position; the exchange has no candles for some minutes
+  const cases = [
+    // ten minutes missing inside the first span: the span still ends on minute 59 (49 candles instead of 59)
+    { name: "hole-10", skip: Array.from({ length: 10 }, (_, i) => 30 + i), evaluations: [59, 119, 179] },
+    // a whole span missing: nothing to evaluate in [60, 120), the next span still ends on 179
+    { name: "hole-span", skip: Array.from({ length: 60 }, (_, i) => 60 + i), evaluations: [59, 179] },
+  ];
+  const report = [];
+  for (const spec of cases) {
+    const schema = buildCase(`gap-${spec.name}`, { watch: "1h", skipMinutes: new Set(spec.skip), getSignal: () => marketLong(200) });
+    const { closed, pings } = await runCase(schema);
+    if (closed.length !== 1 || closed[0].closeReason !== "time_expired" || minute(closed[0].closeTimestamp) !== 200) {
+      return fail(`${spec.name}: expected time_expired exactly on minute 200, got ${JSON.stringify(closed.map((c) => `${c.closeReason}@${minute(c.closeTimestamp)}`))}`);
+    }
+    if (pings.join(",") !== spec.evaluations.join(",")) {
+      return fail(`${spec.name}: expected evaluations on minutes ${spec.evaluations.join(",")} (time-aligned despite the hole), got ${pings.join(",")}`);
+    }
+    report.push(`${spec.name}: ${pings.join(",")}`);
+  }
+  pass(report.join(" | "));
 });
