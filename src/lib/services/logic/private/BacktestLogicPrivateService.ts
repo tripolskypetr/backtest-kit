@@ -176,7 +176,10 @@ const WAIT_FOR_PEERS_FN = async (
  * DCA entry, a budget reserve) would then be checked against a journal the
  * peers have not reached yet. ClientStrategy pings on every replayed candle and
  * `StrategyConnectionService` calls `handoff` from its `onSchedulePing` /
- * `onActivePing` system callbacks BEFORE the candle's listeners run: on the
+ * `onActivePing` system callbacks BEFORE the candle's listeners run, and from
+ * `onHandoff` right before the loops execute an exchange-forced event (a stop,
+ * a take-profit, an activation) on a candle inside a watch span, which never
+ * reaches the span-end ping: on the
  * first candle on or past the next boundary the replay waits
  * ({@link WAIT_FOR_PEERS_FN}) until every running peer has reached the last
  * boundary that candle crossed, so a write on that candle is checked against

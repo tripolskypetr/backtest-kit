@@ -2469,6 +2469,95 @@ test("LOCKSTEP WAIT_FOR_PEERS: the hand-off wait makes a replay stop at every ho
   pass(`replay of ${HOLD} minutes handed off at ${Array.from({ length: HOLD / 60 - 1 }, (_, i) => (i + 1) * 60).join("/")}: ${describeOrder(order.filter((e) => e.kind === "tick" || e.at % 60 === 0 || e.at % 60 === 59))}`);
 });
 
+// ── A forced event inside a watch span hands off before it writes ────────────
+
+/**
+ * Hourly ticks, hourly watch. FORCED places a resting long at 95 on hour 0; the only
+ * dip to 94 is on minute 100, in the middle of the 60..119 span, so the activation is
+ * an exchange-forced event inside the span. PEER opens a market long on its hour-1
+ * tick (minute 60). Both reserve the budget cost on "opened".
+ */
+const FORCED_SYMBOL = "FORCEDUSDT";
+const FORCED_PEER = "PEERUSDT";
+const FORCED_DIP_MINUTE = 100;
+
+const buildForcedHandoffCase = (name) => {
+  const exchangeName = `lockstep-forced-exchange-${name}`;
+  const strategyName = `lockstep-forced-strategy-${name}`;
+  const frameName = `lockstep-forced-frame-${name}`;
+  addExchangeSchema({
+    exchangeName,
+    getCandles: async (symbol, interval, since, limit) => {
+      if (interval !== "1m") throw new Error(`lockstep forced exchange: only 1m bars, got ${interval}`);
+      const out = [];
+      let timestamp = Math.floor(since.getTime() / MIN_MS) * MIN_MS;
+      while (out.length < limit) {
+        const dip = symbol === FORCED_SYMBOL && timestamp === FRAME_START + FORCED_DIP_MINUTE * MIN_MS;
+        out.push({ timestamp, open: 100, high: 100, low: dip ? 94 : 100, close: 100, volume: 1_000 });
+        timestamp += MIN_MS;
+      }
+      return out;
+    },
+    formatPrice: async (_s, p) => p.toFixed(8),
+    formatQuantity: async (_s, q) => q.toFixed(8),
+  });
+  addStrategySchema({
+    strategyName,
+    interval: "1h",
+    getSignal: async (symbol, when) => {
+      if (symbol === FORCED_SYMBOL && when.getTime() === FRAME_START) {
+        return { position: "long", priceOpen: 95, priceStopLoss: 85, priceTakeProfit: 119, cost: BUDGET_COST, minuteEstimatedTime: 60 };
+      }
+      if (symbol === FORCED_PEER && when.getTime() === FRAME_START + HOUR_MS) {
+        return { position: "long", priceStopLoss: 85, priceTakeProfit: 119, cost: BUDGET_COST, minuteEstimatedTime: 60 };
+      }
+      return null;
+    },
+  });
+  addFrameSchema({ frameName, entryInterval: "1h", watchInterval: "1h", startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
+  return { exchangeName, strategyName, frameName };
+};
+
+test("LOCKSTEP WATCH: an activation forced on minute 100 of a 1h span hands off first, so the peer's reserve of minute 60 is on the journal and the late one is refused", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  Budget.enable();
+  const schema = buildForcedHandoffCase("activation");
+  const key = { ...schema, backtest: true, name: BUDGET_NAME, initialCapital: BUDGET_CAPITAL };
+  const arrivals = [];
+  const rejects = [];
+  const unOpened = listenSignalBacktest(async (event) => {
+    if (event.strategyName !== schema.strategyName || event.action !== "opened") return;
+    const when = new Date(event.signal.pendingAt);
+    arrivals.push(`${event.symbol.replace("USDT", "")}@${(when.getTime() - FRAME_START) / MIN_MS}`);
+    try {
+      await Budget._reserve({ id: event.signal.id, amount: BUDGET_COST, note: event.symbol }, { ...key, symbol: event.symbol, when });
+    } catch (error) {
+      if (!BudgetRejectedError.isBudgetRejectedError(error)) throw error;
+      rejects.push(event.symbol);
+    }
+  });
+  const unClosed = listenSignalBacktest(async (event) => {
+    if (event.strategyName !== schema.strategyName || event.action !== "closed") return;
+    await Budget._release({ id: event.signal.id, pnl: event.pnl.pnlCost }, { ...key, symbol: event.symbol, when: new Date(event.closeTimestamp) });
+  });
+  let done;
+  try {
+    done = await runUntilDone(schema, [FORCED_SYMBOL, FORCED_PEER], ERROR_TIMEOUT_MS);
+  } finally {
+    unOpened();
+    unClosed();
+  }
+  const history = await Budget._getHistory({ ...key, symbol: null, when: new Date(JOURNAL_END) });
+  // the peer's tick at minute 60 must have run before the forced activation wrote at minute 100
+  if (arrivals.join(",") !== "PEER@60,FORCED@100") {
+    return fail(`expected the peer's open at 60 to arrive before the forced activation at 100, got ${arrivals.join(",")}; journal: ${describeRows(history)}`);
+  }
+  if (rejects.join(",") !== FORCED_SYMBOL) return fail(`expected the late reserve of ${FORCED_SYMBOL} to be refused (capital ${BUDGET_CAPITAL}, two costs of ${BUDGET_COST}), got rejects ${rejects.join(",") || "none"}; journal: ${describeRows(history)}`);
+  if (history.some((r) => r.type === "reserve" && r.overdraft !== undefined)) return fail(`overdraft in the journal: ${describeRows(history)}`);
+  if (await failedSurvivorsOrLock(schema, done, [FORCED_SYMBOL, FORCED_PEER], fail)) return;
+  pass(`arrivals ${arrivals.join(" → ")}, journal: ${describeRows(history)}`);
+});
+
 // ── Different strategies on different timeframes ─────────────────────────────
 
 const MIXED_FINE_SYMBOL = "MIXEDFINEUSDT";

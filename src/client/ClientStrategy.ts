@@ -6046,6 +6046,19 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     const touchHigh = candle.high;
     spanStart = i + 1;
 
+    // CC_BACKTEST_LOCKSTEP: a forced event does not reach the span-end ping that normally
+    // hands the lock off; let the parallel backtests reach this candle's boundary first
+    if (forcedIndex !== -1) {
+      await self.params.onHandoff(
+        self.params.execution.context.symbol,
+        self.params.strategyName,
+        self.params.exchangeName,
+        self.params.frameName,
+        candle.timestamp,
+        self.params.execution.context.backtest
+      );
+    }
+
     // Если timestamp свечи вышел за frameEndTime — отменяем scheduled сигнал
     if (candle.timestamp > frameEndTime) {
       const result = await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
@@ -6599,6 +6612,19 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     const touchHigh = currentCandle.high;
     spanStart = i + 1;
 
+    // CC_BACKTEST_LOCKSTEP: a forced event does not reach the span-end ping that normally
+    // hands the lock off; let the parallel backtests reach this candle's boundary first
+    if (forcedIndex !== -1) {
+      await self.params.onHandoff(
+        self.params.execution.context.symbol,
+        self.params.strategyName,
+        self.params.exchangeName,
+        self.params.frameName,
+        currentCandleTimestamp,
+        self.params.execution.context.backtest
+      );
+    }
+
     // Если timestamp свечи вышел за frameEndTime — закрываем pending сигнал по time_expired
     if (currentCandleTimestamp > frameEndTime) {
       const result = await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
@@ -6622,10 +6648,13 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       // Sync close accepted — position closed, return. If rejected, _closedSignal is
       // kept and we skip this candle: live tick returns idle on a rejected user close
       // (it does NOT fall into the TP/SL or active-monitoring path), so the candle is
-      // skipped here and the close is re-attempted on the next candle.
+      // skipped here and the close is re-attempted on the next candle. With a watch
+      // stride the rest of the span is not skipped with it: the next iteration scans
+      // from the candle after this one.
       if (userCloseResult) {
         return userCloseResult;
       }
+      spanStart = evalIndex + 1;
       continue;
     }
 

@@ -820,6 +820,16 @@ export interface IStrategyParams extends IStrategySchema {
   onSchedulePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IPublicSignalRow, currentPrice: number, backtest: boolean, timestamp: number) => Promise<void>;
   /** System callback for active ping events (emits to activePingSubject) */
   onActivePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IPublicSignalRow, currentPrice: number, backtest: boolean, timestamp: number) => Promise<void>;
+  /**
+   * System callback the backtest candle loops call right before they execute an
+   * exchange-forced event (stop / liquidation / take-profit / time expiry /
+   * scheduled activation / stop reject / wait timeout) on a candle inside a
+   * watch span. Under CC_BACKTEST_LOCKSTEP it hands the lock off to the
+   * parallel backtests so they reach the last timeframe boundary before this
+   * candle (see BacktestLogicPrivateService.handoff); the pings do the same at
+   * the span end, but a forced event does not wait for the ping. No-op in live.
+   */
+  onHandoff: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, timestamp: number, backtest: boolean) => Promise<void>;
   /** System callback for idle ping events (emits to idlePingSubject) */
   onIdlePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, currentPrice: number, backtest: boolean, timestamp: number) => Promise<void>;
   /**

@@ -7,6 +7,8 @@ import {
   Backtest,
   getConfig,
   listenPartialProfitAvailable,
+  commitClosePending,
+  lib,
 } from "../../build/index.mjs";
 
 // What a coarse watchInterval may and may not change. The strategy LOOKS once per
@@ -27,7 +29,7 @@ const SL = 85;
  * Flat candles at BASE with per-minute overrides (minute counted from FRAME_START);
  * the frame ticks hourly, the strategy opens whatever `getSignal` returns on the first tick.
  */
-const buildCase = (name, { watch, candleByMinute = {}, getSignal, frameHours = 6 }) => {
+const buildCase = (name, { watch, candleByMinute = {}, getSignal, callbacks = undefined, frameHours = 6 }) => {
   const exchangeName = `watch-semantics-exchange-${name}`;
   const strategyName = `watch-semantics-strategy-${name}`;
   const frameName = `watch-semantics-frame-${name}`;
@@ -59,6 +61,7 @@ const buildCase = (name, { watch, candleByMinute = {}, getSignal, frameHours = 6
       issued = true;
       return getSignal();
     },
+    ...(callbacks && { callbacks }),
   });
   addFrameSchema({ frameName, entryInterval: "1h", watchInterval: watch, startDate: new Date(FRAME_START), endDate: new Date(FRAME_START + frameHours * HOUR_MS) });
   return { exchangeName, strategyName, frameName };
@@ -174,4 +177,70 @@ test("WATCH SEMANTICS: a partial-profit level crossed and given back inside a sp
   if (seen["1m"].some((p) => p.at < 70 || p.at > 74)) return fail(`1m partial events outside the spike: ${JSON.stringify(seen["1m"])}`);
   if (seen["1h"].length) return fail(`the 1h watch looks only at span ends, where the price is back at ${BASE}: expected no partial events, got ${JSON.stringify(seen["1h"])}`);
   pass(`1m watch: levels ${seen["1m"].map((p) => p.level).join(",")} on minutes ${[...new Set(seen["1m"].map((p) => p.at))].join(",")}; 1h watch: none`);
+});
+
+/**
+ * Rejects the first close attempt of the named strategies at the order gate. Backtest
+ * gates short-circuit to "confirmed", so the refusal is fed through params.onOrderSync of
+ * the strategy instance (the same hook the retry-close tests use).
+ */
+const rejectFirstCloseOf = (strategyNames, attempts) => {
+  const realService = Object.getPrototypeOf(lib.strategyConnectionService);
+  const originalGetStrategy = realService.getStrategy;
+  const wrapped = (...args) => {
+    const strategy = originalGetStrategy(...args);
+    if (!strategy.__watchPatched && strategyNames.includes(strategy.params.strategyName)) {
+      strategy.__watchPatched = true;
+      const original = strategy.params.onOrderSync;
+      strategy.params.onOrderSync = async (event) => {
+        if (event.action === "signal-close") {
+          attempts.push({ strategyName: strategy.params.strategyName, attempt: event.attempt, at: minute(event.timestamp) });
+          if (event.attempt === 0) throw new Error("watch semantics: first close attempt rejected");
+        }
+        return await original(event);
+      };
+    }
+    return strategy;
+  };
+  wrapped.clear = originalGetStrategy.clear;
+  wrapped.has = originalGetStrategy.has;
+  wrapped.values = originalGetStrategy.values;
+  realService.getStrategy = wrapped;
+};
+
+test("WATCH SEMANTICS: a user close rejected by the gate is retried on the next candle, not on the next span, identically on a 1m and a 1h watch", async ({ pass, fail }) => {
+  // the strategy asks to close on its first look (minute 59 on a 1h watch, minute 0 on a 1m watch);
+  // the gate refuses the first attempt, the retry must come one candle later
+  const names = ["1m", "1h"].map((watch) => `watch-semantics-strategy-reject-close-${watch}`);
+  const attempts = [];
+  rejectFirstCloseOf(names, attempts);
+  const results = {};
+  for (const watch of ["1m", "1h"]) {
+    let requested = false;
+    const schema = buildCase(`reject-close-${watch}`, {
+      watch,
+      getSignal: () => marketLong(300),
+      callbacks: {
+        onActivePing: async (symbol) => {
+          if (requested) return;
+          requested = true;
+          await commitClosePending(symbol);
+        },
+      },
+    });
+    const { closed } = await runCase(schema);
+    if (closed.length !== 1) return fail(`${watch}: expected one close, got ${closed.length}`);
+    const own = attempts.filter((a) => a.strategyName === schema.strategyName);
+    results[watch] = { reason: closed[0].closeReason, at: minute(closed[0].closeTimestamp), attempts: own.map((a) => `${a.attempt}@${a.at}`) };
+  }
+  // 1h watch: first look on minute 59, the close applies on minute 60 (first candle of the next span) and is refused,
+  // the retry is on minute 61 — the rest of the span is not skipped
+  if (results["1h"].reason !== "closed" || results["1h"].attempts.join(",") !== "0@60,1@61" || results["1h"].at !== 61) {
+    return fail(`1h watch: expected the rejected close at 60 to be retried and accepted on 61, got ${JSON.stringify(results["1h"])}`);
+  }
+  // 1m watch: first look on minute 0, refused on 1, accepted on 2 — the same "next candle" rule
+  if (results["1m"].reason !== "closed" || results["1m"].attempts.join(",") !== "0@1,1@2" || results["1m"].at !== 2) {
+    return fail(`1m watch: expected the rejected close at 1 to be retried and accepted on 2, got ${JSON.stringify(results["1m"])}`);
+  }
+  pass(`1m: attempts ${results["1m"].attempts.join(" ")} closed@${results["1m"].at} | 1h: attempts ${results["1h"].attempts.join(" ")} closed@${results["1h"].at}`);
 });
