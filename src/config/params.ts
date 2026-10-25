@@ -504,6 +504,20 @@ export const GLOBAL_CONFIG = {
   CC_BACKTEST_LOCKSTEP: true,
 
   /**
+   * How `Budget.reserve` / `Budget.withdraw` (and the context-free `Budget._reserve` /
+   * `Budget._withdraw`) report a refusal — a reserve above the free balance, a withdrawal
+   * above the held units. The `reject` row is written to the journal either way.
+   *
+   * - `false` (default): the call returns `false`; the strategy branches on the result
+   *   (`if (!(await fund.reserve(dto))) return null;`).
+   * - `true`: the call throws `BudgetRejectedError` — for code that treats a refusal as an
+   *   exception path or wants it to surface out of a listener into `listenError`.
+   *
+   * Default: false
+   */
+  CC_BUDGET_THROW_ON_REJECT: false,
+
+  /**
    * Enables DCA (Dollar-Cost Averaging) logic even if antirecord is not broken.
    * Allows to commitAverageBuy if currentPrice is not the lowest price since entry, but still lower than priceOpen.
    * This can help improve average entry price in cases where price has rebounded after entry but is still below priceOpen, without waiting for a new lower price.

@@ -20,8 +20,12 @@ const ERROR_MESSAGE_DEFAULT = "BudgetRejectedError";
  * static guard — never by `instanceof`, so it survives duplicated module
  * instances across bundles.
  *
+ * Thrown only when `CC_BUDGET_THROW_ON_REJECT` is on; by default a refused
+ * reserve / withdraw returns `false` and leaves a `reject` row in the journal.
+ *
  * @example
  * ```typescript
+ * // CC_BUDGET_THROW_ON_REJECT: true
  * try {
  *   await fund.reserve({ id, amount: cost });
  * } catch (error) {

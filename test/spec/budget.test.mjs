@@ -13,6 +13,7 @@ import {
   Markdown,
   listenBudget,
   getConfig,
+  setConfig,
 } from "../../build/index.mjs";
 
 // Budget contract (PLAN.md stages 1–2): one journal per
@@ -32,15 +33,8 @@ const inContext = (symbol, when, fn, { backtest = true, method = METHOD } = {}) 
     method,
   );
 
-const expectRejected = async (fn) => {
-  try {
-    await fn();
-  } catch (error) {
-    if (BudgetRejectedError.isBudgetRejectedError(error)) return error;
-    throw error;
-  }
-  return null;
-};
+/** A refused reserve / withdraw returns false (CC_BUDGET_THROW_ON_REJECT off in the test config) */
+const expectRejected = async (fn) => (await fn()) === false;
 
 // ---------------------------------------------------------------------------
 // Stage 1
@@ -49,7 +43,9 @@ test("budget: single symbol reserve/release/deposit/withdraw with ordered histor
   Budget.enable();
   const fund = new Budget({ name: "fund", initialCapital: 1000 });
 
-  const afterReserve = await inContext("BTCUSDT", at(1), () => fund.reserve({ id: "sig-1", amount: 400, note: "entry" }));
+  const taken = await inContext("BTCUSDT", at(1), () => fund.reserve({ id: "sig-1", amount: 400, note: "entry" }));
+  if (taken !== true) return fail(`an accepted reserve must return true, got ${taken}`);
+  const afterReserve = await inContext("BTCUSDT", at(1), () => fund.getBalance());
   if (afterReserve.capital !== 1000 || afterReserve.deployed !== 400 || afterReserve.free !== 600) {
     return fail(`after reserve expected 1000/400/600, got ${JSON.stringify(afterReserve)}`);
   }
@@ -67,14 +63,16 @@ test("budget: single symbol reserve/release/deposit/withdraw with ordered histor
   const afterDeposit = await inContext("BTCUSDT", at(5), () => fund.deposit({ asset: "ETH", amount: 2.5, note: "staking" }));
   if (afterDeposit.assets.ETH !== 2.5) return fail(`deposit expected ETH 2.5, got ${JSON.stringify(afterDeposit.assets)}`);
 
-  const afterWithdraw = await inContext("BTCUSDT", at(6), () => fund.withdraw({ asset: "ETH", amount: 1 }));
+  const withdrawn = await inContext("BTCUSDT", at(6), () => fund.withdraw({ asset: "ETH", amount: 1 }));
+  if (withdrawn !== true) return fail(`an accepted withdraw must return true, got ${withdrawn}`);
+  const afterWithdraw = await inContext("BTCUSDT", at(6), () => fund.getBalance());
   if (afterWithdraw.assets.ETH !== 1.5) return fail(`withdraw expected ETH 1.5, got ${JSON.stringify(afterWithdraw.assets)}`);
 
   const rejected = await expectRejected(() => inContext("BTCUSDT", at(7), () => fund.withdraw({ asset: "ETH", amount: 5 })));
-  if (!rejected) return fail("withdraw above held amount must throw BudgetRejectedError");
+  if (!rejected) return fail("withdraw above held amount must return false");
 
   const tooMuch = await expectRejected(() => inContext("BTCUSDT", at(8), () => fund.reserve({ id: "sig-2", amount: 5000 })));
-  if (!tooMuch) return fail("reserve above free must throw BudgetRejectedError");
+  if (!tooMuch) return fail("reserve above free must return false");
 
   const history = await inContext("BTCUSDT", at(9), () => fund.getHistory());
   const types = history.map((row) => row.type);
@@ -486,4 +484,34 @@ test("budget: every journal row goes to budget.jsonl, the budget markdown report
   const cleared = await Budget.getData(context, true);
   if (cleared.totalEvents !== 0) return fail(`after clear expected 0 rows, got ${cleared.totalEvents}`);
   pass();
+});
+
+test("budget: with CC_BUDGET_THROW_ON_REJECT a refusal is a BudgetRejectedError, an accepted call still returns true", async ({ pass, fail }) => {
+  setConfig({ CC_BUDGET_THROW_ON_REJECT: true }, true);
+  Budget.enable();
+  const fund = new Budget({ name: "fund", initialCapital: 1000 });
+  try {
+    const taken = await inContext("BTCUSDT", at(1), () => fund.reserve({ id: "sig-1", amount: 400 }));
+    if (taken !== true) return fail(`an accepted reserve must return true, got ${taken}`);
+    let thrown = null;
+    try {
+      await inContext("BTCUSDT", at(2), () => fund.reserve({ id: "sig-2", amount: 5000 }));
+    } catch (error) {
+      thrown = error;
+    }
+    if (!thrown || !BudgetRejectedError.isBudgetRejectedError(thrown)) return fail(`expected a BudgetRejectedError, got ${thrown ? thrown.message : "no throw"}`);
+    let thrownWithdraw = null;
+    try {
+      await inContext("BTCUSDT", at(3), () => fund.withdraw({ asset: "ETH", amount: 1 }));
+    } catch (error) {
+      thrownWithdraw = error;
+    }
+    if (!thrownWithdraw || !BudgetRejectedError.isBudgetRejectedError(thrownWithdraw)) return fail(`expected a BudgetRejectedError on the withdraw, got ${thrownWithdraw ? thrownWithdraw.message : "no throw"}`);
+    // the refusals are on record either way
+    const history = await inContext("BTCUSDT", at(4), () => fund.getHistory());
+    if (history.filter((r) => r.type === "reject").length !== 2) return fail(`expected two reject rows, got ${history.map((r) => r.type).join(",")}`);
+    pass();
+  } finally {
+    setConfig({ CC_BUDGET_THROW_ON_REJECT: false }, true);
+  }
 });

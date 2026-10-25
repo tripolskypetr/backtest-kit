@@ -87,7 +87,8 @@ import { Subject, sleep } from "functools-kit";
  *              schedule / commit events, highest profit and max drawdown; pause, sync / check and the
  *              order fill / reject / continue / stop channels are live-only (CREATE_SYNC_FN returns
  *              "confirmed" without emitting when event.backtest is true) and stay subscribed but silent
- *   budget   - the same backtest channels drive the Budget with NO try/catch in the handlers: a reserve
+ *   budget   - the same backtest channels drive the Budget with NO try/catch in the handlers
+ *   callbacks  (CC_BUDGET_THROW_ON_REJECT on, so a refusal is a thrown BudgetRejectedError): a reserve
  *   callbacks  on the first active ping, the same id reserved AGAIN on the second one (an Error thrown
  *              out of the queued dispatch), a withdraw above the held amount from listenMaxDrawdown
  *              (a BudgetRejectedError thrown out of the handler), deposits from listenHighestProfit and
@@ -433,10 +434,7 @@ const runBudgetCase = async (schema, symbols) => {
     }
     if (reserved.has(event.data.id)) return;
     reserved.add(event.data.id);
-    try {
-      await Budget._reserve({ id: event.data.id, amount: BUDGET_COST, note: event.symbol }, contextOf(event.symbol, event.when));
-    } catch (error) {
-      if (!BudgetRejectedError.isBudgetRejectedError(error)) throw error;
+    if (!(await Budget._reserve({ id: event.data.id, amount: BUDGET_COST, note: event.symbol }, contextOf(event.symbol, event.when)))) {
       rejects.push({ symbol: event.symbol, when: event.when.getTime() });
     }
   });
@@ -820,10 +818,7 @@ const runJumpCase = async (schema) => {
   const toppedUp = new Set();
   const rejects = [];
   const reserve = async (id, note, event) => {
-    try {
-      await Budget._reserve({ id, amount: JUMP_COST, note }, contextOf(event.symbol, event.when));
-    } catch (error) {
-      if (!BudgetRejectedError.isBudgetRejectedError(error)) throw error;
+    if (!(await Budget._reserve({ id, amount: JUMP_COST, note }, contextOf(event.symbol, event.when)))) {
       rejects.push({ symbol: event.symbol, id, when: event.when.getTime() });
     }
   };
@@ -1444,7 +1439,7 @@ const CALLBACK_BUDGET_CAPITAL = 2_500;
 const CALLBACK_BUDGET_COST = 1_000;
 
 test("LOCKSTEP ERRORS: budget writes and their errors thrown out of every backtest callback neither hang nor corrupt the journal", async ({ pass, fail }) => {
-  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  setConfig({ CC_BACKTEST_LOCKSTEP: true, CC_BUDGET_THROW_ON_REJECT: true }, true);
   Budget.enable();
   const schema = buildListenerCase("budget");
   const symbols = [SLOW_SYMBOL, FAST_SYMBOL];
@@ -1587,7 +1582,7 @@ const PARTIAL_BUDGET_CAPITAL = 2_500;
 const PARTIAL_BUDGET_COST = 1_000;
 
 test("LOCKSTEP ERRORS: a reserve from the partial-profit callback competes with the peer under the hand-off and never overdrafts", async ({ pass, fail }) => {
-  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  setConfig({ CC_BACKTEST_LOCKSTEP: true, CC_BUDGET_THROW_ON_REJECT: true }, true);
   Budget.enable();
   // a risk that refuses every fourth check: the risk channel fires and FAST skips some opens
   let riskChecks = 0;
@@ -1765,10 +1760,7 @@ test("LOCKSTEP: a 1h replay hands off on the 15m peer's grid, its 01:46 reserve 
     listenActivePing(async (event) => {
       if (event.strategyName !== strategyName || reserved.has(event.data.id)) return;
       reserved.add(event.data.id);
-      try {
-        await Budget._reserve({ id: event.data.id, amount: STEP_COST, note: event.symbol }, contextOf(event.symbol, event.when));
-      } catch (error) {
-        if (!BudgetRejectedError.isBudgetRejectedError(error)) throw error;
+      if (!(await Budget._reserve({ id: event.data.id, amount: STEP_COST, note: event.symbol }, contextOf(event.symbol, event.when)))) {
         rejects.push({ symbol: event.symbol, when: event.when.getTime() });
       }
     }),
@@ -1832,7 +1824,7 @@ const ACTION_CAPITAL = 2_500;
 const ACTION_COST = 1_000;
 
 test("LOCKSTEP ERRORS: addActionSchema hooks that write to the budget and throw neither hang nor corrupt the journal", async ({ pass, fail }) => {
-  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  setConfig({ CC_BACKTEST_LOCKSTEP: true, CC_BUDGET_THROW_ON_REJECT: true }, true);
   Budget.enable();
   let riskChecks = 0;
   addRiskSchema({
@@ -2133,10 +2125,7 @@ test("LOCKSTEP: a Backtest.background joining when its peer is on hour 6 catches
       events.push({ symbol: event.symbol, when: event.timestamp, kind: "ping" });
       if (reserved.has(event.data.id)) return;
       reserved.add(event.data.id);
-      try {
-        await Budget._reserve({ id: event.data.id, amount: LATE_COST, note: event.symbol }, contextOf(event.symbol, event.when));
-      } catch (error) {
-        if (!BudgetRejectedError.isBudgetRejectedError(error)) throw error;
+      if (!(await Budget._reserve({ id: event.data.id, amount: LATE_COST, note: event.symbol }, contextOf(event.symbol, event.when)))) {
         rejects.push({ symbol: event.symbol, when: event.when.getTime() });
       }
     }),
@@ -2287,10 +2276,7 @@ test("LOCKSTEP: with a daily watchInterval on an hourly entry interval the day-3
     const rejects = [];
     const pings = [];
     const reserve = async (id, note, event) => {
-      try {
-        await Budget._reserve({ id, amount: STRIDE_COST, note }, contextOf(event.symbol, event.when));
-      } catch (error) {
-        if (!BudgetRejectedError.isBudgetRejectedError(error)) throw error;
+      if (!(await Budget._reserve({ id, amount: STRIDE_COST, note }, contextOf(event.symbol, event.when)))) {
         rejects.push({ symbol: event.symbol, id, when: event.when.getTime() });
       }
     };
@@ -2529,10 +2515,7 @@ test("LOCKSTEP WATCH: an activation forced on minute 100 of a 1h span hands off 
     if (event.strategyName !== schema.strategyName || event.action !== "opened") return;
     const when = new Date(event.signal.pendingAt);
     arrivals.push(`${event.symbol.replace("USDT", "")}@${(when.getTime() - FRAME_START) / MIN_MS}`);
-    try {
-      await Budget._reserve({ id: event.signal.id, amount: BUDGET_COST, note: event.symbol }, { ...key, symbol: event.symbol, when });
-    } catch (error) {
-      if (!BudgetRejectedError.isBudgetRejectedError(error)) throw error;
+    if (!(await Budget._reserve({ id: event.signal.id, amount: BUDGET_COST, note: event.symbol }, { ...key, symbol: event.symbol, when }))) {
       rejects.push(event.symbol);
     }
   });
@@ -2679,10 +2662,7 @@ const runLaunchCase = async (name, lockstep) => {
     listenActivePing(async (event) => {
       if (event.strategyName !== schema.strategyName || reserved.has(event.data.id)) return;
       reserved.add(event.data.id);
-      try {
-        await Budget._reserve({ id: event.data.id, amount: LAUNCH_COST, note: event.symbol }, contextOf(event.symbol, event.when));
-      } catch (error) {
-        if (!BudgetRejectedError.isBudgetRejectedError(error)) throw error;
+      if (!(await Budget._reserve({ id: event.data.id, amount: LAUNCH_COST, note: event.symbol }, contextOf(event.symbol, event.when)))) {
         rejects.push({ symbol: event.symbol, when: event.when.getTime() });
       }
     }),
@@ -2792,10 +2772,7 @@ test("LOCKSTEP: a symbol whose candle fetches wait on a macrotask joins before i
     listenActivePing(async (event) => {
       if (event.strategyName !== strategyName || reserved.has(event.data.id)) return;
       reserved.add(event.data.id);
-      try {
-        await Budget._reserve({ id: event.data.id, amount: JOIN_COST, note: event.symbol }, contextOf(event.symbol, event.when));
-      } catch (error) {
-        if (!BudgetRejectedError.isBudgetRejectedError(error)) throw error;
+      if (!(await Budget._reserve({ id: event.data.id, amount: JOIN_COST, note: event.symbol }, contextOf(event.symbol, event.when)))) {
         rejects.push({ symbol: event.symbol, when: event.when.getTime() });
       }
     }),

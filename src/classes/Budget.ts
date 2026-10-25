@@ -7,6 +7,7 @@ import { BudgetRejectedError } from "../error/BudgetRejectedError";
 import { BudgetMissingError } from "../error/BudgetMissingError";
 import swarm, { ExecutionContextService, MethodContextService } from "../lib";
 import { budgetSubject } from "../config/emitters";
+import { GLOBAL_CONFIG } from "../config/params";
 import type { Columns } from "../lib/services/markdown/BudgetMarkdownService";
 
 /**
@@ -1152,12 +1153,10 @@ const ASSERT_AMOUNT_FN = (method: string, amount: number): void => {
  *
  * // inside getSignal / any lifecycle callback:
  * const free = await fund.getFree();
- * try {
- *   await fund.reserve({ id, amount: cost });
- * } catch (error) {
- *   if (BudgetRejectedError.isBudgetRejectedError(error)) return null;
- *   throw error;
+ * if (!(await fund.reserve({ id, amount: cost }))) {
+ *   return null; // refused: not enough free capital at this logical time (a `reject` row is on record)
  * }
+ * // with CC_BUDGET_THROW_ON_REJECT the refusal is a BudgetRejectedError instead of `false`
  *
  * // outside the execution context (a listener): the context travels as the last argument
  * listenSignalBacktestClosed(({ data, pnl, timestamp }) =>
@@ -1339,15 +1338,16 @@ export class Budget {
 
   /**
    * Context-free reserve: free → deployed under `dto.id` at `context.when`.
-   * Refused (a `reject` row, then BudgetRejectedError) when `dto.amount` exceeds
-   * the free balance as of `when`.
+   * Refused when `dto.amount` exceeds the free balance as of `when`: a `reject`
+   * row is written and the call returns `false`, or throws BudgetRejectedError
+   * when `CC_BUDGET_THROW_ON_REJECT` is on.
    * @param dto - Reserve id, amount and optional note
    * @param context - Record key, budget name, logical time and symbol
-   * @returns Balance after the reserve
-   * @throws BudgetRejectedError when the free balance is insufficient
+   * @returns `true` when the reserve was taken, `false` when it was refused
+   * @throws BudgetRejectedError when refused and `CC_BUDGET_THROW_ON_REJECT` is on
    * @throws Error if Budget is not enabled, the amount is invalid or the id is already open
    */
-  public static _reserve = async (dto: IBudgetReserveDto, context: IBudgetContext): Promise<IBudgetBalance> => {
+  public static _reserve = async (dto: IBudgetReserveDto, context: IBudgetContext): Promise<boolean> => {
     swarm.loggerService.debug(BUDGET_METHOD_NAME_STATIC_RESERVE, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
@@ -1373,11 +1373,14 @@ export class Budget {
       return { type: "reserve", id: dto.id, amount: dto.amount, ...(dto.note !== undefined && { note: dto.note }), symbol };
     }, context);
     if (row && row.type === "reject") {
-      throw new BudgetRejectedError(
-        `Budget "${context.name}": reserve "${dto.id}" of ${dto.amount} refused, free balance is ${row.available} at ${context.when.toISOString()}`,
-      );
+      if (GLOBAL_CONFIG.CC_BUDGET_THROW_ON_REJECT) {
+        throw new BudgetRejectedError(
+          `Budget "${context.name}": reserve "${dto.id}" of ${dto.amount} refused, free balance is ${row.available} at ${context.when.toISOString()}`,
+        );
+      }
+      return false;
     }
-    return await Budget._getBalance(context);
+    return true;
   };
 
   /**
@@ -1457,14 +1460,16 @@ export class Budget {
 
   /**
    * Context-free withdrawal of `dto.amount` units of `dto.asset` at `context.when`.
-   * Refused (a `reject` row, then BudgetRejectedError) when more than held as of `when`.
+   * Refused when more than held as of `when`: a `reject` row is written and the
+   * call returns `false`, or throws BudgetRejectedError when
+   * `CC_BUDGET_THROW_ON_REJECT` is on.
    * @param dto - Asset, units and optional note
    * @param context - Record key, budget name, logical time and symbol
-   * @returns Balance after the withdrawal
-   * @throws BudgetRejectedError when the held amount is insufficient
+   * @returns `true` when the units were withdrawn, `false` when refused
+   * @throws BudgetRejectedError when refused and `CC_BUDGET_THROW_ON_REJECT` is on
    * @throws Error if Budget is not enabled or the amount is invalid
    */
-  public static _withdraw = async (dto: IBudgetWithdrawDto, context: IBudgetContext): Promise<IBudgetBalance> => {
+  public static _withdraw = async (dto: IBudgetWithdrawDto, context: IBudgetContext): Promise<boolean> => {
     swarm.loggerService.debug(BUDGET_METHOD_NAME_STATIC_WITHDRAW, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
@@ -1484,11 +1489,14 @@ export class Budget {
       return { type: "withdraw", asset: dto.asset, amount: dto.amount, ...(dto.note !== undefined && { note: dto.note }), symbol };
     }, context);
     if (row && row.type === "reject") {
-      throw new BudgetRejectedError(
-        `Budget "${context.name}": withdraw of ${dto.amount} ${dto.asset} refused, held ${row.available} at ${context.when.toISOString()}`,
-      );
+      if (GLOBAL_CONFIG.CC_BUDGET_THROW_ON_REJECT) {
+        throw new BudgetRejectedError(
+          `Budget "${context.name}": withdraw of ${dto.amount} ${dto.asset} refused, held ${row.available} at ${context.when.toISOString()}`,
+        );
+      }
+      return false;
     }
-    return await Budget._getBalance(context);
+    return true;
   };
 
   /** Context of the instance methods: record key, logical time and symbol from the execution / method context */
@@ -1548,11 +1556,11 @@ export class Budget {
   /**
    * Reserve: free → deployed under `dto.id` at the current logical time.
    * @param dto - Reserve id, amount and optional note
-   * @returns Balance after the reserve
-   * @throws BudgetRejectedError when the free balance is insufficient
+   * @returns `true` when taken, `false` when refused (a `reject` row is on record)
+   * @throws BudgetRejectedError when refused and `CC_BUDGET_THROW_ON_REJECT` is on
    * @throws Error if no execution/method context
    */
-  public reserve = async (dto: IBudgetReserveDto): Promise<IBudgetBalance> => {
+  public reserve = async (dto: IBudgetReserveDto): Promise<boolean> => {
     swarm.loggerService.info(BUDGET_METHOD_NAME_RESERVE, { name: this.params.name, id: dto.id, amount: dto.amount });
     return await Budget._reserve(dto, this.getContext(BUDGET_METHOD_NAME_RESERVE));
   };
@@ -1582,11 +1590,11 @@ export class Budget {
   /**
    * Withdraw `dto.amount` units of `dto.asset` at the current logical time.
    * @param dto - Asset, units and optional note
-   * @returns Balance after the withdrawal
-   * @throws BudgetRejectedError when the held amount is insufficient
+   * @returns `true` when withdrawn, `false` when refused (a `reject` row is on record)
+   * @throws BudgetRejectedError when refused and `CC_BUDGET_THROW_ON_REJECT` is on
    * @throws Error if no execution/method context
    */
-  public withdraw = async (dto: IBudgetWithdrawDto): Promise<IBudgetBalance> => {
+  public withdraw = async (dto: IBudgetWithdrawDto): Promise<boolean> => {
     swarm.loggerService.info(BUDGET_METHOD_NAME_WITHDRAW, { name: this.params.name, asset: dto.asset, amount: dto.amount });
     return await Budget._withdraw(dto, this.getContext(BUDGET_METHOD_NAME_WITHDRAW));
   };

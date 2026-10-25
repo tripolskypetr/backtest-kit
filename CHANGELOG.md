@@ -1,12 +1,40 @@
-# Watch interval & exact exchange events (v23.3.0, 25/10/2026)
+# 💰 Shared Budget (v23.3.0, 25/10/2026)
 
-## Frame cadences
+## Budget API
 
-`IFrameSchema` has two cadences now. `entryInterval` is the tick: how often `getSignal` runs and idle pings fire (the lockstep hand-off follows it). `watchInterval` is the stride of the candle loops that watch an open or scheduled signal. `interval` stays as an alias of `entryInterval`; a schema that sets both throws. `watchInterval` defaults to `"1m"`, so existing frames keep their per-minute replay. The process-wide `CC_BACKTEST_STEP_MINUTES` is removed: the stride is a property of the frame. A daily-bar source polyfilled to minutes (the Yahoo template) sets `watchInterval: "1d"` on its frame and gets one evaluation per real bar.
+`Budget` is a shared account for every symbol of a strategy run, written in the `State` idiom: an instance in the strategy module, no schema, every method resolves the mode, the logical time and the symbol from the execution context.
 
-## What a coarse watch may and may not change
+```typescript
+Budget.enable();
+const fund = new Budget({ name: "fund", initialCapital: 10_000 });
 
-Candles stay 1m. The strategy looks at a position once per watch span, at its last candle: pings and whatever it decides in them. Everything else happens on the exact candle inside the span, identically to a 1m watch:
+// inside getSignal or any lifecycle callback
+const free = await fund.getFree();
+if (!(await fund.reserve({ id: signalId, amount: cost, note: "entry" }))) {
+  return null; // not enough free capital at this logical time: a `reject` row is on record
+}
+await fund.release({ id: signalId, pnl: pnlCost }); // on close: capital += pnl
+await fund.deposit({ asset: "ETH", amount: 2 });   // units of an asset (dividends, staking)
+await fund.withdraw({ asset: "ETH", amount: 1 });
+```
+
+The record is keyed by `(strategyName, exchangeName, frameName, backtest)` plus the budget `name`, so every symbol of the run reads and writes one journal. The journal holds `reserve` / `release` / `reject` / `deposit` / `withdraw` rows with the balance after each row, ordered by `(timestamp, symbol, seq)`; a read at `when` folds only the rows up to `when`, so a symbol that is ahead in logical time never leaks its future into a lagging one, and the same run yields the same journal whatever order Node interleaved the symbols in. A reserve exceeding the free balance (or a withdrawal above the held units) is refused: `reserve` / `withdraw` return `false` and leave a `reject` row; with `CC_BUDGET_THROW_ON_REJECT: true` the refusal is a `BudgetRejectedError` instead, for code that wants it to surface as an exception. An overdraft produced by an out-of-order insert is marked on the row and logged, never hidden.
+
+Context-free statics for listeners and dashboards take the context explicitly: `Budget._reserve(dto, context)`, `_release`, `_deposit`, `_withdraw`, `_getBalance`, `_getFree`, `_getHistory` with `IBudgetContext { strategyName, exchangeName, frameName, backtest, name, when, symbol?, initialCapital? }`; `Budget._getNames()` lists the budgets constructed in the process. A static call that would create a record without `initialCapital` throws `BudgetMissingError` instead of inventing a capital.
+
+Storage follows the other persisted entities: `BudgetBacktest` (in-memory by default) and `BudgetLive` (persisted by default) with `useLocal` / `usePersist` / `useDummy` / `useBudgetAdapter`, `PersistBudgetAdapter` in the core, adapters in `@backtest-kit/mongo`, `@backtest-kit/pg`, `@backtest-kit/minio` and the docker satellites, `Setup.ts` in the CLI.
+
+Reporting: every journal row is emitted on `budgetSubject` (`listenBudget` / `listenBudgetOnce`, `BudgetContract`), written to `./dump/report/budget.jsonl` by `Report.enable()` and accumulated by `Markdown.enable()` for the `# Budget Report:` markdown (`Budget.getData` / `getReport` / `dump`, `BudgetStatisticsModel`, `budget_columns`). The UI gets `/api/v1/view/budget_balance` and `budget_history` (the Balance page), `/api/v1/markdown_view/budget_data` and `budget_report` (the Budget tab of the markdown report), with mocks.
+
+## Lockstep: parallel backtests on one logical clock
+
+A shared budget needs the symbols to write in time order, so parallel backtests now advance together under `CC_BACKTEST_LOCKSTEP` (default `true`; the test config turns it off). Every timeframe iteration runs under a process-wide FIFO mutex behind a time barrier, and a candle replay hands the lock off on the finest timeframe grid among the running backtests — from its pings, and before any exchange-forced event or light look inside a watch span — so a strategy blocked in `getSignal` or a ping handler (an LLM call) parks its peers at the same `when`, and the symbols stay at most one timeframe apart even while one of them replays a long position. Peers launched together through `Backtest.background` (the `Launcher` loop) are waited for before the first iteration; `Backtest.run` joins once started. The price is parallelism: the group moves at the pace of its slowest strategy, consumer or progress listener — a slowdown, never a hang — so turn the flag off for independent symbols and keep `for await` bodies and listeners cheap. The peer wait logs a warning (logger + console) if it ever gives up on peers that make no progress; in a healthy run it does not fire.
+
+## Frame cadences: `entryInterval` and `watchInterval`
+
+`IFrameSchema` has two cadences. `entryInterval` is the tick: how often `getSignal` runs and idle pings fire (the lockstep hand-off follows it). `watchInterval` is the stride of the candle loops that watch an open or scheduled signal. `interval` stays as an alias of `entryInterval`; a schema that sets both throws. `watchInterval` defaults to `"1m"`, so existing frames keep their per-minute replay. The process-wide `CC_BACKTEST_STEP_MINUTES` is removed: the stride is a property of the frame. A daily-bar source polyfilled to minutes (the Yahoo template) sets `watchInterval: "1d"` and gets one look per real bar.
+
+Candles stay 1m. The strategy looks at a position once per watch span, at its last candle: the pings and whatever it decides in them. Everything else happens on the exact candle inside the span, identically to a 1m watch:
 
 - exchange-forced events — stop-loss / liquidation touch, take-profit by VWAP (the 5-candle window computed on every minute), `minuteEstimatedTime` expiry, scheduled activation (with the touch minute as `pendingAt`), stop reject and wait timeout, frame end; the first event in time wins, not the span-end priority;
 - the strategy's protective events — a partial profit / loss level crossed or the breakeven threshold reached gets its callbacks on that candle through a light look without a ping;
@@ -16,17 +44,15 @@ Candles stay 1m. The strategy looks at a position once per watch span, at its la
 
 The spans are on the time axis, anchored at the signal (`pendingAt` / `scheduledAt`): a gap in the 1m feed shortens a span's candle count and leaves its boundary in place, and the grid survives replay windows and the hand-back after a scheduled activation. Replay windows of Infinity positions hold a whole number of spans (the largest multiple of the step within `CC_MAX_CANDLES_PER_REQUEST`, paged by the exchange layer).
 
+## Ping listeners on a grid
+
+`listenActivePingInterval`, `listenSchedulePingInterval`, `listenIdlePingInterval` (`fn, { interval }`) thin the ping channels to a time grid: active / schedule anchored at the signal's open with the first ping skipped, idle anchored at the first idle ping.
+
 ## Behaviour changes to note
 
 - `onHighestProfit` / `onMaxDrawdown` are emitted once per look, after the ping and after the breakeven / partial callbacks of that look, carrying the price and the minute of the recorded extreme. On a 1m watch they used to come between the ping and the breakeven check.
 - A rejected user close is retried on every following candle (as in live); with `CC_ORDER_CLOSE_RETRY_ATTEMPTS: 0` and a gate that keeps refusing, that is one gate call per minute.
-- Lockstep hands the lock off before a forced event or a light look inside a span, not only at the span-end ping, so a peer's tick on the crossed boundary lands before the write. The peer wait logs a warning (logger + console) when it gives up on peers that make no progress; in a healthy run it never fires.
-- Lockstep moves the whole group at the pace of its slowest `Backtest.run` consumer or progress listener: a slowdown, not a hang. Keep them cheap.
-
-## New listeners and reports
-
-- `listenActivePingInterval`, `listenSchedulePingInterval`, `listenIdlePingInterval` (`fn, { interval }`): the ping channels on a time grid anchored at the position's open (first ping skipped) or, for idle, at the first idle ping.
-- `budget.jsonl` report, the `Budget` markdown report (`Budget.getData` / `getReport` / `dump`), `listenBudget` / `listenBudgetOnce`, `BudgetContract`, `BudgetMissingError`.
+- `listenError`, `listenExit` and `listenValidation` catch a throwing listener and log it: those channels are emitted fire-and-forget and a throw used to become an unhandled rejection.
 
 # 🧵 Strategy Sharding (v21.7.0, 08/10/2026)
 

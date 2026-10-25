@@ -9544,6 +9544,19 @@ declare const GLOBAL_CONFIG: {
      */
     CC_BACKTEST_LOCKSTEP: boolean;
     /**
+     * How `Budget.reserve` / `Budget.withdraw` (and the context-free `Budget._reserve` /
+     * `Budget._withdraw`) report a refusal — a reserve above the free balance, a withdrawal
+     * above the held units. The `reject` row is written to the journal either way.
+     *
+     * - `false` (default): the call returns `false`; the strategy branches on the result
+     *   (`if (!(await fund.reserve(dto))) return null;`).
+     * - `true`: the call throws `BudgetRejectedError` — for code that treats a refusal as an
+     *   exception path or wants it to surface out of a listener into `listenError`.
+     *
+     * Default: false
+     */
+    CC_BUDGET_THROW_ON_REJECT: boolean;
+    /**
      * Enables DCA (Dollar-Cost Averaging) logic even if antirecord is not broken.
      * Allows to commitAverageBuy if currentPrice is not the lowest price since entry, but still lower than priceOpen.
      * This can help improve average entry price in cases where price has rebounded after entry but is still below priceOpen, without waiting for a new lower price.
@@ -9834,6 +9847,7 @@ declare function getConfig(): {
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
     CC_ENABLE_BACKTEST_PARALLEL_SPIN: boolean;
     CC_BACKTEST_LOCKSTEP: boolean;
+    CC_BUDGET_THROW_ON_REJECT: boolean;
     CC_ENABLE_DCA_EVERYWHERE: boolean;
     CC_ENABLE_PPPL_EVERYWHERE: boolean;
     CC_ENABLE_LONG_SIGNAL: boolean;
@@ -9909,6 +9923,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
     CC_ENABLE_BACKTEST_PARALLEL_SPIN: boolean;
     CC_BACKTEST_LOCKSTEP: boolean;
+    CC_BUDGET_THROW_ON_REJECT: boolean;
     CC_ENABLE_DCA_EVERYWHERE: boolean;
     CC_ENABLE_PPPL_EVERYWHERE: boolean;
     CC_ENABLE_LONG_SIGNAL: boolean;
@@ -19322,12 +19337,10 @@ declare class BudgetLiveAdapter implements TBudgetAdapter {
  *
  * // inside getSignal / any lifecycle callback:
  * const free = await fund.getFree();
- * try {
- *   await fund.reserve({ id, amount: cost });
- * } catch (error) {
- *   if (BudgetRejectedError.isBudgetRejectedError(error)) return null;
- *   throw error;
+ * if (!(await fund.reserve({ id, amount: cost }))) {
+ *   return null; // refused: not enough free capital at this logical time (a `reject` row is on record)
  * }
+ * // with CC_BUDGET_THROW_ON_REJECT the refusal is a BudgetRejectedError instead of `false`
  *
  * // outside the execution context (a listener): the context travels as the last argument
  * listenSignalBacktestClosed(({ data, pnl, timestamp }) =>
@@ -19430,15 +19443,16 @@ declare class Budget {
     static _getHistory: (context: IBudgetContext) => Promise<IBudgetHistoryRow[]>;
     /**
      * Context-free reserve: free → deployed under `dto.id` at `context.when`.
-     * Refused (a `reject` row, then BudgetRejectedError) when `dto.amount` exceeds
-     * the free balance as of `when`.
+     * Refused when `dto.amount` exceeds the free balance as of `when`: a `reject`
+     * row is written and the call returns `false`, or throws BudgetRejectedError
+     * when `CC_BUDGET_THROW_ON_REJECT` is on.
      * @param dto - Reserve id, amount and optional note
      * @param context - Record key, budget name, logical time and symbol
-     * @returns Balance after the reserve
-     * @throws BudgetRejectedError when the free balance is insufficient
+     * @returns `true` when the reserve was taken, `false` when it was refused
+     * @throws BudgetRejectedError when refused and `CC_BUDGET_THROW_ON_REJECT` is on
      * @throws Error if Budget is not enabled, the amount is invalid or the id is already open
      */
-    static _reserve: (dto: IBudgetReserveDto, context: IBudgetContext) => Promise<IBudgetBalance>;
+    static _reserve: (dto: IBudgetReserveDto, context: IBudgetContext) => Promise<boolean>;
     /**
      * Context-free release: deployed → free for `dto.id`, `dto.pnl` booked on capital.
      * A second release of the same id (or of an id never reserved) is a no-op.
@@ -19458,14 +19472,16 @@ declare class Budget {
     static _deposit: (dto: IBudgetDepositDto, context: IBudgetContext) => Promise<IBudgetBalance>;
     /**
      * Context-free withdrawal of `dto.amount` units of `dto.asset` at `context.when`.
-     * Refused (a `reject` row, then BudgetRejectedError) when more than held as of `when`.
+     * Refused when more than held as of `when`: a `reject` row is written and the
+     * call returns `false`, or throws BudgetRejectedError when
+     * `CC_BUDGET_THROW_ON_REJECT` is on.
      * @param dto - Asset, units and optional note
      * @param context - Record key, budget name, logical time and symbol
-     * @returns Balance after the withdrawal
-     * @throws BudgetRejectedError when the held amount is insufficient
+     * @returns `true` when the units were withdrawn, `false` when refused
+     * @throws BudgetRejectedError when refused and `CC_BUDGET_THROW_ON_REJECT` is on
      * @throws Error if Budget is not enabled or the amount is invalid
      */
-    static _withdraw: (dto: IBudgetWithdrawDto, context: IBudgetContext) => Promise<IBudgetBalance>;
+    static _withdraw: (dto: IBudgetWithdrawDto, context: IBudgetContext) => Promise<boolean>;
     /** Context of the instance methods: record key, logical time and symbol from the execution / method context */
     private getContext;
     /**
@@ -19489,11 +19505,11 @@ declare class Budget {
     /**
      * Reserve: free → deployed under `dto.id` at the current logical time.
      * @param dto - Reserve id, amount and optional note
-     * @returns Balance after the reserve
-     * @throws BudgetRejectedError when the free balance is insufficient
+     * @returns `true` when taken, `false` when refused (a `reject` row is on record)
+     * @throws BudgetRejectedError when refused and `CC_BUDGET_THROW_ON_REJECT` is on
      * @throws Error if no execution/method context
      */
-    reserve: (dto: IBudgetReserveDto) => Promise<IBudgetBalance>;
+    reserve: (dto: IBudgetReserveDto) => Promise<boolean>;
     /**
      * Release: deployed → free for `dto.id`, `dto.pnl` booked on capital, at the current logical time.
      * @param dto - Reserve id, optional realized pnl and note
@@ -19511,11 +19527,11 @@ declare class Budget {
     /**
      * Withdraw `dto.amount` units of `dto.asset` at the current logical time.
      * @param dto - Asset, units and optional note
-     * @returns Balance after the withdrawal
-     * @throws BudgetRejectedError when the held amount is insufficient
+     * @returns `true` when withdrawn, `false` when refused (a `reject` row is on record)
+     * @throws BudgetRejectedError when refused and `CC_BUDGET_THROW_ON_REJECT` is on
      * @throws Error if no execution/method context
      */
-    withdraw: (dto: IBudgetWithdrawDto) => Promise<IBudgetBalance>;
+    withdraw: (dto: IBudgetWithdrawDto) => Promise<boolean>;
 }
 /**
  * Global singleton instance of BudgetLiveAdapter.
@@ -50335,8 +50351,12 @@ declare class OrderRejectedError extends Error {
  * static guard — never by `instanceof`, so it survives duplicated module
  * instances across bundles.
  *
+ * Thrown only when `CC_BUDGET_THROW_ON_REJECT` is on; by default a refused
+ * reserve / withdraw returns `false` and leaves a `reject` row in the journal.
+ *
  * @example
  * ```typescript
+ * // CC_BUDGET_THROW_ON_REJECT: true
  * try {
  *   await fund.reserve({ id, amount: cost });
  * } catch (error) {
