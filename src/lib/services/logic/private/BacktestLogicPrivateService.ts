@@ -730,7 +730,10 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
     unScheduleOpen && unScheduleOpen();
   }
 
-  if (backtestResult.action === "active" && signal.minuteEstimatedTime === Infinity) {
+  // Infinity hold: the leftover after the activation is replayed in whole watch spans.
+  // Finite hold: the array covers the hold, so "active" means a close refused by the
+  // broker gate on the last candle — the retry belongs to the next candle (next window).
+  if (backtestResult.action === "active") {
     const bufferMs = bufferMinutes * 60_000;
     const chunkResult = await RUN_INFINITY_CHUNK_LOOP_FN(self, symbol, when, context, backtestResult, bufferMs, signal.id, frameEndTime, candles);
     if ("__error__" in chunkResult) {
@@ -738,10 +741,6 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
       return chunkResult;
     }
     backtestResult = chunkResult;
-  }
-
-  if (backtestResult.action === "active") {
-    return { type: "skip" };
   }
 
   self.loggerService.info("backtestLogicPrivateService scheduled signal closed", {
@@ -897,6 +896,18 @@ const PROCESS_OPENED_SIGNAL_FN = async function*(
       return firstResult;
     }
     backtestResult = firstResult;
+    // The window covers the hold, so the replay normally ends with a close. It hands the
+    // position back "active" when a close was refused by the broker gate on the window's
+    // last candle (the expiry candle): the retry belongs to the next candle, not to the
+    // same one, so the replay continues in whole watch spans until the close is accepted.
+    if (firstResult.action === "active") {
+      const chunkResult = await RUN_INFINITY_CHUNK_LOOP_FN(self, symbol, when, context, firstResult, bufferMinutes * 60_000, signal.id, frameEndTime, candles);
+      if ("__error__" in chunkResult) {
+        console.error(`backtestLogicPrivateService opened signal: chunk loop after a refused close failed, stopping backtest symbol=${symbol} signalId=${signal.id} reason=${chunkResult.reason} message=${chunkResult.message}`);
+        return chunkResult;
+      }
+      backtestResult = chunkResult;
+    }
   } else {
     const bufferMs = bufferMinutes * 60_000;
     const chunkResult = await RUN_OPENED_CHUNK_LOOP_FN(self, symbol, when, context, bufferStartTime, bufferMs, signal.id, frameEndTime);

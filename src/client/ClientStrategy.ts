@@ -6823,6 +6823,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   let holdIndex = false;
   // peaks / troughs recorded on skipped candles, emitted at the next span-end look
   const extremes: TPendingExtremes = { peak: false, fall: false };
+  // A close attempt refused on the window's last candle: the position is handed back
+  // "active" instead of a second attempt on the same candle (see the loop exit).
+  let lastCandleRefused = false;
 
   // КРИТИЧНО: проверяем TP/SL на каждой ИТЕРАЦИИ начиная после буфера.
   // Первые bufferCandlesCount свечей - это буфер для VWAP
@@ -6918,6 +6921,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         spanStart = evalIndex + 1;
         holdIndex = true;
       }
+      lastCandleRefused = evalIndex === lastIndex;
       continue;
     }
 
@@ -7029,6 +7033,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         spanStart = evalIndex + 1;
         holdIndex = true;
       }
+      lastCandleRefused = evalIndex === lastIndex;
 
       // Sync close rejected (e.g. broker rejected the order) — _pendingSignal is left
       // intact (not cleared on rejection). Do NOT return/continue: fall through to the
@@ -7291,7 +7296,16 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   const lastPrice = GET_AVG_PRICE_FN(lastCandles);
   const closeTimestamp = lastCandles[lastCandles.length - 1].timestamp;
 
-  if (signal.minuteEstimatedTime === Infinity) {
+  // A close refused on the window's last candle is retried on the NEXT candle like on any
+  // other candle: the position is handed back "active" and the orchestrator continues with
+  // the next window (BacktestLogicPrivateService runs the chunk loop for a finite hold too).
+  // A second attempt on the same candle would be a retry on the same tick — a transient
+  // refusal of the time-expiry close (the last candle of a finite-hold window by
+  // construction) got one same-candle retry and then killed the backtest, instead of the
+  // per-candle retries up to CC_ORDER_CLOSE_RETRY_ATTEMPTS every other close gets. Only
+  // while candles can still exist: on the frame end the refusal stays fatal below.
+  const handBack = signal.minuteEstimatedTime === Infinity || (lastCandleRefused && closeTimestamp < frameEndTime);
+  if (handBack) {
     const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, lastPrice);
     const result: IStrategyTickResultActive = {
       action: "active",

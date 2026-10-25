@@ -40,7 +40,7 @@ Candles stay 1m. The strategy looks at a position once per watch span, at its la
 - the strategy's protective events — a partial profit / loss level crossed or the breakeven threshold reached gets its callbacks on that candle through a light look without a ping;
 - a commit issued between looks (the action itself was always immediate) has its commit event stamped on the next candle, like a live tick a minute later;
 - the peak and the drawdown of the position are recorded candle by candle and reported once at the next look;
-- a user close rejected by the order gate is retried on the next candle across replay-window edges.
+- a close refused by the order gate — the user close as well as a stop / liquidation / take-profit / expiry the exchange forced — is retried on the next candle, across span ends and replay-window edges, with the refused candle still observed (ping, loss levels, commit drain) like a live tick.
 
 The spans are on the time axis, anchored at the signal (`pendingAt` / `scheduledAt`): a gap in the 1m feed shortens a span's candle count and leaves its boundary in place, and the grid survives replay windows and the hand-back after a scheduled activation. Replay windows of Infinity positions hold a whole number of spans (the largest multiple of the step within `CC_MAX_CANDLES_PER_REQUEST`, paged by the exchange layer).
 
@@ -51,7 +51,7 @@ The spans are on the time axis, anchored at the signal (`pendingAt` / `scheduled
 ## Behaviour changes to note
 
 - `onHighestProfit` / `onMaxDrawdown` are emitted once per look, after the ping and after the breakeven / partial callbacks of that look, carrying the price and the minute of the recorded extreme. On a 1m watch they used to come between the ping and the breakeven check.
-- A rejected user close is retried on every following candle (as in live); with `CC_ORDER_CLOSE_RETRY_ATTEMPTS: 0` and a gate that keeps refusing, that is one gate call per minute.
+- A rejected close is retried on every following candle (as in live); with `CC_ORDER_CLOSE_RETRY_ATTEMPTS: 0` and a gate that keeps refusing, that is one gate call per minute. This now holds for the time-expiry close of a finite hold too: that candle is the last one of the replay window the orchestrator fetched for the hold, and a refusal there used to get a second attempt on the same candle and then kill the backtest. The replay hands the position back "active" instead and the orchestrator continues in whole watch spans until the close is accepted, as it does for Infinity holds; on the frame end a refusal stays fatal, there is no next candle. `test/e2e/refuse_close.test.mjs` attacks every forced close with the gate on a 1m, 15m, 1h and 4h watch.
 - `listenError`, `listenExit` and `listenValidation` catch a throwing listener and log it: those channels are emitted fire-and-forget and a throw used to become an unhandled rejection.
 
 # 🧵 Strategy Sharding (v21.7.0, 08/10/2026)
