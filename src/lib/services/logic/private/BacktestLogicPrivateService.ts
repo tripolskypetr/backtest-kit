@@ -1053,6 +1053,53 @@ export class BacktestLogicPrivateService {
             break;
           }
 
+          // A position adopted between ticks (public setPendingSignal: already open on the
+          // exchange, registered without the open gate) is the result of no tick, so the
+          // loop would never replay it — and a tick with a pending signal would judge it by
+          // the tick's VWAP instead of by candles. Replay it from its own pendingAt first,
+          // exactly like an open this iteration produced; the loop then resumes after the close.
+          {
+            const context = {
+              strategyName: this.methodContextService.context.strategyName,
+              exchangeName: this.methodContextService.context.exchangeName,
+              frameName: this.methodContextService.context.frameName,
+            };
+            if (await this.strategyCoreService.hasPendingSignal(true, symbol, context)) {
+              const adopted = await this.strategyCoreService.getPendingSignal(true, symbol, await this.priceMetaService.getCurrentPrice(symbol, context, true), context);
+              if (adopted) {
+                const opened: IStrategyTickResultOpened = {
+                  action: "opened",
+                  signal: adopted,
+                  strategyName: context.strategyName,
+                  exchangeName: context.exchangeName,
+                  frameName: context.frameName,
+                  symbol,
+                  currentPrice: adopted.priceOpen,
+                  backtest: true,
+                  createdAt: adopted.pendingAt,
+                };
+                lastAction = "opened";
+                yield opened;
+                const r = yield* PROCESS_OPENED_SIGNAL_FN(this, symbol, new Date(adopted.pendingAt), opened, previousEventTimestamp, frameEndTime);
+                if (r.type === "error") {
+                  _fatalError = new Error(`[${r.reason}] ${r.message}`);
+                  break;
+                }
+                if (r.type === "closed") {
+                  lastAction = "closed";
+                  previousEventTimestamp = r.previousEventTimestamp;
+                  while (i < timeframes.length && timeframes[i].getTime() <= r.closeTimestamp) {
+                    i++;
+                  }
+                  if (r.shouldStop) {
+                    break;
+                  }
+                  previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
+                  continue;
+                }
+              }
+            }
+          }
           const result = await TICK_FN(this, symbol, when);
           if ("__error__" in result) {
             _fatalError = new Error(`[${result.reason}] ${result.message}`);

@@ -336,6 +336,18 @@ export interface ISignalIntervalDto extends ISignalDto {
 }
 
 /**
+ * Signal dto for setPendingSignal: a position that is already open on the exchange.
+ * Registered as pending at priceOpen right away (never scheduled), without the open gate.
+ * Validated against the current price before it is written; other fields keep the ISignalDto defaults.
+ */
+export interface IPendingSignalDto extends ISignalDto {
+  /** Signal identifier the broker knows the position by (clientOrderId), used by the close and check gates; auto-generated if not provided */
+  id?: string;
+  /** Price the position was actually opened at (may differ from the current market price) */
+  priceOpen: number;
+}
+
+/**
  * Complete signal with auto-generated id.
  * Used throughout the system after validation.
  */

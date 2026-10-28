@@ -5,6 +5,7 @@ import ExecutionContextService from "../context/ExecutionContextService";
 import {
   ISignalRow,
   ISignalDto,
+  IPendingSignalDto,
   IScheduledSignalRow,
   IStrategyBacktestResult,
   IStrategyTickResult,
@@ -723,6 +724,29 @@ export class StrategyCoreService implements TStrategy {
     });
     await this.validate(context);
     return await this.strategyConnectionService.closePending(backtest, symbol, context, payload);
+  };
+
+  /**
+   * Registers a position that is ALREADY open on the exchange as the pending signal (public
+   * `setPendingSignal`): validates the context, then delegates to
+   * StrategyConnectionService.setPendingSignal(), which builds the row and refuses a price
+   * already beyond a level before writing. Never scheduled, no open gate. Rejected if a
+   * signal or deferred action is already in flight.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param dto - The open position: priceOpen mandatory, id optional (generated if absent)
+   * @param context - Context with strategyName, exchangeName, frameName
+   * @returns Promise that resolves when the position is registered
+   */
+  public setPendingSignal = async (backtest: boolean, symbol: string, dto: IPendingSignalDto, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }): Promise<void> => {
+    this.loggerService.log("strategyCoreService setPendingSignal", {
+      symbol,
+      context,
+      backtest,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.setPendingSignal(backtest, symbol, dto, context);
   };
 
   /**

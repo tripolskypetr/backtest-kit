@@ -11,6 +11,7 @@ import {
   IStrategy,
   ISignalRow,
   ISignalDto,
+  IPendingSignalDto,
   IScheduledSignalRow,
   IScheduledSignalCancelRow,
   IScheduledSignalActivateRow,
@@ -2386,6 +2387,60 @@ const DROP_RETRY_OPEN_SIGNAL_FN = async (
     self._retryOpenCount = 0;
   }
   await PERSIST_STRATEGY_FN(self);
+};
+
+/**
+ * Builds the ISignalRow of a position that is ALREADY open on the exchange from an
+ * IPendingSignalDto (public `setPendingSignal`): the application supplies what it knows —
+ * the fill price, and the order id when it has one (generated otherwise) — and the system
+ * defaults are applied here, never in the application code. The row is pending at `priceOpen` from `timestamp` on, never scheduled:
+ * `scheduledAt`, `pendingAt` and the single entry all carry the adoption time, the peak and
+ * the drawdown start at the fill price exactly like an open the engine made itself. The
+ * symbol and the context names come from the strategy instance.
+ *
+ * Throws when priceOpen is missing at runtime (JavaScript callers).
+ */
+const TO_PENDING_SIGNAL_ROW_FN = (
+  self: ClientStrategy,
+  dto: IPendingSignalDto,
+  timestamp: number
+): ISignalRow => {
+  const symbol = self.params.symbol;
+  if (typeof dto.priceOpen !== "number" || !isFinite(dto.priceOpen) || dto.priceOpen <= 0) {
+    throw new Error(`ClientStrategy adoptPendingSignal: priceOpen is required — the price the position was opened at (symbol=${symbol}, got ${dto.priceOpen})`);
+  }
+  const cost = dto.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST;
+  const row: ISignalRow = {
+    ...structuredClone(dto),
+    // the broker's clientOrderId when the application has one; generated otherwise, like any signal
+    id: dto.id || randomString(),
+    cost,
+    priceOpen: dto.priceOpen,
+    position: dto.position,
+    note: dto.note || "",
+    payload: dto.payload ?? {},
+    priceTakeProfit: dto.priceTakeProfit,
+    priceStopLoss: dto.priceStopLoss,
+    minuteEstimatedTime: dto.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
+    multiplier: dto.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER,
+    isolated: dto.isolated ?? GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN,
+    symbol,
+    exchangeName: self.params.method.context.exchangeName,
+    strategyName: self.params.method.context.strategyName,
+    frameName: self.params.method.context.frameName,
+    scheduledAt: timestamp,
+    pendingAt: timestamp,
+    timestamp,
+    _isScheduled: false,
+    _entry: [{ price: dto.priceOpen, cost, timestamp }],
+    _peak: { price: dto.priceOpen, timestamp, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0, pnlDividends: 0 },
+    _fall: { price: dto.priceOpen, timestamp, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0, pnlDividends: 0 },
+  };
+  {
+    const { pnlPercentage, pnlCost, pnlEntries, pnlDividends, priceClose, priceOpen } = toProfitLossDto(row, dto.priceOpen);
+    row._fall = { price: dto.priceOpen, timestamp, pnlPercentage, pnlCost, priceClose, priceOpen, pnlEntries, pnlDividends };
+  }
+  return row;
 };
 
 /**
@@ -10477,6 +10532,76 @@ export class ClientStrategy implements IStrategy {
    * @returns Promise that resolves when the DTO is queued (and persisted in live mode)
    * @throws {Error} If the DTO is invalid or a signal/deferred action is already in flight
    */
+  /**
+   * Registers a position that is ALREADY open on the exchange (public `setPendingSignal`).
+   *
+   * No open gate: `onOrderOpenCommit` is NOT called, the order already exists on the
+   * exchange and the row carries its id. No scheduled phase: the row is pending at its own
+   * priceOpen from this moment whatever the market price is (the whole point — the fill was
+   * taken at an exclusive price). Guarded like createSignal: refused while the strategy is
+   * stopped or while any signal or deferred action is in flight. `validatePendingSignal`
+   * runs BEFORE anything is written and throws when the current price already sits beyond
+   * the stop or the take-profit. On success: the row is the pending signal (persisted in
+   * live), the whipsaw guard remembers its id, the risk slot is taken, and the "opened"
+   * lifecycle event and the open callbacks fire, so listeners, reports and the broker's
+   * informational `onSignalPendingOpen` see the position. Monitoring starts on the next tick
+   * (live) or with the candle replay from `pendingAt` (backtest orchestrator).
+   *
+   * The ISignalRow is built here from the DTO (TO_PENDING_SIGNAL_ROW_FN: system defaults, the
+   * strategy's symbol and context names, `currentTime` as pendingAt) — the connection service
+   * only resolves the current price and the logical time.
+   *
+   * @param dto - The open position: priceOpen mandatory, id optional (generated if absent), the rest as ISignalDto
+   * @param currentPrice - Current market price the levels are checked against
+   * @param currentTime - Logical time of the adoption (the row's pendingAt)
+   * @throws Error when stopped, when something is in flight, or when the price is beyond a level
+   */
+  public async adoptPendingSignal(dto: IPendingSignalDto, currentPrice: number, currentTime: number): Promise<void> {
+    const symbol = this.params.symbol;
+    this.params.logger.debug("ClientStrategy adoptPendingSignal", { symbol, signalId: dto?.id, priceOpen: dto?.priceOpen, currentPrice });
+    if (this._isStopped) {
+      throw new Error(`ClientStrategy adoptPendingSignal: strategy is stopped for symbol=${symbol}`);
+    }
+    if (this._pendingSignal) {
+      throw new Error(`ClientStrategy adoptPendingSignal: a pending signal already exists for symbol=${symbol}`);
+    }
+    if (this._scheduledSignal) {
+      throw new Error(`ClientStrategy adoptPendingSignal: a scheduled signal already exists for symbol=${symbol}`);
+    }
+    if (this._userSignal) {
+      throw new Error(`ClientStrategy adoptPendingSignal: a signal is already queued for creation for symbol=${symbol}`);
+    }
+    if (this._activatedSignal) {
+      throw new Error(`ClientStrategy adoptPendingSignal: a scheduled activation is pending for symbol=${symbol}`);
+    }
+    if (this._closedSignal) {
+      throw new Error(`ClientStrategy adoptPendingSignal: a pending close is awaiting for symbol=${symbol}`);
+    }
+    if (this._cancelledSignal) {
+      throw new Error(`ClientStrategy adoptPendingSignal: a scheduled cancel is awaiting for symbol=${symbol}`);
+    }
+    if (this._takeProfitSignal) {
+      throw new Error(`ClientStrategy adoptPendingSignal: a take-profit fill is awaiting for symbol=${symbol}`);
+    }
+    if (this._stopLossSignal) {
+      throw new Error(`ClientStrategy adoptPendingSignal: a stop-loss fill is awaiting for symbol=${symbol}`);
+    }
+    if (this._retryOpenSignal) {
+      throw new Error(`ClientStrategy adoptPendingSignal: a rejected open is awaiting retry for symbol=${symbol}`);
+    }
+    // Throws BEFORE anything is written: the mandatory fields, the row's shape and levels, and
+    // the current price strictly between the stop and the take-profit — a position that would
+    // be closed on its first look is never recorded.
+    const row = TO_PENDING_SIGNAL_ROW_FN(this, dto, currentTime);
+    validatePendingSignal(row, currentPrice);
+    await this.setPendingSignal(row, row.priceOpen);
+    this._lastPendingId = row.id;
+    await PERSIST_STRATEGY_FN(this);
+    await CALL_RISK_ADD_SIGNAL_FN(this, symbol, row, currentTime, this.params.backtest);
+    await CALL_SIGNAL_EVENT_FN(this, "opened", row, row.priceOpen, currentTime);
+    await CALL_OPEN_CALLBACKS_FN(this, symbol, row, row.priceOpen, currentTime, this.params.backtest);
+  }
+
   public async createSignal(symbol: string, currentPrice: number, dto: ISignalDto): Promise<void> {
     this.params.logger.debug("ClientStrategy createSignal", { symbol, currentPrice });
 

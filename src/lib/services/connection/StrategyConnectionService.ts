@@ -19,6 +19,7 @@ import {
   CommitPayload,
   StrategyStatus,
   ISignalDto,
+  IPendingSignalDto,
   StrategyCancelReason,
   StrategyCloseReason,
   IStrategyTickResultOpened,
@@ -2599,6 +2600,41 @@ export class StrategyConnectionService implements TStrategy {
     await strategy.createSignal(symbol, currentPrice, dto);
   };
 
+  /**
+   * Registers a position that is ALREADY open on the exchange as the pending signal of the
+   * strategy — the public `setPendingSignal`. Resolves the current price and the logical time
+   * of the adoption and delegates to ClientStrategy.adoptPendingSignal(), which builds the
+   * ISignalRow from the IPendingSignalDto (system defaults, context names, the adoption time
+   * as pendingAt), validates it against the current price BEFORE writing (a price beyond the
+   * stop or the take-profit throws) and never calls the open gate: the order already exists
+   * on the exchange under `dto.id`. Never scheduled.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param dto - The open position: mandatory priceOpen (the fill price), id optional (the order id, generated if absent)
+   * @param context - Context with strategyName, exchangeName, frameName
+   * @returns Promise that resolves when the position is registered
+   * @throws Error when the DTO lacks priceOpen, when something is in flight, or when
+   *   the current price already sits beyond a level
+   */
+  public setPendingSignal = async (
+    backtest: boolean,
+    symbol: string,
+    dto: IPendingSignalDto,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<void> => {
+    this.loggerService.log("strategyConnectionService setPendingSignal", {
+      symbol,
+      context,
+      backtest,
+      signalId: dto?.id,
+      priceOpen: dto?.priceOpen,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    const currentPrice = await this.priceMetaService.getCurrentPrice(symbol, context, backtest);
+    const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
+    await strategy.adoptPendingSignal(dto, currentPrice, timestamp);
+  };
   /**
    * Reports that the pending position's take-profit order was actually filled on the exchange
    * (e.g. by candle high/low), forcing a close that bypasses the framework's VWAP-based TP check.

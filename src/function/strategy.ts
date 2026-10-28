@@ -15,7 +15,9 @@ import { Broker } from "../classes/Broker";
 import { GLOBAL_CONFIG } from "../config/params";
 import { not } from "functools-kit";
 import { IPositionOverlapLadder, POSITION_OVERLAP_LADDER_DEFAULT } from "../config/ladder";
-import { IPublicSignalRow, CommitPayload, ISignalDto, StrategyStatus, IDividendDto, IPartialDto, IPartialCostDto, IAverageBuyDto } from "../interfaces/Strategy.interface";
+import { IPublicSignalRow, CommitPayload, ISignalDto, StrategyStatus, IDividendDto, IPartialDto, IPartialCostDto, IAverageBuyDto,
+  IPendingSignalDto,
+} from "../interfaces/Strategy.interface";
 import { SignalNotificationPayload } from "../lib/services/helpers/NotificationHelperService";
 
 const CANCEL_SCHEDULED_METHOD_NAME = "strategy.commitCancelScheduled";
@@ -77,6 +79,7 @@ const HAS_NO_PENDING_SIGNAL_METHOD_NAME = "strategy.hasNoPendingSignal";
 const HAS_NO_SCHEDULED_SIGNAL_METHOD_NAME = "strategy.hasNoScheduledSignal";
 const COMMIT_SIGNAL_NOTIFY_METHOD_NAME = "strategy.commitSignalNotify";
 const COMMIT_CREATE_SIGNAL_METHOD_NAME = "strategy.commitCreateSignal";
+const SET_PENDING_SIGNAL_METHOD_NAME = "strategy.setPendingSignal";
 const COMMIT_CREATE_TAKE_PROFIT_METHOD_NAME = "strategy.commitCreateTakeProfit";
 const COMMIT_CREATE_STOP_LOSS_METHOD_NAME = "strategy.commitCreateStopLoss";
 const GET_STRATEGY_STATUS_METHOD_NAME = "strategy.getStrategyStatus";
@@ -3004,6 +3007,64 @@ export async function commitSignalNotify(
     currentPrice,
     { strategyName, exchangeName, frameName },
     isBacktest,
+  );
+}
+
+/**
+ * Registers a position that is ALREADY open on the exchange as the strategy's pending signal.
+ *
+ * For the fill the engine did not make: the application took the position at an exclusive
+ * price (its own resting order, a fill reported by the broker, a position adopted after a
+ * migration) and hands the engine the result to monitor — stop, take-profit, expiry,
+ * partials, breakeven, the close gate — from now on. Hence the one mandatory field of
+ * IPendingSignalDto: `priceOpen`, the price the position was REALLY opened at. Pass `id` when
+ * the broker adapter already knows the position by an identity (clientOrderId), so the later
+ * close and check gates reconcile the right order; left out, it is generated like for any
+ * signal.
+ *
+ * Never scheduled: the row is pending at `priceOpen` from this moment whatever the market
+ * price is. No open gate: `onOrderOpenCommit` is NOT called, the order already exists. The
+ * system defaults (cost, minuteEstimatedTime, multiplier, isolated) are applied by the
+ * engine when it builds the row, not by the caller. Validated BEFORE anything is written: the call
+ * throws when a signal or a deferred action is already in flight, and when the current
+ * price already sits beyond the stop or the take-profit — a position that would be closed
+ * on its first look is never recorded. The "opened" lifecycle event fires on success; in a
+ * backtest the orchestrator replays the position from its `pendingAt` before the next tick.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @param dto - The open position: priceOpen mandatory, id optional (generated if absent), the rest as ISignalDto
+ * @returns Promise that resolves when the position is registered
+ * @throws Error if called outside execution/method context, if priceOpen is missing,
+ *   if something is in flight, or if the price is already beyond a level
+ *
+ * @example
+ * ```typescript
+ * import { setPendingSignal } from "backtest-kit";
+ *
+ * // inside getSignal or a strategy callback: the position was bought at 95 while the market is at 100
+ * await setPendingSignal("BTCUSDT", { id: order.clientOrderId, position: "long", priceOpen: 95, priceTakeProfit: 119, priceStopLoss: 85 });
+ * ```
+ */
+export async function setPendingSignal(
+  symbol: string,
+  dto: IPendingSignalDto,
+): Promise<void> {
+  backtest.loggerService.info(SET_PENDING_SIGNAL_METHOD_NAME, { symbol, signalId: dto?.id });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("setPendingSignal requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("setPendingSignal requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  await backtest.strategyCoreService.setPendingSignal(
+    isBacktest,
+    symbol,
+    dto,
+    { exchangeName, frameName, strategyName },
   );
 }
 

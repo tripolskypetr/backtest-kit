@@ -4,7 +4,7 @@ import {
   IStrategyTickResultOpened,
   StrategyName,
   CommitPayload,
-  ISignalDto,
+  ISignalDto, IPendingSignalDto,
   StrategyStatus,
   IDividendDto, IPartialDto, IPartialCostDto, IAverageBuyDto,
 } from "../interfaces/Strategy.interface";
@@ -90,6 +90,7 @@ const LIVE_METHOD_NAME_BREAKEVEN = "Live.commitBreakeven";
 const LIVE_METHOD_NAME_CANCEL_SCHEDULED = "Live.cancelScheduled";
 const LIVE_METHOD_NAME_CLOSE_PENDING = "Live.closePending";
 const LIVE_METHOD_NAME_COMMIT_CREATE_SIGNAL = "Live.commitCreateSignal";
+const LIVE_METHOD_NAME_SET_PENDING_SIGNAL = "Live.setPendingSignal";
 const LIVE_METHOD_NAME_COMMIT_CREATE_TAKE_PROFIT = "Live.commitCreateTakeProfit";
 const LIVE_METHOD_NAME_COMMIT_CREATE_STOP_LOSS = "Live.commitCreateStopLoss";
 const LIVE_METHOD_NAME_GET_STRATEGY_STATUS = "Live.getStrategyStatus";
@@ -3547,6 +3548,77 @@ export class LiveUtils {
     }
 
     await backtest.strategyCoreService.createSignal(
+      false,
+      symbol,
+      dto,
+      {
+        strategyName: context.strategyName,
+        exchangeName: context.exchangeName,
+        frameName: "",
+      },
+    );
+  };
+
+  /**
+   * Registers a position that is ALREADY open on the exchange as the strategy's pending
+   * signal, with an explicit context — for callers outside any execution context (listeners,
+   * cron handlers, external scripts). The in-context form is the exported `setPendingSignal`
+   * function. Never scheduled, no open gate; throws before anything is written when
+   * `priceOpen` is missing, when a signal or a deferred action is in flight, or when the
+   * current price already sits beyond the stop or the take-profit. `id` is optional and
+   * generated when absent.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName and exchangeName
+   * @param dto - Signal DTO to open (priceOpen optional)
+   * @returns Promise that resolves when the DTO is queued
+   */
+  public setPendingSignal = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+    },
+    dto: IPendingSignalDto,
+  ): Promise<void> => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_SET_PENDING_SIGNAL, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      LIVE_METHOD_NAME_SET_PENDING_SIGNAL,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      LIVE_METHOD_NAME_SET_PENDING_SIGNAL,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          LIVE_METHOD_NAME_SET_PENDING_SIGNAL,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            LIVE_METHOD_NAME_SET_PENDING_SIGNAL,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            LIVE_METHOD_NAME_SET_PENDING_SIGNAL,
+          ),
+        );
+    }
+
+    await backtest.strategyCoreService.setPendingSignal(
       false,
       symbol,
       dto,

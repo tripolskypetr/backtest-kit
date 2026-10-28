@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { IPublicSignalRow, StrategyName, CommitPayload, ISignalDto, StrategyStatus, IDividendDto, IPartialDto, IPartialCostDto, IAverageBuyDto } from "../interfaces/Strategy.interface";
+import { IPublicSignalRow, StrategyName, CommitPayload, ISignalDto, IPendingSignalDto, StrategyStatus, IDividendDto, IPartialDto, IPartialCostDto, IAverageBuyDto } from "../interfaces/Strategy.interface";
 import { exitEmitter, doneBacktestSubject } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
 import {
@@ -112,6 +112,7 @@ const BACKTEST_METHOD_NAME_BREAKEVEN = "Backtest.commitBreakeven";
 const BACKTEST_METHOD_NAME_CANCEL_SCHEDULED = "Backtest.commitCancelScheduled";
 const BACKTEST_METHOD_NAME_CLOSE_PENDING = "Backtest.commitClosePending";
 const BACKTEST_METHOD_NAME_COMMIT_CREATE_SIGNAL = "Backtest.commitCreateSignal";
+const BACKTEST_METHOD_NAME_SET_PENDING_SIGNAL = "Backtest.setPendingSignal";
 const BACKTEST_METHOD_NAME_COMMIT_CREATE_TAKE_PROFIT = "Backtest.commitCreateTakeProfit";
 const BACKTEST_METHOD_NAME_COMMIT_CREATE_STOP_LOSS = "Backtest.commitCreateStopLoss";
 const BACKTEST_METHOD_NAME_GET_STRATEGY_STATUS = "Backtest.getStrategyStatus";
@@ -3566,6 +3567,74 @@ export class BacktestUtils {
     }
 
     await backtest.strategyCoreService.createSignal(
+      true,
+      symbol,
+      dto,
+      context,
+    );
+  };
+
+  /**
+   * Registers a position that is ALREADY open on the exchange as the strategy's pending
+   * signal, with an explicit context — for callers outside any execution context (listeners,
+   * cron handlers, external scripts). The in-context form is the exported `setPendingSignal`
+   * function. Never scheduled, no open gate; throws before anything is written when
+   * `priceOpen` is missing, when a signal or a deferred action is in flight, or when the
+   * current price already sits beyond the stop or the take-profit. `id` is optional and
+   * generated when absent.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @param dto - Signal DTO to open (priceOpen optional)
+   * @returns Promise that resolves when the DTO is queued
+   */
+  public setPendingSignal = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+    dto: IPendingSignalDto,
+  ): Promise<void> => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_SET_PENDING_SIGNAL, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_SET_PENDING_SIGNAL,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_SET_PENDING_SIGNAL,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_SET_PENDING_SIGNAL,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_SET_PENDING_SIGNAL,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_SET_PENDING_SIGNAL,
+          ),
+        );
+    }
+
+    await backtest.strategyCoreService.setPendingSignal(
       true,
       symbol,
       dto,

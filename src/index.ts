@@ -25,6 +25,7 @@ export {
   waitForReady,
 } from "./function/init";
 export {
+  setPendingSignal,
   commitCreateSignal,
   commitCreateTakeProfit,
   commitCreateStopLoss,
@@ -393,6 +394,7 @@ export {
   ISignalRow,
   IPublicSignalRow,
   ISignalIntervalDto,
+  IPendingSignalDto,
   IStorageSignalRow,
   IRiskSignalRow,
   IScheduledSignalCancelRow,
