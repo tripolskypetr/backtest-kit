@@ -5707,6 +5707,12 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
     }
   }
 
+  // Commits queued by the ping and level callbacks of this tick (partials, trailing,
+  // breakeven, dividend, average buy) are emitted now, with this tick's time — as the
+  // backtest look does right after the same callbacks. The head of the next tick only
+  // drains what was queued between ticks.
+  await PROCESS_COMMIT_QUEUE_FN(self, currentPrice, currentTime);
+
   const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
 
   const result: IStrategyTickResultActive = {

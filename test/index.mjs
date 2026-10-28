@@ -82,6 +82,7 @@ import "./e2e/command_cadence.test.mjs";
 import "./e2e/idle_ping_gate.test.mjs";
 import "./e2e/channel_gate.test.mjs";
 import "./e2e/stop_scheduled.test.mjs";
+import "./e2e/command_timing.test.mjs";
 
 import "./spec/audit.test.mjs";
 import "./spec/live.test.mjs";
