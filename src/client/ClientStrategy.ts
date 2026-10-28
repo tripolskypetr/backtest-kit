@@ -2500,6 +2500,31 @@ const ADOPT_PENDING_SIGNAL_FN = async (
 };
 
 /**
+ * The generate-and-open segment of tick(): asks GET_SIGNAL_FN for a signal (the strategy's
+ * getSignal, or the queued createSignal DTO, which bypasses the interval throttle) and opens
+ * it — a resting entry through OPEN_NEW_SCHEDULED_SIGNAL_FN, a position through
+ * OPEN_NEW_PENDING_SIGNAL_FN, each set and persisted INSIDE its function strictly after the
+ * sync gate confirmed (setting them first left a phantom position on disk when the process
+ * crashed before the broker answered). Returns the "scheduled" / "opened" tick result, or
+ * null when there is no signal or the gate rejected it (the caller falls through to idle).
+ * Called from the idle path of the tick and again from RETURN_IDLE_FN when the idle ping or
+ * the idle callback queued a createSignal DTO during this very tick: the position opens on
+ * the tick that learned of it, on the same step in a backtest and the same minute in live.
+ */
+const OPEN_FROM_SIGNAL_FN = async (
+  self: ClientStrategy
+): Promise<IStrategyTickResultOpened | IStrategyTickResultScheduled | null> => {
+  const signal = await GET_SIGNAL_FN(self);
+  if (!signal) {
+    return null;
+  }
+  if (signal._isScheduled === true) {
+    return await OPEN_NEW_SCHEDULED_SIGNAL_FN(self, signal as IScheduledSignalRow);
+  }
+  return await OPEN_NEW_PENDING_SIGNAL_FN(self, signal as ISignalRow);
+};
+
+/**
  * Drains the deferred adoption slot inside tick(): builds the row at the tick's time,
  * re-validates it against the tick's price (dropped with a warning when the price moved
  * beyond a level since the command, as a queued createSignal DTO is dropped) and opens the
@@ -5714,7 +5739,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 const RETURN_IDLE_FN = async (
   self: ClientStrategy,
   currentPrice: number
-): Promise<IStrategyTickResultIdle | IStrategyTickResultOpened> => {
+): Promise<IStrategyTickResultIdle | IStrategyTickResultOpened | IStrategyTickResultScheduled> => {
   const currentTime = self.params.execution.context.when.getTime();
 
   await CALL_IDLE_PING_CALLBACKS_FN(
@@ -5733,12 +5758,19 @@ const RETURN_IDLE_FN = async (
     self.params.execution.context.backtest
   );
 
-  // An adoption queued by the idle ping or the idle callback just above (public
-  // setPendingSignal) opens on this very tick instead of the next one
+  // An adoption (public setPendingSignal) or a createSignal DTO queued by the idle ping or
+  // the idle callback just above opens on this very tick instead of the next one — the two
+  // slots exclude each other, so at most one of the branches runs
   {
     const adopted = await DRAIN_ADOPTED_SIGNAL_FN(self, currentPrice, currentTime);
     if (adopted) {
       return adopted;
+    }
+  }
+  if (self._userSignal) {
+    const opened = await OPEN_FROM_SIGNAL_FN(self);
+    if (opened) {
+      return opened;
     }
   }
 
@@ -9636,32 +9668,12 @@ export class ClientStrategy implements IStrategy {
         return await RETURN_IDLE_FN(this, currentPrice);
       }
 
-      const signal = await GET_SIGNAL_FN(this);
-
-      if (signal) {
-        if (signal._isScheduled === true) {
-          // The scheduled signal is set/persisted INSIDE OPEN_NEW_SCHEDULED_SIGNAL_FN,
-          // strictly after the sync confirmation of the resting-order placement
-          // (type "schedule") — same contract as OPEN_NEW_PENDING_SIGNAL_FN below.
-          const scheduledResult = await OPEN_NEW_SCHEDULED_SIGNAL_FN(
-            this,
-            signal as IScheduledSignalRow
-          );
-          if (scheduledResult) {
-            return scheduledResult;
-          }
-          // Sync rejected — nothing was registered, fall through to idle
-        } else {
-          // The pending signal is set/persisted INSIDE OPEN_NEW_PENDING_SIGNAL_FN,
-          // strictly after the sync-open confirmation. Setting it here first left a
-          // phantom position on disk when the process crashed before the broker
-          // confirmed (or rejected) the open.
-          const openResult = await OPEN_NEW_PENDING_SIGNAL_FN(this, signal as ISignalRow);
-          if (openResult) {
-            return openResult;
-          }
-          // Sync rejected — nothing was persisted, fall through to idle
+      {
+        const opened = await OPEN_FROM_SIGNAL_FN(this);
+        if (opened) {
+          return opened;
         }
+        // No signal, or the sync gate rejected the open — fall through to idle
       }
 
       const currentPrice = await this.params.exchange.getAveragePrice(

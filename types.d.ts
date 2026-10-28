@@ -8960,7 +8960,11 @@ declare function commitSignalNotify(symbol: string, payload?: Partial<SignalNoti
  */
 declare function setPendingSignal(symbol: string, dto: IPendingSignalDto): Promise<void>;
 /**
- * Queues a user-supplied signal DTO to be consumed by the next tick instead of params.getSignal.
+ * Queues a user-supplied signal DTO to be consumed instead of params.getSignal by the first
+ * tick that runs after the call: the same tick when the call was made during it (an idle
+ * callback, a listener awaited inside the idle ping), the next one otherwise — so the position
+ * exists from the tick that learned of it, on the same step in a backtest and the same minute
+ * in live.
  *
  * priceOpen decides the outcome via the existing pipeline: omitted → opens immediately at the
  * current price; provided → opens immediately if already reached, otherwise registers a
