@@ -363,7 +363,8 @@ test("CHANNEL: waitForInit completes before the first hook call and runs exactly
  * CHANNEL: ORPHAN SWEEP из waitForInit — усыновление биржевой позиции на
  * BOOTSTRAP'е: движок стартует idle (getSignal=null), первый idle-пинг лениво
  * триггерит waitForInit, sweep сверяет getStrategyStatus (движок чист) и
- * подсовывает усыновляющий DTO через commitCreateSignal; следующий tick
+ * подсовывает усыновляющий DTO через commitCreateSignal; ТОТ ЖЕ tick (слот
+ * дренируется сразу после idle-пинга, как и в бектесте на шаге entryInterval)
  * открывает позицию с БИРЖЕВЫМ id, open-гейт реконсилирует (attempt 0, confirm).
  *
  * ДВА НЮАНСА (проверены отдельными попытками):
@@ -439,25 +440,19 @@ test("CHANNEL: waitForInit orphan sweep re-adopts an exchange position via commi
   try {
     const runTick = makeRunTick(context);
 
-    // tick1: движок idle → idle-пинг → ленивый waitForInit → sweep ставит усыновление
+    // tick1: движок idle → idle-пинг → ленивый waitForInit → sweep ставит усыновление →
+    // слот дренируется на этом же tick'е: createdSignal потребляется ВМЕСТО getSignal
     const tick1 = await runTick(new Date(t0));
-    if (tick1.action !== "idle") {
-      fail(`tick #1 expected "idle" (bootstrap, nothing to trade yet), got "${tick1.action}"`);
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened" (the adoption queued by the idle ping is drained on the same tick), got "${tick1.action}"`);
       return;
     }
     if (initCalls !== 1) {
       fail(`the idle ping must lazily trigger waitForInit exactly once, got ${initCalls}`);
       return;
     }
-
-    // tick2: createdSignal (усыновляющий DTO) потребляется ВМЕСТО getSignal
-    const tick2 = await runTick(new Date(t0 + 1 * MIN));
-    if (tick2.action !== "opened") {
-      fail(`tick #2 expected "opened" (adopted signal), got "${tick2.action}"`);
-      return;
-    }
-    if (tick2.signal.id !== ORPHAN_ID) {
-      fail(`adopted position must carry the EXCHANGE id "${ORPHAN_ID}", got "${tick2.signal.id}"`);
+    if (tick1.signal.id !== ORPHAN_ID) {
+      fail(`adopted position must carry the EXCHANGE id "${ORPHAN_ID}", got "${tick1.signal.id}"`);
       return;
     }
     if (opens.length !== 1 || opens[0].id !== ORPHAN_ID || opens[0].attempt !== 0) {
@@ -465,7 +460,14 @@ test("CHANNEL: waitForInit orphan sweep re-adopts an exchange position via commi
       return;
     }
 
-    pass(`orphan sweep adopted ${ORPHAN_ID} during the idle bootstrap: opened with attempt 0`);
+    // tick2: усыновлённая позиция живёт дальше как обычная
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "active" || tick2.signal.id !== ORPHAN_ID) {
+      fail(`tick #2 expected "active" on the adopted "${ORPHAN_ID}", got "${tick2.action}" on "${tick2.signal?.id}"`);
+      return;
+    }
+
+    pass(`orphan sweep adopted ${ORPHAN_ID} on the idle bootstrap tick itself: opened with attempt 0, active next`);
   } finally {
     Broker.disable();
   }
