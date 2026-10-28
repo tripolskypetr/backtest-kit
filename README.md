@@ -2,7 +2,7 @@
 
 # 🧿 Backtest Kit
 
-> **The only trading engine for Node.js capable of running enterprise-grade quant strategies** — backtest, paper and live from the same code, zero changes between modes. Crypto, forex, DEX, spot or futures. See [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example)
+> **The only trading engine for Node.js capable of running enterprise-grade quant strategies** — backtest, paper and live from the same code, zero changes between modes. Crypto, forex, DEX, spot or futures and anything that pays while you hold it: dividend stocks and ETFs, REITs, bond coupons, staked or yield-bearing crypto, perpetual futures with funding. See [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example)
 
 ![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
 
