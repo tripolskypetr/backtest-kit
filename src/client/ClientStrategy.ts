@@ -7865,6 +7865,11 @@ export class ClientStrategy implements IStrategy {
   /**
    * Checks if there is a pending signal.
    *
+   * A position counts as present while it is open and while a deferred change still holds
+   * it: a user close (closePending / the full-partial auto-close) or a broker-confirmed fill
+   * waiting for its drain on the next tick, a market open refused by the gate and waiting
+   * for its retry. Only the drain that closes, cancels or gives up the position clears it.
+   *
    * @param symbol - Trading symbol to check for pending signal
    * @returns Promise resolving to true if a pending signal exists, false otherwise
    */
@@ -7872,11 +7877,31 @@ export class ClientStrategy implements IStrategy {
     this.params.logger.debug("ClientStrategy hasPendingSignal", {
       symbol,
     });
-    return this._pendingSignal !== null;
+    if (this._pendingSignal !== null) {
+      return true;
+    }
+    if (this._closedSignal !== null) {
+      return true;
+    }
+    if (this._takeProfitSignal !== null) {
+      return true;
+    }
+    if (this._stopLossSignal !== null) {
+      return true;
+    }
+    if (this._retryOpenSignal !== null && !this._retryOpenSignal._isScheduled) {
+      return true;
+    }
+    return false;
   }
 
   /**
    * Checks if there is a scheduled signal.
+   *
+   * A resting entry counts as present while it waits for its price and while a deferred
+   * change still holds it: a user cancel or activation waiting for its drain on the next
+   * tick, a placement refused by the gate and waiting for its retry. Only the drain that
+   * cancels, activates or gives up the entry clears it.
    *
    * @param symbol - Trading symbol to check for scheduled signal
    * @returns Promise resolving to true if a scheduled signal exists, false otherwise
@@ -7885,7 +7910,19 @@ export class ClientStrategy implements IStrategy {
     this.params.logger.debug("ClientStrategy hasScheduledSignal", {
       symbol,
     });
-    return this._scheduledSignal !== null;
+    if (this._scheduledSignal !== null) {
+      return true;
+    }
+    if (this._cancelledSignal !== null) {
+      return true;
+    }
+    if (this._activatedSignal !== null) {
+      return true;
+    }
+    if (this._retryOpenSignal !== null && this._retryOpenSignal._isScheduled) {
+      return true;
+    }
+    return false;
   }
 
   /**

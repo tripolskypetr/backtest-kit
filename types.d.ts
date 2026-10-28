@@ -2013,6 +2013,7 @@ type TActionCtor = new (strategyName: StrategyName, frameName: FrameName, action
  * - ActionProxy.partialLossAvailable — skips if no pending signal
  * - ActionProxy.pingActive — skips if no pending signal
  * - ActionProxy.pingScheduled — skips if no scheduled signal
+ * - ActionProxy.pingIdle — skips if a pending or a scheduled signal exists
  */
 interface IActionStrategy {
     /**
@@ -20708,6 +20709,11 @@ declare function listenActivePingOnce(filterFn: (event: ActivePingContract) => b
  * Subscribes to idle ping events with queued async processing.
  *
  * Emits every tick when there is no pending or scheduled signal being monitored.
+ * Before every delivery the listener asks the strategy for a pending position AND for a
+ * resting entry and skips the ping when either exists. Both count a signal as present while
+ * a deferred change still holds it (a close, a fill, a cancel or an activation waiting for
+ * its drain, a refused open waiting for its retry), so the idle tick the engine returns from
+ * those windows reaches the schema's `onIdle` but not this callback.
  *
  * @param fn - Callback function to handle idle ping events
  * @returns Unsubscribe function to stop listening
@@ -21090,7 +21096,7 @@ declare function listenAfterEndOnce(filterFn: (event: AfterEndContract) => boole
  * the same execution starts a new grid. State is kept per execution identity
  * (`strategy:exchange[:frame]:mode:symbol`) in a `LimitedMap` of SEEN_MAP_LIMIT
  * entries, like the per-signal listeners; the plain listener's gate
- * (`hasPendingSignal` / `hasScheduledSignal` / `not(hasPendingSignal)`) applies
+ * (`hasPendingSignal` / `hasScheduledSignal` / neither of them for the idle channel) applies
  * first because these delegate to it.
  */
 /**

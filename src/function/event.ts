@@ -17,7 +17,7 @@ import { SignalEventContract } from "../contract/SignalEvent.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
 import { IdlePingContract } from "../contract/IdlePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
-import { not, queued, LimitedMap, errorData, getErrorMessage } from "functools-kit";
+import { queued, LimitedMap, errorData, getErrorMessage } from "functools-kit";
 import OrderSyncContract from "../contract/OrderSync.contract";
 import OrderFillContract from "../contract/OrderFill.contract";
 import OrderRejectContract from "../contract/OrderReject.contract";
@@ -1648,6 +1648,11 @@ export function listenActivePingOnce(
  * Subscribes to idle ping events with queued async processing.
  *
  * Emits every tick when there is no pending or scheduled signal being monitored.
+ * Before every delivery the listener asks the strategy for a pending position AND for a
+ * resting entry and skips the ping when either exists. Both count a signal as present while
+ * a deferred change still holds it (a close, a fill, a cancel or an activation waiting for
+ * its drain, a refused open waiting for its retry), so the idle tick the engine returns from
+ * those windows reaches the schema's `onIdle` but not this callback.
  *
  * @param fn - Callback function to handle idle ping events
  * @returns Unsubscribe function to stop listening
@@ -1656,21 +1661,30 @@ export function listenIdlePing(fn: (event: IdlePingContract) => void) {
   backtest.loggerService.log(LISTEN_IDLE_PING_METHOD_NAME);
 
   const wrappedFn = async (event: IdlePingContract) => {
+    const context = {
+      strategyName: event.strategyName,
+      exchangeName: event.exchangeName,
+      frameName: event.frameName,
+    };
     if (
-      await not(
-        backtest.strategyCoreService.hasPendingSignal(
-          event.backtest,
-          event.symbol,
-          {
-            strategyName: event.strategyName,
-            exchangeName: event.exchangeName,
-            frameName: event.frameName,
-          },
-        )
+      await backtest.strategyCoreService.hasPendingSignal(
+        event.backtest,
+        event.symbol,
+        context,
       )
     ) {
-      await fn(event);
+      return;
     }
+    if (
+      await backtest.strategyCoreService.hasScheduledSignal(
+        event.backtest,
+        event.symbol,
+        context,
+      )
+    ) {
+      return;
+    }
+    await fn(event);
   };
 
   return idlePingSubject.subscribe(queued(wrappedFn));
@@ -2372,7 +2386,7 @@ export function listenAfterEndOnce(
  * the same execution starts a new grid. State is kept per execution identity
  * (`strategy:exchange[:frame]:mode:symbol`) in a `LimitedMap` of SEEN_MAP_LIMIT
  * entries, like the per-signal listeners; the plain listener's gate
- * (`hasPendingSignal` / `hasScheduledSignal` / `not(hasPendingSignal)`) applies
+ * (`hasPendingSignal` / `hasScheduledSignal` / neither of them for the idle channel) applies
  * first because these delegate to it.
  */
 

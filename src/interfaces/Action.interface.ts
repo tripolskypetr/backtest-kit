@@ -55,6 +55,7 @@ export type TActionCtor = new (strategyName: StrategyName, frameName: FrameName,
  * - ActionProxy.partialLossAvailable — skips if no pending signal
  * - ActionProxy.pingActive — skips if no pending signal
  * - ActionProxy.pingScheduled — skips if no scheduled signal
+ * - ActionProxy.pingIdle — skips if a pending or a scheduled signal exists
  */
 export interface IActionStrategy {
   /**

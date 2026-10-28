@@ -281,6 +281,7 @@ const CALL_PING_SCHEDULED_FN = trycatch(
 
 /**
  * Wrapper to call pingIdle method with error capture.
+ * Mirrors listenIdlePing: the action runs only with neither a pending position nor a resting entry.
  */
 const CALL_PING_IDLE_FN = trycatch(
   async (event: IdlePingContract, self: ActionProxy): Promise<void> => {
@@ -289,6 +290,19 @@ const CALL_PING_IDLE_FN = trycatch(
     }
     if (
       await self.params.strategy.hasPendingSignal(
+        event.backtest,
+        event.symbol,
+        {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+      )
+    ) {
+      return;
+    }
+    if (
+      await self.params.strategy.hasScheduledSignal(
         event.backtest,
         event.symbol,
         {

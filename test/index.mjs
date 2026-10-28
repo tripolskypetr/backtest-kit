@@ -79,6 +79,8 @@ import "./e2e/candle_identity.test.mjs";
 import "./e2e/adopt_pending.test.mjs";
 import "./e2e/create_signal_tick.test.mjs";
 import "./e2e/command_cadence.test.mjs";
+import "./e2e/idle_ping_gate.test.mjs";
+import "./e2e/channel_gate.test.mjs";
 
 import "./spec/audit.test.mjs";
 import "./spec/live.test.mjs";
