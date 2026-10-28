@@ -3022,14 +3022,18 @@ export async function commitSignalNotify(
  * close and check gates reconcile the right order; left out, it is generated like for any
  * signal.
  *
- * Never scheduled: the row is pending at `priceOpen` from this moment whatever the market
- * price is. No open gate: `onOrderOpenCommit` is NOT called, the order already exists. The
- * system defaults (cost, minuteEstimatedTime, multiplier, isolated) are applied by the
- * engine when it builds the row, not by the caller. Validated BEFORE anything is written: the call
- * throws when a signal or a deferred action is already in flight, and when the current
- * price already sits beyond the stop or the take-profit — a position that would be closed
- * on its first look is never recorded. The "opened" lifecycle event fires on success; in a
- * backtest the orchestrator replays the position from its `pendingAt` before the next tick.
+ * Like every external command of the strategy (createSignal, closePending, activateScheduled)
+ * the call only QUEUES: the DTO goes into a persisted deferred slot and the next tick drains
+ * it — builds the row, re-validates it against the tick's price and opens the position,
+ * returning the "opened" tick result (in a backtest the orchestrator replays it from that
+ * tick like any open). Never scheduled: the row is pending at `priceOpen` whatever the
+ * market price is. No open gate: `onOrderOpenCommit` is NOT called, the order already
+ * exists. The system defaults (cost, minuteEstimatedTime, multiplier, isolated) are applied
+ * by the engine when it builds the row, not by the caller. Validated BEFORE the slot is
+ * written: the call throws when a signal or a deferred action is already in flight, and
+ * when the current price already sits beyond the stop or the take-profit — a position that
+ * would be closed on its first look is never queued; a price that moves beyond a level
+ * between the command and the tick drops the queued DTO with a warning, as for createSignal.
  *
  * Automatically detects backtest/live mode from execution context.
  *

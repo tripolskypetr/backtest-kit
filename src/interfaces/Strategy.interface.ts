@@ -52,6 +52,8 @@ export type StrategyStatus = {
    * createPending and createScheduled overwrite the same slot, so only the latest wins.
    */
   createdSignal: ISignalDto | null;
+  /** Deferred adoption slot (public setPendingSignal): the DTO of a position already open on the exchange, drained by the next tick */
+  adoptedSignal: IPendingSignalDto | null;
   /** Queued commit events (average-buy / partial-* / trailing-* / breakeven) not yet drained */
   commitQueue: ICommitRow[];
   /** Deferred user-initiated close (closePending), or null if none pending */
