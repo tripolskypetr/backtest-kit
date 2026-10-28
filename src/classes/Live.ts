@@ -171,7 +171,8 @@ const INSTANCE_TASK_FN = async (
   })
   try {
     for await (const signal of self.run(symbol, context)) {
-      if (signal?.action === "closed" && self._isStopped) {
+      // a stopped run ends on the close of its position or on the cancel of its resting entry
+      if ((signal?.action === "closed" || signal?.action === "cancelled") && self._isStopped) {
         break;
       }
     }
@@ -464,14 +465,22 @@ export class LiveInstance {
         exchangeName: context.exchangeName,
         frameName: "",
       });
-      backtest.strategyCoreService
-        .hasPendingSignal(false, symbol, {
+      Promise.all([
+        backtest.strategyCoreService.hasPendingSignal(false, symbol, {
           strategyName: context.strategyName,
           exchangeName: context.exchangeName,
           frameName: "",
-        })
-        .then(async (pendingSignal) => {
-          if (pendingSignal) {
+        }),
+        backtest.strategyCoreService.hasScheduledSignal(false, symbol, {
+          strategyName: context.strategyName,
+          exchangeName: context.exchangeName,
+          frameName: "",
+        }),
+      ])
+        .then(async ([pendingSignal, scheduledSignal]) => {
+          // a position or a resting entry (each counting its deferred changes) keeps the run
+          // alive: the loop emits done once the last of them is closed or cancelled
+          if (pendingSignal || scheduledSignal) {
             return;
           }
           if (!this._isDone) {

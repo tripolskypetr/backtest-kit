@@ -8985,6 +8985,19 @@ export class ClientStrategy implements IStrategy {
     // Process queued commit events with proper timestamp
     await PROCESS_COMMIT_QUEUE_FN(this, currentPrice, currentTime);
 
+    // A stop drops a resting entry on the first tick after it, through the user-cancel
+    // pipeline drained right below (write-ahead persisted, emitted once with this tick's
+    // time): the broker adapter cancels the real order and the loop sees a "cancelled"
+    // result instead of the entry waiting for a price touch or for the schedule timeout.
+    // An activation already in flight is handled by its own stopped branch.
+    if (this._isStopped && this._scheduledSignal && !this._activatedSignal) {
+      await this.cancelScheduled(
+        this.params.execution.context.symbol,
+        this.params.execution.context.backtest,
+        { note: "stopped" },
+      );
+    }
+
     // Check if scheduled signal was cancelled - emit cancelled event once
     // NOTE: No _isStopped check here - cancellation must work for graceful shutdown
     // Deferred adoption (public setPendingSignal) queued BEFORE this tick: drained first,

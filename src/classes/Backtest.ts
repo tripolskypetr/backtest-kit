@@ -489,14 +489,22 @@ export class BacktestInstance {
         exchangeName: context.exchangeName,
         frameName: context.frameName,
       });
-      backtest.strategyCoreService
-        .hasPendingSignal(true, symbol, {
+      Promise.all([
+        backtest.strategyCoreService.hasPendingSignal(true, symbol, {
           strategyName: context.strategyName,
           exchangeName: context.exchangeName,
           frameName: context.frameName,
-        })
-        .then(async (pendingSignal) => {
-          if (pendingSignal) {
+        }),
+        backtest.strategyCoreService.hasScheduledSignal(true, symbol, {
+          strategyName: context.strategyName,
+          exchangeName: context.exchangeName,
+          frameName: context.frameName,
+        }),
+      ])
+        .then(async ([pendingSignal, scheduledSignal]) => {
+          // a position or a resting entry (each counting its deferred changes) keeps the run
+          // alive: the end of the run emits done
+          if (pendingSignal || scheduledSignal) {
             return;
           }
           if (!this._isDone) {
