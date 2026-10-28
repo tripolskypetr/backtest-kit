@@ -3444,33 +3444,37 @@ const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
 
 const CHECK_SCHEDULED_SIGNAL_PRICE_ACTIVATION_FN = (
   scheduled: IScheduledSignalRow,
-  currentPrice: number
+  touchLow: number,
+  touchHigh: number
 ): { shouldActivate: boolean; shouldCancel: boolean } => {
   let shouldActivate = false;
   let shouldCancel = false;
 
+  // Touches of the last closed candle (its low for a long, its high for a short), the same
+  // rule the backtest replay applies to a candle: the stop cancels first, and when the stop
+  // and the entry are touched on one candle the cancel wins — the entry never opens.
   if (scheduled.position === "long") {
     // КРИТИЧНО: Сначала проверяем StopLoss (отмена приоритетнее активации)
-    // Отмена если цена упала СЛИШКОМ низко (ниже SL)
-    if (currentPrice <= scheduled.priceStopLoss) {
+    // Отмена если low коснулся SL
+    if (touchLow <= scheduled.priceStopLoss) {
       shouldCancel = true;
     }
     // Long = покупаем дешевле, ждем падения цены ДО priceOpen
     // Активируем только если НЕ пробит StopLoss
-    else if (currentPrice <= scheduled.priceOpen) {
+    else if (touchLow <= scheduled.priceOpen) {
       shouldActivate = true;
     }
   }
 
   if (scheduled.position === "short") {
     // КРИТИЧНО: Сначала проверяем StopLoss (отмена приоритетнее активации)
-    // Отмена если цена выросла СЛИШКОМ высоко (выше SL)
-    if (currentPrice >= scheduled.priceStopLoss) {
+    // Отмена если high коснулся SL
+    if (touchHigh >= scheduled.priceStopLoss) {
       shouldCancel = true;
     }
     // Short = продаем дороже, ждем роста цены ДО priceOpen
     // Активируем только если НЕ пробит StopLoss
-    else if (currentPrice >= scheduled.priceOpen) {
+    else if (touchHigh >= scheduled.priceOpen) {
       shouldActivate = true;
     }
   }
@@ -5449,6 +5453,8 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 ): Promise<IStrategyTickResultActive> => {
   let percentTp = 0;
   let percentSl = 0;
+  let peakUpdated = false;
+  let fallUpdated = false;
 
   const currentTime = self.params.execution.context.when.getTime();
 
@@ -5489,11 +5495,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
               self.params.strategyName,
               self.params.exchangeName,
             );
-            await self.params.onHighestProfit(
-              TO_PUBLIC_SIGNAL("pending", signal, currentPrice),
-              currentPrice,
-              currentTime,
-            )
+            peakUpdated = false; await self.params.onHighestProfit(TO_PUBLIC_SIGNAL("pending", signal, currentPrice), currentPrice, currentTime);
           }
         }
 
@@ -5548,11 +5550,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             self.params.strategyName,
             self.params.exchangeName,
           );
-          await self.params.onMaxDrawdown(
-            TO_PUBLIC_SIGNAL("pending", signal, currentPrice),
-            currentPrice,
-            currentTime,
-          );
+          fallUpdated = true;
         }
         await CALL_ACTIVE_PING_CALLBACKS_FN(
           self,
@@ -5612,11 +5610,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
               self.params.strategyName,
               self.params.exchangeName,
             );
-            await self.params.onHighestProfit(
-              TO_PUBLIC_SIGNAL("pending", signal, currentPrice),
-              currentPrice,
-              currentTime,
-            )
+            peakUpdated = false; await self.params.onHighestProfit(TO_PUBLIC_SIGNAL("pending", signal, currentPrice), currentPrice, currentTime);
           }
         }
 
@@ -5671,11 +5665,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             self.params.strategyName,
             self.params.exchangeName,
           );
-          await self.params.onMaxDrawdown(
-            TO_PUBLIC_SIGNAL("pending", signal, currentPrice),
-            currentPrice,
-            currentTime,
-          );
+          fallUpdated = true;
         }
         await CALL_ACTIVE_PING_CALLBACKS_FN(
           self,
@@ -5705,6 +5695,24 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         );
       }
     }
+  }
+
+  // The extremes of this tick are reported once, after the ping and after the breakeven /
+  // partial callbacks of the tick — as the backtest look reports them — with the recorded
+  // price and minute of the extreme.
+  if (peakUpdated) {
+    await self.params.onHighestProfit(
+      TO_PUBLIC_SIGNAL("pending", signal, signal._peak.price),
+      signal._peak.price,
+      signal._peak.timestamp,
+    );
+  }
+  if (fallUpdated) {
+    await self.params.onMaxDrawdown(
+      TO_PUBLIC_SIGNAL("pending", signal, signal._fall.price),
+      signal._fall.price,
+      signal._fall.timestamp,
+    );
   }
 
   // Commits queued by the ping and level callbacks of this tick (partials, trailing,
@@ -9576,9 +9584,18 @@ export class ClientStrategy implements IStrategy {
 
     // Monitor scheduled signal
     if (this._scheduledSignal && !this._pendingSignal) {
-      const currentPrice = await this.params.exchange.getAveragePrice(
-        this.params.execution.context.symbol
+      // One candle fetch, as the pending monitor does: the VWAP for the ping and the prices,
+      // the last closed candle's low / high for the touches — the entry activates and the
+      // stop cancels on a touch, exactly as the backtest replay evaluates a candle.
+      const scheduledCandles = await this.params.exchange.getCandles(
+        this.params.execution.context.symbol,
+        "1m",
+        GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT
       );
+      const currentPrice = GET_AVG_PRICE_FN(scheduledCandles);
+      const lastScheduledCandle = scheduledCandles[scheduledCandles.length - 1];
+      const touchLow = lastScheduledCandle?.low ?? currentPrice;
+      const touchHigh = lastScheduledCandle?.high ?? currentPrice;
 
       // Scheduled-order ping (type "schedule"): before evaluating timeout/price
       // activation, confirm the resting entry order is STILL open on the exchange.
@@ -9683,7 +9700,8 @@ export class ClientStrategy implements IStrategy {
       const { shouldActivate, shouldCancel } =
         CHECK_SCHEDULED_SIGNAL_PRICE_ACTIVATION_FN(
           this._scheduledSignal,
-          currentPrice
+          touchLow,
+          touchHigh
         );
 
       if (shouldCancel) {
