@@ -5495,7 +5495,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
               self.params.strategyName,
               self.params.exchangeName,
             );
-            peakUpdated = false; await self.params.onHighestProfit(TO_PUBLIC_SIGNAL("pending", signal, currentPrice), currentPrice, currentTime);
+            peakUpdated = true;
           }
         }
 
@@ -5610,7 +5610,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
               self.params.strategyName,
               self.params.exchangeName,
             );
-            peakUpdated = false; await self.params.onHighestProfit(TO_PUBLIC_SIGNAL("pending", signal, currentPrice), currentPrice, currentTime);
+            peakUpdated = true;
           }
         }
 
