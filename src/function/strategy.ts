@@ -3023,10 +3023,13 @@ export async function commitSignalNotify(
  * signal.
  *
  * Like every external command of the strategy (createSignal, closePending, activateScheduled)
- * the call only QUEUES: the DTO goes into a persisted deferred slot and the next tick drains
- * it — builds the row, re-validates it against the tick's price and opens the position,
- * returning the "opened" tick result (in a backtest the orchestrator replays it from that
- * tick like any open). Never scheduled: the row is pending at `priceOpen` whatever the
+ * the call only QUEUES: the DTO goes into a persisted deferred slot and the first tick that
+ * runs after the command drains it — the same tick when the command was issued during it
+ * (getSignal, an idle callback, a listener awaited inside the ping), the next one otherwise —
+ * builds the row, re-validates it against the tick's price and opens the position, returning
+ * the "opened" tick result (in a backtest the orchestrator replays it from that tick like any
+ * open). So the position exists from the tick that learned of it: the same step in a backtest,
+ * the same minute in live. Never scheduled: the row is pending at `priceOpen` whatever the
  * market price is. No open gate: `onOrderOpenCommit` is NOT called, the order already
  * exists. The system defaults (cost, minuteEstimatedTime, multiplier, isolated) are applied
  * by the engine when it builds the row, not by the caller. Validated BEFORE the slot is

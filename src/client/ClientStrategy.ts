@@ -2500,6 +2500,50 @@ const ADOPT_PENDING_SIGNAL_FN = async (
 };
 
 /**
+ * Drains the deferred adoption slot inside tick(): builds the row at the tick's time,
+ * re-validates it against the tick's price (dropped with a warning when the price moved
+ * beyond a level since the command, as a queued createSignal DTO is dropped) and opens the
+ * position without the open gate. Returns the "opened" tick result, or null when nothing is
+ * queued or the queued DTO was dropped (the caller carries on with its own path). Called at
+ * the head of the tick (commands issued before it), at the end of the getSignal path and
+ * inside RETURN_IDLE_FN after the idle ping and callbacks (commands issued during the tick,
+ * from getSignal, an idle callback or a listener awaited inside the ping): the position
+ * exists from the tick that learned of it, on the same step in a backtest and on the same
+ * minute in live.
+ */
+const DRAIN_ADOPTED_SIGNAL_FN = async (
+  self: ClientStrategy,
+  currentPrice: number,
+  currentTime: number
+): Promise<IStrategyTickResultOpened | null> => {
+  if (!self._adoptedSignal) {
+    return null;
+  }
+  const dto = self._adoptedSignal;
+  self._adoptedSignal = null;
+  await PERSIST_STRATEGY_FN(self);
+  const row = TO_PENDING_SIGNAL_ROW_FN(self, dto, currentTime);
+  try {
+    validatePendingSignal(row, currentPrice);
+  } catch (error) {
+    const message = "ClientStrategy tick: queued adoption failed consumption re-validation (price moved beyond a level since setPendingSignal), dropped";
+    const payload = {
+      symbol: self.params.execution.context.symbol,
+      strategyName: self.params.strategyName,
+      signalId: row.id,
+      note: row.note,
+      currentPrice,
+      error: getErrorMessage(error),
+    };
+    self.params.logger.warn(message, payload);
+    console.warn(message, payload);
+    errorEmitter.next(new Error(message));
+    return null;
+  }
+  return await ADOPT_PENDING_SIGNAL_FN(self, row, currentTime);
+};
+
+/**
  * Resolves the outcome of the activation gate (`onOrderOpenCommit` type "active" for a
  * resting entry — price touch or activateScheduled) into an actionable verdict:
  *
@@ -5670,7 +5714,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 const RETURN_IDLE_FN = async (
   self: ClientStrategy,
   currentPrice: number
-): Promise<IStrategyTickResultIdle> => {
+): Promise<IStrategyTickResultIdle | IStrategyTickResultOpened> => {
   const currentTime = self.params.execution.context.when.getTime();
 
   await CALL_IDLE_PING_CALLBACKS_FN(
@@ -5688,6 +5732,15 @@ const RETURN_IDLE_FN = async (
     currentTime,
     self.params.execution.context.backtest
   );
+
+  // An adoption queued by the idle ping or the idle callback just above (public
+  // setPendingSignal) opens on this very tick instead of the next one
+  {
+    const adopted = await DRAIN_ADOPTED_SIGNAL_FN(self, currentPrice, currentTime);
+    if (adopted) {
+      return adopted;
+    }
+  }
 
   const result: IStrategyTickResultIdle = {
     action: "idle",
@@ -7692,8 +7745,10 @@ export class ClientStrategy implements IStrategy {
   /**
    * Deferred adoption slot (public `setPendingSignal`): the DTO of a position that is
    * ALREADY open on the exchange, queued out of the async-hooks contexts like `_userSignal`
-   * and drained at the start of the next tick(), where the row is built and written inside
-   * the execution and method contexts. Persisted (survives a restart), cleared on drain.
+   * and drained by the first tick that runs after the command — the same tick when the
+   * command was issued during it (getSignal, an idle callback, a listener awaited inside the
+   * ping), the next one otherwise — where the row is built and written inside the execution
+   * and method contexts. Persisted (survives a restart), cleared on drain.
    */
   _adoptedSignal: IPendingSignalDto | null = null;
 
@@ -8863,35 +8918,13 @@ export class ClientStrategy implements IStrategy {
 
     // Check if scheduled signal was cancelled - emit cancelled event once
     // NOTE: No _isStopped check here - cancellation must work for graceful shutdown
-    // Deferred adoption (public setPendingSignal): the command only queued the DTO — the row
-    // is built and written HERE, inside the execution and method contexts, like every other
-    // deferred slot. Re-validated against this tick's price: dropped with a warning when the
-    // price moved beyond a level since the command (as a queued createSignal DTO is dropped).
-    // Opens without the open gate (the order exists) and returns the "opened" tick result, so
-    // the backtest orchestrator replays the position from this tick like any open.
-    if (this._adoptedSignal) {
-      const dto = this._adoptedSignal;
-      this._adoptedSignal = null;
-      await PERSIST_STRATEGY_FN(this);
-      const row = TO_PENDING_SIGNAL_ROW_FN(this, dto, currentTime);
-      try {
-        validatePendingSignal(row, currentPrice);
-      } catch (error) {
-        const message = "ClientStrategy tick: queued adoption failed consumption re-validation (price moved beyond a level since setPendingSignal), dropped";
-        const payload = {
-          symbol: this.params.execution.context.symbol,
-          strategyName: this.params.strategyName,
-          signalId: row.id,
-          note: row.note,
-          currentPrice,
-          error: getErrorMessage(error),
-        };
-        this.params.logger.warn(message, payload);
-        console.warn(message, payload);
-        errorEmitter.next(new Error(message));
-        return await RETURN_IDLE_FN(this, currentPrice);
+    // Deferred adoption (public setPendingSignal) queued BEFORE this tick: drained first,
+    // inside the execution and method contexts, like every other deferred slot.
+    {
+      const adopted = await DRAIN_ADOPTED_SIGNAL_FN(this, currentPrice, currentTime);
+      if (adopted) {
+        return adopted;
       }
-      return await ADOPT_PENDING_SIGNAL_FN(this, row, currentTime);
     }
     if (this._cancelledSignal) {
       const cancelledSignal = this._cancelledSignal;
@@ -9635,6 +9668,17 @@ export class ClientStrategy implements IStrategy {
         this.params.execution.context.symbol
       );
 
+      // An adoption queued DURING this tick (from getSignal, an idle callback or a listener
+      // awaited inside the ping) opens on THIS tick, with this tick's time as pendingAt — the
+      // position exists from the moment the strategy learned of it, on the same step in a
+      // backtest and on the same minute in live. A command issued outside any tick waits for
+      // the next one, which drains it at its head.
+      {
+        const adopted = await DRAIN_ADOPTED_SIGNAL_FN(this, currentPrice, currentTime);
+        if (adopted) {
+          return adopted;
+        }
+      }
       return await RETURN_IDLE_FN(this, currentPrice);
     }
 
@@ -10606,7 +10650,9 @@ export class ClientStrategy implements IStrategy {
    * Queues the adoption of a position that is ALREADY open on the exchange (public
    * `setPendingSignal`), the way createSignal queues a DTO and closePending / activateScheduled
    * queue their deferred signals: works OUT of the async-hooks contexts, writes only the
-   * deferred slot `_adoptedSignal` (persisted), and the next tick() drains it — builds the row
+   * deferred slot `_adoptedSignal` (persisted), and the first tick that runs after the command
+   * drains it — the same tick when the command was issued during it (getSignal, an idle
+   * callback, a listener awaited inside the ping), the next one otherwise — builds the row
    * inside the execution and method contexts, re-validates it against the tick's price and
    * opens it without the open gate (the order exists) and without a scheduled phase (pending
    * at `priceOpen` whatever the market price is), returning the "opened" tick result.

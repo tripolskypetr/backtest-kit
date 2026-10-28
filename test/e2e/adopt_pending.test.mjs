@@ -5,6 +5,7 @@ import {
   addStrategySchema,
   addFrameSchema,
   Backtest,
+  Live,
   setPendingSignal,
   commitClosePending,
   listenIdlePing,
@@ -17,8 +18,10 @@ import {
 // `setPendingSignal` registers a position that is ALREADY open on the exchange: the
 // application took the fill itself, at an exclusive price, and hands the engine the result
 // to monitor. Like every external command of the strategy it only queues (the deferred slot
-// is persisted) and the NEXT tick drains it: builds the row, re-validates it against the
-// tick's price and opens it without the open gate, returning "opened". The contract under
+// is persisted) and a tick drains it: the SAME tick when the command was issued during it
+// (getSignal, an idle callback, a listener awaited inside the ping), the next one otherwise.
+// The drain builds the row, re-validates it against the tick's price and opens it without
+// the open gate, returning "opened". The contract under
 // attack here: no open gate (the order exists), never a scheduled signal (the row is pending
 // at its own priceOpen whatever the market says), the system defaults applied by the engine,
 // a throw at the command when the current price already sits beyond the stop or the
@@ -67,7 +70,7 @@ const GATES = new Map();
  * Flat candles at BASE with per-minute overrides; the frame ticks hourly. `adopt(symbol)` runs
  * inside getSignal on the tick of minute `at` (execution and method context present, as for
  * any strategy code); whatever it throws is recorded in `thrown` and getSignal returns null.
- * The queued adoption is drained by the NEXT hourly tick: a command on minute 60 opens on 120.
+ * A command issued during the tick of minute 60 opens on that same tick: pendingAt 60.
  */
 const buildCase = (name, { watch, candleByMinute = {}, adopt, at = 60, frameHours = 6 }) => {
   const exchangeName = `adopt-exchange-${name}`;
@@ -156,35 +159,35 @@ const differs = (results, pick, fail, what) => {
 const outcome = (r) => ({ opened: r.opened, scheduled: r.scheduled, closed: r.closed, opens: r.opens, closes: r.closes, thrown: r.thrown });
 const range = (from, to, candle) => Object.fromEntries(Array.from({ length: to - from + 1 }, (_, k) => [from + k, candle]));
 
-test("ADOPT: a position bought at 95 while the market is at 100 is opened by the next tick without the open gate, replayed from there and closed by the engine with the adopted id on the close gate, identically on every watch", async ({ pass, fail }) => {
+test("ADOPT: a position bought at 95 while the market is at 100 is opened on the tick of the command without the open gate, replayed from there and closed by the engine with the adopted id on the close gate, identically on every watch", async ({ pass, fail }) => {
   const results = await runOnWatches("basic", {
     adopt: (symbol) => setPendingSignal(symbol, { id: "adopted-1", position: "long", priceOpen: 95, priceTakeProfit: TP, priceStopLoss: SL, minuteEstimatedTime: HOLD }),
   });
   const oracle = results["1m"];
   const expected = {
-    opened: [{ id: "adopted-1", at: 120, priceOpen: 95 }],
+    opened: [{ id: "adopted-1", at: 60, priceOpen: 95 }],
     scheduled: [],
-    closed: [{ id: "adopted-1", reason: "time_expired", at: 120 + HOLD, price: BASE, pnl: oracle.closed[0]?.pnl }],
+    closed: [{ id: "adopted-1", reason: "time_expired", at: 60 + HOLD, price: BASE, pnl: oracle.closed[0]?.pnl }],
     opens: [],
-    closes: ["adopted-1@220"],
+    closes: ["adopted-1@160"],
     thrown: [],
   };
   if (JSON.stringify(outcome(oracle)) !== JSON.stringify(expected)) return fail(`1m: expected ${JSON.stringify(expected)}, got ${JSON.stringify(outcome(oracle))}`);
   if (!(oracle.closed[0].pnl > 4)) return fail(`the PnL must come from the adopted fill at 95 (about +5% at 100 minus fees), got ${oracle.closed[0].pnl}%`);
-  if (oracle.lifecycleOpened.join(",") !== "opened:adopted-1@120") return fail(`expected one "opened" lifecycle event on the draining tick, got ${oracle.lifecycleOpened.join(",")}`);
+  if (oracle.lifecycleOpened.join(",") !== "opened:adopted-1@60") return fail(`expected one "opened" lifecycle event on the tick of the command, got ${oracle.lifecycleOpened.join(",")}`);
   if (differs(results, outcome, fail, "basic")) return;
-  pass(`queued@60, opened@120 at 95 (no open gate), expired@220 at 100 with pnl ${oracle.closed[0].pnl}%, close gate id adopted-1, on ${WATCHES.join("/")}`);
+  pass(`opened@60 at 95 on the tick of the command (no open gate), expired@160 at 100 with pnl ${oracle.closed[0].pnl}%, close gate id adopted-1, on ${WATCHES.join("/")}`);
 });
 
 test("ADOPT: the adopted position is monitored candle by candle — a stop touched after the adoption closes on its exact minute on every watch", async ({ pass, fail }) => {
   const results = await runOnWatches("stop", {
-    candleByMinute: range(150, 153, { low: SL }),
+    candleByMinute: range(80, 83, { low: SL }),
     adopt: (symbol) => setPendingSignal(symbol, { id: "adopted-stop", position: "long", priceOpen: 95, priceTakeProfit: TP, priceStopLoss: SL, minuteEstimatedTime: HOLD }),
   });
   const oracle = results["1m"];
-  if (JSON.stringify(oracle.closed.map((c) => `${c.reason}@${c.at}`)) !== JSON.stringify(["stop_loss@150"]) || oracle.opens.length !== 0) return fail(`1m: expected stop_loss@150 with no open gate, got ${JSON.stringify(outcome(oracle))}`);
+  if (JSON.stringify(oracle.closed.map((c) => `${c.reason}@${c.at}`)) !== JSON.stringify(["stop_loss@80"]) || oracle.opens.length !== 0) return fail(`1m: expected stop_loss@80 with no open gate, got ${JSON.stringify(outcome(oracle))}`);
   if (differs(results, outcome, fail, "stop")) return;
-  pass(`opened@120, stop_loss@150 at ${SL}, close gate id adopted-stop, on ${WATCHES.join("/")}`);
+  pass(`opened@60, stop_loss@80 at ${SL}, close gate id adopted-stop, on ${WATCHES.join("/")}`);
 });
 
 test("ADOPT: an exclusive price far below the market is still a PENDING position, never a scheduled one", async ({ pass, fail }) => {
@@ -194,10 +197,10 @@ test("ADOPT: an exclusive price far below the market is still a PENDING position
     adopt: (symbol) => setPendingSignal(symbol, { id: "adopted-cheap", position: "long", priceOpen: 80, priceTakeProfit: TP, priceStopLoss: 70, minuteEstimatedTime: HOLD }),
   });
   const oracle = results["1m"];
-  if (oracle.scheduled.length !== 0 || oracle.opened.length !== 1 || oracle.opened[0].priceOpen !== 80 || oracle.opened[0].at !== 120) return fail(`1m: expected a pending position at 80 and no scheduled signal, got ${JSON.stringify(outcome(oracle))}`);
+  if (oracle.scheduled.length !== 0 || oracle.opened.length !== 1 || oracle.opened[0].priceOpen !== 80 || oracle.opened[0].at !== 60) return fail(`1m: expected a pending position at 80 and no scheduled signal, got ${JSON.stringify(outcome(oracle))}`);
   if (!(oracle.closed[0]?.pnl > 24)) return fail(`the PnL must come from the fill at 80 (about +25% at 100), got ${JSON.stringify(oracle.closed)}`);
   if (differs(results, outcome, fail, "exclusive")) return;
-  pass(`opened@120 at 80 with the market at 100: pending, no scheduled phase, pnl ${oracle.closed[0].pnl}% on ${WATCHES.join("/")}`);
+  pass(`opened@60 at 80 with the market at 100: pending, no scheduled phase, pnl ${oracle.closed[0].pnl}% on ${WATCHES.join("/")}`);
 });
 
 test("ADOPT: a current price already beyond the stop or the take-profit throws BEFORE anything is written — no position, no event, no gate call", async ({ pass, fail }) => {
@@ -221,7 +224,7 @@ test("ADOPT: a DTO without priceOpen is refused before any write; a DTO without 
   const generated = await runCase(buildCase("missing-id", { watch: "1m", adopt: (symbol) => setPendingSignal(symbol, { position: "long", priceOpen: 95, priceTakeProfit: TP, priceStopLoss: SL, minuteEstimatedTime: HOLD }) }));
   if (generated.thrown.length || generated.opened.length !== 1 || typeof generated.opened[0].id !== "string" || generated.opened[0].id.length === 0) return fail(`no id: expected an adoption with a generated id, got thrown=${JSON.stringify(generated.thrown)} ${JSON.stringify(outcome(generated))}`);
   const id = generated.opened[0].id;
-  if (generated.closed.length !== 1 || generated.closed[0].id !== id || generated.closes.join(",") !== `${id}@220`) return fail(`no id: the generated id must reach the close and the close gate, got ${JSON.stringify(outcome(generated))}`);
+  if (generated.closed.length !== 1 || generated.closed[0].id !== id || generated.closes.join(",") !== `${id}@160`) return fail(`no id: the generated id must reach the close and the close gate, got ${JSON.stringify(outcome(generated))}`);
   pass(`no priceOpen: refused | no id: generated ${id.slice(0, 8)}…, carried by the close gate`);
 });
 
@@ -234,7 +237,7 @@ test("ADOPT: a second adoption while a position is in flight is refused, the fir
     },
   }));
   if (result.thrown.length !== 1 || !result.thrown[0].includes("an adoption is already queued")) return fail(`expected the second adoption to be refused, got ${JSON.stringify(result.thrown)}`);
-  if (JSON.stringify(result.opened) !== JSON.stringify([{ id: "adopted-first", at: 120, priceOpen: 95 }]) || result.closed.length !== 1 || result.closed[0].id !== "adopted-first") return fail(`the first adoption must stand alone, got ${JSON.stringify(outcome(result))}`);
+  if (JSON.stringify(result.opened) !== JSON.stringify([{ id: "adopted-first", at: 60, priceOpen: 95 }]) || result.closed.length !== 1 || result.closed[0].id !== "adopted-first") return fail(`the first adoption must stand alone, got ${JSON.stringify(outcome(result))}`);
   pass(`second adoption refused ("${result.thrown[0].slice(0, 70)}"), adopted-first expired@${result.closed[0].at}`);
 });
 
@@ -252,8 +255,8 @@ test("ADOPT: the call works from the strategy's onIdle callback, from a listenId
       try { await setPendingSignal(symbol, { id: "from-onidle", position: "long", priceOpen: 95, priceTakeProfit: TP, priceStopLoss: SL, minuteEstimatedTime: HOLD }); } catch (error) { thrown.push(error?.message ?? String(error)); }
     } };
     const result = await runCase(schema);
-    if (!tried || thrown.length || JSON.stringify(result.opened) !== JSON.stringify([{ id: "from-onidle", at: 120, priceOpen: 95 }]) || result.opens.length) return fail(`onIdle: expected the adoption at 60, got tried=${tried} thrown=${JSON.stringify(thrown)} ${JSON.stringify(outcome(result))}`);
-    report.push("onIdle callback: queued@60, opened@120");
+    if (!tried || thrown.length || JSON.stringify(result.opened) !== JSON.stringify([{ id: "from-onidle", at: 60, priceOpen: 95 }]) || result.opens.length) return fail(`onIdle: expected the adoption at 60, got tried=${tried} thrown=${JSON.stringify(thrown)} ${JSON.stringify(outcome(result))}`);
+    report.push("onIdle callback: opened@60");
   }
   // 2. listenIdlePing listener with the in-context function: the listener is awaited inside the ping emit, the contexts propagate
   {
@@ -267,8 +270,8 @@ test("ADOPT: the call works from the strategy's onIdle callback, from a listenId
     });
     let result;
     try { result = await runCase(schema); } finally { un(); }
-    if (!tried || thrown.length || JSON.stringify(result.opened) !== JSON.stringify([{ id: "from-listener", at: 120, priceOpen: 95 }]) || result.opens.length) return fail(`listener: expected the adoption at 60, got tried=${tried} thrown=${JSON.stringify(thrown)} ${JSON.stringify(outcome(result))}`);
-    report.push("listenIdlePing + function: queued@60, opened@120");
+    if (!tried || thrown.length || JSON.stringify(result.opened) !== JSON.stringify([{ id: "from-listener", at: 60, priceOpen: 95 }]) || result.opens.length) return fail(`listener: expected the adoption at 60, got tried=${tried} thrown=${JSON.stringify(thrown)} ${JSON.stringify(outcome(result))}`);
+    report.push("listenIdlePing + function: opened@60");
   }
   // 3. class-level call with an explicit context: no execution or method context needed
   {
@@ -283,8 +286,8 @@ test("ADOPT: the call works from the strategy's onIdle callback, from a listenId
     });
     let result;
     try { result = await runCase(schema); } finally { un(); }
-    if (!tried || thrown.length || JSON.stringify(result.opened) !== JSON.stringify([{ id: "from-class", at: 120, priceOpen: 95 }]) || result.opens.length) return fail(`Backtest.setPendingSignal: expected the adoption at 60, got tried=${tried} thrown=${JSON.stringify(thrown)} ${JSON.stringify(outcome(result))}`);
-    report.push("Backtest.setPendingSignal with context: queued@60, opened@120");
+    if (!tried || thrown.length || JSON.stringify(result.opened) !== JSON.stringify([{ id: "from-class", at: 60, priceOpen: 95 }]) || result.opens.length) return fail(`Backtest.setPendingSignal: expected the adoption at 60, got tried=${tried} thrown=${JSON.stringify(thrown)} ${JSON.stringify(outcome(result))}`);
+    report.push("Backtest.setPendingSignal with context: opened@60");
   }
   pass(report.join(" | "));
 });
@@ -344,12 +347,50 @@ test("ADOPT (live): a position adopted from getSignal is monitored from the next
     const actions = [];
     for (let i = 0; i < 4; i++) actions.push((await runTick(new Date(t0 + i * MIN_MS))).action);
     if (thrown.length) return fail(`adoption threw: ${thrown.join(" | ")}`);
-    // tick 1 queues the adoption inside getSignal (idle); tick 2 drains it and reports "opened";
-    // tick 3 monitors the position and the ping asks to close; tick 4 closes it through the gate
-    if (actions.join(",") !== "idle,opened,active,closed") return fail(`expected idle,opened,active,closed, got ${actions.join(",")}`);
+    // tick 1 queues the adoption inside getSignal and drains it on the same tick ("opened");
+    // tick 2 monitors the position and the ping asks to close; tick 3 closes it through the gate
+    if (actions.join(",") !== "opened,active,closed,idle") return fail(`expected opened,active,closed,idle, got ${actions.join(",")}`);
     if (gate.some((g) => g.startsWith("signal-open"))) return fail(`the open gate must not fire for an adopted position, got ${gate.join(",")}`);
     if (!gate.includes("signal-close:active:live-adopted")) return fail(`the close gate must carry the adopted id, got ${gate.join(",")}`);
-    pass(`queued, opened at 49000 by the next tick without an open gate, closed through the gate as live-adopted: ${actions.join(" → ")}`);
+    pass(`opened at 49000 on the tick of the command without an open gate, closed through the gate as live-adopted: ${actions.join(" → ")}`);
+  } finally {
+    unSync();
+  }
+});
+
+test("ADOPT (live): a command issued between ticks, outside any context, through Live.setPendingSignal opens on the next tick without an open gate", async ({ pass, fail }) => {
+  const t0 = Date.parse("2024-08-05T00:00:00Z");
+  const context = { strategyName: "adopt-live-outside-strategy", exchangeName: "adopt-live-outside-exchange", frameName: "" };
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const aligned = Math.floor(since.getTime() / MIN_MS) * MIN_MS;
+      return Array.from({ length: limit }, (_, i) => ({ timestamp: aligned + i * MIN_MS, open: LIVE_PRICE, high: LIVE_PRICE, low: LIVE_PRICE, close: LIVE_PRICE, volume: 100 }));
+    },
+    formatPrice: async (_s, p) => p.toFixed(8),
+    formatQuantity: async (_s, q) => q.toFixed(8),
+  });
+  addStrategySchema({ strategyName: context.strategyName, interval: "1m", getSignal: async () => null });
+  const gate = [];
+  const unSync = listenSync((event) => {
+    if (event.strategyName !== context.strategyName) return;
+    gate.push(`${event.action}:${event.type ?? ""}:${event.signalId}`);
+  }, true);
+  const runTick = (when) => MethodContextService.runInContext(
+    async () => await lib.strategyCoreService.tick("BTCUSDT", when, false, context),
+    context,
+  );
+  try {
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "idle") return fail(`tick #1 expected idle, got ${tick1.action}`);
+    // between ticks: no execution context, no method context — the class-level call with the context
+    await Live.setPendingSignal("BTCUSDT", context, { id: "live-outside", position: "long", priceOpen: 49000, priceTakeProfit: 60000, priceStopLoss: 40000, minuteEstimatedTime: 120 });
+    const tick2 = await runTick(new Date(t0 + MIN_MS));
+    if (tick2.action !== "opened" || tick2.signal.id !== "live-outside" || Math.abs(tick2.signal.priceOpen - 49000) > 1e-6) return fail(`tick #2 expected the adoption to open (head drain), got ${tick2.action} ${JSON.stringify(tick2.signal && { id: tick2.signal.id, priceOpen: tick2.signal.priceOpen })}`);
+    const tick3 = await runTick(new Date(t0 + 2 * MIN_MS));
+    if (tick3.action !== "active") return fail(`tick #3 expected active, got ${tick3.action}`);
+    if (gate.some((g) => g.startsWith("signal-open"))) return fail(`the open gate must not fire for an adopted position, got ${gate.join(",")}`);
+    pass(`idle → Live.setPendingSignal between ticks → opened on the next tick → active, no open gate`);
   } finally {
     unSync();
   }

@@ -1613,7 +1613,7 @@ export type StrategyData = {
    * createPending and createScheduled overwrite the same slot, so only the latest wins.
    */
   createdSignal: ISignalDto | null;
-  /** Deferred adoption slot (public setPendingSignal): the DTO of a position already open on the exchange, drained by the next tick */
+  /** Deferred adoption slot (public setPendingSignal): the DTO of a position already open on the exchange, drained by the first tick after the command (the same tick when issued during it) */
   adoptedSignal: IPendingSignalDto | null;
   /** Queued commit events (average-buy / partial-* / trailing-* / breakeven) not yet drained */
   commitQueue: ICommitRow[];
