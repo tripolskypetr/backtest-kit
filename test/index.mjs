@@ -78,6 +78,7 @@ import "./e2e/window_stream.test.mjs";
 import "./e2e/candle_identity.test.mjs";
 import "./e2e/adopt_pending.test.mjs";
 import "./e2e/create_signal_tick.test.mjs";
+import "./e2e/command_cadence.test.mjs";
 
 import "./spec/audit.test.mjs";
 import "./spec/live.test.mjs";
