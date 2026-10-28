@@ -148,20 +148,21 @@ test("stopped-activation branch: mid-tick stop race drains scheduled via cancel 
   }
   strategy._isStopped = true;
 
-  // tick 2: цена пересекает priceOpen -> ACTIVATE -> stopped-ветка
+  // tick 2: цена пересекает priceOpen, но стоп снимает resting-ордер в голове тика через
+  // cancel-пайплайн раньше, чем дело доходит до активации: результат "cancelled"/user
   marketPrice = 48500;
   const r2 = await tick(BASE + 2 * MIN);
 
-  if (r2.action !== "idle") {
-    t.fail(`expected idle from stopped-activation branch, got ${r2.action}`);
+  if (r2.action !== "cancelled" || r2.reason !== "user") {
+    t.fail(`expected cancelled/user from the stop's cancel at the tick head, got ${r2.action}/${r2.reason ?? ""}`);
     return;
   }
   if (strategy._scheduledSignal) {
     t.fail("scheduled signal was not cleared by the stopped branch");
     return;
   }
-  if (!scheduleEvents.includes("cancelled")) {
-    t.fail(`no cancelled schedule event, got: ${scheduleEvents.join(",")}`);
+  if (scheduleEvents.filter((a) => a === "cancelled").length !== 1) {
+    t.fail(`expected exactly one cancelled schedule event, got: ${scheduleEvents.join(",")}`);
     return;
   }
   // Отмена персистится через in-memory адаптер, объявленный в этом тесте
@@ -172,7 +173,7 @@ test("stopped-activation branch: mid-tick stop race drains scheduled via cancel 
   }
 
   t.pass(
-    "stopped mid-tick race drains scheduled: idle tick + cancelled/user on schedule channel + risk slot released",
+    "stopped mid-tick race drains scheduled: cancelled/user tick from the stop's cancel + one cancelled schedule event + risk slot released",
   );
 });
 
