@@ -10071,19 +10071,41 @@ export class ClientStrategy implements IStrategy {
           "timeout"
         );
       }
+      // a user activation queued at the last look, with no candle left to open on:
+      // the entry times out with the frame like a resting one
+      if (this._activatedSignal) {
+        const activatedSignal = this._activatedSignal;
+        this._activatedSignal = null;
+        return await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
+          this,
+          activatedSignal,
+          currentPrice,
+          frameEndTime,
+          "timeout"
+        );
+      }
       throw new Error("ClientStrategy backtest: no candles and no signal to expire at the frame end");
     }
+
+    // A deferred command drained at the head of a replay — queued at the entry tick that opened
+    // or placed the signal, or at the last look of the previous window — applies on the first
+    // evaluable candle of this array, the way the candle loop applies a command queued at a
+    // look: dated at that candle's close, at the VWAP of that candle. The same minute and price
+    // live gives it on the tick after the command.
+    const firstIndex = Math.min(GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1, candles.length - 1);
+    const firstClock = candles[firstIndex].timestamp + CANDLE_CLOSE_MS;
+    const firstPrice = GET_AVG_PRICE_AT_FN(candles, firstIndex, GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT);
 
     // If signal was cancelled - return cancelled
     if (this._cancelledSignal) {
       this.params.logger.debug("ClientStrategy backtest: no signal (cancelled or not created)");
 
-      const currentPrice = await this.params.exchange.getAveragePrice(symbol);
+      const currentPrice = firstPrice;
 
       const cancelledSignal = this._cancelledSignal;
       this._cancelledSignal = null; // Clear after using
 
-      const closeTimestamp = this.params.execution.context.when.getTime();
+      const closeTimestamp = firstClock;
 
       // Release the slot reserved at scheduled-signal creation
       await CALL_RISK_REMOVE_SIGNAL_FN(
@@ -10157,11 +10179,11 @@ export class ClientStrategy implements IStrategy {
     if (this._closedSignal) {
       this.params.logger.debug("ClientStrategy backtest: pending signal was closed");
 
-      const currentPrice = await this.params.exchange.getAveragePrice(symbol);
+      const currentPrice = firstPrice;
 
       const closedSignal = this._closedSignal;
 
-      const closeTimestamp = this.params.execution.context.when.getTime();
+      const closeTimestamp = firstClock;
 
       // Sync close: if external system rejects — keep the close pending and re-attempt
       // it inside the candle loop below (PROCESS_PENDING_SIGNAL_CANDLES_FN handles
@@ -10298,7 +10320,7 @@ export class ClientStrategy implements IStrategy {
       const filledSignal = this._takeProfitSignal;
       this._takeProfitSignal = null; // Clear after draining
 
-      const closeTimestamp = this.params.execution.context.when.getTime();
+      const closeTimestamp = firstClock;
 
       return await CLOSE_PENDING_SIGNAL_AS_FILL_FN(this, filledSignal, "take_profit", closeTimestamp);
     }
@@ -10311,20 +10333,28 @@ export class ClientStrategy implements IStrategy {
       const filledSignal = this._stopLossSignal;
       this._stopLossSignal = null; // Clear after draining
 
-      const closeTimestamp = this.params.execution.context.when.getTime();
+      const closeTimestamp = firstClock;
 
       return await CLOSE_PENDING_SIGNAL_AS_FILL_FN(this, filledSignal, "stop_loss", closeTimestamp);
     }
 
-    if (!this._pendingSignal && !this._scheduledSignal) {
+    // A user activation queued before the replay (activateScheduled from the "scheduled"
+    // event of the entry tick, or from the last schedule ping of the previous window) has
+    // consumed the scheduled slot into _activatedSignal. The activation branch of the
+    // scheduled loop opens it on the first evaluable candle — the same minute and price
+    // live gives it on the tick after the command — and needs only the activated snapshot,
+    // a superset of the scheduled row.
+    const scheduledOrActivated = this._scheduledSignal ?? this._activatedSignal;
+
+    if (!this._pendingSignal && !scheduledOrActivated) {
       throw new Error(
         "ClientStrategy backtest: no pending or scheduled signal"
       );
     }
 
     // Process scheduled signal
-    if (this._scheduledSignal && !this._pendingSignal) {
-      const scheduled = this._scheduledSignal;
+    if (scheduledOrActivated && !this._pendingSignal) {
+      const scheduled = scheduledOrActivated;
 
       this.params.logger.debug("ClientStrategy backtest scheduled signal", {
         symbol: this.params.execution.context.symbol,
@@ -10359,7 +10389,8 @@ export class ClientStrategy implements IStrategy {
             activationIndex + 1
           );
           const lastPrice = GET_AVG_PRICE_FN(recentCandles);
-          const closeTimestamp = candles[activationIndex].timestamp;
+          // the activation candle's close
+          const closeTimestamp = candles[activationIndex].timestamp + CANDLE_CLOSE_MS;
 
           const noRemainingResult = await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
             this,
