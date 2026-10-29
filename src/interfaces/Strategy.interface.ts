@@ -852,6 +852,15 @@ export interface IStrategyParams extends IStrategySchema {
    * the span end, but a forced event does not wait for the ping. No-op in live.
    */
   onHandoff: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, timestamp: number, backtest: boolean) => Promise<void>;
+
+  /**
+   * Feeds the time meta with the clock of the backtest as the replay advances: the
+   * minute of every evaluated candle, of the drains at the head of a window, of the
+   * frame-end replay. A listener runs inside the execution context and reads the
+   * clock from it; the consumer of Backtest.run and the public commands run outside
+   * any context and read the time meta as "now". No-op in live (the tick feeds it).
+   */
+  onTimeFeed: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, timestamp: number, backtest: boolean) => Promise<void>;
   /** System callback for idle ping events (emits to idlePingSubject) */
   onIdlePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, currentPrice: number, backtest: boolean, timestamp: number) => Promise<void>;
   /**

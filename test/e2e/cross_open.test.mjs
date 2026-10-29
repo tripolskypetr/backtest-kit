@@ -5,6 +5,7 @@ import {
   addStrategySchema,
   addFrameSchema,
   Backtest,
+  lib,
   setConfig,
   listenActivePing,
   listenSignalBacktest,
@@ -117,4 +118,43 @@ test("CROSS OPEN: a setPendingSignal (adoption) issued for an idle daily strateg
   if (!lifecycle.includes(`opened@${12 * HOUR + 1}:95`)) return fail(`B must adopt on 12:01 (minute ${12 * HOUR + 1}) at 95, got ${lifecycle.join(",") || "nothing"}; errors ${errors.join(" | ")}`);
   if (!lifecycle.includes(`closed:time_expired@${12 * HOUR + 101}`)) return fail(`the adopted position must expire after its 100-minute hold on ${12 * HOUR + 101}, got ${lifecycle.join(",")}`);
   pass(`issued from A's ping@${issued.at} → B ${lifecycle.join(", ")}`);
+});
+
+// The consumer of the async iterator runs OUTSIDE any execution context: its "now" is the time
+// meta, which the strategy feeds with the clock of the replay as it advances. At the "closed"
+// yield of a daily-entry, 4h-watch strategy the time meta must give the close minute itself —
+// it used to give the minute of the last ping, up to a span earlier — and a command issued
+// there for the same strategy is taken on that very minute (the re-tick of the close minute).
+
+test("ITERATOR CLOCK: at every yield of Backtest.run the time meta gives the minute of the result just received, on a 4h watch, and a createSignal issued at the closed yield opens on the close minute", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: false }, true);
+  const ctx = { strategyName: "iterator-clock-strategy", exchangeName: "iterator-clock-exchange", frameName: "iterator-clock-frame" };
+  makeExchange(ctx.exchangeName);
+  let issued = false;
+  addStrategySchema({ strategyName: ctx.strategyName, interval: "1d", getSignal: async (_s, when) => { if (issued || minute(when.getTime()) !== DAY) return null; issued = true; return LONG(1400); } });
+  addFrameSchema({ frameName: ctx.frameName, entryInterval: "1d", watchInterval: "4h", startDate: new Date(T0), endDate: new Date(T0 + 4 * DAY * MIN) });
+  const meta = async () => minute(await lib.timeMetaService.getTimestamp("BTCUSDT", ctx, true));
+  const seen = [];
+  let reopened = false;
+  const unsubscribe = [
+    // the user close from the second 4h ping (1920): the close lands on the next candle, 1921
+    listenActivePing(async (event) => { if (event.data.strategyName === ctx.strategyName && minute(event.timestamp) === DAY + 480) await Backtest.commitClosePending("BTCUSDT", ctx); }),
+  ];
+  try {
+    for await (const r of Backtest.run("BTCUSDT", ctx)) {
+      if (r.action === "opened") seen.push(`opened@${minute(r.signal.pendingAt)}:meta=${await meta()}`);
+      if (r.action === "closed") {
+        seen.push(`closed:${r.closeReason}@${minute(r.closeTimestamp)}:meta=${await meta()}`);
+        if (!reopened) {
+          reopened = true;
+          await Backtest.commitCreateSignal("BTCUSDT", ctx, LONG(100));
+        }
+      }
+    }
+  } finally {
+    unsubscribe.forEach((un) => un());
+  }
+  const expected = [`opened@${DAY}:meta=${DAY}`, `closed:closed@${DAY + 481}:meta=${DAY + 481}`, `opened@${DAY + 481}:meta=${DAY + 481}`, `closed:time_expired@${DAY + 581}:meta=${DAY + 581}`];
+  if (seen.join(" ") !== expected.join(" ")) return fail(`expected ${expected.join(" ")}, got ${seen.join(" ")}`);
+  pass(seen.join(", "));
 });

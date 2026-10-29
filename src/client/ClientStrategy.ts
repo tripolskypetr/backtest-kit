@@ -1765,6 +1765,26 @@ const CROSSED_LEVEL_FN = (levels: readonly number[], previous: number, current: 
 const CANDLE_CLOSE_MS = 60_000;
 
 /**
+ * Feeds the time meta (through params.onTimeFeed, implemented by the connection layer) with the
+ * clock of the backtest as the replay advances: the minute of the evaluated candle, of the
+ * drains at the head of a window, of the frame-end replay. A listener
+ * runs inside the execution context and reads the clock from it; the consumer of the async
+ * iterator (Backtest.run) and the public commands it issues run outside any context and read the
+ * time meta — without this feed they saw the minute of the last ping, up to a watch span behind
+ * the result just received.
+ */
+const FEED_TIME_FN = async (self: ClientStrategy, timestamp: number): Promise<void> => {
+  await self.params.onTimeFeed(
+    self.params.execution.context.symbol,
+    self.params.strategyName,
+    self.params.exchangeName,
+    self.params.frameName,
+    timestamp,
+    self.params.execution.context.backtest
+  );
+};
+
+/**
  * The clock event of a live tick on an open position: the hold has expired at this tick's
  * time. Checked after the tick has monitored the last closed candle (its touches, the VWAP
  * take, the ping, the levels, the commits) — the candle comes before the clock, as in the
@@ -7035,8 +7055,10 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     const candle = candles[evalIndex];
     const candleClock = candle.timestamp + CANDLE_CLOSE_MS;
     // the execution clock follows the evaluated candle: a listener of this candle's events
-    // (and a command it issues for any strategy) sees this minute as "now"
+    // (and a command it issues for any strategy) sees this minute as "now"; the time meta
+    // gives the same minute to the code outside the context
     self.params.execution.context.when = new Date(candleClock);
+    await FEED_TIME_FN(self, candleClock);
     const averagePrice = GET_AVG_PRICE_AT_FN(candles, evalIndex, candlesCount);
     const touchLow = candle.low;
     const touchHigh = candle.high;
@@ -7355,6 +7377,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     const currentClock = currentCandleTimestamp + CANDLE_CLOSE_MS;
     // the execution clock follows the evaluated candle (see the scheduled loop)
     self.params.execution.context.when = new Date(currentClock);
+    await FEED_TIME_FN(self, currentClock);
 
     // VWAP: the last candlesCount candles up to the evaluated one (buffer included)
     const averagePrice = GET_AVG_PRICE_AT_FN(candles, evalIndex, candlesCount);
@@ -10144,6 +10167,7 @@ export class ClientStrategy implements IStrategy {
     // out, both stamped with frameEndTime at the current average price.
     if (candles.length === 0) {
       const currentPrice = await this.params.exchange.getAveragePrice(symbol);
+      await FEED_TIME_FN(this, frameEndTime);
       // A user activation still queued when the frame ends (asked at a look the frame left no
       // candle after): live opens it on the next tick. The frame has no next minute, so the
       // position opens at frameEndTime, at the current average price, and expires with the frame
@@ -10179,6 +10203,7 @@ export class ClientStrategy implements IStrategy {
     const firstIndex = Math.min(GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1, candles.length - 1);
     const firstClock = candles[firstIndex].timestamp + CANDLE_CLOSE_MS;
     const firstPrice = GET_AVG_PRICE_AT_FN(candles, firstIndex, GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT);
+    await FEED_TIME_FN(this, firstClock);
 
     // If signal was cancelled - return cancelled
     if (this._cancelledSignal) {

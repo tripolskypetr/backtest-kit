@@ -44748,6 +44748,14 @@ declare class StrategyConnectionService implements TStrategy {
         frameName: FrameName;
     }) => Promise<void>;
     /**
+     * The earliest backtest minute a queued open command was issued at, or null (see ClientStrategy.getQueuedOpenAt).
+     */
+    getQueuedOpenAt: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
      * Checks if there is an active pending signal for the strategy.
      * Delegates to ClientStrategy.hasPendingSignal() which checks if there is an active position
      * that has not been fully closed.
@@ -44756,14 +44764,6 @@ declare class StrategyConnectionService implements TStrategy {
      * @param context - Execution context with strategyName, exchangeName, frameName
      * @returns Promise resolving to true if there is an active pending signal, false otherwise
      */
-    /**
-     * The earliest backtest minute a queued open command was issued at, or null (see ClientStrategy.getQueuedOpenAt).
-     */
-    getQueuedOpenAt: (backtest: boolean, symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => Promise<number | null>;
     hasPendingSignal: (backtest: boolean, symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;

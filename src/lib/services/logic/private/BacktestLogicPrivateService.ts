@@ -126,7 +126,13 @@ const QUEUED_OPEN_WAKE_FN = async (
     return null;
   }
   const minute = Math.floor(queuedAt / 60_000) * 60_000 + 60_000;
-  const wake = Math.max(minute, lastWhen + 60_000);
+  // under the lockstep the wake never steps behind the peers: a command stamped with a minute
+  // the peers have passed (issued outside any execution context, with the strategy's own last
+  // known minute) is taken at the frontier of the running backtests
+  const frontier = GLOBAL_CONFIG.CC_BACKTEST_LOCKSTEP
+    ? Array.from(LOCKSTEP_CURSORS.values()).reduce((max, cursor) => Math.max(max, cursor.clock), -Infinity)
+    : -Infinity;
+  const wake = Math.max(minute, lastWhen + 60_000, frontier);
   return wake < at ? wake : null;
 };
 

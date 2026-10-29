@@ -740,6 +740,45 @@ const CREATE_COMMIT_HANDOFF_FN = (self: StrategyConnectionService) => trycatch(
 );
 
 /**
+ * Creates the time feed callback: ClientStrategy reports the clock of the backtest as the
+ * replay advances (every evaluated candle, the drains at the head of a window, the frame-end
+ * replay) and the time meta takes it, so the code outside any execution context — the
+ * consumer of Backtest.run, the public commands — reads the minute of the result just
+ * received as "now". No-op in live: the tick wrapper feeds the time meta there.
+ *
+ * @param self - Reference to StrategyConnectionService instance
+ * @returns Callback function for the time feed
+ */
+const CREATE_COMMIT_TIME_FEED_FN = (self: StrategyConnectionService) => trycatch(
+  async (
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    if (!backtest) {
+      return;
+    }
+    await self.timeMetaService.next(symbol, timestamp, { strategyName, exchangeName, frameName }, backtest);
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_COMMIT_TIME_FEED_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
+
+/**
  * Creates a callback function for emitting active ping events.
  *
  * Called by ClientStrategy when an active pending signal is being monitored every minute.
@@ -1263,6 +1302,7 @@ export class StrategyConnectionService implements TStrategy {
         onSignalEvent: CREATE_COMMIT_SIGNAL_EVENT_FN(this),
         onActivePing: CREATE_COMMIT_ACTIVE_PING_FN(this),
         onHandoff: CREATE_COMMIT_HANDOFF_FN(this),
+        onTimeFeed: CREATE_COMMIT_TIME_FEED_FN(this),
         onIdlePing: CREATE_COMMIT_IDLE_PING_FN(this),
         onDispose: CREATE_COMMIT_DISPOSE_FN(this),
         onCommit: CREATE_COMMIT_FN(this),
