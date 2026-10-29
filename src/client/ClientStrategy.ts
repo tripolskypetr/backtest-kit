@@ -7037,17 +7037,18 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       ? spanStart
       : FIND_SCHEDULED_FORCED_INDEX_FN(scheduled, candles, spanStart, i, frameEndTime, maxTimeToWait);
     if (!self._cancelledSignal && !self._activatedSignal && self._commitQueue.length > 0 && spanStart < i && (forcedIndex === -1 || spanStart < forcedIndex)) {
-      const drainCandle = candles[spanStart];
+      const drainClock = candles[spanStart].timestamp + CANDLE_CLOSE_MS;
+      await FEED_TIME_FN(self, drainClock);
       // the hand-off carries the clock the drain is dated with: the candle's close
       await self.params.onHandoff(
         self.params.execution.context.symbol,
         self.params.strategyName,
         self.params.exchangeName,
         self.params.frameName,
-        drainCandle.timestamp + CANDLE_CLOSE_MS,
+        drainClock,
         self.params.execution.context.backtest
       );
-      await PROCESS_COMMIT_QUEUE_FN(self, GET_AVG_PRICE_AT_FN(candles, spanStart, candlesCount), drainCandle.timestamp + CANDLE_CLOSE_MS);
+      await PROCESS_COMMIT_QUEUE_FN(self, GET_AVG_PRICE_AT_FN(candles, spanStart, candlesCount), drainClock);
       spanStart = spanStart + 1;
       holdIndex = true;
       continue;
@@ -7358,12 +7359,14 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       TRACK_PENDING_EXTREMES_RANGE_FN(self, signal, candles, spanFrom, eventIndex, candlesCount, extremes);
       // CC_BACKTEST_LOCKSTEP: the strategy writes on this candle, the peers must have reached its
       // clock (the candle's close, the clock the ping hands off with)
+      const eventClock = candles[eventIndex].timestamp + CANDLE_CLOSE_MS;
+      await FEED_TIME_FN(self, eventClock);
       await self.params.onHandoff(
         self.params.execution.context.symbol,
         self.params.strategyName,
         self.params.exchangeName,
         self.params.frameName,
-        candles[eventIndex].timestamp + CANDLE_CLOSE_MS,
+        eventClock,
         self.params.execution.context.backtest
       );
       await EVALUATE_PENDING_EVENT_FN(self, signal, candles, eventIndex, candlesCount, extremes);
@@ -8050,17 +8053,6 @@ export class ClientStrategy implements IStrategy {
   public waitForInit = singleshot(async () => await WAIT_FOR_INIT_FN(this));
 
   /**
-   * Checks if there is a pending signal.
-   *
-   * A position counts as present while it is open and while a deferred change still holds
-   * it: a user close (closePending / the full-partial auto-close) or a broker-confirmed fill
-   * waiting for its drain on the next tick, a market open refused by the gate and waiting
-   * for its retry. Only the drain that closes, cancels or gives up the position clears it.
-   *
-   * @param symbol - Trading symbol to check for pending signal
-   * @returns Promise resolving to true if a pending signal exists, false otherwise
-   */
-  /**
    * The earliest backtest minute at which a queued open command (createSignal, setPendingSignal)
    * was issued — the time meta's minute at the call: the issuer's execution clock inside a
    * context, the strategy's last known minute otherwise — or null when nothing is queued. The
@@ -8078,6 +8070,17 @@ export class ClientStrategy implements IStrategy {
     return stamps.length ? Math.min(...stamps) : null;
   }
 
+  /**
+   * Checks if there is a pending signal.
+   *
+   * A position counts as present while it is open and while a deferred change still holds
+   * it: a user close (closePending / the full-partial auto-close) or a broker-confirmed fill
+   * waiting for its drain on the next tick, a market open refused by the gate and waiting
+   * for its retry. Only the drain that closes, cancels or gives up the position clears it.
+   *
+   * @param symbol - Trading symbol to check for pending signal
+   * @returns Promise resolving to true if a pending signal exists, false otherwise
+   */
   public async hasPendingSignal(symbol: string): Promise<boolean> {
     this.params.logger.debug("ClientStrategy hasPendingSignal", {
       symbol,
@@ -10991,7 +10994,8 @@ export class ClientStrategy implements IStrategy {
    *
    * @param dto - The open position: priceOpen mandatory, id optional (generated at the drain if absent), the rest as ISignalDto
    * @param currentPrice - Current market price the levels are checked against
-   * @param currentTime - Logical time of the command (timestamps of the provisional row only)
+   * @param currentTime - Logical time of the command (timestamps of the provisional row; in a backtest the orchestrator ticks the idle strategy on the minute after it)
+   * @param backtest - Whether running in backtest mode (the stamp is kept only there)
    * @returns Promise that resolves when the DTO is queued (and persisted in live mode)
    * @throws {Error} If stopped, if something is in flight, if priceOpen is missing, or if the price is beyond a level
    */
@@ -11061,6 +11065,8 @@ export class ClientStrategy implements IStrategy {
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param currentPrice - Current market price (priceOpen fallback for immediate signals)
    * @param dto - Signal DTO to open (priceOpen optional)
+   * @param currentTime - Logical time of the command (the time meta's minute); in a backtest the orchestrator ticks the idle strategy on the minute after it
+   * @param backtest - Whether running in backtest mode (the stamp above is kept only there)
    * @returns Promise that resolves when the DTO is queued (and persisted in live mode)
    * @throws {Error} If the DTO is invalid or a signal/deferred action is already in flight
    */
