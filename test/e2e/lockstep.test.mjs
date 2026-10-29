@@ -3013,7 +3013,7 @@ const runRetickCase = async (schema) => {
   return { ...run, history, arrival, maxLag, worst };
 };
 
-test("LOCKSTEP: the re-ticked close minutes of one symbol keep the shared journal within one step of the other — no row arrives a whole timeframe behind the rows already written", async ({ pass, fail }) => {
+test("LOCKSTEP: the re-ticked close minutes of one symbol keep the shared journal within one step of the other — no row arrives a whole timeframe behind the rows already written, and the ticks of one minute arrive in the order of the symbols", async ({ pass, fail }) => {
   setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
   Budget.enable();
   const on = await runRetickCase(buildRetickCase("on", 5));
@@ -3025,10 +3025,20 @@ test("LOCKSTEP: the re-ticked close minutes of one symbol keep the shared journa
   if (overdrafts.length) return fail(`overdraft under lockstep: ${describeRows(overdrafts)}`);
   if (on.maxLag >= HOUR_MS) return fail(`a row arrived ${on.maxLag / MIN_MS} minutes behind an earlier one (${describeRows(on.worst)}); arrival order: ${describeRows(on.arrival)}`);
   if (on.maxSpread > HOUR_MS) return fail(`the clocks drifted by ${on.maxSpread / HOUR_MS} timeframes`);
+  // the tie of the two ticks on every hour is broken by the lockstep key (the symbol first):
+  // A's open arrives before B's on every hour both open on, on every run
+  const ties = [...new Set(hourOpens.map((r) => r.timestamp))].filter((t) => on.arrival.some((r) => r.type === "reserve" && r.symbol === RETICK_A && r.timestamp === t));
+  const outOfOrder = ties.filter((t) => {
+    const a = on.arrival.findIndex((r) => r.type === "reserve" && r.symbol === RETICK_A && r.timestamp === t);
+    const b = on.arrival.findIndex((r) => r.type === "reserve" && r.symbol === RETICK_B && r.timestamp === t);
+    return a > b;
+  });
+  if (ties.length < 10) return fail(`expected both symbols to open on at least 10 common hours, got ${ties.length}`);
+  if (outOfOrder.length) return fail(`the ticks of one minute must arrive in the order of the symbols (A before B), B came first on ${outOfOrder.map((t) => new Date(t).toISOString().slice(11, 16)).join(",")}; arrival order: ${describeRows(on.arrival)}`);
 
   // the control: with the lockstep off A runs ahead of the sleeping B and the journal falls out of step
   setConfig({ CC_BACKTEST_LOCKSTEP: false }, true);
   const off = await runRetickCase(buildRetickCase("off", 300));
   if (off.maxLag < HOUR_MS) return fail(`the control did not bite: with the lockstep off the rows still arrived within a step (max lag ${off.maxLag / MIN_MS} min); arrival order: ${describeRows(off.arrival)}`);
-  pass(`lockstep on: ${on.history.length} rows, ${halfHourOpens.length} re-ticked opens of A, max lag ${on.maxLag / MIN_MS} min, spread ${on.maxSpread / MIN_MS} min; off: max lag ${off.maxLag / MIN_MS} min`);
+  pass(`lockstep on: ${on.history.length} rows, ${halfHourOpens.length} re-ticked opens of A, max lag ${on.maxLag / MIN_MS} min, spread ${on.maxSpread / MIN_MS} min, ${ties.length} hourly ties all A before B; off: max lag ${off.maxLag / MIN_MS} min`);
 });

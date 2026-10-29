@@ -110,13 +110,17 @@ const LOCKSTEP_STEP_FN = (): number =>
  * at or past `at` (`clock >= at`) or when it is parked somewhere it has
  * nothing left to do before `at`:
  * - for a `start` wait (an iteration about to run its tick at `at`) a peer
- *   parked at `at` or later counts: two ticks on the same timeframe are a tie
- *   the journal orders by symbol, so neither has to go first;
+ *   parked past `at` counts, and so does one parked in its hand-off on `at`
+ *   (this tick must land before that replay writes at `at`); two ticks on the
+ *   same timeframe are a tie broken by the lockstep key — the symbol first, as
+ *   the journal orders the rows of one minute: the smaller key goes first, the
+ *   larger one waits until the smaller has left the barrier (its clock is then
+ *   on `at`), so the arrival order of the rows is the same on every run;
  * - for a `handoff` wait (a replay about to run the candle on the boundary
  *   `at`) a peer parked at the START of `at` does NOT count: its tick at `at`
  *   must land before this replay writes at `at` and beyond. A peer parked in
- *   its own hand-off on `at` or later does count: everything before `at` is
- *   behind it, and two replays never wait for each other.
+ *   its own hand-off past `at` does count: everything before `at` is behind
+ *   it; two replays on the same boundary are a tie broken by the key as well.
  * One spin gives every peer one iteration and a peer may lag several
  * iterations behind, so the spin repeats; it stops early when a round moved
  * no lagging peer (a peer blocked outside the orchestrator), rather than
@@ -140,6 +144,10 @@ const WAIT_FOR_PEERS_FN = async (
   spinFirst: boolean,
 ): Promise<void> => {
   cursor.parked = { at, kind };
+  const keyOf = (target: TLockstepCursor) => Array.from(LOCKSTEP_CURSORS.entries()).find(([, peer]) => peer === target)?.[0] ?? "";
+  const key = keyOf(cursor);
+  // a tie on `at` of the same kind: the smaller lockstep key goes first
+  const winsTie = (peer: TLockstepCursor): boolean => keyOf(peer) > key;
   const caughtUp = (peer: TLockstepCursor): boolean => {
     if (peer.clock >= at) {
       return true;
@@ -147,15 +155,20 @@ const WAIT_FOR_PEERS_FN = async (
     if (!peer.parked) {
       return false;
     }
-    if (kind === "start") {
-      return peer.parked.at >= at;
+    if (peer.parked.at > at) {
+      return true;
     }
-    return peer.parked.kind === "handoff" ? peer.parked.at >= at : peer.parked.at > at;
+    if (peer.parked.at < at) {
+      return false;
+    }
+    if (kind === "start") {
+      return peer.parked.kind === "handoff" || winsTie(peer);
+    }
+    return peer.parked.kind === "handoff" && winsTie(peer);
   };
   const lagging = () => Array.from(LOCKSTEP_CURSORS.values()).filter((peer) => peer !== cursor && !caughtUp(peer));
   const describe = (peer: TLockstepCursor) => `${peer.clock}/${peer.parked ? `${peer.parked.kind}@${peer.parked.at}` : "-"}/${peer.joining}`;
   const snapshot = () => lagging().map(describe).join(",");
-  const keyOf = (target: TLockstepCursor) => Array.from(LOCKSTEP_CURSORS.entries()).find(([, peer]) => peer === target)?.[0] ?? "";
   let before = snapshot();
   let spin = spinFirst;
   let joinRounds = 0;
