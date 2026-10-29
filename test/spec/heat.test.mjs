@@ -68,7 +68,9 @@ test("Heat.getData returns heatmap statistics for strategy", async ({ pass, fail
 
   addStrategySchema({
     strategyName: "test-strategy-heat-1",
-    interval: "1m",
+    // one signal per day: the backtest re-ticks the minute of a close like the live loop, so a
+    // finer interval would chain a new position from every expiry
+    interval: "1d",
     getSignal: async () => {
       const price = await getAveragePrice("BTCUSDT");
       return {
@@ -183,7 +185,9 @@ test("Heat heatmap includes per-symbol statistics", async ({ pass, fail }) => {
 
   addStrategySchema({
     strategyName: "test-strategy-heat-2",
-    interval: "1m",
+    // one signal per day: the backtest re-ticks the minute of a close like the live loop, so a
+    // finer interval would chain a new position from every expiry
+    interval: "1d",
     getSignal: async () => {
       const price = await getAveragePrice("BTCUSDT");
       return {
@@ -302,7 +306,9 @@ test("Heat.getReport generates markdown report", async ({ pass, fail }) => {
 
   addStrategySchema({
     strategyName: "test-strategy-heat-3",
-    interval: "1m",
+    // one signal per day: the backtest re-ticks the minute of a close like the live loop, so a
+    // finer interval would chain a new position from every expiry
+    interval: "1d",
     getSignal: async () => {
       const price = await getAveragePrice("BTCUSDT");
       return {
@@ -417,7 +423,9 @@ test("Heat calculates portfolio-wide metrics", async ({ pass, fail }) => {
 
   addStrategySchema({
     strategyName: "test-strategy-heat-4",
-    interval: "1m",
+    // one signal per day: the backtest re-ticks the minute of a close like the live loop, so a
+    // finer interval would chain a new position from every expiry
+    interval: "1d",
     getSignal: async () => {
       const price = await getAveragePrice("BTCUSDT");
       return {
@@ -538,7 +546,9 @@ test("Heat calculates extended metrics correctly", async ({ pass, fail }) => {
 
   addStrategySchema({
     strategyName: "test-strategy-heat-extended",
-    interval: "1m",
+    // one signal per day: the backtest re-ticks the minute of a close like the live loop, so a
+    // finer interval would chain a new position from every expiry
+    interval: "1d",
     getSignal: async () => {
       const price = await getAveragePrice("BTCUSDT");
       return {
@@ -646,7 +656,9 @@ test("Heat sorts symbols by Sharpe Ratio descending", async ({ pass, fail }) => 
 
   addStrategySchema({
     strategyName: "test-strategy-heat-6",
-    interval: "1m",
+    // one signal per day: the backtest re-ticks the minute of a close like the live loop, so a
+    // finer interval would chain a new position from every expiry
+    interval: "1d",
     getSignal: async () => {
       const price = await getAveragePrice("BTCUSDT");
       return {

@@ -706,10 +706,10 @@ const runPingOrderCase = async (schema) => {
   }
 
   // A switch from one symbol's entry to another's is legal only at a lock boundary: the next entry
-  // starts an iteration (progress on an entry step; the idle ping of the re-ticked minute of a
-  // close, which reports no progress of its own), or the previous entry is the last candle before
-  // a timeframe boundary (the replay handed the lock off there), or the next entry is the first
-  // candle on a boundary (the replay resumed there). Anything else is an await that let the peer in.
+  // starts an iteration (progress: an entry step or the re-ticked minute of a close), or the
+  // previous entry is the last candle before a timeframe boundary (the replay handed the lock off
+  // there), or the next entry is the first candle on a boundary (the replay resumed there).
+  // Anything else is an await that let the peer in.
   const describe = (e) => `${e.kind}:${e.symbol}@${new Date(e.when).toISOString().slice(11, 16)}`;
   const illegalSwitches = [];
   for (let i = 1; i < order.length; i++) {
@@ -718,7 +718,6 @@ const runPingOrderCase = async (schema) => {
     if (prev.symbol === next.symbol) continue;
     const legal =
       next.kind === "progress" ||
-      next.kind === "idle" ||
       (prev.when + MIN_MS) % HOUR_MS === 0 ||
       next.when % HOUR_MS === 0;
     if (!legal) illegalSwitches.push(`${describe(prev)} -> ${describe(next)}`);

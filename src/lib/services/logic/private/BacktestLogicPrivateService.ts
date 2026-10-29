@@ -1048,10 +1048,9 @@ export class BacktestLogicPrivateService {
           }
           cursor.clock = when.getTime();
 
-          // progress counts entry steps: the re-tick of a close minute reports none of its own
-          if (retickAt === null) {
-            await EMIT_PROGRESS_FN(this, symbol, totalFrames, i, when);
-          }
+          // the re-tick of a close minute reports progress with its own minute: the fraction of
+          // entry steps is unchanged, `when` is where the cursor is
+          await EMIT_PROGRESS_FN(this, symbol, totalFrames, i, when);
 
           if (globalThis[KILL_SYMBOL]) {
             this.loggerService.info(
