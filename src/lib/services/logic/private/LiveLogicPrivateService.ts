@@ -204,6 +204,13 @@ export class LiveLogicPrivateService {
         }
       }
 
+      // The tick that closed or cancelled leaves the strategy idle at this very minute: run
+      // the idle step now (the backtest ticks the entry step of the close minute too) instead
+      // of waiting for the next candle.
+      if (result.action === "closed" || result.action === "cancelled") {
+        continue;
+      }
+
       await waitForCandle("1m");
     }
   }

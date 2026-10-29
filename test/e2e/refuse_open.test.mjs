@@ -231,7 +231,7 @@ test("REFUSED OPEN: a retried market row overtaken by the price is re-submitted 
   // The entry activates on the first candle back at 100 (111) as activation attempt 0.
   const spike = Object.fromEntries(Array.from({ length: 56 }, (_, k) => [55 + k, { open: 125, high: 125, low: 125, close: 125 }]));
   const results = await runOnWatches("overtaken", { signal: marketLong, candleByMinute: spike, refuse: first });
-  const expected = { attempts: ["active:0@0", "schedule:1@60", "active:0@111"], ids: 1, getSignalAt: [0], scheduled: [60], opened: [111], closed: expired(111), exits: 0 };
+  const expected = { attempts: ["active:0@0", "schedule:1@60", "active:0@112"], ids: 1, getSignalAt: [0], scheduled: [60], opened: [112], closed: expired(112), exits: 0 };
   if (expectOracle(results, expected, fail, "overtaken")) return;
   // the flag is what tells the adapter to check the resting order's resolution at the activation
   if (results["1m"].scheduledFlags.join(",") !== "false,true,true") return fail(`expected scheduled flags false,true,true (market attempt, placement, activation), got ${results["1m"].scheduledFlags.join(",")}`);
@@ -254,7 +254,7 @@ test("REFUSED OPEN: a transient refusal of the resting-order placement re-submit
   // touched on 80..85 → activation (type "active") attempt 0, position opens on 80
   const touch = Object.fromEntries(Array.from({ length: 6 }, (_, k) => [80 + k, { low: ENTRY }]));
   const results = await runOnWatches("placement", { signal: restingLong, candleByMinute: touch, refuse: (a) => a.type === "schedule" && a.index === 0 });
-  const expected = { attempts: ["schedule:0@0", "schedule:1@60", "active:0@80"], ids: 1, getSignalAt: [0], scheduled: [60], opened: [80], closed: expired(80), exits: 0 };
+  const expected = { attempts: ["schedule:0@0", "schedule:1@60", "active:0@81"], ids: 1, getSignalAt: [0], scheduled: [60], opened: [81], closed: expired(81), exits: 0 };
   if (expectOracle(results, expected, fail, "placement")) return;
   if (results["1m"].scheduledFlags.join(",") !== "true,true,true") return fail(`a resting entry must carry scheduled=true on placement and activation, got ${results["1m"].scheduledFlags.join(",")}`);
   pass(`placement refused@0, same row placed@60 as attempt 1, activated@80 as attempt 0, scheduled=true throughout, on ${WATCHES.join("/")}`);
@@ -263,7 +263,7 @@ test("REFUSED OPEN: a transient refusal of the resting-order placement re-submit
 test("REFUSED OPEN: a terminal rejection of the placement drops the row; the fresh row is placed on the next tick and activates normally", async ({ pass, fail }) => {
   const touch = Object.fromEntries(Array.from({ length: 6 }, (_, k) => [80 + k, { low: ENTRY }]));
   const results = await runOnWatches("placement-terminal", { signal: restingLong, candleByMinute: touch, refuse: (a) => (a.type === "schedule" && a.index === 0 ? "terminal" : false) });
-  const expected = { attempts: ["schedule:0@0", "schedule:0@60", "active:0@80"], ids: 2, getSignalAt: [0, 60], scheduled: [60], opened: [80], closed: expired(80), exits: 0 };
+  const expected = { attempts: ["schedule:0@0", "schedule:0@60", "active:0@81"], ids: 2, getSignalAt: [0, 60], scheduled: [60], opened: [81], closed: expired(81), exits: 0 };
   if (expectOracle(results, expected, fail, "placement terminal")) return;
   pass(`placement rejected@0 dropped, fresh id placed@60, activated@80 on ${WATCHES.join("/")}`);
 });

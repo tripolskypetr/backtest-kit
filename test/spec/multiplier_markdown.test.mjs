@@ -588,7 +588,10 @@ const registerSawStrategy = (strategyName) => {
         note: `saw ratios ${multiplier}x ${position}`,
         priceTakeProfit: position === "long" ? currentPrice + bracketOffset : currentPrice - bracketOffset,
         priceStopLoss: position === "long" ? currentPrice - bracketOffset : currentPrice + bracketOffset,
-        minuteEstimatedTime: 10,
+        // an ODD hold: the expiry of minute k closes at the VWAP of the candles closed by k, so an
+        // odd hold puts the exit window in the opposite phase of the saw to the entry window — the
+        // win / loss intended by `position` — while an even hold lands on the same phase (fees only)
+        minuteEstimatedTime: 11,
         multiplier,
       };
     },

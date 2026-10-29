@@ -1695,10 +1695,11 @@ const FIND_SCHEDULED_FORCED_INDEX_FN = (
 ): number => {
   for (let k = spanStart; k <= spanEnd; k++) {
     const c = candles[k];
-    if (c.timestamp > frameEndTime) return k;
-    if (c.timestamp - scheduled.scheduledAt >= maxTimeToWait) return k;
     if (scheduled.position === "long" && (c.low <= scheduled.priceStopLoss || c.low <= scheduled.priceOpen)) return k;
     if (scheduled.position === "short" && (c.high >= scheduled.priceStopLoss || c.high >= scheduled.priceOpen)) return k;
+    // the clock events, at the candle's close
+    if (c.timestamp + CANDLE_CLOSE_MS - scheduled.scheduledAt >= maxTimeToWait) return k;
+    if (c.timestamp + CANDLE_CLOSE_MS > frameEndTime) return k;
   }
   return -1;
 };
@@ -1730,8 +1731,6 @@ const FIND_PENDING_FORCED_INDEX_FN = (
   const liquidationPrice = signal.isolated ? GET_LIQUIDATION_PRICE(signal) : null;
   for (let k = spanStart; k <= spanEnd; k++) {
     const c = candles[k];
-    if (c.timestamp > frameEndTime) return k;
-    if (c.timestamp - signal.pendingAt >= maxTimeToWait) return k;
     if (signal.position === "long") {
       const stopPrice = liquidationPrice !== null && liquidationPrice > effectiveStopLoss ? liquidationPrice : effectiveStopLoss;
       if (c.low <= stopPrice) return k;
@@ -1742,6 +1741,9 @@ const FIND_PENDING_FORCED_INDEX_FN = (
       if (c.high >= stopPrice) return k;
       if (GET_AVG_PRICE_AT_FN(candles, k, candlesCount) <= effectiveTakeProfit) return k;
     }
+    // the clock events, at the candle's close
+    if (c.timestamp + CANDLE_CLOSE_MS - signal.pendingAt >= maxTimeToWait) return k;
+    if (c.timestamp + CANDLE_CLOSE_MS > frameEndTime) return k;
   }
   return -1;
 };
@@ -1749,6 +1751,35 @@ const FIND_PENDING_FORCED_INDEX_FN = (
 /** A level of `levels` lies in (previous, current]: crossed on this candle */
 const CROSSED_LEVEL_FN = (levels: readonly number[], previous: number, current: number): boolean =>
   levels.some((level) => current >= level && previous < level);
+
+/**
+ * The replay runs on 1m candles. An event derived from a candle — a touch, a VWAP take, a
+ * level, a ping, a commit, an activation — is dated at the candle's close: the clock of the
+ * iteration that sees the candle complete, exactly as the live tick of minute k monitors the
+ * candle k-1 that has just closed. Inside one iteration the candle comes before the clock:
+ * the touches, then the look, then the clock events (hold expiry, wait timeout, frame end).
+ * The candle's own timestamp stays the processing cursor (_backtestLastTimestamp, the
+ * chunking, the lockstep handoff).
+ */
+const CANDLE_CLOSE_MS = 60_000;
+
+/**
+ * The clock event of a live tick on an open position: the hold has expired at this tick's
+ * time. Checked after the tick has monitored the last closed candle (its touches, the VWAP
+ * take, the ping, the levels, the commits) — the candle comes before the clock, as in the
+ * replay. Closes at the VWAP; a refusal by the gate is retried on the next tick.
+ */
+const CHECK_PENDING_SIGNAL_EXPIRY_FN = async (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  averagePrice: number
+): Promise<IStrategyTickResultClosed | null> => {
+  const currentTime = self.params.execution.context.when.getTime();
+  if (currentTime - signal.pendingAt < signal.minuteEstimatedTime * 60 * 1000) {
+    return null;
+  }
+  return await CLOSE_PENDING_SIGNAL_FN(self, signal, averagePrice, "time_expired");
+};
 
 /**
  * Progress of a pending signal at `averagePrice`: towards the take-profit (`tp`,
@@ -1883,7 +1914,7 @@ const TRACK_PENDING_EXTREMES_RANGE_FN = (
   extremes: TPendingExtremes
 ): void => {
   for (let k = from; k < to; k++) {
-    TRACK_PENDING_EXTREMES_FN(self, signal, GET_AVG_PRICE_AT_FN(candles, k, candlesCount), candles[k].timestamp, extremes);
+    TRACK_PENDING_EXTREMES_FN(self, signal, GET_AVG_PRICE_AT_FN(candles, k, candlesCount), candles[k].timestamp + CANDLE_CLOSE_MS, extremes);
   }
 };
 
@@ -1902,7 +1933,7 @@ const EVALUATE_PENDING_EVENT_FN = async (
   candlesCount: number,
   extremes: TPendingExtremes
 ): Promise<void> => {
-  const timestamp = candles[index].timestamp;
+  const timestamp = candles[index].timestamp + CANDLE_CLOSE_MS;
   const averagePrice = GET_AVG_PRICE_AT_FN(candles, index, candlesCount);
   const symbol = self.params.execution.context.symbol;
   const backtest = self.params.execution.context.backtest;
@@ -4809,13 +4840,13 @@ const CALL_BACKTEST_TICK_FN = trycatch(
   }
 );
 
-const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
+/** The ping of a resting entry on a live tick, after the touches of the last closed candle */
+const MONITOR_SCHEDULED_SIGNAL_FN = async (
   self: ClientStrategy,
   scheduled: IScheduledSignalRow,
   currentPrice: number
-): Promise<IStrategyTickResultWaiting> => {
+): Promise<void> => {
   const currentTime = self.params.execution.context.when.getTime();
-
   await CALL_SCHEDULE_PING_CALLBACKS_FN(
     self,
     self.params.execution.context.symbol,
@@ -4824,6 +4855,25 @@ const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
     self.params.execution.context.backtest,
     currentPrice
   );
+};
+
+/** Ping, then the "waiting" result: the paths where no clock event follows the ping */
+const RETURN_SCHEDULED_SIGNAL_WAITING_FN = async (
+  self: ClientStrategy,
+  scheduled: IScheduledSignalRow,
+  currentPrice: number
+): Promise<IStrategyTickResultWaiting> => {
+  await MONITOR_SCHEDULED_SIGNAL_FN(self, scheduled, currentPrice);
+  return await RETURN_SCHEDULED_SIGNAL_ACTIVE_FN(self, scheduled, currentPrice);
+};
+
+/** The "waiting" result of a live tick on a resting entry, after its ping and the clock events */
+const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
+  self: ClientStrategy,
+  scheduled: IScheduledSignalRow,
+  currentPrice: number
+): Promise<IStrategyTickResultWaiting> => {
+  const currentTime = self.params.execution.context.when.getTime();
 
   const publicSignal = TO_PUBLIC_SIGNAL("scheduled", scheduled, currentPrice);
 
@@ -5162,21 +5212,8 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
   touchLow: number,
   touchHigh: number
 ): Promise<IStrategyTickResultClosed | null> => {
-  const currentTime = self.params.execution.context.when.getTime();
-  const signalTime = signal.pendingAt; // КРИТИЧНО: используем pendingAt, а не scheduledAt!
-  const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
-  const elapsedTime = currentTime - signalTime;
-
-  // Check time expiration (закрывается по VWAP — не touch-событие)
-  if (elapsedTime >= maxTimeToWait) {
-    return await CLOSE_PENDING_SIGNAL_FN(
-      self,
-      signal,
-      averagePrice,
-      "time_expired"
-    );
-  }
-
+  // The hold expiry is a clock event, checked after the monitoring of this candle
+  // (CHECK_PENDING_SIGNAL_EXPIRY_FN): here only what the candle itself did.
   const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
   // Isolated margin: цена ликвидации (leveraged PNL = -100%, см.
   // getLiquidationPrice) выступает вторым стоп-уровнем; срабатывает тот, что
@@ -5445,12 +5482,12 @@ const CLOSE_PENDING_SIGNAL_AS_CLOSED_FN = async (
   return result;
 };
 
-const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
+const MONITOR_PENDING_SIGNAL_FN = async (
   self: ClientStrategy,
   signal: ISignalRow,
   currentPrice: number,
   backtest: boolean
-): Promise<IStrategyTickResultActive> => {
+): Promise<{ percentTp: number; percentSl: number }> => {
   let percentTp = 0;
   let percentSl = 0;
   let peakUpdated = false;
@@ -5472,7 +5509,8 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         const tpDistance = effectiveTakeProfit - effectivePriceOpen;
         percentTp = GET_PROGRESS_PERCENT_FN(currentDistance, tpDistance);
 
-        if (currentPrice > signal._peak.price) {
+        // a restored row may carry no extreme yet (older persisted rows): the first look records it
+        if (!signal._peak || currentPrice > signal._peak.price) {
           const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
           // Пик — только реальный плюс: цена выше входа, но издержки не покрыты
           // (реализуемый PNL <= 0) — НЕ пик. Снапшот остаётся нулевым («плюса
@@ -5532,7 +5570,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
         const slDistance = effectivePriceOpen - effectiveStopLoss;
         percentSl = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
-        if (currentPrice < signal._fall.price) {
+        if (!signal._fall || currentPrice < signal._fall.price) {
           const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
           signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen };
           if (self.params.callbacks?.onWrite) {
@@ -5589,7 +5627,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         const tpDistance = effectivePriceOpen - effectiveTakeProfit;
         percentTp = GET_PROGRESS_PERCENT_FN(currentDistance, tpDistance);
 
-        if (currentPrice < signal._peak.price) {
+        if (!signal._peak || currentPrice < signal._peak.price) {
           const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
           // Пик — только реальный плюс (зеркало LONG-ветки выше): реализуемый
           // PNL <= 0 пиком не считается, снапшот остаётся нулевым.
@@ -5647,7 +5685,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
         const slDistance = effectiveStopLoss - effectivePriceOpen;
         percentSl = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
-        if (currentPrice > signal._fall.price) {
+        if (!signal._fall || currentPrice > signal._fall.price) {
           const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
           signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen };
           if (self.params.callbacks?.onWrite) {
@@ -5721,6 +5759,17 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
   // drains what was queued between ticks.
   await PROCESS_COMMIT_QUEUE_FN(self, currentPrice, currentTime);
 
+  return { percentTp, percentSl };
+};
+
+/** The "active" result of a live tick, after the monitoring of the position and the clock events */
+const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  currentPrice: number,
+  { percentTp, percentSl }: { percentTp: number; percentSl: number }
+): Promise<IStrategyTickResultActive> => {
+  const currentTime = self.params.execution.context.when.getTime();
   const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
 
   const result: IStrategyTickResultActive = {
@@ -6585,13 +6634,14 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         drainCandle.timestamp,
         self.params.execution.context.backtest
       );
-      await PROCESS_COMMIT_QUEUE_FN(self, GET_AVG_PRICE_AT_FN(candles, spanStart, candlesCount), drainCandle.timestamp);
+      await PROCESS_COMMIT_QUEUE_FN(self, GET_AVG_PRICE_AT_FN(candles, spanStart, candlesCount), drainCandle.timestamp + CANDLE_CLOSE_MS);
       spanStart = spanStart + 1;
       holdIndex = true;
       continue;
     }
     const evalIndex = forcedIndex === -1 ? i : forcedIndex;
     const candle = candles[evalIndex];
+    const candleClock = candle.timestamp + CANDLE_CLOSE_MS;
     const averagePrice = GET_AVG_PRICE_AT_FN(candles, evalIndex, candlesCount);
     const touchLow = candle.low;
     const touchHigh = candle.high;
@@ -6610,18 +6660,6 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       );
     }
 
-    // Если timestamp свечи вышел за frameEndTime — отменяем scheduled сигнал
-    if (candle.timestamp > frameEndTime) {
-      const result = await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
-        self,
-        scheduled,
-        averagePrice,
-        candle.timestamp,
-        "timeout"
-      );
-      return { outcome: "cancelled", result };
-    }
-
     // КРИТИЧНО: Проверяем был ли сигнал отменен пользователем через cancel()
     if (self._cancelledSignal) {
       // Сигнал был отменен через cancel() в onSchedulePing
@@ -6631,7 +6669,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         self,
         scheduled,
         averagePrice,
-        candle.timestamp,
+        candleClock,
         "user",
         cancelId,
         cancelNote
@@ -6656,14 +6694,14 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         await CALL_RISK_REMOVE_SIGNAL_FN(
           self,
           self.params.execution.context.symbol,
-          candle.timestamp,
+          candleClock,
           self.params.execution.context.backtest
         );
         // The signal is dropped for good — emit the cancellation so subscribers
         // (commit + schedule event) see it instead of the signal silently vanishing
         {
           const publicSignal = TO_PUBLIC_SIGNAL("scheduled", activatedSignal, averagePrice);
-          await CALL_SCHEDULE_EVENT_FN(self, "cancelled", activatedSignal, averagePrice, candle.timestamp, "user");
+          await CALL_SCHEDULE_EVENT_FN(self, "cancelled", activatedSignal, averagePrice, candleClock, "user");
           await CALL_COMMIT_FN(self, {
             action: "cancel-scheduled",
             symbol: self.params.execution.context.symbol,
@@ -6672,8 +6710,8 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
             frameName: self.params.frameName,
             signalId: activatedSignal.id,
             backtest: self.params.execution.context.backtest,
-            timestamp: candle.timestamp,
-            when: new Date(candle.timestamp),
+            timestamp: candleClock,
+            when: new Date(candleClock),
             totalEntries: activatedSignal._entry?.length ?? 1,
             totalPartials: activatedSignal._partial?.length ?? 0,
             originalPriceOpen: activatedSignal.priceOpen,
@@ -6692,20 +6730,20 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
             action: "cancelled",
             signal: TO_PUBLIC_SIGNAL("scheduled", activatedSignal, averagePrice),
             currentPrice: averagePrice,
-            closeTimestamp: candle.timestamp,
+            closeTimestamp: candleClock,
             strategyName: self.params.method.context.strategyName,
             exchangeName: self.params.method.context.exchangeName,
             frameName: self.params.method.context.frameName,
             symbol: self.params.execution.context.symbol,
             backtest: self.params.execution.context.backtest,
             reason: "user",
-            createdAt: candle.timestamp,
+            createdAt: candleClock,
           };
           await CALL_TICK_CALLBACKS_FN(
             self,
             self.params.execution.context.symbol,
             result,
-            candle.timestamp,
+            candleClock,
             self.params.execution.context.backtest
           );
           return { outcome: "cancelled", result };
@@ -6720,7 +6758,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
             self.params.execution.context.symbol,
             activatedSignal,
             averagePrice,
-            candle.timestamp,
+            candleClock,
             self.params.execution.context.backtest
           )
         )
@@ -6735,14 +6773,14 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         await CALL_RISK_REMOVE_SIGNAL_FN(
           self,
           self.params.execution.context.symbol,
-          candle.timestamp,
+          candleClock,
           self.params.execution.context.backtest
         );
         // The signal is dropped for good — emit the cancellation so subscribers
         // (commit + schedule event) see it instead of the signal silently vanishing
         {
           const publicSignal = TO_PUBLIC_SIGNAL("scheduled", activatedSignal, averagePrice);
-          await CALL_SCHEDULE_EVENT_FN(self, "cancelled", activatedSignal, averagePrice, candle.timestamp, "user");
+          await CALL_SCHEDULE_EVENT_FN(self, "cancelled", activatedSignal, averagePrice, candleClock, "user");
           await CALL_COMMIT_FN(self, {
             action: "cancel-scheduled",
             symbol: self.params.execution.context.symbol,
@@ -6751,8 +6789,8 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
             frameName: self.params.frameName,
             signalId: activatedSignal.id,
             backtest: self.params.execution.context.backtest,
-            timestamp: candle.timestamp,
-            when: new Date(candle.timestamp),
+            timestamp: candleClock,
+            when: new Date(candleClock),
             totalEntries: activatedSignal._entry?.length ?? 1,
             totalPartials: activatedSignal._partial?.length ?? 0,
             originalPriceOpen: activatedSignal.priceOpen,
@@ -6771,20 +6809,20 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
             action: "cancelled",
             signal: TO_PUBLIC_SIGNAL("scheduled", activatedSignal, averagePrice),
             currentPrice: averagePrice,
-            closeTimestamp: candle.timestamp,
+            closeTimestamp: candleClock,
             strategyName: self.params.method.context.strategyName,
             exchangeName: self.params.method.context.exchangeName,
             frameName: self.params.method.context.frameName,
             symbol: self.params.execution.context.symbol,
             backtest: self.params.execution.context.backtest,
             reason: "user",
-            createdAt: candle.timestamp,
+            createdAt: candleClock,
           };
           await CALL_TICK_CALLBACKS_FN(
             self,
             self.params.execution.context.symbol,
             result,
-            candle.timestamp,
+            candleClock,
             self.params.execution.context.backtest
           );
           return { outcome: "cancelled", result };
@@ -6793,14 +6831,14 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
 
       const pendingSignal: ISignalRow = {
         ...activatedSignal,
-        pendingAt: candle.timestamp,
+        pendingAt: candleClock,
         _isScheduled: false,
-        _peak: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0, pnlDividends: 0 },
-        _fall: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0, pnlDividends: 0 },
+        _peak: { price: activatedSignal.priceOpen, timestamp: candleClock, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0, pnlDividends: 0 },
+        _fall: { price: activatedSignal.priceOpen, timestamp: candleClock, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0, pnlDividends: 0 },
       };
       {
         const { pnlPercentage, pnlCost, pnlEntries, pnlDividends, priceClose, priceOpen } = toProfitLossDto(pendingSignal, pendingSignal.priceOpen);
-        pendingSignal._fall = { price: pendingSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage, pnlCost, priceClose, priceOpen, pnlEntries, pnlDividends };
+        pendingSignal._fall = { price: pendingSignal.priceOpen, timestamp: candleClock, pnlPercentage, pnlCost, priceClose, priceOpen, pnlEntries, pnlDividends };
       }
 
       // Sync open: if external system rejects — cancel scheduled signal instead of opening
@@ -6808,7 +6846,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       self._retryActivateCount += 1;
       await PERSIST_STRATEGY_FN(self);
       const syncOpenAllowed = await CALL_ORDER_SYNC_OPEN_FN(
-        candle.timestamp,
+        candleClock,
         pendingSignal.priceOpen,
         pendingSignal,
         self
@@ -6829,7 +6867,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
           await CALL_RISK_REMOVE_SIGNAL_FN(
             self,
             self.params.execution.context.symbol,
-            candle.timestamp,
+            candleClock,
             self.params.execution.context.backtest
           );
           self._activatedSignal = activatedSignal;
@@ -6844,13 +6882,13 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         await CALL_RISK_REMOVE_SIGNAL_FN(
           self,
           self.params.execution.context.symbol,
-          candle.timestamp,
+          candleClock,
           self.params.execution.context.backtest
         );
         const publicSignal = TO_PUBLIC_SIGNAL("scheduled", activatedSignal, averagePrice);
         // Notify the broker channel too — commit alone bypasses Broker.commitScheduleCancelled,
         // leaving the real resting order alive on the exchange
-        await CALL_SCHEDULE_EVENT_FN(self, "cancelled", activatedSignal, averagePrice, candle.timestamp, "user");
+        await CALL_SCHEDULE_EVENT_FN(self, "cancelled", activatedSignal, averagePrice, candleClock, "user");
         await CALL_COMMIT_FN(self, {
           action: "cancel-scheduled",
           symbol: self.params.execution.context.symbol,
@@ -6859,8 +6897,8 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
           frameName: self.params.frameName,
           signalId: activatedSignal.id,
           backtest: self.params.execution.context.backtest,
-          timestamp: candle.timestamp,
-          when: new Date(candle.timestamp),
+          timestamp: candleClock,
+          when: new Date(candleClock),
           totalEntries: activatedSignal._entry?.length ?? 1,
           totalPartials: activatedSignal._partial?.length ?? 0,
           originalPriceOpen: activatedSignal.priceOpen,
@@ -6878,20 +6916,20 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
             action: "cancelled",
             signal: publicSignal,
             currentPrice: averagePrice,
-            closeTimestamp: candle.timestamp,
+            closeTimestamp: candleClock,
             strategyName: self.params.method.context.strategyName,
             exchangeName: self.params.method.context.exchangeName,
             frameName: self.params.method.context.frameName,
             symbol: self.params.execution.context.symbol,
             backtest: self.params.execution.context.backtest,
             reason: "user",
-            createdAt: candle.timestamp,
+            createdAt: candleClock,
           };
           await CALL_TICK_CALLBACKS_FN(
             self,
             self.params.execution.context.symbol,
             result,
-            candle.timestamp,
+            candleClock,
             self.params.execution.context.backtest
           );
           if (activateGate.fatalError) {
@@ -6915,7 +6953,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         self,
         self.params.execution.context.symbol,
         pendingSignal,
-        candle.timestamp,
+        candleClock,
         self.params.execution.context.backtest
       );
 
@@ -6930,8 +6968,8 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         signalId: activatedSignal.id,
         backtest: self.params.execution.context.backtest,
         activateId: activatedSignal.activateId,
-        timestamp: candle.timestamp,
-        when: new Date(candle.timestamp),
+        timestamp: candleClock,
+        when: new Date(candleClock),
         currentPrice: averagePrice,
         pnl: publicSignalForCommit.pnl,
         maxDrawdown: publicSignalForCommit.maxDrawdown,
@@ -6951,14 +6989,14 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         note: activatedSignal.activateNote ?? publicSignalForCommit.note,
       });
 
-      await CALL_SIGNAL_EVENT_FN(self, "opened", pendingSignal, pendingSignal.priceOpen, candle.timestamp);
+      await CALL_SIGNAL_EVENT_FN(self, "opened", pendingSignal, pendingSignal.priceOpen, candleClock);
 
       await CALL_OPEN_CALLBACKS_FN(
         self,
         self.params.execution.context.symbol,
         pendingSignal,
         pendingSignal.priceOpen,
-        candle.timestamp,
+        candleClock,
         self.params.execution.context.backtest
       );
 
@@ -6966,24 +7004,11 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         self,
         self.params.execution.context.symbol,
         pendingSignal,
-        candle.timestamp,
+        candleClock,
         self.params.execution.context.backtest
       );
 
       return { outcome: "activated", activationIndex: evalIndex };
-    }
-
-    // КРИТИЧНО: Проверяем timeout ПЕРЕД проверкой цены
-    const elapsedTime = candle.timestamp - scheduled.scheduledAt;
-    if (elapsedTime >= maxTimeToWait) {
-      const result = await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
-        self,
-        scheduled,
-        averagePrice,
-        candle.timestamp,
-        "timeout"
-      );
-      return { outcome: "cancelled", result };
     }
 
     let shouldActivate = false;
@@ -7028,14 +7053,14 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         self,
         scheduled,
         averagePrice,
-        candle.timestamp,
+        candleClock,
         "price_reject"
       );
       return { outcome: "cancelled", result };
     }
 
     if (shouldActivate) {
-      const activated = await ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN(self, scheduled, candle.timestamp);
+      const activated = await ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN(self, scheduled, candleClock);
       if (!activated && self._scheduledSignal) {
         // transient refusal of the activation gate: the entry stays scheduled and the
         // touch is re-evaluated on the next candle (the span is re-entered, not skipped)
@@ -7055,20 +7080,20 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
           action: "cancelled",
           signal: TO_PUBLIC_SIGNAL("scheduled", scheduled, averagePrice),
           currentPrice: averagePrice,
-          closeTimestamp: candle.timestamp,
+          closeTimestamp: candleClock,
           strategyName: self.params.method.context.strategyName,
           exchangeName: self.params.method.context.exchangeName,
           frameName: self.params.method.context.frameName,
           symbol: self.params.execution.context.symbol,
           backtest: self.params.execution.context.backtest,
           reason: "user",
-          createdAt: candle.timestamp,
+          createdAt: candleClock,
         };
         await CALL_TICK_CALLBACKS_FN(
           self,
           self.params.execution.context.symbol,
           result,
-          candle.timestamp,
+          candleClock,
           self.params.execution.context.backtest
         );
         return { outcome: "cancelled", result };
@@ -7076,10 +7101,31 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       return { outcome: "activated", activationIndex: evalIndex };
     }
 
-    await CALL_SCHEDULE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, scheduled, candle.timestamp, true, averagePrice);
+    // The ping of the candle: on a 1m watch every candle, on a coarse watch its span ends; a
+    // candle forced by the clock alone (timeout, frame end) inside a span gets no ping there.
+    if (forcedIndex === -1 || evalIndex === i) {
+      await CALL_SCHEDULE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, scheduled, candleClock, true, averagePrice);
 
-    // Process queued commit events with candle timestamp
-    await PROCESS_COMMIT_QUEUE_FN(self, averagePrice, candle.timestamp);
+      // Process queued commit events with candle timestamp
+      await PROCESS_COMMIT_QUEUE_FN(self, averagePrice, candleClock);
+    }
+
+    // The clock events of this iteration come after the candle: the timeout of the wait and
+    // the frame end cancel the entry that the candle neither activated nor cancelled. A
+    // listener of the ping may have consumed the entry (cancel / activate): the deferred
+    // slot drains on the next candle.
+    if (self._scheduledSignal) {
+      if (candleClock - scheduled.scheduledAt >= maxTimeToWait || candleClock > frameEndTime) {
+        const result = await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
+          self,
+          scheduled,
+          averagePrice,
+          candleClock,
+          "timeout"
+        );
+        return { outcome: "cancelled", result };
+      }
+    }
 
     // Эмуляция live-тика (report-паритет): live эмитит "waiting" на каждый тик
     // ожидания активации (RETURN_SCHEDULED_SIGNAL_ACTIVE_FN) — backtest эмитит
@@ -7099,20 +7145,20 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         percentSl: 0,
         pnl: publicSignal.pnl,
         backtest: self.params.execution.context.backtest,
-        createdAt: candle.timestamp,
+        createdAt: candleClock,
       };
       await CALL_TICK_CALLBACKS_FN(
         self,
         self.params.execution.context.symbol,
         waitingResult,
-        candle.timestamp,
+        candleClock,
         self.params.execution.context.backtest
       );
       await CALL_BACKTEST_TICK_FN(
         self,
         self.params.execution.context.symbol,
         waitingResult,
-        candle.timestamp,
+        candleClock,
         self.params.execution.context.backtest
       );
     }
@@ -7132,7 +7178,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       self,
       scheduled,
       averagePrice,
-      candles[candles.length - 1].timestamp,
+      candles[candles.length - 1].timestamp + CANDLE_CLOSE_MS,
       "user",
       cancelId,
       cancelNote
@@ -7224,6 +7270,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     TRACK_PENDING_EXTREMES_RANGE_FN(self, signal, candles, spanFrom, evalIndex, candlesCount, extremes);
     const currentCandle = candles[evalIndex];
     const currentCandleTimestamp = currentCandle.timestamp;
+    const currentClock = currentCandleTimestamp + CANDLE_CLOSE_MS;
 
     // VWAP: the last candlesCount candles up to the evaluated one (buffer included)
     const averagePrice = GET_AVG_PRICE_AT_FN(candles, evalIndex, candlesCount);
@@ -7244,26 +7291,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       );
     }
 
-    // Если timestamp свечи вышел за frameEndTime — закрываем pending сигнал по time_expired
-    if (currentCandleTimestamp > frameEndTime) {
-      const result = await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
-        self,
-        signal,
-        averagePrice,
-        "time_expired",
-        currentCandleTimestamp
-      );
-      if (!result) {
-        throw new Error(
-          `ClientStrategy backtest: frameEndTime time_expired close rejected by sync (signalId=${signal.id}).`
-        );
-      }
-      return result;
-    }
-
     // КРИТИЧНО: Проверяем был ли сигнал закрыт пользователем через closePending()
     if (self._closedSignal) {
-      const userCloseResult = await CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN(self, self._closedSignal, averagePrice, currentCandleTimestamp);
+      const userCloseResult = await CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN(self, self._closedSignal, averagePrice, currentClock);
       // Sync close accepted — position closed, return. If rejected, _closedSignal is
       // kept and we skip this candle: live tick returns idle on a rejected user close
       // (it does NOT fall into the TP/SL or active-monitoring path), so the candle is
@@ -7286,7 +7316,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     if (self._takeProfitSignal) {
       const filledSignal = self._takeProfitSignal;
       self._takeProfitSignal = null;
-      return await CLOSE_PENDING_SIGNAL_AS_FILL_FN(self, filledSignal, "take_profit", currentCandleTimestamp);
+      return await CLOSE_PENDING_SIGNAL_AS_FILL_FN(self, filledSignal, "take_profit", currentClock);
     }
 
     // КРИТИЧНО: Проверяем broker-confirmed SL fill через createStopLoss() (напр. из onActivePing).
@@ -7294,23 +7324,14 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     if (self._stopLossSignal) {
       const filledSignal = self._stopLossSignal;
       self._stopLossSignal = null;
-      return await CLOSE_PENDING_SIGNAL_AS_FILL_FN(self, filledSignal, "stop_loss", currentCandleTimestamp);
+      return await CLOSE_PENDING_SIGNAL_AS_FILL_FN(self, filledSignal, "stop_loss", currentClock);
     }
 
     let shouldClose = false;
     let closeReason: "time_expired" | "take_profit" | "stop_loss" | "liquidation" | undefined;
 
-    // Check time expiration FIRST (КРИТИЧНО!)
-    const signalTime = signal.pendingAt;
-    const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
-    const elapsedTime = currentCandleTimestamp - signalTime;
-
-    if (elapsedTime >= maxTimeToWait) {
-      shouldClose = true;
-      closeReason = "time_expired";
-    }
-
-    // Check TP/SL only if not expired.
+    // The touches and the VWAP take of the candle; the clock events of this iteration — the
+    // hold expiry and the frame end — come after the candle's look below.
     // АСИММЕТРИЧНОЕ ИСПОЛНЕНИЕ (зеркало live-ветки
     // CHECK_PENDING_SIGNAL_COMPLETION_FN): стоп/ликвидация — по КАСАНИЮ
     // экстремумами ТЕКУЩЕЙ свечи (low/high; принудительные биржевые события,
@@ -7373,7 +7394,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         signal,
         closePrice,
         closeReason!,
-        currentCandleTimestamp
+        currentClock
       );
 
       // Sync close accepted — position closed, return.
@@ -7407,206 +7428,244 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     // (зеркало полей IStrategyTickResultActive в RETURN_PENDING_SIGNAL_ACTIVE_FN)
     let percentTp = 0;
     let percentSl = 0;
-    {
-      const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(signal);
-      if (signal.position === "long") {
-        // For long: calculate progress towards TP or SL
-        const currentDistance = averagePrice - effectivePriceOpen;
+    // The look of the candle: on a 1m watch every candle, on a coarse watch its span ends and
+    // a candle whose close the gate refused (observed like a live tick); a candle forced by
+    // the clock alone (expiry, frame end) inside a span gets no look on a coarse watch.
+    const lookHere = forcedIndex === -1 || shouldClose || evalIndex === i;
+    if (lookHere) {
+      {
+        const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(signal);
+        if (signal.position === "long") {
+          // For long: calculate progress towards TP or SL
+          const currentDistance = averagePrice - effectivePriceOpen;
 
-        if (currentDistance > 0) {
-          // Moving towards TP (use trailing TP if set)
-          const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
-          const tpDistance = effectiveTakeProfit - effectivePriceOpen;
-          const progressPercent = GET_PROGRESS_PERCENT_FN(currentDistance, tpDistance);
-          percentTp = progressPercent;
+          if (currentDistance > 0) {
+            // Moving towards TP (use trailing TP if set)
+            const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+            const tpDistance = effectiveTakeProfit - effectivePriceOpen;
+            const progressPercent = GET_PROGRESS_PERCENT_FN(currentDistance, tpDistance);
+            percentTp = progressPercent;
 
-          // The peak snapshot is updated BEFORE the active ping (the ping carries it) and
-          // the onHighestProfit callback fires AFTER it: the ping is where a parallel backtest
-          // hands the lockstep lock off, so every listener of this candle runs behind it.
-          if (averagePrice > signal._peak.price) {
-            const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
-            // Пик — только реальный плюс (зеркало live-ветки): реализуемый
-            // PNL <= 0 пиком не считается, снапшот остаётся нулевым.
-            if (pnl.pnlPercentage > 0) {
-              signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
+            // The peak snapshot is updated BEFORE the active ping (the ping carries it) and
+            // the onHighestProfit callback fires AFTER it: the ping is where a parallel backtest
+            // hands the lockstep lock off, so every listener of this candle runs behind it.
+            if (averagePrice > signal._peak.price) {
+              const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
+              // Пик — только реальный плюс (зеркало live-ветки): реализуемый
+              // PNL <= 0 пиком не считается, снапшот остаётся нулевым.
+              if (pnl.pnlPercentage > 0) {
+                signal._peak = { price: averagePrice, timestamp: currentClock, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
+                if (self.params.callbacks?.onWrite) {
+                  self.params.callbacks.onWrite(
+                    signal.symbol,
+                    signal,
+                    averagePrice,
+                    new Date(currentClock),
+                    true
+                  );
+                }
+                extremes.peak = true;
+              }
+            }
+
+            await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentClock, true, averagePrice);
+
+            await CALL_BREAKEVEN_CHECK_FN(
+              self,
+              self.params.execution.context.symbol,
+              signal,
+              averagePrice,
+              currentClock,
+              self.params.execution.context.backtest
+            );
+
+            await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
+              self,
+              self.params.execution.context.symbol,
+              signal,
+              averagePrice,
+              progressPercent,
+              currentClock,
+              self.params.execution.context.backtest
+            );
+          } else if (currentDistance < 0) {
+            // Moving towards SL (use trailing SL if set)
+            const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+            const slDistance = effectivePriceOpen - effectiveStopLoss;
+            const progressPercent = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
+            percentSl = progressPercent;
+            // Same as the peak: the fall snapshot before the ping, the callback after it.
+            if (averagePrice < signal._fall.price) {
+              const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
+              signal._fall = { price: averagePrice, timestamp: currentClock, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
               if (self.params.callbacks?.onWrite) {
                 self.params.callbacks.onWrite(
                   signal.symbol,
                   signal,
                   averagePrice,
-                  new Date(currentCandleTimestamp),
+                  new Date(currentClock),
                   true
                 );
               }
-              extremes.peak = true;
+              extremes.fall = true;
             }
+            await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentClock, true, averagePrice);
+            await CALL_PARTIAL_LOSS_CALLBACKS_FN(
+              self,
+              self.params.execution.context.symbol,
+              signal,
+              averagePrice,
+              progressPercent,
+              currentClock,
+              self.params.execution.context.backtest
+            );
+          } else {
+            await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentClock, true, averagePrice);
           }
+        } else if (signal.position === "short") {
+          // For short: calculate progress towards TP or SL
+          const currentDistance = effectivePriceOpen - averagePrice;
 
-          await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
+          if (currentDistance > 0) {
+            // Moving towards TP (use trailing TP if set)
+            const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+            const tpDistance = effectivePriceOpen - effectiveTakeProfit;
+            const progressPercent = GET_PROGRESS_PERCENT_FN(currentDistance, tpDistance);
+            percentTp = progressPercent;
 
-          await CALL_BREAKEVEN_CHECK_FN(
-            self,
-            self.params.execution.context.symbol,
-            signal,
-            averagePrice,
-            currentCandleTimestamp,
-            self.params.execution.context.backtest
-          );
-
-          await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
-            self,
-            self.params.execution.context.symbol,
-            signal,
-            averagePrice,
-            progressPercent,
-            currentCandleTimestamp,
-            self.params.execution.context.backtest
-          );
-        } else if (currentDistance < 0) {
-          // Moving towards SL (use trailing SL if set)
-          const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
-          const slDistance = effectivePriceOpen - effectiveStopLoss;
-          const progressPercent = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
-          percentSl = progressPercent;
-          // Same as the peak: the fall snapshot before the ping, the callback after it.
-          if (averagePrice < signal._fall.price) {
-            const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
-            signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
-            if (self.params.callbacks?.onWrite) {
-              self.params.callbacks.onWrite(
-                signal.symbol,
-                signal,
-                averagePrice,
-                new Date(currentCandleTimestamp),
-                true
-              );
+            // The peak snapshot is updated BEFORE the active ping (the ping carries it) and
+            // the onHighestProfit callback fires AFTER it: the ping is where a parallel backtest
+            // hands the lockstep lock off, so every listener of this candle runs behind it.
+            if (averagePrice < signal._peak.price) {
+              const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
+              // Пик — только реальный плюс (зеркало live-ветки): реализуемый
+              // PNL <= 0 пиком не считается, снапшот остаётся нулевым.
+              if (pnl.pnlPercentage > 0) {
+                signal._peak = { price: averagePrice, timestamp: currentClock, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
+                if (self.params.callbacks?.onWrite) {
+                  self.params.callbacks.onWrite(
+                    signal.symbol,
+                    signal,
+                    averagePrice,
+                    new Date(currentClock),
+                    true
+                  );
+                }
+                extremes.peak = true;
+              }
             }
-            extremes.fall = true;
-          }
-          await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
-          await CALL_PARTIAL_LOSS_CALLBACKS_FN(
-            self,
-            self.params.execution.context.symbol,
-            signal,
-            averagePrice,
-            progressPercent,
-            currentCandleTimestamp,
-            self.params.execution.context.backtest
-          );
-        } else {
-          await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
-        }
-      } else if (signal.position === "short") {
-        // For short: calculate progress towards TP or SL
-        const currentDistance = effectivePriceOpen - averagePrice;
 
-        if (currentDistance > 0) {
-          // Moving towards TP (use trailing TP if set)
-          const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
-          const tpDistance = effectivePriceOpen - effectiveTakeProfit;
-          const progressPercent = GET_PROGRESS_PERCENT_FN(currentDistance, tpDistance);
-          percentTp = progressPercent;
+            await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentClock, true, averagePrice);
 
-          // The peak snapshot is updated BEFORE the active ping (the ping carries it) and
-          // the onHighestProfit callback fires AFTER it: the ping is where a parallel backtest
-          // hands the lockstep lock off, so every listener of this candle runs behind it.
-          if (averagePrice < signal._peak.price) {
-            const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
-            // Пик — только реальный плюс (зеркало live-ветки): реализуемый
-            // PNL <= 0 пиком не считается, снапшот остаётся нулевым.
-            if (pnl.pnlPercentage > 0) {
-              signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
+            await CALL_BREAKEVEN_CHECK_FN(
+              self,
+              self.params.execution.context.symbol,
+              signal,
+              averagePrice,
+              currentClock,
+              self.params.execution.context.backtest
+            );
+
+            await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
+              self,
+              self.params.execution.context.symbol,
+              signal,
+              averagePrice,
+              progressPercent,
+              currentClock,
+              self.params.execution.context.backtest
+            );
+          } else if (currentDistance < 0) {
+            // Moving towards SL (use trailing SL if set)
+            const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+            const slDistance = effectiveStopLoss - effectivePriceOpen;
+            const progressPercent = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
+            percentSl = progressPercent;
+            // Same as the peak: the fall snapshot before the ping, the callback after it.
+            if (averagePrice > signal._fall.price) {
+              const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
+              signal._fall = { price: averagePrice, timestamp: currentClock, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
               if (self.params.callbacks?.onWrite) {
                 self.params.callbacks.onWrite(
                   signal.symbol,
                   signal,
                   averagePrice,
-                  new Date(currentCandleTimestamp),
+                  new Date(currentClock),
                   true
                 );
               }
-              extremes.peak = true;
+              extremes.fall = true;
             }
+            await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentClock, true, averagePrice);
+            await CALL_PARTIAL_LOSS_CALLBACKS_FN(
+              self,
+              self.params.execution.context.symbol,
+              signal,
+              averagePrice,
+              progressPercent,
+              currentClock,
+              self.params.execution.context.backtest
+            );
+          } else {
+            await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentClock, true, averagePrice);
           }
-
-          await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
-
-          await CALL_BREAKEVEN_CHECK_FN(
-            self,
-            self.params.execution.context.symbol,
-            signal,
-            averagePrice,
-            currentCandleTimestamp,
-            self.params.execution.context.backtest
-          );
-
-          await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
-            self,
-            self.params.execution.context.symbol,
-            signal,
-            averagePrice,
-            progressPercent,
-            currentCandleTimestamp,
-            self.params.execution.context.backtest
-          );
-        } else if (currentDistance < 0) {
-          // Moving towards SL (use trailing SL if set)
-          const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
-          const slDistance = effectiveStopLoss - effectivePriceOpen;
-          const progressPercent = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
-          percentSl = progressPercent;
-          // Same as the peak: the fall snapshot before the ping, the callback after it.
-          if (averagePrice > signal._fall.price) {
-            const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
-            signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, pnlDividends: pnl.pnlDividends, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
-            if (self.params.callbacks?.onWrite) {
-              self.params.callbacks.onWrite(
-                signal.symbol,
-                signal,
-                averagePrice,
-                new Date(currentCandleTimestamp),
-                true
-              );
-            }
-            extremes.fall = true;
-          }
-          await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
-          await CALL_PARTIAL_LOSS_CALLBACKS_FN(
-            self,
-            self.params.execution.context.symbol,
-            signal,
-            averagePrice,
-            progressPercent,
-            currentCandleTimestamp,
-            self.params.execution.context.backtest
-          );
-        } else {
-          await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
         }
+      }
+
+      // Process queued commit events with candle timestamp
+      // the extremes recorded since the previous look — on this candle or on the skipped ones —
+      // are reported once, after the ping (the ping is where a parallel backtest hands off)
+      if (extremes.peak) {
+        extremes.peak = false;
+        await self.params.onHighestProfit(
+          TO_PUBLIC_SIGNAL("pending", signal, signal._peak.price),
+          signal._peak.price,
+          signal._peak.timestamp
+        );
+      }
+      if (extremes.fall) {
+        extremes.fall = false;
+        await self.params.onMaxDrawdown(
+          TO_PUBLIC_SIGNAL("pending", signal, signal._fall.price),
+          signal._fall.price,
+          signal._fall.timestamp
+        );
       }
     }
 
-    // Process queued commit events with candle timestamp
-    // the extremes recorded since the previous look — on this candle or on the skipped ones —
-    // are reported once, after the ping (the ping is where a parallel backtest hands off)
-    if (extremes.peak) {
-      extremes.peak = false;
-      await self.params.onHighestProfit(
-        TO_PUBLIC_SIGNAL("pending", signal, signal._peak.price),
-        signal._peak.price,
-        signal._peak.timestamp
-      );
-    }
-    if (extremes.fall) {
-      extremes.fall = false;
-      await self.params.onMaxDrawdown(
-        TO_PUBLIC_SIGNAL("pending", signal, signal._fall.price),
-        signal._fall.price,
-        signal._fall.timestamp
-      );
-    }
+    await PROCESS_COMMIT_QUEUE_FN(self, averagePrice, currentClock);
 
-    await PROCESS_COMMIT_QUEUE_FN(self, averagePrice, currentCandleTimestamp);
+    // The clock events of this iteration come after the candle's look: the hold expiry and
+    // the frame end close, at the VWAP, what the candle itself did not close. A listener of
+    // the look may have consumed the position (close / fill): the deferred slot drains on the
+    // next candle.
+    if (self._pendingSignal) {
+      const expired = currentClock - signal.pendingAt >= signal.minuteEstimatedTime * 60 * 1000;
+      const frameOver = currentClock > frameEndTime;
+      if (expired || frameOver) {
+        const clockResult = await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
+          self,
+          signal,
+          averagePrice,
+          "time_expired",
+          currentClock
+        );
+        if (clockResult) {
+          return clockResult;
+        }
+        if (frameOver) {
+          throw new Error(
+            `ClientStrategy backtest: frameEndTime time_expired close rejected by sync (signalId=${signal.id}).`
+          );
+        }
+        // a refused expiry is retried on the next candle, like any refused close
+        if (evalIndex < i) {
+          spanStart = evalIndex + 1;
+          holdIndex = true;
+        }
+        lastCandleRefused = evalIndex === lastIndex;
+      }
+    }
 
     // Эмуляция live-тика (report-паритет): live эмитит "active" на каждый тик
     // мониторинга (RETURN_PENDING_SIGNAL_ACTIVE_FN) — backtest эмитит его на
@@ -7627,21 +7686,21 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         percentSl,
         pnl: publicSignal.pnl,
         backtest: self.params.execution.context.backtest,
-        createdAt: currentCandleTimestamp,
+        createdAt: currentClock,
         _backtestLastTimestamp: currentCandleTimestamp,
       };
       await CALL_TICK_CALLBACKS_FN(
         self,
         self.params.execution.context.symbol,
         activeResult,
-        currentCandleTimestamp,
+        currentClock,
         self.params.execution.context.backtest
       );
       await CALL_BACKTEST_TICK_FN(
         self,
         self.params.execution.context.symbol,
         activeResult,
-        currentCandleTimestamp,
+        currentClock,
         self.params.execution.context.backtest
       );
     }
@@ -7650,7 +7709,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   // Loop exhausted without closing — check if we have enough data
   const lastCandles = candles.slice(-GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT);
   const lastPrice = GET_AVG_PRICE_FN(lastCandles);
-  const closeTimestamp = lastCandles[lastCandles.length - 1].timestamp;
+  const lastCandleTimestamp = lastCandles[lastCandles.length - 1].timestamp;
+  // the clock of the window's last candle: its close
+  const closeTimestamp = lastCandleTimestamp + CANDLE_CLOSE_MS;
 
   // A close refused on the window's last candle is retried on the NEXT candle like on any
   // other candle: the position is handed back "active" and the orchestrator continues with
@@ -7669,9 +7730,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   const signalTime = signal.pendingAt;
   const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
   const elapsedTime = closeTimestamp - signalTime;
-  const reachedFrameEnd = closeTimestamp >= frameEndTime;
+  const reachedFrameEnd = closeTimestamp > frameEndTime;
   const handBack = signal.minuteEstimatedTime === Infinity
-    || (lastCandleRefused && closeTimestamp < frameEndTime)
+    || (lastCandleRefused && closeTimestamp <= frameEndTime)
     || (elapsedTime < maxTimeToWait && !reachedFrameEnd);
   if (handBack) {
     const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, lastPrice);
@@ -7688,7 +7749,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       pnl: publicSignal.pnl,
       backtest: self.params.execution.context.backtest,
       createdAt: closeTimestamp,
-      _backtestLastTimestamp: closeTimestamp,
+      _backtestLastTimestamp: lastCandleTimestamp,
     };
     return result;
   }
@@ -9455,7 +9516,7 @@ export class ClientStrategy implements IStrategy {
           this._activatedSignal = activatedSignal;
           await PERSIST_STRATEGY_FN(this);
           if (this._scheduledSignal) {
-            return await RETURN_SCHEDULED_SIGNAL_ACTIVE_FN(this, this._scheduledSignal, currentPrice);
+            return await RETURN_SCHEDULED_SIGNAL_WAITING_FN(this, this._scheduledSignal, currentPrice);
           }
           return await RETURN_IDLE_FN(this, currentPrice);
         }
@@ -9688,14 +9749,6 @@ export class ClientStrategy implements IStrategy {
         }
       }
 
-      // Check timeout
-      const timeoutResult = await CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN(
-        this,
-        this._scheduledSignal,
-        currentPrice
-      );
-      if (timeoutResult) return timeoutResult;
-
       // Check price-based activation/cancellation
       const { shouldActivate, shouldCancel } =
         CHECK_SCHEDULED_SIGNAL_PRICE_ACTIVATION_FN(
@@ -9719,17 +9772,24 @@ export class ClientStrategy implements IStrategy {
         }
         // Transient activation refusal: the entry is still scheduled, keep waiting
         if (this._scheduledSignal) {
-          return await RETURN_SCHEDULED_SIGNAL_ACTIVE_FN(this, this._scheduledSignal, currentPrice);
+          return await RETURN_SCHEDULED_SIGNAL_WAITING_FN(this, this._scheduledSignal, currentPrice);
         }
         // Risk rejected, stopped or cancelled - return idle
         return await RETURN_IDLE_FN(this, currentPrice);
       }
 
-      return await RETURN_SCHEDULED_SIGNAL_ACTIVE_FN(
-        this,
-        this._scheduledSignal,
-        currentPrice
-      );
+      // The candle before the clock: the last closed candle has been checked for its touches
+      // above and the entry is pinged here; only then does the timeout of the wait at this
+      // tick's time cancel what the candle did not activate.
+      const resting = this._scheduledSignal;
+      await MONITOR_SCHEDULED_SIGNAL_FN(this, resting, currentPrice);
+      if (this._scheduledSignal) {
+        const timeoutResult = await CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN(this, this._scheduledSignal, currentPrice);
+        if (timeoutResult) {
+          return timeoutResult;
+        }
+      }
+      return await RETURN_SCHEDULED_SIGNAL_ACTIVE_FN(this, resting, currentPrice);
     }
 
     // Generate new signal if none exists
@@ -9900,12 +9960,23 @@ export class ClientStrategy implements IStrategy {
       return await RETURN_IDLE_FN(this, averagePrice);
     }
 
-    return await RETURN_PENDING_SIGNAL_ACTIVE_FN(
+    // The candle before the clock: the last closed candle has been checked for its touches and
+    // its VWAP take above and is monitored here (ping, levels, extremes, commits); only then
+    // does the hold expiry at this tick's time close what the candle did not.
+    const monitored = this._pendingSignal;
+    const progress = await MONITOR_PENDING_SIGNAL_FN(
       this,
-      this._pendingSignal,
+      monitored,
       averagePrice,
       this.params.execution.context.backtest
     );
+    if (this._pendingSignal) {
+      const expiredResult = await CHECK_PENDING_SIGNAL_EXPIRY_FN(this, this._pendingSignal, averagePrice);
+      if (expiredResult) {
+        return expiredResult;
+      }
+    }
+    return await RETURN_PENDING_SIGNAL_ACTIVE_FN(this, monitored, averagePrice, progress);
   }
 
   /**

@@ -165,8 +165,8 @@ test("watchInterval 1d: a stop-loss touched on a SKIPPED candle still fires", as
     }
 
     // The touch is executed on the candle it happened on, not at the end of the
-    // daily span: minute 700 of day 1
-    const expectedCloseTimestamp = startTime + 700 * MINUTE_MS;
+    // daily span: candle 700 of day 1, dated at its close, 701
+    const expectedCloseTimestamp = startTime + 701 * MINUTE_MS;
     if (closed[0].closeTimestamp !== expectedCloseTimestamp) {
       fail(`Expected close at ${new Date(expectedCloseTimestamp).toISOString()}, got ${new Date(closed[0].closeTimestamp).toISOString()}`);
       return;
@@ -244,8 +244,9 @@ test("watchInterval 1d longer than the exchange page: the replay window is one w
     const closeMinute = (closed[0].closeTimestamp - startTime) / MINUTE_MS;
     // Executed on the wick's own candle inside the daily span of the second
     // whole-day window (the window is rounded to whole spans, not to the 1000-candle page)
-    if (closeMinute !== WICK_MINUTE) {
-      fail(`Expected the close on the wick's minute ${WICK_MINUTE}, got minute ${closeMinute}`);
+    // the wick candle, dated at its close
+    if (closeMinute !== WICK_MINUTE + 1) {
+      fail(`Expected the close on the wick's candle ${WICK_MINUTE} dated ${WICK_MINUTE + 1}, got minute ${closeMinute}`);
       return;
     }
 
@@ -311,14 +312,15 @@ test("watchInterval 5m on a 3m entry interval: spans end at step-1, drift past t
       if (result.action === "closed") closed.push(result);
     }
 
-    // one evaluation per span, at the span END: step-1, 2·step-1, … while the hold lasts
+    // one evaluation per span, at the span END candle (step-1, 2·step-1, …), dated at its close
+    // (step, 2·step, …) while the hold lasts — the hold's last candle included
     const expected = [];
-    for (let offset = WATCH_MINUTES - 1; offset < HOLD_MINUTES; offset += WATCH_MINUTES) expected.push(offset);
+    for (let offset = WATCH_MINUTES; offset <= HOLD_MINUTES; offset += WATCH_MINUTES) expected.push(offset);
     if (pings.offsets.join(",") !== expected.join(",")) {
       return fail(`expected evaluations at ${expected.join(",")} minutes from the open, got ${pings.offsets.join(",")}`);
     }
     // 5 is not a multiple of 3: the evaluation points drift (5 mod 3 = 2) minutes past the tick grid on every span
-    const drift = pings.offsets.map((offset) => (offset + 1) % ENTRY_MINUTES);
+    const drift = pings.offsets.map((offset) => offset % ENTRY_MINUTES);
     if (drift.join(",") !== expected.map((_, i) => ((i + 1) * WATCH_MINUTES) % ENTRY_MINUTES).join(",")) {
       return fail(`expected the evaluation to drift ${WATCH_MINUTES % ENTRY_MINUTES} minutes per span past the ${ENTRY_MINUTES}m grid, got ${drift.join(",")}`);
     }
@@ -329,8 +331,9 @@ test("watchInterval 5m on a 3m entry interval: spans end at step-1, drift past t
     const closeOffset = (closed[0].closeTimestamp - startTime) / MINUTE_MS;
     if (closeOffset !== HOLD_MINUTES) return fail(`expected the close exactly ${HOLD_MINUTES} minutes after the open, got ${closeOffset}`);
     // the 15m interval listener skips the first evaluation and then delivers on the first evaluation past each 15m point
+    // (the hold's last candle is looked at too, dated HOLD_MINUTES, so that point is on the grid)
     const expectedDeliveries = [];
-    for (let point = 15; point < HOLD_MINUTES; point += 15) {
+    for (let point = 15; point <= HOLD_MINUTES; point += 15) {
       const hit = expected.find((offset) => offset >= point && offset !== expected[0]);
       if (hit !== undefined && !expectedDeliveries.includes(hit)) expectedDeliveries.push(hit);
     }
@@ -381,7 +384,8 @@ test("watchInterval 4h not a multiple of the exchange page: the replay window ho
     // before the frame end: every gap is the step
     const windowSpans = Math.floor((CHUNK - (getConfig().CC_AVG_PRICE_CANDLES_COUNT - 1)) / WATCH_MINUTES);
     if (windowSpans !== 2) return fail(`the scenario expects a two-span window, got ${windowSpans}`);
-    const gaps = pings.offsets.map((offset, i) => (i ? offset - pings.offsets[i - 1] : offset + 1));
+    // the first look is dated one whole span after the open (the span-end candle's close)
+    const gaps = pings.offsets.map((offset, i) => (i ? offset - pings.offsets[i - 1] : offset));
     const regular = gaps.slice(0, -1);
     if (regular.length < 2 * windowSpans + 1) return fail(`expected the grid to cross at least two window boundaries, got gaps ${gaps.join(",")}`);
     if (regular.some((gap) => gap !== WATCH_MINUTES)) {

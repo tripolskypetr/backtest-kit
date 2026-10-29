@@ -108,7 +108,7 @@ const spike = (from, price) => Object.fromEntries(Array.from({ length: 5 }, (_, 
 const marketLong = (hold) => ({ position: "long", priceTakeProfit: TP, priceStopLoss: SL, cost: 1000, minuteEstimatedTime: hold });
 
 test("WATCH SEMANTICS: a take-profit reached by VWAP inside a span closes on that candle, identically on a 1m and a 1h watch", async ({ pass, fail }) => {
-  // VWAP (typical price over 5 candles) crosses 119 on minute 79 — (100 + 4×125) / 5 = 120 — then the price is flat at 100 again:
+  // VWAP (typical price over 5 candles) crosses 119 on candle 79, dated at its close 80 — (100 + 4×125) / 5 = 120 — then the price is flat at 100 again:
   // a span-end evaluation at minute 119 would see 100 and miss the take-profit altogether
   const candleByMinute = spike(76, 125);
   const results = {};
@@ -118,17 +118,17 @@ test("WATCH SEMANTICS: a take-profit reached by VWAP inside a span closes on tha
     if (closed.length !== 1) return fail(`${watch}: expected one close, got ${closed.length}`);
     results[watch] = { reason: closed[0].closeReason, at: minute(closed[0].closeTimestamp), price: closed[0].currentPrice };
   }
-  if (results["1m"].reason !== "take_profit" || results["1m"].at !== 79 || results["1m"].price !== TP) return fail(`1m watch must take profit on minute 79 at ${TP}: ${JSON.stringify(results["1m"])}`);
+  if (results["1m"].reason !== "take_profit" || results["1m"].at !== 80 || results["1m"].price !== TP) return fail(`1m watch must take profit on candle 79, dated 80, at ${TP}: ${JSON.stringify(results["1m"])}`);
   if (JSON.stringify(results["1h"]) !== JSON.stringify(results["1m"])) return fail(`1h watch differs from 1m: ${JSON.stringify(results)}`);
-  pass(`take_profit at minute 79, price ${TP}, on both watches`);
+  pass(`take_profit on candle 79 dated 80, price ${TP}, on both watches`);
 });
 
 test("WATCH SEMANTICS: inside one span the first forced event in time wins, not the span-end priority", async ({ pass, fail }) => {
   const cases = [
     // take-profit by VWAP on minute 79, then a stop wick on minute 100: the position is already closed by TP
-    { name: "tp-then-sl", candleByMinute: { ...spike(76, 125), 100: { low: SL - 5 } }, reason: "take_profit", at: 79, price: TP },
+    { name: "tp-then-sl", candleByMinute: { ...spike(76, 125), 100: { low: SL - 5 } }, reason: "take_profit", at: 80, price: TP },
     // stop wick on minute 70, then a take-profit spike on minute 90..94: the stop came first
-    { name: "sl-then-tp", candleByMinute: { 70: { low: SL - 5 }, ...spike(90, 125) }, reason: "stop_loss", at: 70, price: SL },
+    { name: "sl-then-tp", candleByMinute: { 70: { low: SL - 5 }, ...spike(90, 125) }, reason: "stop_loss", at: 71, price: SL },
   ];
   const report = [];
   for (const spec of cases) {
@@ -147,7 +147,7 @@ test("WATCH SEMANTICS: inside one span the first forced event in time wins, not 
 });
 
 test("WATCH SEMANTICS: a scheduled entry activates on the touching candle with that minute as pendingAt, and its hold counts from there, on every watch", async ({ pass, fail }) => {
-  // resting long at 95, a single dip to 94 on minute 105: activation on 105, hold 60 → time_expired on 165
+  // resting long at 95, a single dip to 94 on candle 105: activation dated 106 (the candle's close), hold 60 → time_expired on 166
   const candleByMinute = { 105: { low: 94 } };
   const report = [];
   for (const watch of ["1m", "15m", "1h"]) {
@@ -157,9 +157,9 @@ test("WATCH SEMANTICS: a scheduled entry activates on the touching candle with t
     const pendingAt = minute(opened[0].signal.pendingAt);
     const priceOpen = opened[0].signal.priceOpen;
     const close = { reason: closed[0].closeReason, at: minute(closed[0].closeTimestamp) };
-    if (pendingAt !== 105 || priceOpen !== 95) return fail(`${watch}: expected activation on minute 105 at 95, got pendingAt ${pendingAt} priceOpen ${priceOpen}`);
-    if (close.reason !== "time_expired" || close.at !== 165) return fail(`${watch}: expected time_expired on minute 165, got ${JSON.stringify(close)}`);
-    report.push(`${watch}: activated@105 closed@165`);
+    if (pendingAt !== 106 || priceOpen !== 95) return fail(`${watch}: expected activation on candle 105 dated 106 at 95, got pendingAt ${pendingAt} priceOpen ${priceOpen}`);
+    if (close.reason !== "time_expired" || close.at !== 166) return fail(`${watch}: expected time_expired on minute 166, got ${JSON.stringify(close)}`);
+    report.push(`${watch}: activated@106 closed@166`);
   }
   pass(report.join(" | "));
 });
@@ -194,7 +194,7 @@ test("WATCH SEMANTICS: a partial-profit level crossed inside a span fires on its
     return fail(`1h watch partial events differ from 1m: ${JSON.stringify(seen["1h"].partials)} vs ${JSON.stringify(seen["1m"].partials)}`);
   }
   // the light look on the level candles is not a ping: 1h pings stay on the span ends only
-  if (seen["1h"].pings.some((p) => p % 60 !== 59)) return fail(`1h watch pings must stay on span ends, got ${seen["1h"].pings.join(",")}`);
+  if (seen["1h"].pings.some((p) => p % 60 !== 0)) return fail(`1h watch pings must stay on span ends (dated at the span-end candle's close), got ${seen["1h"].pings.join(",")}`);
   pass(`levels ${seen["1m"].partials.map((p) => p.level).join(",")} on minutes ${[...new Set(seen["1m"].partials.map((p) => p.at))].join(",")} on both watches; 1h pings ${seen["1h"].pings.join(",")}`);
 });
 
@@ -211,7 +211,7 @@ test("WATCH SEMANTICS: breakeven becomes available on the candle its threshold i
   }
   if (seen["1m"].breakevens.length !== 1 || seen["1m"].breakevens[0] < 30 || seen["1m"].breakevens[0] > 34) return fail(`1m watch: expected one breakeven event inside the spike, got ${seen["1m"].breakevens.join(",")}`);
   if (seen["1h"].breakevens.join(",") !== seen["1m"].breakevens.join(",")) return fail(`1h watch breakeven minute ${seen["1h"].breakevens.join(",")} differs from 1m ${seen["1m"].breakevens.join(",")}`);
-  if (seen["1h"].pings.some((p) => p % 60 !== 59)) return fail(`1h watch pings must stay on span ends, got ${seen["1h"].pings.join(",")}`);
+  if (seen["1h"].pings.some((p) => p % 60 !== 0)) return fail(`1h watch pings must stay on span ends (dated at the span-end candle's close), got ${seen["1h"].pings.join(",")}`);
   pass(`breakeven on minute ${seen["1m"].breakevens[0]} on both watches; 1h pings ${seen["1h"].pings.join(",")}`);
 });
 
@@ -221,7 +221,7 @@ test("WATCH SEMANTICS: a commit issued between looks changes the position at onc
   // every look, so a commit issued from a ping lands in the same look. One issued from a listener of the
   // tick result — emitted after the drain — waits for the next drain: on a 1h watch that used to be the
   // next span end (119); now it is the next candle (60), like a live tick a minute later.
-  // The stop itself (15% → 1.5% under the entry) is active immediately: the dip to 98 on minute 70 stops out on both watches.
+  // The stop itself (15% → 1.5% under the entry) is active immediately: the dip to 98 on candle 70 stops out on both watches, dated 71.
   const candleByMinute = { 70: { low: 98 } };
   const results = {};
   for (const watch of ["1m", "1h"]) {
@@ -249,12 +249,12 @@ test("WATCH SEMANTICS: a commit issued between looks changes the position at onc
   }
   for (const watch of ["1m", "1h"]) {
     const r = results[watch];
-    if (r.reason !== "stop_loss" || r.at !== 70 || r.price < 98 || r.price > 99) return fail(`${watch} watch must stop out on minute 70 at the trailed level (~98.5): ${JSON.stringify(r)}`);
+    if (r.reason !== "stop_loss" || r.at !== 71 || r.price < 98 || r.price > 99) return fail(`${watch} watch must stop out on candle 70, dated 71, at the trailed level (~98.5): ${JSON.stringify(r)}`);
   }
   // the first look is minute 0 on a 1m watch and 59 on a 1h watch; the commit event comes on the candle after it
-  if (results["1m"].commits.join(",") !== "1") return fail(`1m watch: expected the trailing-stop commit event on minute 1, got ${results["1m"].commits.join(",")}`);
-  if (results["1h"].commits.join(",") !== "60") return fail(`1h watch: expected the trailing-stop commit event on minute 60 (the candle after the look on 59), got ${results["1h"].commits.join(",")}`);
-  pass(`stop ${results["1m"].price} hit on minute 70 on both watches; commit event on minute ${results["1m"].commits[0]} (1m) and ${results["1h"].commits[0]} (1h)`);
+  if (results["1m"].commits.join(",") !== "2") return fail(`1m watch: expected the trailing-stop commit event on minute 2 (the look of candle 1, the candle after the look that queued it), got ${results["1m"].commits.join(",")}`);
+  if (results["1h"].commits.join(",") !== "61") return fail(`1h watch: expected the trailing-stop commit event on minute 61 (the candle after the look of candle 59, dated at its close), got ${results["1h"].commits.join(",")}`);
+  pass(`stop ${results["1m"].price} hit on candle 70 (dated 71) on both watches; commit event on minute ${results["1m"].commits[0]} (1m) and ${results["1h"].commits[0]} (1h)`);
 });
 
 test("WATCH SEMANTICS: the peak of a position is recorded on the exact candle on a 1h watch and reported once at the next look", async ({ pass, fail }) => {
@@ -332,14 +332,14 @@ test("WATCH SEMANTICS: a user close rejected by the gate is retried on the next 
     const own = attempts.filter((a) => a.strategyName === schema.strategyName);
     results[watch] = { reason: closed[0].closeReason, at: minute(closed[0].closeTimestamp), attempts: own.map((a) => `${a.attempt}@${a.at}`) };
   }
-  // 1h watch: first look on minute 59, the close applies on minute 60 (first candle of the next span) and is refused,
-  // the retry is on minute 61 — the rest of the span is not skipped
-  if (results["1h"].reason !== "closed" || results["1h"].attempts.join(",") !== "0@60,1@61" || results["1h"].at !== 61) {
-    return fail(`1h watch: expected the rejected close at 60 to be retried and accepted on 61, got ${JSON.stringify(results["1h"])}`);
+  // 1h watch: first look on candle 59 (dated 60), the close applies on candle 60 (first candle of the next span,
+  // dated 61) and is refused, the retry is on candle 61 (dated 62) — the rest of the span is not skipped
+  if (results["1h"].reason !== "closed" || results["1h"].attempts.join(",") !== "0@61,1@62" || results["1h"].at !== 62) {
+    return fail(`1h watch: expected the rejected close at 61 to be retried and accepted on 62, got ${JSON.stringify(results["1h"])}`);
   }
-  // 1m watch: first look on minute 0, refused on 1, accepted on 2 — the same "next candle" rule
-  if (results["1m"].reason !== "closed" || results["1m"].attempts.join(",") !== "0@1,1@2" || results["1m"].at !== 2) {
-    return fail(`1m watch: expected the rejected close at 1 to be retried and accepted on 2, got ${JSON.stringify(results["1m"])}`);
+  // 1m watch: first look on candle 0 (dated 1), refused on candle 1 (dated 2), accepted on candle 2 (dated 3) — the same "next candle" rule
+  if (results["1m"].reason !== "closed" || results["1m"].attempts.join(",") !== "0@2,1@3" || results["1m"].at !== 3) {
+    return fail(`1m watch: expected the rejected close at 2 to be retried and accepted on 3, got ${JSON.stringify(results["1m"])}`);
   }
   pass(`1m: attempts ${results["1m"].attempts.join(" ")} closed@${results["1m"].at} | 1h: attempts ${results["1h"].attempts.join(" ")} closed@${results["1h"].at}`);
 });
@@ -361,8 +361,8 @@ test("WATCH SEMANTICS: a stop-loss close refused by the gate is retried on the n
     const own = attempts.filter((a) => a.strategyName === schema.strategyName);
     results[watch] = { reason: closed[0].closeReason, at: minute(closed[0].closeTimestamp), price: closed[0].currentPrice, attempts: own.map((a) => `${a.attempt}@${a.at}`) };
   }
-  if (results["1m"].reason !== "stop_loss" || results["1m"].attempts.join(",") !== "0@20,1@21" || results["1m"].at !== 21 || results["1m"].price !== SL) {
-    return fail(`1m watch: expected the refused stop at 20 to be retried and accepted on 21 at ${SL}, got ${JSON.stringify(results["1m"])}`);
+  if (results["1m"].reason !== "stop_loss" || results["1m"].attempts.join(",") !== "0@21,1@22" || results["1m"].at !== 22 || results["1m"].price !== SL) {
+    return fail(`1m watch: expected the refused stop on candle 20 (dated 21) to be retried and accepted on candle 21 (dated 22) at ${SL}, got ${JSON.stringify(results["1m"])}`);
   }
   if (JSON.stringify(results["1h"]) !== JSON.stringify(results["1m"])) {
     return fail(`1h watch must retry the refused stop on the next candle like the 1m watch: ${JSON.stringify(results)}`);
@@ -403,13 +403,14 @@ test("WATCH SEMANTICS: a user close rejected through the whole last span of a re
     }
     if (closed.length !== 1 || closed[0].closeReason !== "closed") return fail(`expected one user close, got ${JSON.stringify(closed.map((c) => c.closeReason))}`);
     const minutes = attempts.map((a) => a.at);
-    const expected = Array.from({ length: 61 }, (_, i) => 60 + i);
+    // the attempts on candles 60..120, each dated at its candle's close
+    const expected = Array.from({ length: 61 }, (_, i) => 61 + i);
     if (minutes.join(",") !== expected.join(",")) {
-      return fail(`expected one close attempt per candle from 60 to 120, got ${minutes.length} attempts: ${minutes.slice(0, 6).join(",")}…${minutes.slice(-3).join(",")}`);
+      return fail(`expected one close attempt per candle from 61 to 121, got ${minutes.length} attempts: ${minutes.slice(0, 6).join(",")}…${minutes.slice(-3).join(",")}`);
     }
-    if (minute(closed[0].closeTimestamp) !== 120) return fail(`expected the close on minute 120, got ${minute(closed[0].closeTimestamp)}`);
-    // the only look before the close was the one that asked for it; no span was replayed
-    if (pings.join(",") !== "59") return fail(`expected a single active ping on minute 59, got ${pings.join(",")}`);
+    if (minute(closed[0].closeTimestamp) !== 121) return fail(`expected the close on minute 121, got ${minute(closed[0].closeTimestamp)}`);
+    // the only look before the close was the one that asked for it (candle 59, dated 60); no span was replayed
+    if (pings.join(",") !== "60") return fail(`expected a single active ping dated 60, got ${pings.join(",")}`);
     pass(`61 attempts on minutes 60..120 across the window edge, closed@120, pings: ${pings.join(",")}`);
   } finally {
     setConfig({ CC_MAX_CANDLES_PER_REQUEST: 1000, CC_MAX_SIGNAL_LIFETIME_MINUTES: 999999, CC_ORDER_CLOSE_RETRY_ATTEMPTS: 5 }, true);
@@ -435,13 +436,14 @@ test("WATCH SEMANTICS: an Infinity hold activated from a scheduled entry keeps a
     } finally {
       unPing();
     }
-    if (opened.length !== 1 || minute(opened[0].signal.pendingAt) !== 100) return fail(`expected the activation on minute 100, got ${opened.map((o) => minute(o.signal.pendingAt)).join(",")}`);
-    // the grid is anchored at pendingAt (the activation minute), like a market open: evaluations at
-    // +59, +119, +179 … from the activation, every one 60 minutes after the previous; the frame end may cut the last span
+    if (opened.length !== 1 || minute(opened[0].signal.pendingAt) !== 101) return fail(`expected the activation on candle 100, dated 101, got ${opened.map((o) => minute(o.signal.pendingAt)).join(",")}`);
+    // the grid is anchored at pendingAt (101, the activation's close), like a market open: the span-end
+    // candles 160, 220, … are dated at their close 161, 221, … — +61, +121, +181 … from the touch candle
+    // 100, every one 60 minutes after the previous; the frame end may cut the last span
     const gaps = pings.map((p, i) => (i ? p - pings[i - 1] : p - 100));
     const regular = gaps.slice(1, -1);
-    if (gaps[0] !== 59 || regular.some((g) => g !== 60)) {
-      return fail(`expected evaluations at +59, +119, +179 … from the activation, got offsets ${pings.map((p) => p - 100).slice(0, 24).join(",")}… (gaps ${gaps.slice(0, 24).join(",")})`);
+    if (gaps[0] !== 61 || regular.some((g) => g !== 60)) {
+      return fail(`expected evaluations at +61, +121, +181 … from the touch candle 100, got offsets ${pings.map((p) => p - 100).slice(0, 24).join(",")}… (gaps ${gaps.slice(0, 24).join(",")})`);
     }
     if (pings.length < 30) return fail(`expected the grid to cross at least one window boundary (16 spans), got ${pings.length} evaluations`);
     pass(`${pings.length} evaluations, first at activation+${gaps[0]}, then every ${[...new Set(regular)].join(",")} min`);
@@ -453,10 +455,10 @@ test("WATCH SEMANTICS: an Infinity hold activated from a scheduled entry keeps a
 test("WATCH SEMANTICS: the watch grid is on the time axis — a hole in the 1m feed leaves the span boundaries in place", async ({ pass, fail }) => {
   // 1h watch, a 200-minute position; the exchange has no candles for some minutes
   const cases = [
-    // ten minutes missing inside the first span: the span still ends on minute 59 (49 candles instead of 59)
-    { name: "hole-10", skip: Array.from({ length: 10 }, (_, i) => 30 + i), evaluations: [59, 119, 179] },
-    // a whole span missing: nothing to evaluate in [60, 120), the next span still ends on 179
-    { name: "hole-span", skip: Array.from({ length: 60 }, (_, i) => 60 + i), evaluations: [59, 179] },
+    // ten minutes missing inside the first span: the span still ends on candle 59 (49 candles instead of 59), its look dated 60
+    { name: "hole-10", skip: Array.from({ length: 10 }, (_, i) => 30 + i), evaluations: [60, 120, 180] },
+    // a whole span missing: nothing to evaluate in [60, 120), the next span still ends on candle 179 (dated 180)
+    { name: "hole-span", skip: Array.from({ length: 60 }, (_, i) => 60 + i), evaluations: [60, 180] },
   ];
   const report = [];
   for (const spec of cases) {

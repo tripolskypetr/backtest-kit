@@ -19,8 +19,10 @@ import {
 // the outcome is the run's own results — opens, placements, cancels, closes with their
 // minute, price and PnL fields — plus the commit events with their minutes. The oracle is
 // the 1m/1m cadence; every other cadence must match it byte for byte, and the oracle itself
-// must land on the expected minute, so the identity is never vacuous. Minute 239 is a span
-// end on every watch (4h included) and minute 60 an entry tick on both entries.
+// must land on the expected minute, so the identity is never vacuous. Candle 239 is a span end
+// on every watch (4h included) and its look is dated 240, the candle's close; minute 60 is an
+// entry tick on both entries. A command issued from a look applies on the next candle, whose
+// events are dated one minute later again.
 
 const MIN_MS = 60_000;
 const HOUR_MS = 60 * MIN_MS;
@@ -140,60 +142,60 @@ const marketLong = () => ({ position: "long", priceTakeProfit: TP, priceStopLoss
 const restingLong = () => ({ position: "long", priceOpen: ENTRY, priceTakeProfit: TP, priceStopLoss: SL, cost: 1000, minuteEstimatedTime: HOLD });
 const closedIs = (o, reason, at, price) => (o.closed.length !== 1 || o.closed[0].reason !== reason || o.closed[0].at !== at || (price !== undefined && o.closed[0].price !== price)) ? `expected ${reason}@${at}${price !== undefined ? ` at ${price}` : ""}` : null;
 
-// --- actions on an open position (opened by getSignal on minute 0 at 100), issued from the active ping of minute 239 ---
+// --- actions on an open position (opened by getSignal on minute 0 at 100), issued from the look of candle 239, dated 240 ---
 
 test("COMMAND CADENCE: commitClosePending from the active ping closes on the next candle on every cadence", async (t) => {
-  await matrix("closePending", { signal: marketLong(), ping: "active", at: 239, command: (symbol, context) => Backtest.commitClosePending(symbol, context) },
-    (o) => closedIs(o, "closed", 240, BASE), t);
+  await matrix("closePending", { signal: marketLong(), ping: "active", at: 240, command: (symbol, context) => Backtest.commitClosePending(symbol, context) },
+    (o) => closedIs(o, "closed", 241, BASE), t);
 });
 
 test("COMMAND CADENCE: commitCreateTakeProfit (broker-confirmed fill) closes by take_profit on the next candle on every cadence", async (t) => {
-  await matrix("createTakeProfit", { signal: marketLong(), ping: "active", at: 239, command: (symbol, context) => Backtest.commitCreateTakeProfit(symbol, context) },
-    (o) => closedIs(o, "take_profit", 240), t);
+  await matrix("createTakeProfit", { signal: marketLong(), ping: "active", at: 240, command: (symbol, context) => Backtest.commitCreateTakeProfit(symbol, context) },
+    (o) => closedIs(o, "take_profit", 241), t);
 });
 
 test("COMMAND CADENCE: commitCreateStopLoss (broker-confirmed fill) closes by stop_loss on the next candle on every cadence", async (t) => {
-  await matrix("createStopLoss", { signal: marketLong(), ping: "active", at: 239, command: (symbol, context) => Backtest.commitCreateStopLoss(symbol, context) },
-    (o) => closedIs(o, "stop_loss", 240), t);
+  await matrix("createStopLoss", { signal: marketLong(), ping: "active", at: 240, command: (symbol, context) => Backtest.commitCreateStopLoss(symbol, context) },
+    (o) => closedIs(o, "stop_loss", 241), t);
 });
 
-test("COMMAND CADENCE: commitPartialProfit takes the partial at once, stamps its commit with the ping's minute and leaves one partial on the expiry close, on every cadence", async (t) => {
+test("COMMAND CADENCE: commitPartialProfit takes the partial at once, stamps its commit with the look's minute and leaves one partial on the expiry close, on every cadence", async (t) => {
   // the price sits at 110 from 200 on, so the partial is a profit; expiry at 400 carries totalPartials 1
-  await matrix("partialProfit", { signal: marketLong(), candleByMinute: range(200, 480, flat(110)), ping: "active", at: 239, command: (symbol, context, price) => Backtest.commitPartialProfit(symbol, 30, price, context) },
-    (o) => closedIs(o, "time_expired", HOLD) ?? (o.closed[0].totalPartials !== 1 ? "expected one partial on the close" : null) ?? (!o.commits.includes("partial-profit@239") ? `expected the partial-profit commit on 239, got ${o.commits.join(",")}` : null), t);
+  await matrix("partialProfit", { signal: marketLong(), candleByMinute: range(200, 480, flat(110)), ping: "active", at: 240, command: (symbol, context, price) => Backtest.commitPartialProfit(symbol, 30, price, context) },
+    (o) => closedIs(o, "time_expired", HOLD) ?? (o.closed[0].totalPartials !== 1 ? "expected one partial on the close" : null) ?? (!o.commits.includes("partial-profit@240") ? `expected the partial-profit commit on 240, got ${o.commits.join(",")}` : null), t);
 });
 
-test("COMMAND CADENCE: commitPartialLoss takes the partial at once, stamps its commit with the ping's minute and leaves one partial on the expiry close, on every cadence", async (t) => {
-  await matrix("partialLoss", { signal: marketLong(), candleByMinute: range(200, 480, flat(92)), ping: "active", at: 239, command: (symbol, context, price) => Backtest.commitPartialLoss(symbol, 30, price, context) },
-    (o) => closedIs(o, "time_expired", HOLD) ?? (o.closed[0].totalPartials !== 1 ? "expected one partial on the close" : null) ?? (!o.commits.includes("partial-loss@239") ? `expected the partial-loss commit on 239, got ${o.commits.join(",")}` : null), t);
+test("COMMAND CADENCE: commitPartialLoss takes the partial at once, stamps its commit with the look's minute and leaves one partial on the expiry close, on every cadence", async (t) => {
+  await matrix("partialLoss", { signal: marketLong(), candleByMinute: range(200, 480, flat(92)), ping: "active", at: 240, command: (symbol, context, price) => Backtest.commitPartialLoss(symbol, 30, price, context) },
+    (o) => closedIs(o, "time_expired", HOLD) ?? (o.closed[0].totalPartials !== 1 ? "expected one partial on the close" : null) ?? (!o.commits.includes("partial-loss@240") ? `expected the partial-loss commit on 240, got ${o.commits.join(",")}` : null), t);
 });
 
 test("COMMAND CADENCE: commitTrailingStop moves the stop at once; the candle that touches the new stop closes on its exact minute on every cadence", async (t) => {
-  // the stop distance from the entry is tightened by 10 points (15% → 5%, the stop at 95) on 239; the lows touch 95 on 300..303
-  await matrix("trailingStop", { signal: marketLong(), candleByMinute: range(300, 303, { low: 95 }), ping: "active", at: 239, command: (symbol, context, price) => Backtest.commitTrailingStop(symbol, -10, price, context) },
-    (o) => closedIs(o, "stop_loss", 300, 95) ?? (!o.commits.includes("trailing-stop@239") ? `expected the trailing-stop commit on 239, got ${o.commits.join(",")}` : null), t);
+  // the stop distance from the entry is tightened by 10 points (15% → 5%, the stop at 95) on 240; the lows touch 95 on candles 300..303, dated 301
+  await matrix("trailingStop", { signal: marketLong(), candleByMinute: range(300, 303, { low: 95 }), ping: "active", at: 240, command: (symbol, context, price) => Backtest.commitTrailingStop(symbol, -10, price, context) },
+    (o) => closedIs(o, "stop_loss", 301, 95) ?? (!o.commits.includes("trailing-stop@240") ? `expected the trailing-stop commit on 240, got ${o.commits.join(",")}` : null), t);
 });
 
 test("COMMAND CADENCE: commitTrailingTake moves the take-profit at once; the VWAP that reaches it closes on its exact minute on every cadence", async (t) => {
-  // the take-profit distance from the entry is tightened by 14 points (19% → 5%, the take at 105) on 239; candles at 105 from 300: the 5-candle VWAP reaches 105 on 304
-  await matrix("trailingTake", { signal: marketLong(), candleByMinute: range(300, 320, flat(105)), ping: "active", at: 239, command: (symbol, context, price) => Backtest.commitTrailingTake(symbol, -14, price, context) },
-    (o) => closedIs(o, "take_profit", 304, 105) ?? (!o.commits.includes("trailing-take@239") ? `expected the trailing-take commit on 239, got ${o.commits.join(",")}` : null), t);
+  // the take-profit distance from the entry is tightened by 14 points (19% → 5%, the take at 105) on 240; candles at 105 from 300: the 5-candle VWAP reaches 105 on candle 304, dated 305
+  await matrix("trailingTake", { signal: marketLong(), candleByMinute: range(300, 320, flat(105)), ping: "active", at: 240, command: (symbol, context, price) => Backtest.commitTrailingTake(symbol, -14, price, context) },
+    (o) => closedIs(o, "take_profit", 305, 105) ?? (!o.commits.includes("trailing-take@240") ? `expected the trailing-take commit on 240, got ${o.commits.join(",")}` : null), t);
 });
 
 test("COMMAND CADENCE: commitBreakeven moves the stop to the entry at once; the candle that falls back to it closes on its exact minute on every cadence", async (t) => {
-  // in profit at 110 from 200 on, breakeven on 239, then the price falls back to 99 on 300..303
-  await matrix("breakeven", { signal: marketLong(), candleByMinute: { ...range(200, 299, flat(110)), ...range(300, 303, flat(99)) }, ping: "active", at: 239, command: (symbol, context, price) => Backtest.commitBreakeven(symbol, price, context) },
-    (o) => closedIs(o, "stop_loss", 300) ?? (!o.commits.includes("breakeven@239") ? `expected the breakeven commit on 239, got ${o.commits.join(",")}` : null), t);
+  // in profit at 110 from 200 on, breakeven on 240, then the price falls back to 99 on candles 300..303, dated 301
+  await matrix("breakeven", { signal: marketLong(), candleByMinute: { ...range(200, 299, flat(110)), ...range(300, 303, flat(99)) }, ping: "active", at: 240, command: (symbol, context, price) => Backtest.commitBreakeven(symbol, price, context) },
+    (o) => closedIs(o, "stop_loss", 301) ?? (!o.commits.includes("breakeven@240") ? `expected the breakeven commit on 240, got ${o.commits.join(",")}` : null), t);
 });
 
 test("COMMAND CADENCE: commitAverageBuy adds the entry at once; the expiry close carries two entries and the averaged PnL on every cadence", async (t) => {
   // a long may only average down: the price sits at 92 on the command's minute, then at 110 up to the expiry
-  await matrix("averageBuy", { signal: marketLong(), candleByMinute: { ...range(200, 299, flat(92)), ...range(300, 480, flat(110)) }, ping: "active", at: 239, command: (symbol, context, price) => Backtest.commitAverageBuy(symbol, price, context, 1000) },
-    (o) => closedIs(o, "time_expired", HOLD) ?? (o.closed[0].totalEntries !== 2 ? "expected two entries on the close" : null) ?? (!o.commits.includes("average-buy@239") ? `expected the average-buy commit on 239, got ${o.commits.join(",")}` : null), t);
+  await matrix("averageBuy", { signal: marketLong(), candleByMinute: { ...range(200, 299, flat(92)), ...range(300, 480, flat(110)) }, ping: "active", at: 240, command: (symbol, context, price) => Backtest.commitAverageBuy(symbol, price, context, 1000) },
+    (o) => closedIs(o, "time_expired", HOLD) ?? (o.closed[0].totalEntries !== 2 ? "expected two entries on the close" : null) ?? (!o.commits.includes("average-buy@240") ? `expected the average-buy commit on 240, got ${o.commits.join(",")}` : null), t);
 });
 
 test("COMMAND CADENCE: commitDividend accrues at once; the expiry close carries the same pnlDividends on every cadence", async (t) => {
-  await matrix("dividend", { signal: marketLong(), ping: "active", at: 239, command: (symbol, context, price) => Backtest.commitDividend(symbol, price, context, { amount: 7, note: "cadence dividend" }) },
+  await matrix("dividend", { signal: marketLong(), ping: "active", at: 240, command: (symbol, context, price) => Backtest.commitDividend(symbol, price, context, { amount: 7, note: "cadence dividend" }) },
     (o) => closedIs(o, "time_expired", HOLD, BASE) ?? (!(o.closed[0].pnlDividends > 0) ? `expected a positive pnlDividends, got ${o.closed[0].pnlDividends}` : null), t);
 });
 
@@ -215,18 +217,18 @@ test("COMMAND CADENCE: setPendingSignal from the idle ping opens the adopted pos
     (o) => (o.opened.length !== 1 || o.opened[0].at !== 60 || o.opened[0].priceOpen !== 95 ? "expected the adopted open on 60 at 95" : null) ?? closedIs(o, "time_expired", 60 + HOLD, BASE), t);
 });
 
-// --- actions on a resting entry (placed by getSignal on minute 0 at 90, never touched), issued from the schedule ping of minute 239 ---
+// --- actions on a resting entry (placed by getSignal on minute 0 at 90, never touched), issued from the look of candle 239, dated 240 ---
 
 test("COMMAND CADENCE: commitCancelScheduled from the schedule ping cancels on the next candle on every cadence", async (t) => {
   await withConfig({ CC_SCHEDULE_AWAIT_MINUTES: 480 }, async () => {
-    await matrix("cancelScheduled", { signal: restingLong(), ping: "schedule", at: 239, command: (symbol, context) => Backtest.commitCancelScheduled(symbol, context) },
-      (o) => (o.scheduled.join(",") !== "0" ? "expected the placement on 0" : null) ?? (o.cancelled.join(",") !== "user@240" ? `expected user@240, got ${o.cancelled.join(",")}` : null), t);
+    await matrix("cancelScheduled", { signal: restingLong(), ping: "schedule", at: 240, command: (symbol, context) => Backtest.commitCancelScheduled(symbol, context) },
+      (o) => (o.scheduled.join(",") !== "0" ? "expected the placement on 0" : null) ?? (o.cancelled.join(",") !== "user@241" ? `expected user@241, got ${o.cancelled.join(",")}` : null), t);
   });
 });
 
 test("COMMAND CADENCE: commitActivateScheduled from the schedule ping activates on the next candle on every cadence", async (t) => {
   await withConfig({ CC_SCHEDULE_AWAIT_MINUTES: 480 }, async () => {
-    await matrix("activateScheduled", { signal: restingLong(), ping: "schedule", at: 239, command: (symbol, context) => Backtest.commitActivateScheduled(symbol, context) },
-      (o) => (o.opened.length !== 1 || o.opened[0].at !== 240 ? "expected the activation on 240" : null) ?? closedIs(o, "time_expired", 240 + HOLD), t);
+    await matrix("activateScheduled", { signal: restingLong(), ping: "schedule", at: 240, command: (symbol, context) => Backtest.commitActivateScheduled(symbol, context) },
+      (o) => (o.opened.length !== 1 || o.opened[0].at !== 241 ? "expected the activation on 241" : null) ?? closedIs(o, "time_expired", 241 + HOLD), t);
   });
 });

@@ -197,12 +197,12 @@ test("REFUSED CLOSE: a transient refusal of the stop is retried on the next cand
   const report = [];
   for (const spec of cases) {
     const results = await runOnWatches(`stop-${spec.name}`, { ...spec, refuse: first });
-    const expected = { attempts: ["0@20", "1@21"], close: [{ reason: "stop_loss", at: 21, price: spec.name === "long" ? SL : 2 * BASE - SL }], fatal: null };
+    const expected = { attempts: ["0@21", "1@22"], close: [{ reason: "stop_loss", at: 22, price: spec.name === "long" ? SL : 2 * BASE - SL }], fatal: null };
     if (JSON.stringify({ attempts: results["1m"].attempts, close: results["1m"].close, fatal: results["1m"].fatal }) !== JSON.stringify(expected)) {
       return fail(`${spec.name} on 1m: expected ${JSON.stringify(expected)}, got ${JSON.stringify(results["1m"])}`);
     }
     if (differs(results, (r) => ({ attempts: r.attempts, close: r.close, fatal: r.fatal }), fail, spec.name)) return;
-    report.push(`${spec.name}: refused@20 closed@21`);
+    report.push(`${spec.name}: refused@21 closed@22`);
   }
   pass(`${report.join(" | ")} on ${WATCHES.join("/")}`);
 });
@@ -211,7 +211,7 @@ test("REFUSED CLOSE: a take-profit by VWAP refused on its candle is retried on t
   // the 5-candle VWAP reaches 119 on minute 79 — (100 + 4×125) / 5 = 120 — and stays there while the
   // spike lasts (76..83); the refusal on 79 is retried and accepted on 80 at the take-profit price
   const results = await runOnWatches("tp", { signal: long(300), candleByMinute: range(76, 83, { open: 125, high: 125, low: 125, close: 125 }), refuse: first });
-  const expected = { attempts: ["0@79", "1@80"], close: [{ reason: "take_profit", at: 80, price: TP }], fatal: null };
+  const expected = { attempts: ["0@80", "1@81"], close: [{ reason: "take_profit", at: 81, price: TP }], fatal: null };
   if (JSON.stringify({ attempts: results["1m"].attempts, close: results["1m"].close, fatal: results["1m"].fatal }) !== JSON.stringify(expected)) {
     return fail(`1m: expected ${JSON.stringify(expected)}, got ${JSON.stringify(results["1m"])}`);
   }
@@ -238,7 +238,7 @@ test("REFUSED CLOSE: a refusal exactly on a span end is retried on the first can
   // minute 59 is the span end of the 1m, 15m and 1h watches and a mid-span candle of the 4h watch:
   // the re-entry rule (evalIndex < i) must not drop the retry when the refused candle IS the span end
   const results = await runOnWatches("span-end", { signal: long(300), candleByMinute: range(59, 65, { low: SL }), refuse: first });
-  const expected = { attempts: ["0@59", "1@60"], close: [{ reason: "stop_loss", at: 60, price: SL }], fatal: null };
+  const expected = { attempts: ["0@60", "1@61"], close: [{ reason: "stop_loss", at: 61, price: SL }], fatal: null };
   if (JSON.stringify({ attempts: results["1m"].attempts, close: results["1m"].close, fatal: results["1m"].fatal }) !== JSON.stringify(expected)) {
     return fail(`1m: expected ${JSON.stringify(expected)}, got ${JSON.stringify(results["1m"])}`);
   }
@@ -251,10 +251,10 @@ test("REFUSED CLOSE: a refusal streak over several span ends gets exactly one at
   // candle 50..120 — across the 15m span ends (59, 74, 89, 104, 119) and the 1h span ends (59, 119)
   await withConfig({ CC_ORDER_CLOSE_RETRY_ATTEMPTS: 0 }, async () => {
     const results = await runOnWatches("streak", { signal: long(300), candleByMinute: range(50, 200, { low: SL }), refuse: (a) => a.attempt < 70 });
-    const expectedAttempts = Array.from({ length: 71 }, (_, k) => `${k}@${50 + k}`);
-    const expected = { attempts: expectedAttempts, close: [{ reason: "stop_loss", at: 120, price: SL }], fatal: null };
+    const expectedAttempts = Array.from({ length: 71 }, (_, k) => `${k}@${51 + k}`);
+    const expected = { attempts: expectedAttempts, close: [{ reason: "stop_loss", at: 121, price: SL }], fatal: null };
     if (JSON.stringify({ attempts: results["1m"].attempts, close: results["1m"].close, fatal: results["1m"].fatal }) !== JSON.stringify(expected)) {
-      return fail(`1m: expected 71 attempts on 50..120 and the close on 120, got ${results["1m"].attempts.length} attempts ${results["1m"].attempts.slice(0, 3).join(",")}…${results["1m"].attempts.slice(-2).join(",")}, close ${JSON.stringify(results["1m"].close)}`);
+      return fail(`1m: expected 71 attempts on 51..121 and the close on 121, got ${results["1m"].attempts.length} attempts ${results["1m"].attempts.slice(0, 3).join(",")}…${results["1m"].attempts.slice(-2).join(",")}, close ${JSON.stringify(results["1m"].close)}`);
     }
     if (differs(results, (r) => ({ attempts: r.attempts, close: r.close, fatal: r.fatal }), fail, "streak")) return;
     pass(`71 attempts on minutes 50..120 across the span ends, closed@120 on ${WATCHES.join("/")}`);
@@ -267,10 +267,10 @@ test("REFUSED CLOSE: a refusal streak across the replay window edges gets one at
   // times: attempts on every candle 100..250 — across the 1h window edges 120 and 240
   await withConfig({ CC_MAX_CANDLES_PER_REQUEST: 600, CC_ORDER_CLOSE_RETRY_ATTEMPTS: 0, CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity }, async () => {
     const results = await runOnWatches("window-edge", { signal: long(Infinity), frameHours: 8, candleByMinute: range(100, 300, { low: SL }), refuse: (a) => a.attempt < 150 });
-    const expectedAttempts = Array.from({ length: 151 }, (_, k) => `${k}@${100 + k}`);
-    const expected = { attempts: expectedAttempts, close: [{ reason: "stop_loss", at: 250, price: SL }], fatal: null };
+    const expectedAttempts = Array.from({ length: 151 }, (_, k) => `${k}@${101 + k}`);
+    const expected = { attempts: expectedAttempts, close: [{ reason: "stop_loss", at: 251, price: SL }], fatal: null };
     if (JSON.stringify({ attempts: results["1m"].attempts, close: results["1m"].close, fatal: results["1m"].fatal }) !== JSON.stringify(expected)) {
-      return fail(`1m: expected 151 attempts on 100..250 and the close on 250, got ${results["1m"].attempts.length} attempts ${results["1m"].attempts.slice(0, 3).join(",")}…${results["1m"].attempts.slice(-2).join(",")}, close ${JSON.stringify(results["1m"].close)}`);
+      return fail(`1m: expected 151 attempts on 101..251 and the close on 251, got ${results["1m"].attempts.length} attempts ${results["1m"].attempts.slice(0, 3).join(",")}…${results["1m"].attempts.slice(-2).join(",")}, close ${JSON.stringify(results["1m"].close)}`);
     }
     if (differs(results, (r) => ({ attempts: r.attempts, close: r.close, fatal: r.fatal }), fail, "window edge")) return;
     pass(`151 attempts on minutes 100..250 across the window edges 120 and 240, closed@250 on ${WATCHES.join("/")}`);
@@ -281,17 +281,17 @@ test("REFUSED CLOSE: when the price walks away after the refusal the position st
   // the stop is touched on minute 20 only (refused) and the price is back at 100 on 21: no close may
   // be recorded at a stale price. The stop is touched again on 70..72: accepted at once as attempt 1
   const results = await runOnWatches("walk-away", { signal: long(300), candleByMinute: { ...range(20, 20, { low: SL }), ...range(70, 72, { low: SL }) }, refuse: first });
-  const expected = { attempts: ["0@20", "1@70"], close: [{ reason: "stop_loss", at: 70, price: SL }], fatal: null };
+  const expected = { attempts: ["0@21", "1@71"], close: [{ reason: "stop_loss", at: 71, price: SL }], fatal: null };
   if (JSON.stringify({ attempts: results["1m"].attempts, close: results["1m"].close, fatal: results["1m"].fatal }) !== JSON.stringify(expected)) {
     return fail(`1m: expected ${JSON.stringify(expected)}, got ${JSON.stringify(results["1m"])}`);
   }
   if (differs(results, (r) => ({ attempts: r.attempts, close: r.close, fatal: r.fatal }), fail, "walk away")) return;
-  pass(`refused@20, price away on 21, the next touch closes@70 as attempt 1 on ${WATCHES.join("/")}`);
+  pass(`refused@21, price away on 22, the next touch closes@71 as attempt 1 on ${WATCHES.join("/")}`);
 });
 
 test("REFUSED CLOSE: a refusal by the legacy boolean contract (onOrderSync returns false) is the same transient refusal as a throw", async ({ pass, fail }) => {
   const results = await runOnWatches("legacy-false", { signal: long(300), candleByMinute: range(20, 25, { low: SL }), refuse: (a) => (a.attempt === 0 ? "false" : false) });
-  const expected = { attempts: ["0@20", "1@21"], close: [{ reason: "stop_loss", at: 21, price: SL }], fatal: null };
+  const expected = { attempts: ["0@21", "1@22"], close: [{ reason: "stop_loss", at: 22, price: SL }], fatal: null };
   if (JSON.stringify({ attempts: results["1m"].attempts, close: results["1m"].close, fatal: results["1m"].fatal }) !== JSON.stringify(expected)) {
     return fail(`1m: expected ${JSON.stringify(expected)}, got ${JSON.stringify(results["1m"])}`);
   }
@@ -303,7 +303,7 @@ test("REFUSED CLOSE: a terminal OrderRejectedError forces the close on the refus
   // "no counterparty, retrying is pointless": the engine records the stop on minute 20 without
   // broker confirmation and reports the rejection through the error bus
   const results = await runOnWatches("terminal", { signal: long(300), candleByMinute: range(20, 25, { low: SL }), refuse: (a) => (a.attempt === 0 ? "terminal" : false) });
-  const expected = { attempts: ["0@20"], close: [{ reason: "stop_loss", at: 20, price: SL }], fatal: null };
+  const expected = { attempts: ["0@21"], close: [{ reason: "stop_loss", at: 21, price: SL }], fatal: null };
   if (JSON.stringify({ attempts: results["1m"].attempts, close: results["1m"].close, fatal: results["1m"].fatal }) !== JSON.stringify(expected)) {
     return fail(`1m: expected ${JSON.stringify(expected)}, got ${JSON.stringify(results["1m"])}`);
   }
@@ -319,8 +319,8 @@ test("REFUSED CLOSE: transient refusals exhausted (CC_ORDER_CLOSE_RETRY_ATTEMPTS
   await withConfig({ CC_ORDER_CLOSE_RETRY_ATTEMPTS: 3 }, async () => {
     const results = await runOnWatches("exhausted", { signal: long(300), candleByMinute: range(20, 40, { low: SL }), refuse: () => true });
     const oracle = results["1m"];
-    if (oracle.attempts.join(",") !== "0@20,1@21,2@22,3@23") return fail(`1m: expected attempts 0@20..3@23, got ${oracle.attempts.join(",")}`);
-    if (JSON.stringify(oracle.close) !== JSON.stringify([{ reason: "stop_loss", at: 23, price: SL }])) return fail(`1m: expected the forced stop_loss on 23, got ${JSON.stringify(oracle.close)}`);
+    if (oracle.attempts.join(",") !== "0@21,1@22,2@23,3@24") return fail(`1m: expected attempts 0@21..3@24, got ${oracle.attempts.join(",")}`);
+    if (JSON.stringify(oracle.close) !== JSON.stringify([{ reason: "stop_loss", at: 24, price: SL }])) return fail(`1m: expected the forced stop_loss on 24 (the exhausting attempt), got ${JSON.stringify(oracle.close)}`);
     if (oracle.exits.length !== 1 || !oracle.exits[0].includes("close attempts exhausted")) return fail(`1m: expected one exit event about the exhausted close attempts, got ${JSON.stringify(oracle.exits)}`);
     if (differs(results, (r) => ({ attempts: r.attempts, close: r.close, exits: r.exits, fatal: r.fatal }), fail, "exhausted")) return;
     pass(`4 refused attempts on 20..23, forced stop_loss@23, one exit event, on ${WATCHES.join("/")}`);
@@ -343,16 +343,17 @@ test("REFUSED CLOSE: the refused candle is still observed on every watch — the
   // so the refused minute gets a ping and its loss levels even on a coarse watch
   const results = await runOnWatches("observed", { signal: long(300), candleByMinute: range(20, 25, { low: SL, close: SL }), refuse: first });
   const oracle = results["1m"];
-  const expected = { attempts: ["0@20", "1@21"], close: [{ reason: "stop_loss", at: 21, price: SL }], fatal: null };
+  const expected = { attempts: ["0@21", "1@22"], close: [{ reason: "stop_loss", at: 22, price: SL }], fatal: null };
   if (JSON.stringify({ attempts: oracle.attempts, close: oracle.close, fatal: oracle.fatal }) !== JSON.stringify(expected)) {
     return fail(`1m: expected ${JSON.stringify(expected)}, got ${JSON.stringify(oracle)}`);
   }
-  if (oracle.partialLoss.length === 0 || !oracle.partialLoss.every((l) => l.endsWith("@20"))) return fail(`1m: expected the partial-loss levels on the refused candle 20, got ${oracle.partialLoss.join(",")}`);
+  if (oracle.partialLoss.length === 0 || !oracle.partialLoss.every((l) => l.endsWith("@21"))) return fail(`1m: expected the partial-loss levels on the refused candle 20 (dated 21), got ${oracle.partialLoss.join(",")}`);
   for (const watch of WATCHES) {
-    if (!results[watch].pings.includes(20)) return fail(`${watch}: expected an active ping on the refused candle 20, got pings ${results[watch].pings.join(",")}`);
+    // the look of the refused candle 20 is dated 21, its close
+    if (!results[watch].pings.includes(21)) return fail(`${watch}: expected an active ping on the refused candle 20 (dated 21), got pings ${results[watch].pings.join(",")}`);
   }
   if (differs(results, (r) => ({ attempts: r.attempts, close: r.close, fatal: r.fatal, partialLoss: r.partialLoss }), fail, "observed")) return;
-  pass(`ping@20 and loss levels ${oracle.partialLoss.join(",")} on the refused candle on ${WATCHES.join("/")}`);
+  pass(`ping@21 and loss levels ${oracle.partialLoss.join(",")} on the refused candle 20 on ${WATCHES.join("/")}`);
 });
 
 test("REFUSED CLOSE: a user close asked from the refused candle's ping wins over the stop retry on the next candle, on every watch", async ({ pass, fail }) => {
@@ -364,27 +365,28 @@ test("REFUSED CLOSE: a user close asked from the refused candle's ping wins over
     refuse: first,
     callbacks: {
       onActivePing: async (symbol, _data, _price, when) => {
-        if (minute(when.getTime()) === 20) await commitClosePending(symbol);
+        // the look of the refused candle 20 is dated 21
+        if (minute(when.getTime()) === 21) await commitClosePending(symbol);
       },
     },
   });
   const oracle = results["1m"];
-  if (oracle.attempts.join(",") !== "0@20,1@21" || oracle.close.length !== 1 || oracle.close[0].reason !== "closed" || oracle.close[0].at !== 21) {
-    return fail(`1m: expected the user close to win on 21 as attempt 1, got ${JSON.stringify(oracle)}`);
+  if (oracle.attempts.join(",") !== "0@21,1@22" || oracle.close.length !== 1 || oracle.close[0].reason !== "closed" || oracle.close[0].at !== 22) {
+    return fail(`1m: expected the user close to win on 22 as attempt 1, got ${JSON.stringify(oracle)}`);
   }
   if (differs(results, (r) => ({ attempts: r.attempts, close: r.close, fatal: r.fatal, reasons: r.reasons }), fail, "user wins")) return;
-  pass(`stop refused@20, user close from that ping accepted@21 (${oracle.reasons.join("→")}) on ${WATCHES.join("/")}`);
+  pass(`stop refused@21, user close from that ping accepted@22 (${oracle.reasons.join("→")}) on ${WATCHES.join("/")}`);
 });
 
 test("REFUSED CLOSE: a liquidation on isolated margin refused once is retried on the next candle at the liquidation price", async ({ pass, fail }) => {
   // ×5 isolated: the liquidation price (about 80) sits above the stop (70) and is the effective
-  // stop level; the lows on 20..25 touch it, the refusal on 20 is retried and accepted on 21
+  // stop level; the lows on 20..25 touch it, the refusal on candle 20 (dated 21) is retried and accepted on candle 21 (dated 22)
   const results = await runOnWatches("liquidation", { signal: long(300, { priceStopLoss: 70, multiplier: 5, isolated: true }), candleByMinute: range(20, 25, { low: 75 }), refuse: first });
   const oracle = results["1m"];
-  if (oracle.attempts.join(",") !== "0@20,1@21" || oracle.close.length !== 1 || oracle.close[0].reason !== "liquidation" || oracle.close[0].at !== 21) {
-    return fail(`1m: expected the liquidation refused@20 and accepted@21, got ${JSON.stringify(oracle)}`);
+  if (oracle.attempts.join(",") !== "0@21,1@22" || oracle.close.length !== 1 || oracle.close[0].reason !== "liquidation" || oracle.close[0].at !== 22) {
+    return fail(`1m: expected the liquidation refused@21 and accepted@22, got ${JSON.stringify(oracle)}`);
   }
   if (oracle.close[0].price < 75 || oracle.close[0].price > 85) return fail(`1m: the liquidation price must be the ×5 level near 80, got ${oracle.close[0].price}`);
   if (differs(results, (r) => ({ attempts: r.attempts, close: r.close, fatal: r.fatal }), fail, "liquidation")) return;
-  pass(`liquidation refused@20, accepted@21 at ${oracle.close[0].price} on ${WATCHES.join("/")}`);
+  pass(`liquidation refused@21, accepted@22 at ${oracle.close[0].price} on ${WATCHES.join("/")}`);
 });

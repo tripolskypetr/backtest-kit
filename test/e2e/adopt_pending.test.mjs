@@ -185,9 +185,9 @@ test("ADOPT: the adopted position is monitored candle by candle — a stop touch
     adopt: (symbol) => setPendingSignal(symbol, { id: "adopted-stop", position: "long", priceOpen: 95, priceTakeProfit: TP, priceStopLoss: SL, minuteEstimatedTime: HOLD }),
   });
   const oracle = results["1m"];
-  if (JSON.stringify(oracle.closed.map((c) => `${c.reason}@${c.at}`)) !== JSON.stringify(["stop_loss@80"]) || oracle.opens.length !== 0) return fail(`1m: expected stop_loss@80 with no open gate, got ${JSON.stringify(outcome(oracle))}`);
+  if (JSON.stringify(oracle.closed.map((c) => `${c.reason}@${c.at}`)) !== JSON.stringify(["stop_loss@81"]) || oracle.opens.length !== 0) return fail(`1m: expected stop_loss@81 (the touch on candle 80, dated at its close) with no open gate, got ${JSON.stringify(outcome(oracle))}`);
   if (differs(results, outcome, fail, "stop")) return;
-  pass(`opened@60, stop_loss@80 at ${SL}, close gate id adopted-stop, on ${WATCHES.join("/")}`);
+  pass(`opened@60, stop_loss@81 (candle 80) at ${SL}, close gate id adopted-stop, on ${WATCHES.join("/")}`);
 });
 
 test("ADOPT: an exclusive price far below the market is still a PENDING position, never a scheduled one", async ({ pass, fail }) => {

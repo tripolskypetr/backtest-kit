@@ -194,11 +194,12 @@ test("IDLE PING GATE: over a resting entry placed from the idle ping, its activa
     command: (symbol, context) => Backtest.commitCreateSignal(symbol, context, restingLong()),
   });
   if (life.scheduledAt !== 10 || life.pendingAt === null || life.closedAt === null || life.reason !== "take_profit") return fail(`expected scheduled@10, an activation and a take_profit close, got ${JSON.stringify(life)}`);
-  // the ping of minute 10 placed the entry itself: it was clean at delivery
-  const stray = idle.filter((i) => i.at > life.scheduledAt && i.at <= life.closedAt);
+  // the ping of minute 10 placed the entry itself: it was clean at delivery; the close minute
+  // gets its entry step (an idle ping) right after the close, as the live loop re-ticks it
+  const stray = idle.filter((i) => i.at > life.scheduledAt && i.at < life.closedAt);
   if (stray.length) return fail(`listenIdlePing must stay silent from the placement on ${life.scheduledAt} to the close on ${life.closedAt}, got ${JSON.stringify(stray)}`);
   if (idle.some((i) => !clean(i))) return fail(`every idle delivery must see a clean strategy, got ${JSON.stringify(idle.filter((i) => !clean(i)))}`);
-  if (!idle.some((i) => i.at < life.scheduledAt) || !idle.some((i) => i.at > life.closedAt)) return fail(`idle pings must be delivered before the placement and after the close, got minutes ${idle.map((i) => i.at).join(",")}`);
+  if (!idle.some((i) => i.at < life.scheduledAt) || !idle.some((i) => i.at >= life.closedAt)) return fail(`idle pings must be delivered before the placement and from the close minute on, got minutes ${idle.map((i) => i.at).join(",")}`);
   if (schedule.length === 0 || schedule.some((s) => s.at < life.scheduledAt || s.at >= life.pendingAt || !s.hasScheduled || s.hasPending)) return fail(`schedule pings must fall inside the resting window [${life.scheduledAt}, ${life.pendingAt}) with the entry scheduled and no pending position, got ${JSON.stringify(schedule)}`);
   if (active.length === 0 || active.some((a) => a.at < life.pendingAt || a.at > life.closedAt || a.pending !== life.id || !a.hasPending || a.hasScheduled)) return fail(`active pings must fall inside the position's life [${life.pendingAt}, ${life.closedAt}] with "${life.id}" pending and no resting entry, got ${JSON.stringify(active)}`);
   pass(`resting@${life.scheduledAt} → active@${life.pendingAt} → ${life.reason}@${life.closedAt}: ${idle.length} idle pings outside the window only, ${schedule.length} schedule pings while resting, ${active.length} active pings while open`);

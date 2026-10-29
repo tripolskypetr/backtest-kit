@@ -16,6 +16,8 @@ import {
 // back through the exchange facade and records its id, and the adapter's own callback
 // records the ids of every window the orchestrator fetched. Both sequences must be gapless
 // and free of duplicates across the window edges — one id per candle, each exactly once.
+// A look of candle m is dated m+1, the candle's close, so the ping of minute N is about
+// candle N-1 — the last closed one, the one the facade returns.
 
 const MIN_MS = 60_000;
 const HOUR_MS = 60 * MIN_MS;
@@ -95,17 +97,17 @@ const runCase = async (schema) => {
   return { closed, windows: schema.windows, seen: schema.seen, errors };
 };
 
-test("CANDLE IDENTITY: on a 1m watch the strategy reads one candle per ping and the ids run 0..HOLD-2 without a gap or a duplicate across the window edges", async ({ pass, fail }) => {
+test("CANDLE IDENTITY: on a 1m watch the strategy reads one candle per ping and the ids run 0..HOLD-1 without a gap or a duplicate across the window edges", async ({ pass, fail }) => {
   const { closed, seen, errors } = await runCase(buildCase("ping-1m", "1m"));
   if (closed.length !== 1 || closed[0].reason !== "time_expired" || closed[0].at !== HOLD) return fail(`expected the expiry on ${HOLD}, got ${JSON.stringify(closed)}`);
-  if (seen.length !== HOLD) return fail(`expected ${HOLD} pings (one per candle 0..${HOLD - 1}), got ${seen.length}; errors: ${[...new Set(errors)].slice(0, 3).join(" | ")}`);
+  if (seen.length !== HOLD) return fail(`expected ${HOLD} pings (one per candle 0..${HOLD - 1}, dated 1..${HOLD}), got ${seen.length}; errors: ${[...new Set(errors)].slice(0, 3).join(" | ")}`);
   if (seen.some((s) => typeof s.id !== "number")) return fail(`the adapter's id field did not pass through the exchange layer: ${JSON.stringify(seen.find((s) => typeof s.id !== "number"))}`);
   const ids = seen.map((s) => s.id);
-  if (!consecutive(ids) || ids[0] !== -1 || ids[ids.length - 1] !== HOLD - 2) return fail(`ids must run -1..${HOLD - 2} consecutively, got ${ids.length} ids ${ids.slice(0, 4).join(",")}…${ids.slice(-3).join(",")}`);
+  if (!consecutive(ids) || ids[0] !== 0 || ids[ids.length - 1] !== HOLD - 1) return fail(`ids must run 0..${HOLD - 1} consecutively, got ${ids.length} ids ${ids.slice(0, 4).join(",")}…${ids.slice(-3).join(",")}`);
   if (new Set(ids).size !== ids.length) return fail(`duplicate candle ids among the pings`);
   const misaligned = seen.find((s) => s.id !== s.at - 1 || s.timestamp !== FRAME_START + (s.at - 1) * MIN_MS);
   if (misaligned) return fail(`every ping must read the candle of the previous minute, got ${JSON.stringify(misaligned)}`);
-  pass(`${seen.length} pings, candle ids -1..${HOLD - 2} consecutive and unique, each the minute before its ping, expired@${HOLD}`);
+  pass(`${seen.length} pings, candle ids 0..${HOLD - 1} consecutive and unique, each the minute before its ping, expired@${HOLD}`);
 });
 
 test("CANDLE IDENTITY: the fetched windows cover the hold exactly once — contiguous ids, adjacent windows overlap by the VWAP buffer only, no window beyond a page", async ({ pass, fail }) => {
@@ -133,7 +135,8 @@ test("CANDLE IDENTITY: on a 1h and a 1d watch every look reads the candle before
   for (const [watch, step] of [["1h", 60], ["1d", 1440]]) {
     const { closed, seen } = await runCase(buildCase(`ping-${watch}`, watch));
     if (closed.length !== 1 || closed[0].at !== HOLD) return fail(`${watch}: expected the expiry on ${HOLD}, got ${JSON.stringify(closed)}`);
-    const expectedAt = Array.from({ length: Math.floor((HOLD - 1) / step) }, (_, k) => step - 1 + k * step);
+    // the look of the span-end candle (step-1, 2·step-1, …) is dated at that candle's close
+    const expectedAt = Array.from({ length: Math.floor((HOLD - 1) / step) }, (_, k) => step + k * step);
     if (seen.map((s) => s.at).join(",") !== expectedAt.join(",")) return fail(`${watch}: expected looks on ${expectedAt.join(",")}, got ${seen.map((s) => s.at).join(",")}`);
     const wrong = seen.find((s) => s.id !== s.at - 1);
     if (wrong) return fail(`${watch}: a look must read the candle before its span end, got ${JSON.stringify(wrong)}`);

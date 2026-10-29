@@ -1414,8 +1414,9 @@ test("LOCKSTEP: a 2h watchInterval on a 1h entry interval hands off at the first
     } finally {
       unsubscribe.forEach((un) => un());
     }
+    // the look of each span-end candle (step-1, 2·step-1, …) is dated at its close: +step, +2·step, …
     const expected = [];
-    for (let offset = STEP - 1; offset < HOLD; offset += STEP) expected.push(offset);
+    for (let offset = STEP; offset < HOLD; offset += STEP) expected.push(offset);
     if (samples.map((s) => s.offset).join(",") !== expected.join(",")) {
       return fail(`expected evaluations at +${expected.join("/+")}, got ${samples.map((s) => s.offset).join(",")}`);
     }
@@ -1801,9 +1802,10 @@ test("LOCKSTEP: a 1h replay hands off on the 15m peer's grid, its 01:46 reserve 
 
   const history = await Budget._getHistory({ ...key, when: new Date(JOURNAL_END) });
   const peerReserve = history.find((r) => r.type === "reserve" && r.symbol === STEP_FAST_SYMBOL);
-  if (!peerReserve || peerReserve.timestamp !== STEP_PEER_OPEN_AT) return fail(`expected the peer's reserve at 01:15: ${describeRows(history)}`);
+  // the peer reserves on its first look after the 01:15 open: the look of the 01:15 candle, dated 01:16
+  if (!peerReserve || peerReserve.timestamp !== STEP_PEER_OPEN_AT + MIN_MS) return fail(`expected the peer's reserve at 01:16 (its first look after the 01:15 open): ${describeRows(history)}`);
   const slowRefused = rejects.find((r) => r.symbol === STEP_SLOW_SYMBOL);
-  if (!slowRefused) return fail(`the 1h symbol's reserve at 01:46 must be refused against the peer's 01:15 reserve: rejects=${JSON.stringify(rejects)} journal=${describeRows(history)}`);
+  if (!slowRefused) return fail(`the 1h symbol's reserve at 01:47 must be refused against the peer's 01:16 reserve: rejects=${JSON.stringify(rejects)} journal=${describeRows(history)}`);
   const overdrafts = history.filter((r) => r.type === "reserve" && r.overdraft !== undefined);
   if (overdrafts.length) return fail(`overdraft across frame steps: ${describeRows(overdrafts)}`);
 
@@ -1815,7 +1817,7 @@ test("LOCKSTEP: a 1h replay hands off on the 15m peer's grid, its 01:46 reserve 
     if (latest.size === 2) maxSpread = Math.max(maxSpread, Math.abs(latest.get(STEP_SLOW_SYMBOL) - latest.get(STEP_FAST_SYMBOL)));
   }
   if (maxSpread > HOUR_MS) return fail(`clocks diverged by ${maxSpread / MIN_MS} minutes across a 1h and a 15m frame (expected at most 60)`);
-  pass(`1h vs 15m: max spread ${maxSpread / MIN_MS} min, the 1h reserve at 01:46 refused, journal: ${describeRows(history)}`);
+  pass(`1h vs 15m: max spread ${maxSpread / MIN_MS} min, the 1h reserve at 01:47 refused, journal: ${describeRows(history)}`);
 });
 
 // ── addActionSchema hooks ────────────────────────────────────────────────────
@@ -2209,13 +2211,14 @@ const STRIDE_COST = 1_000;
 const STRIDE_DAYS = 20;
 const STRIDE_FRAME_END = FRAME_START + STRIDE_DAYS * DAY_MS;
 /**
- * B opens on the 23:00 tick of day 2: with a daily stride its first ping (and reserve) lands at
- * 22:59 of day 3, one hour before A's day-3 ping at 23:59 tops A's position up. A hand-off that
- * lags by up to 23 hourly iterations does not have B's reserve in by then; one that waits for the
- * last crossed boundary does.
+ * B opens on the 23:00 tick of day 2: with a daily stride its first ping (and reserve) is the
+ * look of the 22:59 candle of day 3, dated 23:00 of day 3, one hour before A's day-3 ping (the
+ * look of its 23:59 candle, dated 00:00 of day 4) tops A's position up. A hand-off that lags by
+ * up to 23 hourly iterations does not have B's reserve in by then; one that waits for the last
+ * crossed boundary does. The top-up is asked from the first look dated after 01:00 of day 3.
  */
 const STRIDE_B_OPEN_AT = FRAME_START + 2 * DAY_MS + 23 * HOUR_MS;
-const STRIDE_A_DCA_AT = FRAME_START + 3 * DAY_MS;
+const STRIDE_A_DCA_AT = FRAME_START + 3 * DAY_MS + HOUR_MS;
 
 const buildStrideCase = (name) => {
   const exchangeName = `lockstep-stride-exchange-${name}`;
@@ -2531,9 +2534,9 @@ test("LOCKSTEP WATCH: an activation forced on minute 100 of a 1h span hands off 
     unClosed();
   }
   const history = await Budget._getHistory({ ...key, symbol: null, when: new Date(JOURNAL_END) });
-  // the peer's tick at minute 60 must have run before the forced activation wrote at minute 100
-  if (arrivals.join(",") !== "PEER@60,FORCED@100") {
-    return fail(`expected the peer's open at 60 to arrive before the forced activation at 100, got ${arrivals.join(",")}; journal: ${describeRows(history)}`);
+  // the peer's tick at minute 60 must have run before the forced activation wrote (candle 100, dated 101)
+  if (arrivals.join(",") !== "PEER@60,FORCED@101") {
+    return fail(`expected the peer's open at 60 to arrive before the forced activation at 101, got ${arrivals.join(",")}; journal: ${describeRows(history)}`);
   }
   if (rejects.join(",") !== FORCED_SYMBOL) return fail(`expected the late reserve of ${FORCED_SYMBOL} to be refused (capital ${BUDGET_CAPITAL}, two costs of ${BUDGET_COST}), got rejects ${rejects.join(",") || "none"}; journal: ${describeRows(history)}`);
   if (history.some((r) => r.type === "reserve" && r.overdraft !== undefined)) return fail(`overdraft in the journal: ${describeRows(history)}`);
@@ -2795,8 +2798,9 @@ test("LOCKSTEP: a symbol whose candle fetches wait on a macrotask joins before i
   if (!slowReserve) return fail(`the slow symbol's scheduled reserve is missing: ${describeRows(history)}`);
   const overdrafts = history.filter((r) => r.type === "reserve" && r.overdraft !== undefined);
   if (overdrafts.length) return fail(`the fast symbol ran ahead before the slow one joined: ${describeRows(overdrafts)}`);
-  const fastRefused = rejects.find((r) => r.symbol === JOIN_FAST_SYMBOL && r.when === JOIN_SIGNAL_AT + HOUR_MS);
-  if (!fastRefused) return fail(`the fast symbol's 02:00 reserve must be refused against the slow one's 01:46 reserve: rejects=${JSON.stringify(rejects)} journal=${describeRows(history)}`);
+  // the fast symbol reserves on its first look after each hourly open: the look of the 02:00 candle, dated 02:01
+  const fastRefused = rejects.find((r) => r.symbol === JOIN_FAST_SYMBOL && r.when === JOIN_SIGNAL_AT + HOUR_MS + MIN_MS);
+  if (!fastRefused) return fail(`the fast symbol's 02:01 reserve must be refused against the slow one's 01:47 reserve: rejects=${JSON.stringify(rejects)} journal=${describeRows(history)}`);
   const negativeRow = history.find((r) => r.balance.free < 0);
   if (negativeRow) return fail(`free went negative at ${describeRows([negativeRow])}`);
   pass(`slow peer joined in time: ${rejects.length} refusals, no overdraft, journal: ${describeRows(history.slice(0, 8))}`);

@@ -1093,10 +1093,10 @@ export class BacktestLogicPrivateService {
             if (r.type === "closed") {
               lastAction = "closed";
               previousEventTimestamp = r.previousEventTimestamp;
-              // Skip frames up to and including closeTimestamp (the close minute is
-              // already consumed); the first frame after it must stay tickable, so
-              // continue past the loop-bottom i++.
-              while (i < timeframes.length && timeframes[i].getTime() <= r.closeTimestamp) {
+              // Skip the frames before closeTimestamp: the close is dated at the clock of the
+              // candle that closed it, and the entry step of that very minute stays tickable
+              // (the candle is closed, the strategy is idle), so continue past the loop-bottom i++.
+              while (i < timeframes.length && timeframes[i].getTime() < r.closeTimestamp) {
                 i++;
               }
               if (r.shouldStop) {
@@ -1121,7 +1121,7 @@ export class BacktestLogicPrivateService {
               lastAction = "closed";
               previousEventTimestamp = r.previousEventTimestamp;
               // Same off-by-one guard as in the scheduled branch above.
-              while (i < timeframes.length && timeframes[i].getTime() <= r.closeTimestamp) {
+              while (i < timeframes.length && timeframes[i].getTime() < r.closeTimestamp) {
                 i++;
               }
               if (r.shouldStop) {

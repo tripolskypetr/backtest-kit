@@ -173,7 +173,7 @@ test("REFUSED ACTIVATE: a transient refusal of the activation keeps the resting 
   // position must open on 21 (pendingAt 21) with the same id, nothing is cancelled, and the
   // hold then expires on 121
   const results = await runOnWatches("transient", { candleByMinute: touch(20, 25), refuse: first });
-  const expected = { attempts: ["0@20", "1@21"], sameId: true, opened: [21], cancelled: [], closed: [{ reason: "time_expired", at: 121, price: BASE }], exits: 0 };
+  const expected = { attempts: ["0@21", "1@22"], sameId: true, opened: [22], cancelled: [], closed: [{ reason: "time_expired", at: 122, price: BASE }], exits: 0 };
   if (JSON.stringify(lifecycle(results["1m"])) !== JSON.stringify(expected)) return fail(`1m: expected ${JSON.stringify(expected)}, got ${JSON.stringify(results["1m"])}`);
   if (differs(results, lifecycle, fail, "transient")) return;
   pass(`activation refused@20, retried and opened@21 (attempt 1, same id), expired@121 on ${WATCHES.join("/")}`);
@@ -181,7 +181,7 @@ test("REFUSED ACTIVATE: a transient refusal of the activation keeps the resting 
 
 test("REFUSED ACTIVATE: a terminal OrderRejectedError cancels the resting entry on the refused candle, no retry", async ({ pass, fail }) => {
   const results = await runOnWatches("terminal", { candleByMinute: touch(20, 25), refuse: (a) => (a.attempt === 0 ? "terminal" : false) });
-  const expected = { attempts: ["0@20"], sameId: true, opened: [], cancelled: [{ reason: "user", at: 20 }], closed: [], exits: 0 };
+  const expected = { attempts: ["0@21"], sameId: true, opened: [], cancelled: [{ reason: "user", at: 21 }], closed: [], exits: 0 };
   if (JSON.stringify(lifecycle(results["1m"])) !== JSON.stringify(expected)) return fail(`1m: expected ${JSON.stringify(expected)}, got ${JSON.stringify(results["1m"])}`);
   if (differs(results, lifecycle, fail, "terminal")) return;
   pass(`terminal rejection@20 → cancelled (user)@20, no retry, on ${WATCHES.join("/")}`);
@@ -190,7 +190,7 @@ test("REFUSED ACTIVATE: a terminal OrderRejectedError cancels the resting entry 
 test("REFUSED ACTIVATE: transient refusals exhausted (CC_ORDER_OPEN_RETRY_ATTEMPTS=2) cancel the entry on the third attempt and raise the fatal exit event once", async ({ pass, fail }) => {
   await withConfig({ CC_ORDER_OPEN_RETRY_ATTEMPTS: 2 }, async () => {
     const results = await runOnWatches("exhausted", { candleByMinute: touch(20, 40), refuse: () => true });
-    const expected = { attempts: ["0@20", "1@21", "2@22"], sameId: true, opened: [], cancelled: [{ reason: "user", at: 22 }], closed: [], exits: 1 };
+    const expected = { attempts: ["0@21", "1@22", "2@23"], sameId: true, opened: [], cancelled: [{ reason: "user", at: 23 }], closed: [], exits: 1 };
     if (JSON.stringify(lifecycle(results["1m"])) !== JSON.stringify(expected)) return fail(`1m: expected ${JSON.stringify(expected)}, got ${JSON.stringify(results["1m"])}`);
     if (differs(results, lifecycle, fail, "exhausted")) return;
     pass(`attempts 0@20,1@21,2@22 refused → cancelled (user)@22, one exit event, on ${WATCHES.join("/")}`);
@@ -200,7 +200,7 @@ test("REFUSED ACTIVATE: transient refusals exhausted (CC_ORDER_OPEN_RETRY_ATTEMP
 test("REFUSED ACTIVATE: with CC_ORDER_OPEN_RETRY_ATTEMPTS=0 the legacy rule holds — any refusal cancels the entry at once", async ({ pass, fail }) => {
   await withConfig({ CC_ORDER_OPEN_RETRY_ATTEMPTS: 0 }, async () => {
     const results = await runOnWatches("legacy", { candleByMinute: touch(20, 25), refuse: first });
-    const expected = { attempts: ["0@20"], sameId: true, opened: [], cancelled: [{ reason: "user", at: 20 }], closed: [], exits: 0 };
+    const expected = { attempts: ["0@21"], sameId: true, opened: [], cancelled: [{ reason: "user", at: 21 }], closed: [], exits: 0 };
     if (JSON.stringify(lifecycle(results["1m"])) !== JSON.stringify(expected)) return fail(`1m: expected ${JSON.stringify(expected)}, got ${JSON.stringify(results["1m"])}`);
     if (differs(results, lifecycle, fail, "legacy")) return;
     pass(`retry disabled: transient refusal@20 → cancelled (user)@20 on ${WATCHES.join("/")}`);
@@ -210,7 +210,7 @@ test("REFUSED ACTIVATE: with CC_ORDER_OPEN_RETRY_ATTEMPTS=0 the legacy rule hold
 test("REFUSED ACTIVATE: a refusal streak across a span end gets one attempt per touching candle, none skipped", async ({ pass, fail }) => {
   // touched from 57 to 70, five refusals: attempts on 57..62 across the 15m / 1h span end 59
   const results = await runOnWatches("streak", { candleByMinute: touch(57, 70), refuse: (a) => a.attempt < 5 });
-  const expected = { attempts: ["0@57", "1@58", "2@59", "3@60", "4@61", "5@62"], sameId: true, opened: [62], cancelled: [], closed: [{ reason: "time_expired", at: 162, price: BASE }], exits: 0 };
+  const expected = { attempts: ["0@58", "1@59", "2@60", "3@61", "4@62", "5@63"], sameId: true, opened: [63], cancelled: [], closed: [{ reason: "time_expired", at: 163, price: BASE }], exits: 0 };
   if (JSON.stringify(lifecycle(results["1m"])) !== JSON.stringify(expected)) return fail(`1m: expected ${JSON.stringify(expected)}, got ${JSON.stringify(results["1m"])}`);
   if (differs(results, lifecycle, fail, "streak")) return;
   pass(`six attempts on 57..62 across the span end 59, opened@62 on ${WATCHES.join("/")}`);
@@ -220,29 +220,30 @@ test("REFUSED ACTIVATE: when the price leaves the entry after the refusal the or
   // touched on 20 only (refused), flat again, touched on 50..52: no cancel in between,
   // the activation on 50 carries attempt 1 (the adapter must reconcile the prior POST)
   const results = await runOnWatches("walk-away", { candleByMinute: { ...touch(20, 20), ...touch(50, 52) }, refuse: first });
-  const expected = { attempts: ["0@20", "1@50"], sameId: true, opened: [50], cancelled: [], closed: [{ reason: "time_expired", at: 150, price: BASE }], exits: 0 };
+  const expected = { attempts: ["0@21", "1@51"], sameId: true, opened: [51], cancelled: [], closed: [{ reason: "time_expired", at: 151, price: BASE }], exits: 0 };
   if (JSON.stringify(lifecycle(results["1m"])) !== JSON.stringify(expected)) return fail(`1m: expected ${JSON.stringify(expected)}, got ${JSON.stringify(results["1m"])}`);
   if (differs(results, lifecycle, fail, "walk away")) return;
   pass(`refused@20, price away, next touch opened@50 as attempt 1 on ${WATCHES.join("/")}`);
 });
 
 test("REFUSED ACTIVATE: an activation requested by the adapter (activateScheduled) and refused transiently is re-queued and retried on the next candle", async ({ pass, fail }) => {
-  // the adapter reports the fill from the schedule ping of minute 59 (a span end of the 1m,
-  // 15m and 1h watches; a 4h watch has no ping before the 120-minute wait expires, so it is
-  // left out); the user activation runs on 60 and is refused, the retry on 61 is accepted
+  // the adapter reports the fill from the look of candle 59, dated 60 (a span end of the 1m,
+  // 15m and 1h watches; a 4h watch has no look before the 120-minute wait expires, so it is
+  // left out); the user activation runs on candle 60 (dated 61) and is refused, the retry on
+  // candle 61 (dated 62) is accepted
   const pingWatches = ["1m", "15m", "1h"];
   const results = await runOnWatches("user-activate", {
     refuse: first,
     callbacks: {
       onSchedulePing: async (symbol, data, _price, when) => {
-        if (minute(when.getTime()) === 59) await commitActivateScheduled(symbol, { id: data.id });
+        if (minute(when.getTime()) === 60) await commitActivateScheduled(symbol, { id: data.id });
       },
     },
   }, pingWatches);
-  const expected = { attempts: ["0@60", "1@61"], sameId: true, opened: [61], cancelled: [], closed: [{ reason: "time_expired", at: 161, price: BASE }], exits: 0 };
+  const expected = { attempts: ["0@61", "1@62"], sameId: true, opened: [62], cancelled: [], closed: [{ reason: "time_expired", at: 162, price: BASE }], exits: 0 };
   if (JSON.stringify(lifecycle(results["1m"])) !== JSON.stringify(expected)) return fail(`1m: expected ${JSON.stringify(expected)}, got ${JSON.stringify(results["1m"])}`);
   if (differs(results, lifecycle, fail, "user activate")) return;
-  pass(`activateScheduled from the ping@59, refused@60, retried and opened@61 on ${pingWatches.join("/")}`);
+  pass(`activateScheduled from the look dated 60, refused@61, retried and opened@62 on ${pingWatches.join("/")}`);
 });
 
 // ---------------------------------------------------------------------------

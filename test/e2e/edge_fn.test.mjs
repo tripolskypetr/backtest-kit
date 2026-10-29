@@ -824,7 +824,7 @@ test("BACKTEST: cancelScheduled on the final candle drains gracefully instead of
     getSignal: async () => (emitted ? null : ((emitted = true), { ...SCHEDULED_DTO })),
     callbacks: {
       onSchedulePing: async (_symbol, _signal, _price, when) => {
-        if (when.getTime() === lastTs) {
+        if (when.getTime() === lastTs + MIN) { // the final candle's look is dated at its close
           await lib.strategyCoreService.cancelScheduled(true, "BTCUSDT", CTX, { id: "e13-last-cancel" });
         }
       },
@@ -855,8 +855,9 @@ test("BACKTEST: cancelScheduled on the final candle drains gracefully instead of
     t.fail(`expected cancelled/user with cancelId, got ${result.action}/${result.reason}/cancelId=${result.cancelId}`);
     return;
   }
-  if (result.closeTimestamp !== lastTs) {
-    t.fail(`cancel must carry the final candle timestamp ${lastTs}, got ${result.closeTimestamp}`);
+  // dated at the final candle's close
+  if (result.closeTimestamp !== lastTs + MIN) {
+    t.fail(`cancel must carry the final candle's close ${lastTs + MIN}, got ${result.closeTimestamp}`);
     return;
   }
   t.pass(`last-candle cancel drained gracefully: cancelled/user@${lastTs} (cancelId), no fatal`);
@@ -882,7 +883,7 @@ test("BACKTEST: activateScheduled on the final candle throws the honest insuffic
     getSignal: async () => (emitted ? null : ((emitted = true), { ...SCHEDULED_DTO })),
     callbacks: {
       onSchedulePing: async (_symbol, _signal, _price, when) => {
-        if (when.getTime() === lastTs) {
+        if (when.getTime() === lastTs + MIN) { // the final candle's look is dated at its close
           await lib.strategyCoreService.activateScheduled(true, "BTCUSDT", CTX, { id: "e14-last-activate" });
         }
       },

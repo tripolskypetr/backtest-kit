@@ -186,8 +186,9 @@ test("TOUCH: a wick to SL closes stop_loss IMMEDIATELY while VWAP stays above th
     return;
   }
   const closeMinute = (closed[0].closeTimestamp - startTime) / MIN;
-  if (closeMinute !== 3) {
-    fail(`stop must fire ON the wick candle (minute 3), got minute ${closeMinute}`);
+  // the wick candle is minute 3; its close, minute 4, dates the stop
+  if (closeMinute !== 4) {
+    fail(`stop must fire ON the wick candle (minute 3, dated at its close 4), got minute ${closeMinute}`);
     return;
   }
 
@@ -231,8 +232,9 @@ test("TOUCH: SHORT mirror — a wick through TP is ignored, a later wick to SL c
     return;
   }
   const closeMinute = (closed[0].closeTimestamp - startTime) / MIN;
-  if (closeMinute !== 6) {
-    fail(`close must land on the SL-wick candle (minute 6, TP wick at 3 ignored), got minute ${closeMinute}`);
+  // the SL-wick candle is minute 6; its close, minute 7, dates the stop
+  if (closeMinute !== 7) {
+    fail(`close must land on the SL-wick candle (minute 6, dated at its close 7; TP wick at 3 ignored), got minute ${closeMinute}`);
     return;
   }
 

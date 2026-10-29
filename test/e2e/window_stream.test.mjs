@@ -18,7 +18,9 @@ import {
 // order, across every edge; the stop touched on the first or last candle of a window,
 // the take-profit whose 5-candle VWAP straddles an edge (the buffer of the next window),
 // the expiry inside a later window and the partial levels crossed around an edge land on
-// the same exact minute on a 1m, 15m, 1h and 4h watch. The memory side is checked by the
+// the same exact minute on a 1m, 15m, 1h and 4h watch (an event of candle m is dated m+1,
+// the candle's close; the expiry at the end of a hold is a clock event on its own minute,
+// after the look of the candle before it). The memory side is checked by the
 // shape of the adapter traffic: the next window is requested only after the previous one
 // has been evaluated, never all of them up front.
 
@@ -147,24 +149,27 @@ test("WINDOW STREAM: a 2500-minute hold on a 1m watch gets exactly one look per 
   for (let i = 1; i < order.length; i++) {
     if (order[i].kind === "request" && order[i - 1].kind === "request" && order[i].at > 0) return fail(`two replay windows were requested back to back (${JSON.stringify(order[i - 1])}, ${JSON.stringify(order[i])}): the whole hold must not be materialized up front`);
   }
-  // one look per candle, in order, no gaps and no repeats, from the open candle to the one before the expiry
-  if (!consecutive(result.looks) || result.looks[0] !== 0 || result.looks[result.looks.length - 1] !== HOLD - 1) {
-    return fail(`expected looks on every candle 0..${HOLD - 1} exactly once, got ${result.looks.length} looks ${result.looks.slice(0, 4).join(",")}…${result.looks.slice(-3).join(",")}`);
+  // one "active" result per candle, in order, no gaps and no repeats, from the open candle (dated 1)
+  // to the candle before the expiry one (dated HOLD-1): the expiry candle is pinged and then closed
+  // by the clock within its own iteration, so it ends with the close, not with an "active"
+  if (!consecutive(result.looks) || result.looks[0] !== 1 || result.looks[result.looks.length - 1] !== HOLD - 1) {
+    return fail(`expected looks on every candle 0..${HOLD - 2} (dated 1..${HOLD - 1}) exactly once, got ${result.looks.length} looks ${result.looks.slice(0, 4).join(",")}…${result.looks.slice(-3).join(",")}`);
   }
-  if (!consecutive(result.pings) || result.pings.length !== result.looks.length) return fail(`pings must mirror the looks, got ${result.pings.length} pings vs ${result.looks.length} looks`);
+  if (!consecutive(result.pings) || result.pings[0] !== 1 || result.pings.length !== result.looks.length + 1) return fail(`pings must mirror the looks plus the expiry candle's ping (dated ${HOLD}), got ${result.pings.length} pings vs ${result.looks.length} looks`);
   const edges = replay.slice(1).map((r) => r.at + BUFFER);
   if (edges.join(",") !== EDGES.join(",")) return fail(`expected the window edges ${EDGES.join(",")} (k × (page − buffer)), got ${edges.join(",")}`);
-  pass(`${replay.length} windows (${replay.map((r) => `${r.at}+${r.limit}`).join(" | ")}), edges at ${EDGES.join(",")}, ${result.looks.length} looks on 0..${HOLD - 1}, expired@${HOLD}`);
+  pass(`${replay.length} windows (${replay.map((r) => `${r.at}+${r.limit}`).join(" | ")}), edges at ${EDGES.join(",")}, ${result.looks.length} looks on 1..${HOLD - 1}, expired@${HOLD}`);
 });
 
 test("WINDOW STREAM: a stop touched on the LAST candle of a window and one touched on the FIRST candle of the next closes on that exact minute on every watch", async ({ pass, fail }) => {
   const report = [];
   for (const [label, at] of [["last-of-window", EDGES[0] - 1], ["first-of-window", EDGES[0]], ["second-edge", EDGES[1]]]) {
     const results = await runOnWatches(`stop-${label}`, { signal: marketLong(), candleByMinute: range(at, at + 3, { low: SL }) });
-    const expected = [{ reason: "stop_loss", at, price: SL }];
+    // the touching candle `at` closes the position, dated at its close `at + 1`
+    const expected = [{ reason: "stop_loss", at: at + 1, price: SL }];
     if (JSON.stringify(results["1m"].closed) !== JSON.stringify(expected)) return fail(`${label}: 1m expected ${JSON.stringify(expected)}, got ${JSON.stringify(results["1m"].closed)}`);
     if (differs(results, (r) => r.closed, fail, label)) return;
-    report.push(`${label}@${at}`);
+    report.push(`${label}: candle ${at} dated ${at + 1}`);
   }
   pass(`stop_loss on ${report.join(", ")} on ${WATCHES.join("/")}`);
 });
@@ -174,10 +179,11 @@ test("WINDOW STREAM: a take-profit whose 5-candle VWAP straddles a window edge f
   // whose 5-candle window is edge-4..edge — four of them belong to the previous replay window
   const edge = EDGES[0];
   const results = await runOnWatches("tp-edge", { signal: marketLong(), candleByMinute: range(edge - 3, edge + 4, { open: 125, high: 125, low: 125, close: 125 }) });
-  const expected = [{ reason: "take_profit", at: edge, price: TP }];
+  // the VWAP reaches the take on candle `edge`, dated at its close
+  const expected = [{ reason: "take_profit", at: edge + 1, price: TP }];
   if (JSON.stringify(results["1m"].closed) !== JSON.stringify(expected)) return fail(`1m expected ${JSON.stringify(expected)}, got ${JSON.stringify(results["1m"].closed)}`);
   if (differs(results, (r) => r.closed, fail, "take-profit at the edge")) return;
-  pass(`take_profit at ${TP} on minute ${edge} (VWAP over ${edge - 4}..${edge}, straddling the edge) on ${WATCHES.join("/")}`);
+  pass(`take_profit at ${TP} on candle ${edge} dated ${edge + 1} (VWAP over ${edge - 4}..${edge}, straddling the edge) on ${WATCHES.join("/")}`);
 });
 
 test("WINDOW STREAM: partial-profit levels crossed on a ramp around a window edge fire on the same minutes on every watch", async ({ pass, fail }) => {
@@ -194,19 +200,21 @@ test("WINDOW STREAM: partial-profit levels crossed on a ramp around a window edg
 });
 
 test("WINDOW STREAM: a resting entry activated late is replayed in windows from the activation and expires on the exact minute, on every watch", async ({ pass, fail }) => {
-  // touched on minute 60 (inside the 120-minute wait): pendingAt 60, hold 2500 → expiry 2560, three windows after the activation
+  // touched on candle 60 (inside the 120-minute wait), the activation dated 61: pendingAt 61, hold 2500 → expiry 2561, three windows after the activation
   const resting = { position: "long", priceOpen: 90, priceTakeProfit: TP, priceStopLoss: SL, cost: 1000, minuteEstimatedTime: HOLD };
   const results = await runOnWatches("scheduled", { signal: resting, candleByMinute: range(60, 65, { low: 90 }), frameHours: 60 });
   const oracle = results["1m"];
-  const expected = { opened: [60], closed: [{ reason: "time_expired", at: 60 + HOLD, price: BASE }] };
+  const expected = { opened: [61], closed: [{ reason: "time_expired", at: 61 + HOLD, price: BASE }] };
   if (JSON.stringify({ opened: oracle.opened, closed: oracle.closed }) !== JSON.stringify(expected)) return fail(`1m expected ${JSON.stringify(expected)}, got ${JSON.stringify({ opened: oracle.opened, closed: oracle.closed })}`);
-  if (!consecutive(oracle.looks) || oracle.looks[0] !== 61 || oracle.looks[oracle.looks.length - 1] !== 60 + HOLD - 1) {
-    return fail(`expected one look per candle 61..${60 + HOLD - 1}, got ${oracle.looks.length} looks ${oracle.looks.slice(0, 3).join(",")}…${oracle.looks.slice(-2).join(",")}`);
+  // the replay of the position starts on candle 61 (dated 62) and its last "active" is the candle
+  // before the expiry one (dated 60 + HOLD)
+  if (!consecutive(oracle.looks) || oracle.looks[0] !== 62 || oracle.looks[oracle.looks.length - 1] !== 60 + HOLD) {
+    return fail(`expected one look per candle 61..${60 + HOLD - 1} (dated 62..${60 + HOLD}), got ${oracle.looks.length} looks ${oracle.looks.slice(0, 3).join(",")}…${oracle.looks.slice(-2).join(",")}`);
   }
   const waitRequest = oracle.requests.find((r) => r.limit > BUFFER + 1);
   if (!waitRequest || waitRequest.limit > PAGE + getConfig().CC_SCHEDULE_AWAIT_MINUTES + BUFFER + 2) return fail(`the scheduled array must cover the wait phase plus one window, not the hold: ${JSON.stringify(waitRequest)}`);
   if (differs(results, (r) => ({ opened: r.opened, closed: r.closed }), fail, "scheduled")) return;
-  pass(`activated@60, ${oracle.looks.length} looks, expired@${60 + HOLD} on ${WATCHES.join("/")}; wait array ${waitRequest.limit} candles`);
+  pass(`activated@61, ${oracle.looks.length} looks, expired@${61 + HOLD} on ${WATCHES.join("/")}; wait array ${waitRequest.limit} candles`);
 });
 
 test("WINDOW STREAM: a hold longer than the frame is capped by the frame end — the last window stops there and the position expires with the frame, on every watch", async ({ pass, fail }) => {
@@ -220,12 +228,12 @@ test("WINDOW STREAM: a hold longer than the frame is capped by the frame end —
 });
 
 test("WINDOW STREAM: the coarse watches request windows of whole spans and see the same looks per span across the edges", async ({ pass, fail }) => {
-  // 1h watch: a window holds 16 whole spans (960 candles + buffer); every look sits on a span end (minute ≡ 59 mod 60)
+  // 1h watch: a window holds 16 whole spans (960 candles + buffer); every look sits on a span-end candle (59, 119, …), dated at its close (minute ≡ 0 mod 60)
   const result = await runCase(buildCase("spans-1h", { watch: "1h", signal: marketLong() }));
   const replay = result.requests.filter((r) => r.limit > BUFFER + 1);
   if (replay.some((r) => (r.limit - BUFFER) % 60 !== 0)) return fail(`every 1h window must hold whole spans, got ${JSON.stringify(replay)}`);
-  if (result.pings.some((m) => m % 60 !== 59)) return fail(`every 1h look must sit on a span end, got ${result.pings.filter((m) => m % 60 !== 59).slice(0, 5).join(",")}`);
-  const expectedPings = Array.from({ length: Math.floor((HOLD - 1) / 60) }, (_, k) => 59 + k * 60);
-  if (result.pings.join(",") !== expectedPings.join(",")) return fail(`expected looks on ${expectedPings.length} span ends 59,119,…, got ${result.pings.length}: ${result.pings.slice(0, 4).join(",")}…${result.pings.slice(-2).join(",")}`);
+  if (result.pings.some((m) => m % 60 !== 0)) return fail(`every 1h look must sit on a span end (dated at its close), got ${result.pings.filter((m) => m % 60 !== 0).slice(0, 5).join(",")}`);
+  const expectedPings = Array.from({ length: Math.floor((HOLD - 1) / 60) }, (_, k) => 60 + k * 60);
+  if (result.pings.join(",") !== expectedPings.join(",")) return fail(`expected looks on ${expectedPings.length} span ends dated 60,120,…, got ${result.pings.length}: ${result.pings.slice(0, 5).join(",")}…`);
   pass(`${replay.length} windows of whole hours, ${result.pings.length} looks on span ends, expired@${result.closed[0]?.at}`);
 });
