@@ -1846,7 +1846,15 @@ const FIND_PENDING_STRATEGY_EVENT_INDEX_FN = (
     return spanStart;
   }
   const threshold = GET_BREAKEVEN_THRESHOLD_FN(signal);
-  let previousPrice = GET_AVG_PRICE_AT_FN(candles, spanStart - 1, candlesCount);
+  // The state before the first candle of the position's replay is the open itself: progress 0,
+  // breakeven not reached. A resting entry filled below the market starts its first candle deep
+  // in profit, and that is a crossing on that candle — the 1m watch fires the levels on its
+  // first look, so must the coarse watch. For a market open the open price is the VWAP of the
+  // candles before the open, the same reference as before.
+  const firstOfPosition = candles[spanStart].timestamp === signal.pendingAt;
+  let previousPrice = firstOfPosition
+    ? GET_EFFECTIVE_PRICE_OPEN(signal)
+    : GET_AVG_PRICE_AT_FN(candles, spanStart - 1, candlesCount);
   let previous = GET_PENDING_PROGRESS_FN(signal, previousPrice);
   for (let k = spanStart; k < spanEnd; k++) {
     const averagePrice = GET_AVG_PRICE_AT_FN(candles, k, candlesCount);
