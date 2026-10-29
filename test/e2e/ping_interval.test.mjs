@@ -344,11 +344,13 @@ test("PING INTERVAL GRID: idle deliveries follow the contract for every entryInt
 test("PING INTERVAL GRID: a position between idle pings does not move the idle anchor, the grid stays on the first idle ping", async ({ pass, fail }) => {
   // entry 1h, listener 2h over a 10h frame: grid points at 120, 240, 360, 480, 600 from the first idle ping at 0
   const cases = [
-    // the position opens on the tick at 60 and lives 90 minutes: idle pings 0, 180, 240, 300 …
-    // a re-anchor on the first idle ping after the close (180) would deliver 180, 300, 420 instead
-    { openAt: 60, hold: 90, expected: [0, 180, 240, 360, 480, 600] },
-    // the position opens exactly on the grid point 120 and swallows it: 120 and 240 are both covered by the idle ping at 240
-    { openAt: 120, hold: 90, expected: [0, 240, 360, 480, 600] },
+    // the position opens on the tick at 60 and lives 90 minutes: the close minute 150 is
+    // re-ticked off the grid (as the live loop does), so idle pings 0, 150, 180, 240, 300 …
+    // a re-anchor on the first idle ping after the close (150) would deliver 150, 270, 390 instead
+    { openAt: 60, hold: 90, expected: [0, 150, 240, 360, 480, 600] },
+    // the position opens exactly on the grid point 120 and swallows it: 120 is covered by the
+    // idle ping of the re-ticked close minute 210, the grid point 240 by its own idle ping
+    { openAt: 120, hold: 90, expected: [0, 210, 240, 360, 480, 600] },
   ];
   const report = [];
   for (const { openAt, hold, expected } of cases) {
@@ -377,8 +379,8 @@ test("PING INTERVAL GRID: a position between idle pings does not move the idle a
       unsubscribe.forEach((un) => un());
     }
     if (closed.join(",") !== `${openAt + hold}`) return fail(`${name}: expected one close at +${openAt + hold}, got ${closed.join(",")}`);
-    // the opening tick and the replayed ticks produce no idle ping
-    const gap = idle.filter((t) => t >= openAt && t <= openAt + hold);
+    // the opening tick and the replayed ticks produce no idle ping; the close minute is re-ticked
+    const gap = idle.filter((t) => t >= openAt && t < openAt + hold);
     if (gap.length) return fail(`${name}: idle pings inside the position: ${gap.join(",")}`);
     const oracle = expectedGrid(idle, 120, { skipFirst: false });
     if (oracle.join(",") !== expected.join(",")) return fail(`${name}: the scenario does not produce the intended idle stream: oracle ${oracle.join(",")} vs spelled-out ${expected.join(",")} (idle ${idle.join(",")})`);

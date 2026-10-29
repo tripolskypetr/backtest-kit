@@ -31,7 +31,8 @@ import {
 // engine warns "dropping queued commits" when a commit has no position to attribute to).
 //
 // Sources and when they fire (the same minute on both watches by construction):
-//   idle           the daily entry step 1440 (day 2)
+//   idle           the daily entry step 1440 (day 2); the minute of a close or a cancel gets
+//                  an idle step too (the engine re-ticks it like the live loop, off the grid)
 //   opened         the lifecycle "opened" event of the market open on 1440 — a commit queued
 //                  there is emitted by the light look of the next candle, dated 1441
 //   active         the active ping of the first 4h span end after the open (candle 1679, dated 1680)
@@ -322,10 +323,10 @@ test("LISTEN DAILY/4H — schedule ping and scheduled event: a cancel or an acti
   }
 });
 
-test("LISTEN DAILY/4H — closed event: a new signal or an adoption asked right at a close waits for the next entry step of the daily grid on both watches", async (t) => {
+test("LISTEN DAILY/4H — closed event: a new signal or an adoption asked right at a close is opened on the close minute itself, off the daily grid, as the live loop re-ticks that minute — on both watches", async (t) => {
   const afterClose = (command) => ({ tape: "up110", commands: withOpen("active@1680", C.close, { closed: command }) });
   await suite([
-    ["closed.openMarket", afterClose(C.openMarket), (o) => (!hasPrefix(o, "closed:closed@1681:110:") ? "expected the user close on 1681" : !has(o, "opened@2880:110") ? `expected the next open on the entry step 2880 at 110, got ${o.lifecycle.join(",")}` : null)],
-    ["closed.adopt", afterClose(C.adopt), (o) => (!hasPrefix(o, "closed:closed@1681:110:") ? "expected the user close on 1681" : !has(o, "opened@2880:95") ? `expected the adoption on the entry step 2880 at 95, got ${o.lifecycle.join(",")}` : null)],
+    ["closed.openMarket", afterClose(C.openMarket), (o) => (!hasPrefix(o, "closed:closed@1681:110:") ? "expected the user close on 1681" : !has(o, "opened@1681:110") ? `expected the next open on the close minute 1681 at 110, got ${o.lifecycle.join(",")}` : !o.idle.includes(1681 + HOLD) ? `expected the idle ping of the re-ticked close minute ${1681 + HOLD} after the expiry, got ${o.idle.join(",")}` : null)],
+    ["closed.adopt", afterClose(C.adopt), (o) => (!hasPrefix(o, "closed:closed@1681:110:") ? "expected the user close on 1681" : !has(o, "opened@1681:95") ? `expected the adoption on the close minute 1681 at 95, got ${o.lifecycle.join(",")}` : !o.idle.includes(1681 + HOLD) ? `expected the idle ping of the re-ticked close minute ${1681 + HOLD} after the expiry, got ${o.idle.join(",")}` : null)],
   ], t);
 });

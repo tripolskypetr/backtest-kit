@@ -706,9 +706,10 @@ const runPingOrderCase = async (schema) => {
   }
 
   // A switch from one symbol's entry to another's is legal only at a lock boundary: the next entry
-  // starts an iteration (progress), or the previous entry is the last candle before a timeframe
-  // boundary (the replay handed the lock off there), or the next entry is the first candle on a
-  // boundary (the replay resumed there). Anything else is an await that let the peer in.
+  // starts an iteration (progress on an entry step; the idle ping of the re-ticked minute of a
+  // close, which reports no progress of its own), or the previous entry is the last candle before
+  // a timeframe boundary (the replay handed the lock off there), or the next entry is the first
+  // candle on a boundary (the replay resumed there). Anything else is an await that let the peer in.
   const describe = (e) => `${e.kind}:${e.symbol}@${new Date(e.when).toISOString().slice(11, 16)}`;
   const illegalSwitches = [];
   for (let i = 1; i < order.length; i++) {
@@ -717,6 +718,7 @@ const runPingOrderCase = async (schema) => {
     if (prev.symbol === next.symbol) continue;
     const legal =
       next.kind === "progress" ||
+      next.kind === "idle" ||
       (prev.when + MIN_MS) % HOUR_MS === 0 ||
       next.when % HOUR_MS === 0;
     if (!legal) illegalSwitches.push(`${describe(prev)} -> ${describe(next)}`);
@@ -2166,19 +2168,19 @@ test("LOCKSTEP: a Backtest.background joining when its peer is on hour 6 catches
   if (joinClock === null) return fail("the early backtest never reached hour 6, the late peer never joined");
   if (done.size !== 2) return fail(`both backtests must finish within ${ERROR_TIMEOUT_MS} ms after the join, done=${[...done].join(",")}`);
 
-  // the catch-up moment is read from every event (pings carry the clock inside a replay); the drift
-  // after it is read from the iterations (progress) only: a symbol parked on the barrier of the next
-  // timeframe emits nothing until its peer's iteration there is over, so pings would overstate it
-  const latest = new Map();
+  // the catch-up moment and the drift after it are read from the iterations (progress) only: a
+  // symbol parked on the barrier of the next timeframe emits nothing until its peer's iteration
+  // there is over, and the pings of a replay that opened on a timeframe run ahead of the peer's
+  // tick on that same timeframe (a tie the journal orders by symbol), so pings would overstate both
   const iterations = new Map();
   let caughtUpAt = -1;
   let maxSpreadAfter = 0;
   events.forEach(({ symbol, when, kind }, index) => {
-    latest.set(symbol, Math.max(latest.get(symbol) ?? 0, when));
-    if (kind === "progress") iterations.set(symbol, when);
-    if (latest.size < 2) return;
-    if (caughtUpAt < 0 && latest.get(LATE_SYMBOL) >= latest.get(EARLY_SYMBOL)) caughtUpAt = index;
-    if (caughtUpAt >= 0 && iterations.size === 2) {
+    if (kind !== "progress") return;
+    iterations.set(symbol, when);
+    if (iterations.size < 2) return;
+    if (caughtUpAt < 0 && iterations.get(LATE_SYMBOL) >= iterations.get(EARLY_SYMBOL)) caughtUpAt = index;
+    if (caughtUpAt >= 0) {
       maxSpreadAfter = Math.max(maxSpreadAfter, Math.abs(iterations.get(LATE_SYMBOL) - iterations.get(EARLY_SYMBOL)));
     }
   });

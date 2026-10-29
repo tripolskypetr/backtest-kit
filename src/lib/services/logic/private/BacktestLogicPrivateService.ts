@@ -1014,6 +1014,11 @@ export class BacktestLogicPrivateService {
     cursor.joining = false;
 
     let i = 0;
+    // The minute of a close or a cancel that fell off the entry grid: the live loop re-ticks
+    // that minute without waiting for the next candle (the idle ping, a queued user signal or
+    // adoption, getSignal under the interval throttle), so the backtest ticks it too before
+    // resuming the grid. A close on a grid step is ticked by that step itself.
+    let retickAt: number | null = null;
 
     try {
       while (i < timeframes.length) {
@@ -1026,15 +1031,27 @@ export class BacktestLogicPrivateService {
         cursor.locked = true;
         try {
           const timeframeStartTime = performance.now();
-          const when = timeframes[i];
-          cursor.nextBoundary = when.getTime() + LOCKSTEP_STEP_FN();
+          const when = retickAt !== null ? new Date(retickAt) : timeframes[i];
+          {
+            // the hand-off boundaries of a replay stay on the grid of the entry steps: a re-tick
+            // off the grid counts them from the last entry step before it
+            const step = LOCKSTEP_STEP_FN();
+            let boundary = (retickAt !== null ? timeframes[i - 1].getTime() : when.getTime()) + step;
+            while (boundary <= when.getTime()) {
+              boundary += step;
+            }
+            cursor.nextBoundary = boundary;
+          }
           // time barrier: no iteration starts before every running peer has reached its timeframe
           if (GLOBAL_CONFIG.CC_BACKTEST_LOCKSTEP) {
             await WAIT_FOR_PEERS_FN(this, cursor, when.getTime(), "start", false);
           }
           cursor.clock = when.getTime();
 
-          await EMIT_PROGRESS_FN(this, symbol, totalFrames, i, when);
+          // progress counts entry steps: the re-tick of a close minute reports none of its own
+          if (retickAt === null) {
+            await EMIT_PROGRESS_FN(this, symbol, totalFrames, i, when);
+          }
 
           if (globalThis[KILL_SYMBOL]) {
             this.loggerService.info(
@@ -1096,8 +1113,12 @@ export class BacktestLogicPrivateService {
               // Skip the frames before closeTimestamp: the close is dated at the clock of the
               // candle that closed it, and the entry step of that very minute stays tickable
               // (the candle is closed, the strategy is idle), so continue past the loop-bottom i++.
+              retickAt = null;
               while (i < timeframes.length && timeframes[i].getTime() < r.closeTimestamp) {
                 i++;
+              }
+              if (i < timeframes.length && timeframes[i].getTime() !== r.closeTimestamp) {
+                retickAt = r.closeTimestamp;
               }
               if (r.shouldStop) {
                 break;
@@ -1121,8 +1142,12 @@ export class BacktestLogicPrivateService {
               lastAction = "closed";
               previousEventTimestamp = r.previousEventTimestamp;
               // Same off-by-one guard as in the scheduled branch above.
+              retickAt = null;
               while (i < timeframes.length && timeframes[i].getTime() < r.closeTimestamp) {
                 i++;
+              }
+              if (i < timeframes.length && timeframes[i].getTime() !== r.closeTimestamp) {
+                retickAt = r.closeTimestamp;
               }
               if (r.shouldStop) {
                 break;
@@ -1134,7 +1159,11 @@ export class BacktestLogicPrivateService {
 
           previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp, when);
 
-          i++;
+          if (retickAt !== null) {
+            retickAt = null;
+          } else {
+            i++;
+          }
         } finally {
           cursor.locked = false;
           await Lockstep.releaseLock(LOCKSTEP_SOURCE);
