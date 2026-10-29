@@ -7054,10 +7054,8 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     const evalIndex = forcedIndex === -1 ? i : forcedIndex;
     const candle = candles[evalIndex];
     const candleClock = candle.timestamp + CANDLE_CLOSE_MS;
-    // the execution clock follows the evaluated candle: a listener of this candle's events
-    // (and a command it issues for any strategy) sees this minute as "now"; the time meta
-    // gives the same minute to the code outside the context
-    self.params.execution.context.when = new Date(candleClock);
+    // the time meta follows the evaluated candle: the code outside any execution context reads
+    // this minute as "now" (a listener reads it from the context its event is emitted in)
     await FEED_TIME_FN(self, candleClock);
     const averagePrice = GET_AVG_PRICE_AT_FN(candles, evalIndex, candlesCount);
     const touchLow = candle.low;
@@ -7375,8 +7373,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     const currentCandle = candles[evalIndex];
     const currentCandleTimestamp = currentCandle.timestamp;
     const currentClock = currentCandleTimestamp + CANDLE_CLOSE_MS;
-    // the execution clock follows the evaluated candle (see the scheduled loop)
-    self.params.execution.context.when = new Date(currentClock);
+    // the time meta follows the evaluated candle (see the scheduled loop)
     await FEED_TIME_FN(self, currentClock);
 
     // VWAP: the last candlesCount candles up to the evaluated one (buffer included)

@@ -486,6 +486,20 @@ const CREATE_KEY_FN = (
 };
 
 /**
+ * Runs an emission inside an execution context dated with the event's own minute, so a
+ * listener reads that minute as "now" (the time meta inside a context, the candle facade,
+ * the stamp of a command it issues for any strategy): inside a replay the ambient context
+ * carries the start of the candle window, not the candle. Same pattern as CALL_SIGNAL_EMIT_FN.
+ */
+const IN_EVENT_CONTEXT_FN = async (symbol: string, timestamp: number, backtest: boolean, fn: () => Promise<void>): Promise<void> => {
+  await ExecutionContextService.runInContext(fn, {
+    backtest,
+    symbol,
+    when: new Date(timestamp),
+  });
+};
+
+/**
  * Creates a callback function for emitting schedule ping events to pingSubject.
  *
  * Called by ClientStrategy when a scheduled signal is being monitored every minute.
@@ -524,8 +538,10 @@ const CREATE_COMMIT_SCHEDULE_PING_FN = (self: StrategyConnectionService) => tryc
     if (backtest) {
       await self.backtestLogicPrivateService.handoff(symbol, timestamp, { strategyName, exchangeName, frameName: data.frameName });
     }
-    await schedulePingSubject.next(event);
-    await self.actionCoreService.pingScheduled(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
+    await IN_EVENT_CONTEXT_FN(symbol, timestamp, backtest, async () => {
+      await schedulePingSubject.next(event);
+      await self.actionCoreService.pingScheduled(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
+    });
   },
   {
     fallback: (error) => {
@@ -577,8 +593,10 @@ const CREATE_COMMIT_SCHEDULE_EVENT_FN = (self: StrategyConnectionService) => try
       timestamp,
       when: new Date(timestamp),
     };
-    await scheduleEventSubject.next(event);
-    await self.actionCoreService.scheduleEvent(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
+    await IN_EVENT_CONTEXT_FN(symbol, timestamp, backtest, async () => {
+      await scheduleEventSubject.next(event);
+      await self.actionCoreService.scheduleEvent(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
+    });
   },
   {
     fallback: (error) => {
@@ -629,8 +647,10 @@ const CREATE_COMMIT_SIGNAL_EVENT_FN = (self: StrategyConnectionService) => tryca
       timestamp,
       when: new Date(timestamp),
     };
-    await signalEventSubject.next(event);
-    await self.actionCoreService.pendingEvent(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
+    await IN_EVENT_CONTEXT_FN(symbol, timestamp, backtest, async () => {
+      await signalEventSubject.next(event);
+      await self.actionCoreService.pendingEvent(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
+    });
   },
   {
     fallback: (error) => {
@@ -679,8 +699,10 @@ const CREATE_COMMIT_IDLE_PING_FN = (self: StrategyConnectionService) => trycatch
       await self.priceMetaService.next(symbol, currentPrice, { strategyName, exchangeName, frameName: frameName }, backtest);
       await self.timeMetaService.next(symbol, timestamp, { strategyName, exchangeName, frameName: frameName }, backtest);
     }
-    await idlePingSubject.next(event);
-    await self.actionCoreService.pingIdle(backtest, event, { strategyName, exchangeName, frameName });
+    await IN_EVENT_CONTEXT_FN(symbol, timestamp, backtest, async () => {
+      await idlePingSubject.next(event);
+      await self.actionCoreService.pingIdle(backtest, event, { strategyName, exchangeName, frameName });
+    });
   },
   {
     fallback: (error) => {
@@ -816,8 +838,10 @@ const CREATE_COMMIT_ACTIVE_PING_FN = (self: StrategyConnectionService) => trycat
     if (backtest) {
       await self.backtestLogicPrivateService.handoff(symbol, timestamp, { strategyName, exchangeName, frameName: data.frameName });
     }
-    await activePingSubject.next(event);
-    await self.actionCoreService.pingActive(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
+    await IN_EVENT_CONTEXT_FN(symbol, timestamp, backtest, async () => {
+      await activePingSubject.next(event);
+      await self.actionCoreService.pingActive(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
+    });
   },
   {
     fallback: (error) => {
@@ -880,7 +904,9 @@ const CREATE_COMMIT_INIT_FN = (self: StrategyConnectionService) => trycatch(
  */
 const CREATE_COMMIT_FN = (self: StrategyConnectionService) => trycatch(
   async (event: StrategyCommitContract): Promise<void> => {
-    await strategyCommitSubject.next(event);
+    await IN_EVENT_CONTEXT_FN(event.symbol, event.timestamp, event.backtest, async () => {
+      await strategyCommitSubject.next(event);
+    });
   },
   {
     fallback: (error) => {
@@ -912,16 +938,18 @@ const CREATE_COMMIT_FN = (self: StrategyConnectionService) => trycatch(
  */
 const CREATE_HIGHEST_PROFIT_FN = (self: StrategyConnectionService, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, isBacktest: boolean) => trycatch(
   async (signal: IPublicSignalRow, currentPrice: number, timestamp: number) => {
-    await highestProfitSubject.next({
-      symbol: signal.symbol,
-      signal,
-      currentPrice,
-      timestamp,
-      when: new Date(timestamp),
-      strategyName,
-      exchangeName,
-      frameName,
-      backtest: isBacktest,
+    await IN_EVENT_CONTEXT_FN(signal.symbol, timestamp, isBacktest, async () => {
+      await highestProfitSubject.next({
+        symbol: signal.symbol,
+        signal,
+        currentPrice,
+        timestamp,
+        when: new Date(timestamp),
+        strategyName,
+        exchangeName,
+        frameName,
+        backtest: isBacktest,
+      });
     });
   },
   {
@@ -953,16 +981,18 @@ const CREATE_HIGHEST_PROFIT_FN = (self: StrategyConnectionService, strategyName:
  */
 const CREATE_MAX_DRAWDOWN_FN = (self: StrategyConnectionService, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, isBacktest: boolean) => trycatch(
   async (signal: IPublicSignalRow, currentPrice: number, timestamp: number) => {
-    await maxDrawdownSubject.next({
-      symbol: signal.symbol,
-      signal,
-      currentPrice,
-      timestamp,
-      when: new Date(timestamp),
-      strategyName,
-      exchangeName,
-      frameName,
-      backtest: isBacktest,
+    await IN_EVENT_CONTEXT_FN(signal.symbol, timestamp, isBacktest, async () => {
+      await maxDrawdownSubject.next({
+        symbol: signal.symbol,
+        signal,
+        currentPrice,
+        timestamp,
+        when: new Date(timestamp),
+        strategyName,
+        exchangeName,
+        frameName,
+        backtest: isBacktest,
+      });
     });
   },
   {
