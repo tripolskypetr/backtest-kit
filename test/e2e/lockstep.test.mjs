@@ -2924,3 +2924,111 @@ test("LOCKSTEP: a backtest stopped mid-replay (dispose) and another stopped idle
   if (!probe.has(PROBE_SYMBOL)) return fail("the probe did not finish: a stopped backtest left the lock held");
   pass(`B disposed at ${new Date(disposedAt).toISOString().slice(11, 16)} and closed by ${bClosed.reason} at ${new Date(bClosed.at).toISOString().slice(11, 16)}, C stopped at ${new Date(stoppedCAt).toISOString().slice(11, 16)}, all three done, probe finished`);
 });
+
+// ── Re-ticked close minutes ──────────────────────────────────────────────────
+
+const RETICK_A = "RETICKAUSDT";
+const RETICK_B = "RETICKBUSDT";
+const RETICK_CAPITAL = 2_500;
+const RETICK_COST = 1_000;
+
+/**
+ * A opens a 30-minute long on every tick of a 30m strategy interval: on the hour from the entry
+ * step, on the half hour from the re-tick of its close minute (off the 1h grid). B opens a
+ * 60-minute long on every hour and sleeps in getSignal. Both symbols run on one 1h frame.
+ */
+const buildRetickCase = (name, slowMs) => {
+  const exchangeName = `lockstep-retick-exchange-${name}`;
+  const strategyName = `lockstep-retick-strategy-${name}`;
+  const frameName = `lockstep-retick-frame-${name}`;
+  addExchangeSchema({
+    exchangeName,
+    getCandles: async (_symbol, interval, since, limit) => {
+      if (interval !== "1m") throw new Error(`lockstep exchange: only 1m bars, got ${interval}`);
+      const out = [];
+      let timestamp = Math.floor(since.getTime() / MIN_MS) * MIN_MS;
+      while (out.length < limit) {
+        out.push({ timestamp, open: 100, high: 100.5, low: 99.5, close: 100, volume: 1_000 });
+        timestamp += MIN_MS;
+      }
+      return out;
+    },
+    formatPrice: async (_s, p) => p.toFixed(8),
+    formatQuantity: async (_s, q) => q.toFixed(8),
+  });
+  addStrategySchema({
+    strategyName,
+    interval: "30m",
+    getSignal: async (symbol, when) => {
+      if (symbol === RETICK_B) {
+        await sleep(slowMs);
+        if (when.getTime() % HOUR_MS !== 0) return null;
+        return { position: "long", priceStopLoss: 85, priceTakeProfit: 119, cost: RETICK_COST, minuteEstimatedTime: 60 };
+      }
+      return { position: "long", priceStopLoss: 85, priceTakeProfit: 119, cost: RETICK_COST, minuteEstimatedTime: 30 };
+    },
+  });
+  addFrameSchema({ frameName, interval: "1h", startDate: new Date(FRAME_START), endDate: new Date(FRAME_END) });
+  return { exchangeName, strategyName, frameName };
+};
+
+/**
+ * Runs the case with both symbols writing their opens (reserve at pendingAt) and closes (release
+ * at closeTimestamp) into one journal. The journal itself is ordered by (timestamp, symbol, seq)
+ * whatever the arrival order; what the lockstep bounds is the ARRIVAL order (`seq`): a row that
+ * arrives after rows of a later clock was written by a symbol lagging behind its peer. Returns
+ * the rows and the largest such lag — the biggest step back in clock from a row to any row that
+ * arrived after it.
+ */
+const runRetickCase = async (schema) => {
+  const key = { ...schema, backtest: true, name: BUDGET_NAME, initialCapital: RETICK_CAPITAL };
+  const contextOf = (symbol, when) => ({ ...key, symbol, when });
+  const unsubscribe = listenSignalBacktest(async (event) => {
+    if (event.strategyName !== schema.strategyName) return;
+    if (event.action === "opened") await Budget._reserve({ id: event.signal.id, amount: RETICK_COST, note: event.symbol }, contextOf(event.symbol, new Date(event.signal.pendingAt)));
+    if (event.action === "closed") await Budget._release({ id: event.signal.id, pnl: event.pnl.pnlCost }, contextOf(event.symbol, new Date(event.closeTimestamp)));
+  });
+  let run;
+  try {
+    run = await runCase(schema, [RETICK_A, RETICK_B]);
+  } finally {
+    unsubscribe();
+  }
+  const history = await Budget._getHistory({ ...key, when: new Date(JOURNAL_END) });
+  const arrival = [...history].sort((a, b) => a.seq - b.seq);
+  let maxLag = 0;
+  let worst = [];
+  let latest = -Infinity;
+  let latestRow = null;
+  for (const row of arrival) {
+    if (latest - row.timestamp > maxLag) {
+      maxLag = latest - row.timestamp;
+      worst = [latestRow, row];
+    }
+    if (row.timestamp > latest) {
+      latest = row.timestamp;
+      latestRow = row;
+    }
+  }
+  return { ...run, history, arrival, maxLag, worst };
+};
+
+test("LOCKSTEP: the re-ticked close minutes of one symbol keep the shared journal within one step of the other — no row arrives a whole timeframe behind the rows already written", async ({ pass, fail }) => {
+  setConfig({ CC_BACKTEST_LOCKSTEP: true }, true);
+  Budget.enable();
+  const on = await runRetickCase(buildRetickCase("on", 5));
+  const halfHourOpens = on.history.filter((r) => r.type === "reserve" && r.symbol === RETICK_A && r.timestamp % HOUR_MS === 30 * MIN_MS);
+  if (halfHourOpens.length < 10) return fail(`A must open on the re-ticked half hours, got ${halfHourOpens.length} such reserves: ${describeRows(on.history)}`);
+  const hourOpens = on.history.filter((r) => r.type === "reserve" && r.symbol === RETICK_B);
+  if (hourOpens.length < 10) return fail(`B must open on every hour, got ${hourOpens.length}: ${describeRows(on.history)}`);
+  const overdrafts = on.history.filter((r) => r.type === "reserve" && r.overdraft !== undefined);
+  if (overdrafts.length) return fail(`overdraft under lockstep: ${describeRows(overdrafts)}`);
+  if (on.maxLag >= HOUR_MS) return fail(`a row arrived ${on.maxLag / MIN_MS} minutes behind an earlier one (${describeRows(on.worst)}); arrival order: ${describeRows(on.arrival)}`);
+  if (on.maxSpread > HOUR_MS) return fail(`the clocks drifted by ${on.maxSpread / HOUR_MS} timeframes`);
+
+  // the control: with the lockstep off A runs ahead of the sleeping B and the journal falls out of step
+  setConfig({ CC_BACKTEST_LOCKSTEP: false }, true);
+  const off = await runRetickCase(buildRetickCase("off", 300));
+  if (off.maxLag < HOUR_MS) return fail(`the control did not bite: with the lockstep off the rows still arrived within a step (max lag ${off.maxLag / MIN_MS} min); arrival order: ${describeRows(off.arrival)}`);
+  pass(`lockstep on: ${on.history.length} rows, ${halfHourOpens.length} re-ticked opens of A, max lag ${on.maxLag / MIN_MS} min, spread ${on.maxSpread / MIN_MS} min; off: max lag ${off.maxLag / MIN_MS} min`);
+});

@@ -380,3 +380,40 @@ test("REFUSED ACTIVATE (live): a terminal OrderRejectedError on the activation c
     unExit();
   }
 });
+
+// ---------------------------------------------------------------------------
+// The frame end: an activation asked at the last look of the frame and refused by the gate
+// has no candle left to retry on. It is cancelled (reason user, like a terminal refusal), the
+// run goes on — a thrown replay would end the process. Accepted on the retry, the position
+// opens on the frame-end candle and expires with the frame right there.
+// ---------------------------------------------------------------------------
+
+test("REFUSED ACTIVATE: at the frame end a transient refusal with no candle left to retry on cancels the entry (reason user) instead of breaking the run; accepted on the retry, the position opens and expires with the frame", async ({ pass, fail }) => {
+  // a 1-hour frame, the resting entry placed on 0 waits 120 minutes: still resting at the frame
+  // end 60, where the 1m, 15m and 1h watches all look (a 4h watch has no look before 60).
+  // The activation runs on candle 60 (dated 61) and, re-queued, on candle 61 (dated 62), the
+  // last candle of the window.
+  const pingWatches = ["1m", "15m", "1h"];
+  const atFrameEnd = (refuse) => runOnWatches(`frame-end-${refuse.name}`, {
+    frameHours: 1,
+    refuse,
+    callbacks: {
+      onSchedulePing: async (symbol, data, _price, when) => {
+        if (minute(when.getTime()) === 60) await commitActivateScheduled(symbol, { id: data.id });
+      },
+    },
+  }, pingWatches);
+
+  const refusedTwice = await atFrameEnd(function twice(a) { return a.attempt < 2; });
+  const expectedCancel = { attempts: ["0@61", "1@62"], sameId: true, opened: [], cancelled: [{ reason: "user", at: 62 }], closed: [], exits: 0 };
+  if (JSON.stringify(lifecycle(refusedTwice["1m"])) !== JSON.stringify(expectedCancel)) return fail(`refused twice, 1m: expected ${JSON.stringify(expectedCancel)}, got ${JSON.stringify(refusedTwice["1m"])}`);
+  // the gate's own throws surface on the error channel as for every transient refusal; what
+  // must not happen is the fatal exit (exits in the lifecycle)
+  if (differs(refusedTwice, lifecycle, fail, "refused twice at the frame end")) return;
+
+  const refusedOnce = await atFrameEnd(function once(a) { return a.attempt === 0; });
+  const expectedOpen = { attempts: ["0@61", "1@62"], sameId: true, opened: [62], cancelled: [], closed: [{ reason: "time_expired", at: 62, price: BASE }], exits: 0 };
+  if (JSON.stringify(lifecycle(refusedOnce["1m"])) !== JSON.stringify(expectedOpen)) return fail(`refused once, 1m: expected ${JSON.stringify(expectedOpen)}, got ${JSON.stringify(refusedOnce["1m"])}`);
+  if (differs(refusedOnce, lifecycle, fail, "refused once at the frame end")) return;
+  pass(`frame end 60: refused on 61 and 62 → cancelled (user)@62, no fatal; refused on 61 only → opened@62 and expired with the frame@62, on ${pingWatches.join("/")}`);
+});

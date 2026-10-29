@@ -45,8 +45,12 @@ import {
 //   schedule       the schedule ping of the first span end after a resting placement (dated 1680)
 //   scheduledEvent the lifecycle "scheduled" event of the placement on 1440 — a deferred cancel
 //                  or activation queued there drains on the first candle, dated 1441
-//   closed         the lifecycle "closed" event of a user close on 1681 — the next entry step of a
-//                  daily grid is 2880 (live re-ticks the close minute; the backtest's entry grid is daily)
+//   closed         the lifecycle "closed" event of a user close on 1681 — the engine re-ticks the
+//                  close minute like the live loop, so a signal asked there opens on 1681
+//
+// The same matrix runs short (`mirror`): the tapes and the probes mirrored around 100, the
+// entries, stops, takes and levels mirrored, so every touch and level is exercised on the other
+// side of the market.
 
 const MIN = 60_000;
 const DAY = 1440;
@@ -82,7 +86,7 @@ const rise = (from, price, count = 10) => Object.fromEntries(Array.from({ length
  * highest@1680, drawdown@1680, schedule@1680, scheduledEvent, closed. `probes` override the
  * candles of given minutes (a touch after the command proves its effect).
  */
-const runScenario = async (name, watch, { tape = "flat", probes = {}, commands = {} }) => {
+const runScenario = async (name, watch, { tape = "flat", probes = {}, commands = {}, mirror = false }) => {
   const context = { strategyName: `ldw-${name}-${watch}-strategy`, exchangeName: `ldw-${name}-${watch}-exchange`, frameName: `ldw-${name}-${watch}-frame` };
   const base = TAPES[tape];
   addExchangeSchema({
@@ -93,8 +97,9 @@ const runScenario = async (name, watch, { tape = "flat", probes = {}, commands =
       let timestamp = Math.floor(since.getTime() / MIN) * MIN;
       while (out.length < limit) {
         const m = minute(timestamp);
-        const candle = probes[m] ?? base(m);
-        out.push({ timestamp, volume: 1_000, ...(typeof candle === "number" ? { open: candle, high: candle, low: candle, close: candle } : candle) });
+        const raw = probes[m] ?? base(m);
+        const candle = typeof raw === "number" ? { open: raw, high: raw, low: raw, close: raw } : raw;
+        out.push({ timestamp, volume: 1_000, ...(mirror ? { open: 200 - candle.open, high: 200 - candle.low, low: 200 - candle.high, close: 200 - candle.close } : candle) });
         timestamp += MIN;
       }
       return out;
@@ -199,13 +204,13 @@ const expectClose = (at) => (o) => (!hasPrefix(o, `closed:closed@${at + 1}:`) ? 
 const expectFill = (reason, at, price) => (o) => (!hasPrefix(o, `closed:${reason}@${at + 1}:${price}:`) ? `expected the confirmed ${reason} on ${at + 1} at ${price}` : null);
 const expectPartial = (action, key, cAt) => (o) => (!accepted(o, key) ? `${action} must be accepted (returned ${o.returns[key]})` : !commit(o, `${action}@${cAt}`) ? `expected ${action}@${cAt}, got ${o.commits.join(",")}` : !closedWith(o, "partials=1") ? "expected one partial on the close" : null);
 const expectRefusal = (action, key) => (o) => (!refused(o, key) ? `${action} must be refused here (returned ${o.returns[key]})` : o.commits.some((c) => c.startsWith(`${action}@`)) ? `a refused ${action} must emit no commit` : null);
-const expectTrailingStop = (key, cAt, touchAt) => (o) => (!accepted(o, key) ? `trailing stop must be accepted (returned ${o.returns[key]})` : !commit(o, `trailing-stop@${cAt}`) ? `expected trailing-stop@${cAt}, got ${o.commits.join(",")}` : touchAt !== null && !hasPrefix(o, `closed:stop_loss@${touchAt + 1}:90:`) ? `expected the trailed stop 90 to close on ${touchAt + 1}` : null);
-const expectTrailingTake = (key, cAt, takeAt) => (o) => (!accepted(o, key) ? `trailing take must be accepted (returned ${o.returns[key]})` : !commit(o, `trailing-take@${cAt}`) ? `expected trailing-take@${cAt}, got ${o.commits.join(",")}` : !hasPrefix(o, `closed:take_profit@${takeAt}:105:`) ? `expected the trailed take 105 to close on ${takeAt}` : null);
-const expectBreakeven = (key, cAt, dipAt) => (o) => (!accepted(o, key) ? `breakeven must be accepted (returned ${o.returns[key]})` : !commit(o, `breakeven@${cAt}`) ? `expected breakeven@${cAt}, got ${o.commits.join(",")}` : !hasPrefix(o, `closed:stop_loss@${dipAt + 1}:`) || closePrice(o) < 100 || closePrice(o) > 101 ? `expected the breakeven stop (~100.4) to close on ${dipAt + 1}` : null);
+const expectTrailingStop = (key, cAt, touchAt, stop = 90) => (o) => (!accepted(o, key) ? `trailing stop must be accepted (returned ${o.returns[key]})` : !commit(o, `trailing-stop@${cAt}`) ? `expected trailing-stop@${cAt}, got ${o.commits.join(",")}` : touchAt !== null && !hasPrefix(o, `closed:stop_loss@${touchAt + 1}:${stop}:`) ? `expected the trailed stop ${stop} to close on ${touchAt + 1}` : null);
+const expectTrailingTake = (key, cAt, takeAt, take = 105) => (o) => (!accepted(o, key) ? `trailing take must be accepted (returned ${o.returns[key]})` : !commit(o, `trailing-take@${cAt}`) ? `expected trailing-take@${cAt}, got ${o.commits.join(",")}` : !hasPrefix(o, `closed:take_profit@${takeAt}:${take}:`) ? `expected the trailed take ${take} to close on ${takeAt}` : null);
+const expectBreakeven = (key, cAt, dipAt, [lo, hi] = [100, 101]) => (o) => (!accepted(o, key) ? `breakeven must be accepted (returned ${o.returns[key]})` : !commit(o, `breakeven@${cAt}`) ? `expected breakeven@${cAt}, got ${o.commits.join(",")}` : !hasPrefix(o, `closed:stop_loss@${dipAt + 1}:`) || closePrice(o) < lo || closePrice(o) > hi ? `expected the breakeven stop (${lo}..${hi}) to close on ${dipAt + 1}` : null);
 const expectAverageBuy = (key, cAt) => (o) => (!accepted(o, key) ? `average buy must be accepted (returned ${o.returns[key]})` : !commit(o, `average-buy@${cAt}`) ? `expected average-buy@${cAt}, got ${o.commits.join(",")}` : !closedWith(o, "entries=2") ? "expected two entries on the close" : null);
 const expectDividend = (key, cAt) => (o) => (!accepted(o, key) ? `dividend must be accepted (returned ${o.returns[key]})` : !commit(o, `dividend@${cAt}`) ? `expected dividend@${cAt}, got ${o.commits.join(",")}` : !closedWith(o, "div=1") ? "expected the dividend on the close" : null);
 const expectCancel = (at) => (o) => (!has(o, `cancelled:user@${at + 1}`) ? `expected cancelled:user@${at + 1}` : !commit(o, `cancel-scheduled@${at + 1}`) ? `expected cancel-scheduled@${at + 1}` : null);
-const expectActivate = (at) => (o) => (!has(o, `opened@${at + 1}:90`) ? `expected the activation on ${at + 1} at 90` : null);
+const expectActivate = (at, price = 90) => (o) => (!has(o, `opened@${at + 1}:${price}`) ? `expected the activation on ${at + 1} at ${price}, got ${o.lifecycle.join(",")}` : null);
 
 // ----- the commands -----
 const C = {
@@ -307,15 +312,22 @@ test("LISTEN DAILY/4H — highest-profit and max-drawdown listeners: the coarse 
   ], t);
 });
 
-test("LISTEN DAILY/4H — schedule ping and scheduled event: a cancel or an activation asked from the 4h schedule ping or right at the placement drains on the next candle", async (t) => {
-  // the wait must outlive the first 4h span: 600 minutes instead of the default 120
-  setConfig({ CC_SCHEDULE_AWAIT_MINUTES: 600 }, true);
+const FRAME_END = FRAME_DAYS * DAY;
+// an activation asked at the last look of the frame (the schedule ping dated FRAME_END, on both
+// watches): live opens it on the next tick; the frame has no next minute, so the position opens
+// on the frame-end candle, with its clock, and expires with the frame right there
+const expectFrameEndActivate = (price) => (o) => (!has(o, `opened@${FRAME_END + 1}:${price}`) ? `expected the activation on the frame-end candle, dated ${FRAME_END + 1} at ${price}, got ${o.lifecycle.join(",")}` : !hasPrefix(o, `closed:time_expired@${FRAME_END + 1}:100:`) ? `expected the expiry with the frame on ${FRAME_END + 1}, got ${o.lifecycle.join(",")}` : null);
+
+test("LISTEN DAILY/4H — schedule ping and scheduled event: a cancel or an activation asked from the 4h schedule ping or right at the placement drains on the next candle; an activation asked at the frame end opens and expires with the frame", async (t) => {
+  // the wait must outlive the first 4h span (and the last day of the frame): 2000 minutes instead of the default 120
+  setConfig({ CC_SCHEDULE_AWAIT_MINUTES: 2000 }, true);
   try {
     await suite([
       ["schedule.cancel", { commands: withResting("schedule@1680", C.cancel) }, expectCancel(1680)],
       ["schedule.activate", { commands: withResting("schedule@1680", C.activate) }, expectActivate(1680)],
       ["scheduledEvent.cancel", { commands: withResting("scheduledEvent", C.cancel) }, expectCancel(1440)],
       ["scheduledEvent.activate", { commands: withResting("scheduledEvent", C.activate) }, expectActivate(1440)],
+      ["schedule.activate.frameEnd", { commands: { [`idle@${FRAME_END - DAY}`]: C.openResting, [`schedule@${FRAME_END}`]: C.activate } }, expectFrameEndActivate(90)],
       ["schedule.touch", { probes: { 1540: wick(90) }, commands: withResting() }, (o) => (!has(o, "opened@1541:90") ? `expected the activation on 1541 (the touch on candle 1540), got ${o.lifecycle.join(",")}` : !hasPrefix(o, `closed:time_expired@${1541 + HOLD}:100:`) ? "expected the expiry counted from the activation" : null)],
     ], t);
   } finally {
@@ -329,4 +341,74 @@ test("LISTEN DAILY/4H — closed event: a new signal or an adoption asked right 
     ["closed.openMarket", afterClose(C.openMarket), (o) => (!hasPrefix(o, "closed:closed@1681:110:") ? "expected the user close on 1681" : !has(o, "opened@1681:110") ? `expected the next open on the close minute 1681 at 110, got ${o.lifecycle.join(",")}` : !o.idle.includes(1681 + HOLD) ? `expected the idle ping of the re-ticked close minute ${1681 + HOLD} after the expiry, got ${o.idle.join(",")}` : null)],
     ["closed.adopt", afterClose(C.adopt), (o) => (!hasPrefix(o, "closed:closed@1681:110:") ? "expected the user close on 1681" : !has(o, "opened@1681:95") ? `expected the adoption on the close minute 1681 at 95, got ${o.lifecycle.join(",")}` : !o.idle.includes(1681 + HOLD) ? `expected the idle ping of the re-ticked close minute ${1681 + HOLD} after the expiry, got ${o.idle.join(",")}` : null)],
   ], t);
+});
+
+// ----- the matrix mirrored: a short on the tapes mirrored around 100 -----
+const MARKET_SHORT = { position: "short", priceTakeProfit: 81, priceStopLoss: 115, cost: 1000, minuteEstimatedTime: HOLD };
+const RESTING_SHORT = { position: "short", priceOpen: 110, priceTakeProfit: 95, priceStopLoss: 120, cost: 1000, minuteEstimatedTime: HOLD };
+const ADOPTED_SHORT = { position: "short", priceOpen: 105, priceTakeProfit: 81, priceStopLoss: 115, cost: 1000, minuteEstimatedTime: HOLD };
+const CS = {
+  openMarket: (s, c) => Backtest.commitCreateSignal(s, c, MARKET_SHORT),
+  openResting: (s, c) => Backtest.commitCreateSignal(s, c, RESTING_SHORT),
+  adopt: (s, c) => Backtest.setPendingSignal(s, c, ADOPTED_SHORT),
+};
+const shortOpen = (key, command, extra = {}) => ({ "idle@1440": CS.openMarket, [key]: command, ...extra });
+const shortResting = (key, command) => (key ? { "idle@1440": CS.openResting, [key]: command } : { "idle@1440": CS.openResting });
+const mirrored = (spec) => ({ ...spec, mirror: true });
+
+test("LISTEN DAILY/4H — short: the matrix mirrored around 100 (entries, stops, takes, levels, extremes, resting entries, the close minute, the frame end) gives the mirrored outcomes on both watches", async (t) => {
+  // up110 mirrored is a fall to 90 (profit for the short), level104 a step to 96, loss96 a step to 104,
+  // ramp a fall (new highs of profit), fall a ramp (drawdown); wick(x) mirrored is a spike to 200 - x
+  const inProfit = (key, command, probes = {}) => mirrored({ tape: "up110", probes, commands: shortOpen(key, command) });
+  const price = (o) => (o.triggerPrice["active@1680"] !== 90 ? `the ping must hand the current price 90, got ${o.triggerPrice["active@1680"]}` : null);
+  const level = (command, probes = {}) => mirrored({ tape: "level104", probes, commands: shortOpen("level", command) });
+  const loss = (command, probes = {}) => mirrored({ tape: "loss96", probes, commands: shortOpen("lossLevel", command) });
+  const be = (command, probes = {}) => mirrored({ tape: "level104", probes, commands: shortOpen("breakeven", command) });
+  const firstLevel = (o) => (o.first.level !== "10@1453" ? `expected the first profit level 10@1453, got ${o.first.level}` : null);
+  const firstLoss = (o) => (o.first.lossLevel !== "10@1452" ? `expected the first loss level 10@1452, got ${o.first.lossLevel}` : null);
+  const firstBe = (o) => (o.first.breakeven !== 1451 ? `expected the breakeven available on 1451, got ${o.first.breakeven}` : null);
+  const high = (command) => mirrored({ tape: "ramp", commands: shortOpen("highest@1680", command) });
+  const low = (command) => mirrored({ tape: "fall", commands: shortOpen("drawdown@1680", command) });
+  const highPrice = (o) => (Math.abs(o.triggerPrice["highest@1680"] - 88.15) > 0.2 ? `the highest-profit event dated 1680 must carry the VWAP of the mirrored ramp there (~88.15), got ${o.triggerPrice["highest@1680"]}` : null);
+  const lowPrice = (o) => (Math.abs(o.triggerPrice["drawdown@1680"] - 111.85) > 0.2 ? `the max-drawdown event dated 1680 must carry the VWAP of the mirrored fall there (~111.85), got ${o.triggerPrice["drawdown@1680"]}` : null);
+  const afterClose = (command) => mirrored({ tape: "up110", commands: shortOpen("active@1680", C.close, { closed: command }) });
+  setConfig({ CC_SCHEDULE_AWAIT_MINUTES: 2000 }, true);
+  try {
+    await suite([
+      ["short.idle.openMarket", mirrored({ commands: { "idle@1440": CS.openMarket } }), (o) => (!has(o, "opened@1440:100") ? "expected opened@1440 at 100" : !hasPrefix(o, `closed:time_expired@${1440 + HOLD}:100:`) ? "expected the expiry" : null)],
+      ["short.idle.adopt", mirrored({ commands: { "idle@1440": CS.adopt } }), (o) => (!has(o, "opened@1440:105") ? "expected the adopted short on 1440 at 105" : !hasPrefix(o, `closed:time_expired@${1440 + HOLD}:100:`) ? "expected the expiry" : null)],
+      ["short.idle.adopt.stop", mirrored({ probes: { 2000: wick(84) }, commands: { "idle@1440": CS.adopt } }), (o) => (!hasPrefix(o, "closed:stop_loss@2001:115:") ? `expected the adopted short's stop on 2001 at 115 (the spike to 116 on candle 2000), got ${o.lifecycle.join(",")}` : null)],
+      ["short.opened.close", mirrored({ commands: shortOpen("opened", C.close) }), expectClose(1440)],
+      ["short.opened.takeFill", mirrored({ commands: shortOpen("opened", C.takeFill) }), expectFill("take_profit", 1440, 81)],
+      ["short.opened.stopFill", mirrored({ commands: shortOpen("opened", C.stopFill) }), expectFill("stop_loss", 1440, 115)],
+      ["short.opened.trailingStop", mirrored({ probes: { 2000: wick(89) }, commands: shortOpen("opened", C.trailingStop) }), expectTrailingStop("opened", 1441, 2000, 110)],
+      ["short.opened.trailingTake", mirrored({ probes: rise(2100, 106), commands: shortOpen("opened", C.trailingTake) }), expectTrailingTake("opened", 1441, 2105, 95)],
+      ["short.opened.partialProfit.refused", mirrored({ commands: shortOpen("opened", C.partialProfit) }), expectRefusal("partial-profit", "opened")],
+      ["short.active.close", inProfit("active@1680", C.close), both(price, expectClose(1680))],
+      ["short.active.takeFill", inProfit("active@1680", C.takeFill), both(price, expectFill("take_profit", 1680, 81))],
+      ["short.active.stopFill", inProfit("active@1680", C.stopFill), both(price, expectFill("stop_loss", 1680, 115))],
+      ["short.active.partialProfit", inProfit("active@1680", C.partialProfit), both(price, expectPartial("partial-profit", "active@1680", 1680))],
+      ["short.active.trailingStop", inProfit("active@1680", C.trailingStop, { 2000: wick(89) }), both(price, expectTrailingStop("active@1680", 1680, 2000, 110))],
+      ["short.active.breakeven", inProfit("active@1680", C.breakeven, { 2000: wick(99) }), both(price, expectBreakeven("active@1680", 1680, 2000, [99, 100]))],
+      ["short.active.dividend", inProfit("active@1680", C.dividend), both(price, expectDividend("active@1680", 1680))],
+      ["short.active.partialLoss.refused", inProfit("active@1680", C.partialLoss), both(price, expectRefusal("partial-loss", "active@1680"))],
+      ["short.level.partialProfit", level(C.partialProfit), both(firstLevel, expectPartial("partial-profit", "level", 1453))],
+      ["short.level.trailingTake", level(C.trailingTake, rise(2100, 106)), both(firstLevel, expectTrailingTake("level", 1453, 2103, 95))],
+      ["short.level.breakeven", level(C.breakeven, { 2000: wick(99) }), both(firstLevel, expectBreakeven("level", 1453, 2000, [99, 100]))],
+      ["short.lossLevel.partialLoss", loss(C.partialLoss), both(firstLoss, expectPartial("partial-loss", "lossLevel", 1452))],
+      ["short.lossLevel.averageBuy", loss(C.averageBuy), both(firstLoss, expectAverageBuy("lossLevel", 1452))],
+      ["short.lossLevel.trailingStop", loss(C.trailingStop, { 2000: wick(89) }), both(firstLoss, expectTrailingStop("lossLevel", 1452, 2000, 110))],
+      ["short.breakeven.breakeven", be(C.breakeven, { 2000: wick(99) }), both(firstBe, expectBreakeven("breakeven", 1451, 2000, [99, 100]))],
+      ["short.highest.partialProfit", high(C.partialProfit), both(highPrice, expectPartial("partial-profit", "highest@1680", 1680))],
+      ["short.drawdown.partialLoss", low(C.partialLoss), both(lowPrice, expectPartial("partial-loss", "drawdown@1680", 1680))],
+      ["short.schedule.cancel", mirrored({ commands: shortResting("schedule@1680", C.cancel) }), expectCancel(1680)],
+      ["short.schedule.activate", mirrored({ commands: shortResting("schedule@1680", C.activate) }), expectActivate(1680, 110)],
+      ["short.scheduledEvent.activate", mirrored({ commands: shortResting("scheduledEvent", C.activate) }), expectActivate(1440, 110)],
+      ["short.schedule.touch", mirrored({ probes: { 1540: wick(90) }, commands: shortResting() }), (o) => (!has(o, "opened@1541:110") ? `expected the activation on 1541 (the spike to 110 on candle 1540), got ${o.lifecycle.join(",")}` : null)],
+      ["short.schedule.activate.frameEnd", mirrored({ commands: { [`idle@${FRAME_END - DAY}`]: CS.openResting, [`schedule@${FRAME_END}`]: C.activate } }), expectFrameEndActivate(110)],
+      ["short.closed.openMarket", afterClose(CS.openMarket), (o) => (!hasPrefix(o, "closed:closed@1681:90:") ? `expected the user close on 1681 at 90, got ${o.lifecycle.join(",")}` : !has(o, "opened@1681:90") ? `expected the next short on the close minute 1681 at 90, got ${o.lifecycle.join(",")}` : null)],
+    ], t);
+  } finally {
+    setConfig({ CC_SCHEDULE_AWAIT_MINUTES: 120 }, true);
+  }
 });

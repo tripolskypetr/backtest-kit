@@ -631,6 +631,41 @@ type TProcessSignalResult =
   | TFnError
   | { type: "closed"; previousEventTimestamp: number; closeTimestamp: number; shouldStop: boolean };
 
+/**
+ * Subscribes to the "opened" tick a scheduled activation emits from inside a replay
+ * (CALL_BACKTEST_SCHEDULE_OPEN_FN in ClientStrategy): the tick is forwarded to the signal
+ * emitters and the actions as a tick() result is, and kept for the caller to yield.
+ */
+const SUBSCRIBE_SCHEDULE_OPEN_FN = (
+  self: BacktestLogicPrivateService,
+  symbol: string,
+  context: { strategyName: string; exchangeName: string; frameName: string },
+): { unsubscribe: Function; opened: () => IStrategyTickResultOpened | null } => {
+  const { strategyName, exchangeName, frameName } = context;
+  let opened: IStrategyTickResultOpened | null = null;
+  const unsubscribe = backtestScheduleOpenSubject.filter((event) => {
+    let isOk = true;
+    {
+      isOk = isOk && event.action === "opened";
+      isOk = isOk && event.strategyName === strategyName;
+      isOk = isOk && event.exchangeName === exchangeName;
+      isOk = isOk && event.frameName === frameName;
+      isOk = isOk && event.symbol === symbol;
+    }
+    return isOk;
+  }).connect(async (tick) => {
+    opened = tick;
+    await signalEmitter.next(tick);
+    await signalBacktestEmitter.next(tick);
+    await self.actionCoreService.signalBacktest(true, tick, {
+      strategyName,
+      exchangeName,
+      frameName,
+    });
+  });
+  return { unsubscribe, opened: () => opened };
+};
+
 const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
   self: BacktestLogicPrivateService,
   symbol: string,
@@ -686,39 +721,12 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
 
   let backtestResult: IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive;
 
-  let unScheduleOpen: Function;
-  let scheduleOpenResult: IStrategyTickResultOpened;
-
   const context = {
     strategyName: self.methodContextService.context.strategyName,
     exchangeName: self.methodContextService.context.exchangeName,
     frameName: self.methodContextService.context.frameName,
   };
-
-  {
-    const { strategyName, exchangeName, frameName } = context;
-
-    unScheduleOpen = backtestScheduleOpenSubject.filter((event) => {
-      let isOk = true;
-      {
-        isOk = isOk && event.action === "opened";
-        isOk = isOk && event.strategyName === strategyName;
-        isOk = isOk && event.exchangeName === exchangeName;
-        isOk = isOk && event.frameName === frameName;
-        isOk = isOk && event.symbol === symbol;
-      }
-      return isOk;
-    }).connect(async (tick) => {
-      scheduleOpenResult = tick;
-      await signalEmitter.next(tick);
-      await signalBacktestEmitter.next(tick);
-      await self.actionCoreService.signalBacktest(true, tick, {
-        strategyName,
-        exchangeName,
-        frameName,
-      });
-    });
-  }
+  const scheduleOpen = SUBSCRIBE_SCHEDULE_OPEN_FN(self, symbol, context);
 
   try {
     const firstResult = await BACKTEST_FN(self, symbol, candles, frameEndTime, when, context, { signalId: signal.id });
@@ -728,7 +736,7 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
     }
     backtestResult = firstResult;
   } finally {
-    unScheduleOpen && unScheduleOpen();
+    scheduleOpen.unsubscribe();
   }
 
   // Infinity hold: the leftover after the activation is replayed in whole watch spans.
@@ -761,7 +769,8 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
     totalFrames: undefined,
   });
 
-  if (scheduleOpenResult!) {
+  const scheduleOpenResult = scheduleOpen.opened();
+  if (scheduleOpenResult) {
     yield scheduleOpenResult;
   }
   yield backtestResult;
@@ -1177,18 +1186,27 @@ export class BacktestLogicPrivateService {
       if (i >= timeframes.length && lastAction !== null && lastAction !== "idle" && lastAction !== "closed" && lastAction !== "cancelled") {
         // The frame-end close commits and emits like any other iteration: under the lock
         await Lockstep.acquireLock(LOCKSTEP_SOURCE);
+        // a user activation still queued at the frame end opens there and expires with the
+        // frame: its opened tick is forwarded and yielded before the close, as in a replay
+        const frameEndContext = {
+          strategyName: this.methodContextService.context.strategyName,
+          exchangeName: this.methodContextService.context.exchangeName,
+          frameName: this.methodContextService.context.frameName,
+        };
+        const scheduleOpen = SUBSCRIBE_SCHEDULE_OPEN_FN(this, symbol, frameEndContext);
         try {
-          const expired = await BACKTEST_FN(this, symbol, [], frameEndTime, new Date(frameEndTime), {
-            strategyName: this.methodContextService.context.strategyName,
-            exchangeName: this.methodContextService.context.exchangeName,
-            frameName: this.methodContextService.context.frameName,
-          }, { reason: "frame end" });
+          const expired = await BACKTEST_FN(this, symbol, [], frameEndTime, new Date(frameEndTime), frameEndContext, { reason: "frame end" });
           if ("__error__" in expired) {
             _fatalError = new Error(`[${expired.reason}] ${expired.message}`);
           } else if (expired.action !== "active") {
+            const opened = scheduleOpen.opened();
+            if (opened) {
+              yield opened;
+            }
             yield expired;
           }
         } finally {
+          scheduleOpen.unsubscribe();
           await Lockstep.releaseLock(LOCKSTEP_SOURCE);
         }
       }
