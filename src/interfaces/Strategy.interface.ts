@@ -1600,7 +1600,7 @@ export interface IStrategy {
    * @param dto - Signal DTO to open
    * @returns Promise that resolves when the DTO is queued
    */
-  createSignal: (symbol: string, currentPrice: number, dto: ISignalDto) => Promise<void>;
+  createSignal: (symbol: string, currentPrice: number, dto: ISignalDto, currentTime: number, backtest: boolean) => Promise<void>;
 
   /**
    * Reports that the pending position's take-profit order was actually filled on the exchange
@@ -2096,6 +2096,13 @@ export interface IStrategy {
    * @returns Promise resolving to true if scheduled signal exists, false otherwise
    */
   hasScheduledSignal: (symbol: string) => Promise<boolean>;
+
+  /**
+   * The earliest backtest minute a queued open command (createSignal, setPendingSignal) was
+   * issued at (the time meta's minute at the call), or null. The backtest orchestrator ticks
+   * an idle strategy on the next minute after it, off the entry grid, as live would.
+   */
+  getQueuedOpenAt: () => Promise<number | null>;
 
   /**
    * Returns the original estimated duration for the current pending signal.

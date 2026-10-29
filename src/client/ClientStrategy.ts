@@ -1282,6 +1282,7 @@ const GET_SIGNAL_FN = trycatch(
       if (self._userSignal) {
         const userDto = self._userSignal;
         self._userSignal = null;
+        self._userSignalQueuedAt = null;
         await PERSIST_STRATEGY_FN(self);
         // Consumption re-validation against the CURRENT price: the DTO was
         // validated in createSignal against a price that may have moved since.
@@ -1317,6 +1318,7 @@ const GET_SIGNAL_FN = trycatch(
         signal = userDto;
       }
       self._userSignal = null;
+      self._userSignalQueuedAt = null;
     }
 
     if (typeof signal === "symbol") {
@@ -2020,7 +2022,9 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     // interrupted wipe instead of restoring. A queued createSignal is a
     // not-yet-consumed signal source and likewise stands on its own.
     self._userSignal = strategyData.createdSignal;
+    self._userSignalQueuedAt = null;
     self._adoptedSignal = strategyData.adoptedSignal ?? null;
+    self._adoptedSignalQueuedAt = null;
     self._closedSignal = strategyData.closedSignal;
     self._cancelledSignal = strategyData.cancelledSignal;
     self._activatedSignal = strategyData.activatedSignal;
@@ -2584,6 +2588,7 @@ const DRAIN_ADOPTED_SIGNAL_FN = async (
   }
   const dto = self._adoptedSignal;
   self._adoptedSignal = null;
+  self._adoptedSignalQueuedAt = null;
   await PERSIST_STRATEGY_FN(self);
   const row = TO_PENDING_SIGNAL_ROW_FN(self, dto, currentTime);
   try {
@@ -7029,6 +7034,9 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     const evalIndex = forcedIndex === -1 ? i : forcedIndex;
     const candle = candles[evalIndex];
     const candleClock = candle.timestamp + CANDLE_CLOSE_MS;
+    // the execution clock follows the evaluated candle: a listener of this candle's events
+    // (and a command it issues for any strategy) sees this minute as "now"
+    self.params.execution.context.when = new Date(candleClock);
     const averagePrice = GET_AVG_PRICE_AT_FN(candles, evalIndex, candlesCount);
     const touchLow = candle.low;
     const touchHigh = candle.high;
@@ -7345,6 +7353,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     const currentCandle = candles[evalIndex];
     const currentCandleTimestamp = currentCandle.timestamp;
     const currentClock = currentCandleTimestamp + CANDLE_CLOSE_MS;
+    // the execution clock follows the evaluated candle (see the scheduled loop)
+    self.params.execution.context.when = new Date(currentClock);
 
     // VWAP: the last candlesCount candles up to the evaluated one (buffer included)
     const averagePrice = GET_AVG_PRICE_AT_FN(candles, evalIndex, candlesCount);
@@ -7922,6 +7932,8 @@ export class ClientStrategy implements IStrategy {
    * is reused.
    */
   _userSignal: ISignalDto | null = null;
+  /** The backtest minute the queued createSignal was issued at (the time meta's minute at the call), null in live */
+  _userSignalQueuedAt: number | null = null;
   /**
    * Deferred adoption slot (public `setPendingSignal`): the DTO of a position that is
    * ALREADY open on the exchange, queued out of the async-hooks contexts like `_userSignal`
@@ -7931,6 +7943,8 @@ export class ClientStrategy implements IStrategy {
    * and method contexts. Persisted (survives a restart), cleared on drain.
    */
   _adoptedSignal: IPendingSignalDto | null = null;
+  /** The backtest minute the queued adoption was issued at, see _userSignalQueuedAt */
+  _adoptedSignalQueuedAt: number | null = null;
 
   /**
    * Gate-rejected open awaiting an identity-stable retry (CC_ORDER_OPEN_RETRY_ATTEMPTS).
@@ -8021,6 +8035,24 @@ export class ClientStrategy implements IStrategy {
    * @param symbol - Trading symbol to check for pending signal
    * @returns Promise resolving to true if a pending signal exists, false otherwise
    */
+  /**
+   * The earliest backtest minute at which a queued open command (createSignal, setPendingSignal)
+   * was issued — the time meta's minute at the call: the issuer's execution clock inside a
+   * context, the strategy's last known minute otherwise — or null when nothing is queued. The
+   * backtest orchestrator ticks an idle strategy on the next minute after it, off the entry
+   * grid, as the live loop takes the command on its next tick.
+   */
+  public async getQueuedOpenAt(): Promise<number | null> {
+    const stamps: number[] = [];
+    if (this._userSignal !== null && this._userSignalQueuedAt !== null) {
+      stamps.push(this._userSignalQueuedAt);
+    }
+    if (this._adoptedSignal !== null && this._adoptedSignalQueuedAt !== null) {
+      stamps.push(this._adoptedSignalQueuedAt);
+    }
+    return stamps.length ? Math.min(...stamps) : null;
+  }
+
   public async hasPendingSignal(symbol: string): Promise<boolean> {
     this.params.logger.debug("ClientStrategy hasPendingSignal", {
       symbol,
@@ -10648,6 +10680,7 @@ export class ClientStrategy implements IStrategy {
     // left the DTO on disk and the next restart silently opened a stale position.
     const droppedUserSignal = this._userSignal !== null;
     this._userSignal = null;
+    this._userSignalQueuedAt = null;
 
     // NOTE: _isStopped blocks NEW position opening, but deferred user commands
     // and broker-confirmed fills must still drain on subsequent ticks:
@@ -10935,7 +10968,7 @@ export class ClientStrategy implements IStrategy {
    * @returns Promise that resolves when the DTO is queued (and persisted in live mode)
    * @throws {Error} If stopped, if something is in flight, if priceOpen is missing, or if the price is beyond a level
    */
-  public async adoptPendingSignal(dto: IPendingSignalDto, currentPrice: number, currentTime: number): Promise<void> {
+  public async adoptPendingSignal(dto: IPendingSignalDto, currentPrice: number, currentTime: number, backtest: boolean): Promise<void> {
     const symbol = this.params.symbol;
     this.params.logger.debug("ClientStrategy adoptPendingSignal", { symbol, signalId: dto?.id, priceOpen: dto?.priceOpen, currentPrice });
     if (this._isStopped) {
@@ -10976,6 +11009,8 @@ export class ClientStrategy implements IStrategy {
     // check only; the drain builds the real one at the tick's time.
     validatePendingSignal(TO_PENDING_SIGNAL_ROW_FN(this, dto, currentTime), currentPrice);
     this._adoptedSignal = dto;
+    // the backtest orchestrator ticks an idle strategy on the minute after the command
+    this._adoptedSignalQueuedAt = backtest ? currentTime : null;
     await PERSIST_STRATEGY_FN(this);
   }
 
@@ -11002,8 +11037,8 @@ export class ClientStrategy implements IStrategy {
    * @returns Promise that resolves when the DTO is queued (and persisted in live mode)
    * @throws {Error} If the DTO is invalid or a signal/deferred action is already in flight
    */
-  public async createSignal(symbol: string, currentPrice: number, dto: ISignalDto): Promise<void> {
-    this.params.logger.debug("ClientStrategy createSignal", { symbol, currentPrice });
+  public async createSignal(symbol: string, currentPrice: number, dto: ISignalDto, currentTime: number, backtest: boolean): Promise<void> {
+    this.params.logger.debug("ClientStrategy createSignal", { symbol, currentPrice, currentTime, backtest });
 
     // Queueing a DTO is opening a NEW position — blocked while stopped,
     // mirroring activateScheduled (stopStrategy likewise voids an already
@@ -11065,6 +11100,8 @@ export class ClientStrategy implements IStrategy {
     }
 
     this._userSignal = dto;
+    // the backtest orchestrator ticks an idle strategy on the minute after the command
+    this._userSignalQueuedAt = backtest ? currentTime : null;
 
     await PERSIST_STRATEGY_FN(this);
   }

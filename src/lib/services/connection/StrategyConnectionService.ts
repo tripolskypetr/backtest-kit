@@ -1852,6 +1852,18 @@ export class StrategyConnectionService implements TStrategy {
   };
 
   /**
+   * The earliest backtest minute a queued open command was issued at, or null (see ClientStrategy.getQueuedOpenAt).
+   */
+  public getQueuedOpenAt = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+  ): Promise<number | null> => {
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getQueuedOpenAt();
+  }
+
+  /**
    * Checks if there is an active pending signal for the strategy.
    * Delegates to ClientStrategy.hasPendingSignal() which checks if there is an active position
    * that has not been fully closed.
@@ -2597,7 +2609,8 @@ export class StrategyConnectionService implements TStrategy {
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     const currentPrice = await this.priceMetaService.getCurrentPrice(symbol, context, backtest);
-    await strategy.createSignal(symbol, currentPrice, dto);
+    const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
+    await strategy.createSignal(symbol, currentPrice, dto, timestamp, backtest);
   };
 
   /**
@@ -2633,7 +2646,7 @@ export class StrategyConnectionService implements TStrategy {
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     const currentPrice = await this.priceMetaService.getCurrentPrice(symbol, context, backtest);
     const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
-    await strategy.adoptPendingSignal(dto, currentPrice, timestamp);
+    await strategy.adoptPendingSignal(dto, currentPrice, timestamp, backtest);
   };
   /**
    * Reports that the pending position's take-profit order was actually filled on the exchange

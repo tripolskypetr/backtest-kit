@@ -86,6 +86,7 @@ import "./e2e/command_timing.test.mjs";
 import "./e2e/mode_parity.test.mjs";
 import "./e2e/listen_daily_watch.test.mjs";
 import "./e2e/frame_end_activation.test.mjs";
+import "./e2e/cross_open.test.mjs";
 
 import "./spec/audit.test.mjs";
 import "./spec/live.test.mjs";

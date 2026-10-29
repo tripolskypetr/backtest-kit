@@ -1,4 +1,7 @@
-import { addExchangeSchema, addStrategySchema, addFrameSchema, Backtest, listenActivePing } from "../build/index.mjs";
+import { setConfig, addExchangeSchema, addStrategySchema, addFrameSchema, Backtest, listenActivePing } from "../build/index.mjs";
+setConfig({
+    CC_MAX_STOPLOSS_DISTANCE_PERCENT: 50,
+});
 const MIN = 60_000, DAY = 1440;
 const T0 = Date.parse("2024-05-01T00:00:00Z");
 const DAYS = 60;
@@ -9,7 +12,7 @@ addExchangeSchema({ exchangeName: "bench-ex", getCandles: async (_s, _i, since, 
 // one market long per day, 1400-minute hold: a position is open ~97% of the time
 addStrategySchema({ strategyName: "bench-st", interval: "1d", getSignal: async (_s, when) => ({ position: "long", priceTakeProfit: price(minute(when.getTime())) + 30, priceStopLoss: price(minute(when.getTime())) - 30, cost: 1000, minuteEstimatedTime: 1400 }) });
 const results = {};
-for (const watch of ["1m", "15m", "1h", "4h", "1d"]) {
+for (const watch of ["4h", "1d"]) {
   addFrameSchema({ frameName: `bench-fr-${watch}`, entryInterval: "1d", watchInterval: watch, startDate: new Date(T0), endDate: new Date(T0 + DAYS * DAY * MIN) });
   let pings = 0, closed = 0;
   const un = listenActivePing((e) => { if (e.data.strategyName === "bench-st") pings += 1; });

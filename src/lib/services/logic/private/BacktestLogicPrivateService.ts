@@ -105,6 +105,32 @@ const LOCKSTEP_STEP_FN = (): number =>
   Array.from(LOCKSTEP_CURSORS.values()).reduce((min, cursor) => Math.min(min, cursor.stepMs), Infinity);
 
 /**
+ * The minute an idle strategy must be ticked on for a queued open command (createSignal,
+ * setPendingSignal, stamped with the time meta's minute at the call): the minute after the
+ * command, never before the last tick, and only when it comes before the next entry step `at` —
+ * otherwise null and the entry step takes the command. The live loop takes such a command on
+ * its next tick; without this the backtest would wait for the entry grid (a day on a daily entry).
+ */
+const QUEUED_OPEN_WAKE_FN = async (
+  self: BacktestLogicPrivateService,
+  symbol: string,
+  lastWhen: number,
+  at: number,
+): Promise<number | null> => {
+  const queuedAt = await self.strategyCoreService.getQueuedOpenAt(true, symbol, {
+    strategyName: self.methodContextService.context.strategyName,
+    exchangeName: self.methodContextService.context.exchangeName,
+    frameName: self.methodContextService.context.frameName,
+  });
+  if (queuedAt === null) {
+    return null;
+  }
+  const minute = Math.floor(queuedAt / 60_000) * 60_000 + 60_000;
+  const wake = Math.max(minute, lastWhen + 60_000);
+  return wake < at ? wake : null;
+};
+
+/**
  * Parks the caller at `at` and spins the lockstep lock until every other
  * running backtest has caught up. A peer has caught up when it is executing
  * at or past `at` (`clock >= at`) or when it is parked somewhere it has
@@ -142,7 +168,8 @@ const WAIT_FOR_PEERS_FN = async (
   at: number,
   kind: "start" | "handoff",
   spinFirst: boolean,
-): Promise<void> => {
+  wake?: () => Promise<number | null>,
+): Promise<number | null> => {
   cursor.parked = { at, kind };
   const keyOf = (target: TLockstepCursor) => Array.from(LOCKSTEP_CURSORS.entries()).find(([, peer]) => peer === target)?.[0] ?? "";
   const key = keyOf(cursor);
@@ -175,6 +202,15 @@ const WAIT_FOR_PEERS_FN = async (
   while (spin || lagging().length > 0) {
     spin = false;
     await Lockstep.spinLock(LOCKSTEP_HANDOFF_SOURCE);
+    // a peer queued an open command for this strategy while it waited for its entry step:
+    // leave the barrier, the caller ticks on the minute after the command instead
+    if (wake) {
+      const wakeAt = await wake();
+      if (wakeAt !== null) {
+        cursor.parked = null;
+        return wakeAt;
+      }
+    }
     const after = snapshot();
     if (lagging().length > 0 && after === before) {
       if (lagging().some((peer) => peer.joining) && joinRounds++ < LOCKSTEP_JOIN_ROUNDS) {
@@ -203,6 +239,7 @@ const WAIT_FOR_PEERS_FN = async (
   }
   cursor.parked = null;
   cursor.clock = at;
+  return null;
 };
 
 /**
@@ -1041,6 +1078,8 @@ export class BacktestLogicPrivateService {
     // adoption, getSignal under the interval throttle), so the backtest ticks it too before
     // resuming the grid. A close on a grid step is ticked by that step itself.
     let retickAt: number | null = null;
+    // the `when` of the last iteration: a wake-up for a queued open command never ticks before it
+    let lastWhen = -Infinity;
 
     try {
       while (i < timeframes.length) {
@@ -1053,6 +1092,11 @@ export class BacktestLogicPrivateService {
         cursor.locked = true;
         try {
           const timeframeStartTime = performance.now();
+          // an open command queued for this idle strategy (stamped with the time meta's minute
+          // at the call): tick on the minute after it, off the grid
+          if (retickAt === null && i > 0) {
+            retickAt = await QUEUED_OPEN_WAKE_FN(this, symbol, lastWhen, timeframes[i].getTime());
+          }
           const when = retickAt !== null ? new Date(retickAt) : timeframes[i];
           {
             // the hand-off boundaries of a replay stay on the grid of the entry steps: a re-tick
@@ -1064,11 +1108,19 @@ export class BacktestLogicPrivateService {
             }
             cursor.nextBoundary = boundary;
           }
-          // time barrier: no iteration starts before every running peer has reached its timeframe
+          // time barrier: no iteration starts before every running peer has reached its timeframe;
+          // a peer's event may queue an open command meanwhile — the barrier wakes this strategy
+          // on the minute after it and the iteration is re-entered there
           if (GLOBAL_CONFIG.CC_BACKTEST_LOCKSTEP) {
-            await WAIT_FOR_PEERS_FN(this, cursor, when.getTime(), "start", false);
+            const wake = retickAt === null && i > 0 ? () => QUEUED_OPEN_WAKE_FN(this, symbol, lastWhen, when.getTime()) : undefined;
+            const wokeAt = await WAIT_FOR_PEERS_FN(this, cursor, when.getTime(), "start", false, wake);
+            if (wokeAt !== null) {
+              retickAt = wokeAt;
+              continue;
+            }
           }
           cursor.clock = when.getTime();
+          lastWhen = when.getTime();
 
           // the re-tick of a close minute reports progress with its own minute: the fraction of
           // entry steps is unchanged, `when` is where the cursor is

@@ -4743,7 +4743,7 @@ interface IStrategy {
      * @param dto - Signal DTO to open
      * @returns Promise that resolves when the DTO is queued
      */
-    createSignal: (symbol: string, currentPrice: number, dto: ISignalDto) => Promise<void>;
+    createSignal: (symbol: string, currentPrice: number, dto: ISignalDto, currentTime: number, backtest: boolean) => Promise<void>;
     /**
      * Reports that the pending position's take-profit order was actually filled on the exchange
      * (e.g. by candle high/low), forcing a close that does not wait for the framework's VWAP-based TP check.
@@ -5219,6 +5219,12 @@ interface IStrategy {
      * @returns Promise resolving to true if scheduled signal exists, false otherwise
      */
     hasScheduledSignal: (symbol: string) => Promise<boolean>;
+    /**
+     * The earliest backtest minute a queued open command (createSignal, setPendingSignal) was
+     * issued at (the time meta's minute at the call), or null. The backtest orchestrator ticks
+     * an idle strategy on the next minute after it, off the entry grid, as live would.
+     */
+    getQueuedOpenAt: () => Promise<number | null>;
     /**
      * Returns the original estimated duration for the current pending signal.
      *
@@ -42751,6 +42757,16 @@ declare class StrategyCoreService implements TStrategy$1 {
      * @param context - Execution context with strategyName, exchangeName, frameName
      * @returns Promise<boolean> - true if pending signal exists, false otherwise
      */
+    /**
+     * The earliest backtest minute a queued open command (createSignal, setPendingSignal) was
+     * issued at (the time meta's minute at the call), or null. Used by the backtest orchestrator
+     * to tick an idle strategy on the next minute after the command, off the entry grid.
+     */
+    getQueuedOpenAt: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
     hasPendingSignal: (backtest: boolean, symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
@@ -44740,6 +44756,14 @@ declare class StrategyConnectionService implements TStrategy {
      * @param context - Execution context with strategyName, exchangeName, frameName
      * @returns Promise resolving to true if there is an active pending signal, false otherwise
      */
+    /**
+     * The earliest backtest minute a queued open command was issued at, or null (see ClientStrategy.getQueuedOpenAt).
+     */
+    getQueuedOpenAt: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
     hasPendingSignal: (backtest: boolean, symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;

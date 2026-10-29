@@ -1434,6 +1434,20 @@ export class StrategyCoreService implements TStrategy {
    * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Promise<boolean> - true if pending signal exists, false otherwise
    */
+  /**
+   * The earliest backtest minute a queued open command (createSignal, setPendingSignal) was
+   * issued at (the time meta's minute at the call), or null. Used by the backtest orchestrator
+   * to tick an idle strategy on the next minute after the command, off the entry grid.
+   */
+  public getQueuedOpenAt = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    await this.validate(context);
+    return await this.strategyConnectionService.getQueuedOpenAt(backtest, symbol, context);
+  }
+
   public hasPendingSignal = async (
     backtest: boolean,
     symbol: string,
