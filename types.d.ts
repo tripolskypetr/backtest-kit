@@ -19412,8 +19412,10 @@ declare class BudgetLiveAdapter implements TBudgetAdapter {
  *   ahead in logical time does not leak its future into a lagging one);
  * - an action is inserted at its `timestamp`, never overwriting what came
  *   after; the balances after it are recomputed;
- * - the journal order is `(timestamp, symbol, seq)` — the same run yields the
- *   same journal whatever order Node interleaved the symbols in;
+ * - the journal order is `(timestamp, releases first, symbol, seq)` — the same
+ *   run yields the same journal whatever order Node interleaved the symbols
+ *   in, and the money a close releases on a minute is available to the
+ *   reserves of that same minute;
  * - the budget itself never waits for another symbol and holds no lock of its
  *   own; the clocks of parallel backtests are kept together by the engine's
  *   `CC_BACKTEST_LOCKSTEP` (`Lockstep` in `BacktestLogicPrivateService.run`):

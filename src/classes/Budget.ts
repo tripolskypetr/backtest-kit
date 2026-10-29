@@ -314,10 +314,25 @@ const INITIAL_BALANCE_FN = (initialCapital: number): IBudgetRowBalance => ({
   assets: {},
 });
 
-/** Journal order: timestamp, then symbol, then insertion order (I3: deterministic) */
+/**
+ * Within one minute a release comes before everything else: money released this minute
+ * is available this minute. The engine dates a close at the close of its candle, the same
+ * minute the next tick reserves on; the release is written before that tick (a replay
+ * writes its rows before it hands the lock off at the boundary), and the reserve's
+ * decision folds the journal up to its minute inclusive, so the row must sort after the
+ * release too — otherwise a legitimate reserve got an overdraft mark from the recompute.
+ */
+const ROW_RANK_FN = (row: IBudgetHistoryRow): number => (row.type === "release" ? 0 : 1);
+
+/** Journal order: timestamp, then releases first, then symbol, then insertion order (I3: deterministic) */
 const COMPARE_ROW_FN = (a: IBudgetHistoryRow, b: IBudgetHistoryRow): number => {
   if (a.timestamp !== b.timestamp) {
     return a.timestamp - b.timestamp;
+  }
+  const rankA = ROW_RANK_FN(a);
+  const rankB = ROW_RANK_FN(b);
+  if (rankA !== rankB) {
+    return rankA - rankB;
   }
   const symbolA = a.symbol ?? "";
   const symbolB = b.symbol ?? "";
@@ -1125,8 +1140,10 @@ const ASSERT_AMOUNT_FN = (method: string, amount: number): void => {
  *   ahead in logical time does not leak its future into a lagging one);
  * - an action is inserted at its `timestamp`, never overwriting what came
  *   after; the balances after it are recomputed;
- * - the journal order is `(timestamp, symbol, seq)` — the same run yields the
- *   same journal whatever order Node interleaved the symbols in;
+ * - the journal order is `(timestamp, releases first, symbol, seq)` — the same
+ *   run yields the same journal whatever order Node interleaved the symbols
+ *   in, and the money a close releases on a minute is available to the
+ *   reserves of that same minute;
  * - the budget itself never waits for another symbol and holds no lock of its
  *   own; the clocks of parallel backtests are kept together by the engine's
  *   `CC_BACKTEST_LOCKSTEP` (`Lockstep` in `BacktestLogicPrivateService.run`):

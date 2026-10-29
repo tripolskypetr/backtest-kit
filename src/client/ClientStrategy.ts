@@ -7038,12 +7038,13 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       : FIND_SCHEDULED_FORCED_INDEX_FN(scheduled, candles, spanStart, i, frameEndTime, maxTimeToWait);
     if (!self._cancelledSignal && !self._activatedSignal && self._commitQueue.length > 0 && spanStart < i && (forcedIndex === -1 || spanStart < forcedIndex)) {
       const drainCandle = candles[spanStart];
+      // the hand-off carries the clock the drain is dated with: the candle's close
       await self.params.onHandoff(
         self.params.execution.context.symbol,
         self.params.strategyName,
         self.params.exchangeName,
         self.params.frameName,
-        drainCandle.timestamp,
+        drainCandle.timestamp + CANDLE_CLOSE_MS,
         self.params.execution.context.backtest
       );
       await PROCESS_COMMIT_QUEUE_FN(self, GET_AVG_PRICE_AT_FN(candles, spanStart, candlesCount), drainCandle.timestamp + CANDLE_CLOSE_MS);
@@ -7063,14 +7064,16 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     spanStart = i + 1;
 
     // CC_BACKTEST_LOCKSTEP: a forced event does not reach the span-end ping that normally
-    // hands the lock off; let the parallel backtests reach this candle's boundary first
+    // hands the lock off; let the parallel backtests reach this candle's clock first — the
+    // candle's close, the clock the ping hands off with, so a watch that looks here and one
+    // that does not order the peers' ticks and this candle's events the same way
     if (forcedIndex !== -1) {
       await self.params.onHandoff(
         self.params.execution.context.symbol,
         self.params.strategyName,
         self.params.exchangeName,
         self.params.frameName,
-        candle.timestamp,
+        candleClock,
         self.params.execution.context.backtest
       );
     }
@@ -7353,13 +7356,14 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     const eventIndex = userQueued ? -1 : FIND_PENDING_STRATEGY_EVENT_INDEX_FN(self, signal, candles, spanFrom, i, candlesCount);
     if (eventIndex !== -1 && eventIndex < i && (forcedIndex === -1 || eventIndex < forcedIndex)) {
       TRACK_PENDING_EXTREMES_RANGE_FN(self, signal, candles, spanFrom, eventIndex, candlesCount, extremes);
-      // CC_BACKTEST_LOCKSTEP: the strategy writes on this candle, the peers must have reached its boundary
+      // CC_BACKTEST_LOCKSTEP: the strategy writes on this candle, the peers must have reached its
+      // clock (the candle's close, the clock the ping hands off with)
       await self.params.onHandoff(
         self.params.execution.context.symbol,
         self.params.strategyName,
         self.params.exchangeName,
         self.params.frameName,
-        candles[eventIndex].timestamp,
+        candles[eventIndex].timestamp + CANDLE_CLOSE_MS,
         self.params.execution.context.backtest
       );
       await EVALUATE_PENDING_EVENT_FN(self, signal, candles, eventIndex, candlesCount, extremes);
@@ -7383,14 +7387,15 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     spanStart = i + 1;
 
     // CC_BACKTEST_LOCKSTEP: a forced event does not reach the span-end ping that normally
-    // hands the lock off; let the parallel backtests reach this candle's boundary first
+    // hands the lock off; let the parallel backtests reach this candle's clock first (the
+    // candle's close, see the scheduled loop)
     if (forcedIndex !== -1) {
       await self.params.onHandoff(
         self.params.execution.context.symbol,
         self.params.strategyName,
         self.params.exchangeName,
         self.params.frameName,
-        currentCandleTimestamp,
+        currentClock,
         self.params.execution.context.backtest
       );
     }
