@@ -865,10 +865,11 @@ test("BACKTEST: cancelScheduled on the final candle drains gracefully instead of
 
 /**
  * BACKTEST: activateScheduled на ПОСЛЕДНЕЙ свече — inline-открытие невозможно
- * (нет свечей для мониторинга). Ожидаем ЧЕСТНУЮ ошибку про финальную свечу,
- * а не вводящий в заблуждение фатал «no pending signal after scheduled activation».
+ * (нет свечей для мониторинга). Вход отменяется по timeout с часами последней свечи:
+ * брошенная ошибка из backtest() завершила бы процесс (оркестратор считает её
+ * сломанной последовательностью), а отмена оставляет прогон живым.
  */
-test("BACKTEST: activateScheduled on the final candle throws the honest insufficient-candles error", async (t) => {
+test("BACKTEST: activateScheduled on the final candle cancels the entry by timeout at that candle's close instead of throwing", async (t) => {
   useMemoryPersist();
   setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60 }, true);
   makePriceExchange("e14-ex", () => 50000);
@@ -902,12 +903,24 @@ test("BACKTEST: activateScheduled on the final candle throws the honest insuffic
 
   try {
     const result = await inMethod(() => lib.strategyCoreService.backtest("BTCUSDT", candles, t0 + 60 * MIN, new Date(t0), true, CTX));
-    t.fail(`expected an honest error, got result ${result.action}`);
-  } catch (error) {
-    if (!String(error.message).includes("final candle")) {
-      t.fail(`expected the honest final-candle error, got: ${error.message}`);
+    if (result.action !== "cancelled" || result.reason !== "timeout") {
+      t.fail(`expected the entry cancelled by timeout, got ${result.action}${result.action === "cancelled" ? ` (${result.reason})` : ""}`);
       return;
     }
-    t.pass(`last-candle activation throws the honest error: "${String(error.message).slice(0, 80)}..."`);
+    if (result.closeTimestamp !== lastTs + MIN) {
+      t.fail(`the cancel must be dated the last candle's close ${new Date(lastTs + MIN).toISOString()}, got ${new Date(result.closeTimestamp).toISOString()}`);
+      return;
+    }
+    const left = {
+      pending: await lib.strategyCoreService.hasPendingSignal(true, "BTCUSDT", CTX),
+      scheduled: await lib.strategyCoreService.hasScheduledSignal(true, "BTCUSDT", CTX),
+    };
+    if (left.pending || left.scheduled) {
+      t.fail(`nothing may be left after the cancel, got ${JSON.stringify(left)}`);
+      return;
+    }
+    t.pass(`last-candle activation cancelled by timeout at the last candle's close, no throw`);
+  } catch (error) {
+    t.fail(`the last-candle activation must not throw, got: ${error.message}`);
   }
 });

@@ -380,9 +380,9 @@ test("USER CLOSE: drain state survives a crash via the closedSignal branch with 
  * с попытками 0,1,2 и force-close'ится mid-frame.
  *
  * НЮАНС: time_expired в backtest — ОДИН финальный close после candle-цикла
- * (его отказ = задокументированный фатал "Retry backtest() with new candle
- * data"); per-candle bounded-ретрай с force существует для in-loop закрытий
- * (TP/SL) — поэтому здесь используется take_profit.
+ * (его отказ отдаёт позицию оркестратору на следующее окно, а на конце фрейма
+ * force-close'ится с exit-событием); per-candle bounded-ретрай с force
+ * существует для in-loop закрытий (TP/SL) — поэтому здесь используется take_profit.
  */
 test("BACKTEST CLOSE: exhausted close attempts force-close inside the candle loop", async ({ pass, fail }) => {
   setConfig({ CC_ORDER_CLOSE_RETRY_ATTEMPTS: 2 }, true);

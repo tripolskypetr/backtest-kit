@@ -4,7 +4,6 @@ import {
   not,
   randomString,
   singleshot,
-  str,
   trycatch,
 } from "functools-kit";
 import {
@@ -2713,7 +2712,8 @@ const RESOLVE_CLOSE_GATE_FN = (
   self: ClientStrategy,
   verdict: IBrokerOrderVerdict,
   signal: ISignalRow,
-  closeReason: string
+  closeReason: string,
+  lastChance: boolean = false
 ): { verdict: "allow" | "retry" | "force"; fatalError: Error | null } => {
   if (verdict.reason === "confirmed") {
     self._retryCloseCount = 0;
@@ -2721,8 +2721,11 @@ const RESOLVE_CLOSE_GATE_FN = (
   }
   // The started attempt was already counted by the PRE-ARM inside
   // CALL_ORDER_SYNC_CLOSE_FN — no increment here.
+  // `lastChance`: no candle is left to retry a transient refusal on (the frame end of a
+  // backtest) — the attempts are exhausted by the clock, the close is forced the same way.
   const terminal = verdict.reason !== "transient";
   const exhausted = terminal
+    || lastChance
     || (GLOBAL_CONFIG.CC_ORDER_CLOSE_RETRY_ATTEMPTS > 0
       && self._retryCloseCount > GLOBAL_CONFIG.CC_ORDER_CLOSE_RETRY_ATTEMPTS);
   if (!exhausted) {
@@ -2736,6 +2739,7 @@ const RESOLVE_CLOSE_GATE_FN = (
     closeReason,
     attempts: self._retryCloseCount,
     terminal,
+    lastChance,
   };
   self.params.logger.warn(message, payload);
   console.warn(message, payload);
@@ -5868,6 +5872,25 @@ const RETURN_IDLE_FN = async (
   return result;
 };
 
+/**
+ * The time_expired close of a position on the frame end of a backtest: no candle is left to
+ * retry a refusal on, so the close is forced (close attempts exhausted, the exit event — see
+ * RESOLVE_CLOSE_GATE_FN) instead of breaking the run.
+ */
+const CLOSE_PENDING_SIGNAL_AT_FRAME_END_FN = async (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  averagePrice: number,
+  closeTimestamp: number
+): Promise<IStrategyTickResultClosed> => {
+  const result = await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(self, signal, averagePrice, "time_expired", closeTimestamp, true);
+  if (!result) {
+    // a last-chance close is never refused: the gate forces it
+    throw new Error(`ClientStrategy backtest: the forced frame-end close returned nothing (signalId=${signal.id})`);
+  }
+  return result;
+};
+
 const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
   self: ClientStrategy,
   scheduled: IScheduledSignalRow,
@@ -6209,7 +6232,8 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
   signal: ISignalRow,
   averagePrice: number,
   closeReason: "time_expired" | "take_profit" | "stop_loss" | "liquidation",
-  closeTimestamp: number
+  closeTimestamp: number,
+  lastChance: boolean = false
 ): Promise<IStrategyTickResultClosed | null> => {
   // Sync close: if external system rejects — skip close, retry on next candle
   const syncCloseAllowed = await CALL_ORDER_SYNC_CLOSE_FN(
@@ -6220,7 +6244,7 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     self
   );
 
-  const { verdict: closeVerdict, fatalError } = RESOLVE_CLOSE_GATE_FN(self, syncCloseAllowed, signal, closeReason);
+  const { verdict: closeVerdict, fatalError } = RESOLVE_CLOSE_GATE_FN(self, syncCloseAllowed, signal, closeReason, lastChance);
   if (closeVerdict === "retry") {
     self.params.logger.info(`ClientStrategy backtest ${closeReason} rejected by sync`, {
       symbol: self.params.execution.context.symbol,
@@ -7693,20 +7717,18 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       const expired = currentClock - signal.pendingAt >= signal.minuteEstimatedTime * 60 * 1000;
       const frameOver = currentClock > frameEndTime;
       if (expired || frameOver) {
+        // on the frame end no candle is left to retry a refusal on: the close is forced
+        // (close attempts exhausted, the exit event) instead of breaking the run
         const clockResult = await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
           self,
           signal,
           averagePrice,
           "time_expired",
-          currentClock
+          currentClock,
+          frameOver
         );
         if (clockResult) {
           return clockResult;
-        }
-        if (frameOver) {
-          throw new Error(
-            `ClientStrategy backtest: frameEndTime time_expired close rejected by sync (signalId=${signal.id}).`
-          );
         }
         // a refused expiry is retried on the next candle, like any refused close
         if (evalIndex < i) {
@@ -7770,7 +7792,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   // refusal of the time-expiry close (the last candle of a finite-hold window by
   // construction) got one same-candle retry and then killed the backtest, instead of the
   // per-candle retries up to CC_ORDER_CLOSE_RETRY_ATTEMPTS every other close gets. Only
-  // while candles can still exist: on the frame end the refusal stays fatal below.
+  // while candles can still exist: on the frame end the refusal forces the close below.
   // A finite hold is replayed in the same bounded windows of whole watch spans as an
   // Infinity hold (the whole hold is never materialized at once — a year of 1m candles is
   // half a million objects per symbol). When the window ends before the expiry the
@@ -7784,9 +7806,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   const handBack = signal.minuteEstimatedTime === Infinity
     || (lastCandleRefused && closeTimestamp <= frameEndTime)
     || (elapsedTime < maxTimeToWait && !reachedFrameEnd);
-  if (handBack) {
+  const handBackResult = (): IStrategyTickResultActive => {
     const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, lastPrice);
-    const result: IStrategyTickResultActive = {
+    return {
       action: "active",
       signal: publicSignal,
       currentPrice: lastPrice,
@@ -7801,26 +7823,27 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       createdAt: closeTimestamp,
       _backtestLastTimestamp: lastCandleTimestamp,
     };
-    return result;
+  };
+  if (handBack) {
+    return handBackResult();
   }
 
-  // The array ended on the expiry candle or on the frame end: close by time here.
+  // The array ended on the expiry candle or on the frame end: close by time here. On the frame
+  // end a refusal has no candle left to retry on: the close is forced (close attempts
+  // exhausted, the exit event). Refused with candles still to come, the position is handed
+  // back and the next window retries the expiry on its first candle.
   const timeExpiredResult = await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
     self,
     signal,
     lastPrice,
     "time_expired",
-    closeTimestamp
+    closeTimestamp,
+    reachedFrameEnd
   );
-
-  if (!timeExpiredResult) {
-    throw new Error(
-      `ClientStrategy backtest: time_expired close rejected by sync (signalId=${signal.id}). ` +
-      `Retry backtest() with new candle data.`
-    );
+  if (timeExpiredResult) {
+    return timeExpiredResult;
   }
-
-  return timeExpiredResult;
+  return handBackResult();
 };
 
 /**
@@ -10102,19 +10125,7 @@ export class ClientStrategy implements IStrategy {
         }
       }
       if (this._pendingSignal) {
-        const result = await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
-          this,
-          this._pendingSignal,
-          currentPrice,
-          "time_expired",
-          frameEndTime
-        );
-        if (!result) {
-          throw new Error(
-            `ClientStrategy backtest: frame end time_expired close rejected by sync (signalId=${this._pendingSignal.id}).`
-          );
-        }
-        return result;
+        return await CLOSE_PENDING_SIGNAL_AT_FRAME_END_FN(this, this._pendingSignal, currentPrice, frameEndTime);
       }
       if (this._scheduledSignal) {
         return await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
@@ -10432,19 +10443,7 @@ export class ClientStrategy implements IStrategy {
           const activationClock = candles[activationIndex].timestamp + CANDLE_CLOSE_MS;
           if (activationClock > frameEndTime && this._pendingSignal) {
             const lastPrice = GET_AVG_PRICE_AT_FN(candles, activationIndex, GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT);
-            const frameEndResult = await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
-              this,
-              this._pendingSignal,
-              lastPrice,
-              "time_expired",
-              activationClock
-            );
-            if (!frameEndResult) {
-              throw new Error(
-                `ClientStrategy backtest: frame end time_expired close rejected by sync after the activation on the frame-end candle (signalId=${scheduled.id}).`
-              );
-            }
-            return frameEndResult;
+            return await CLOSE_PENDING_SIGNAL_AT_FRAME_END_FN(this, this._pendingSignal, lastPrice, activationClock);
           }
         }
 
@@ -10466,14 +10465,10 @@ export class ClientStrategy implements IStrategy {
             closeTimestamp
           );
 
-          if (!noRemainingResult) {
-            throw new Error(
-              `ClientStrategy backtest: time_expired close rejected by sync (signalId=${scheduled.id}). ` +
-              `Retry backtest() with new candle data.`
-            );
+          if (noRemainingResult) {
+            return noRemainingResult;
           }
-
-          return noRemainingResult;
+          // refused: the position is handed back below, the next window retries the expiry
         }
 
         // The leftover of the scheduled array is not replayed here. Its length is
@@ -10516,27 +10511,25 @@ export class ClientStrategy implements IStrategy {
         const elapsedTime = lastCandleTimestamp - scheduled.scheduledAt;
 
         if (elapsedTime < maxTimeToWait) {
-          // EDGE CASE: backtest() called with partial candle data (should never happen in production)
-          // In real backtest flow this won't happen as we process all candles at once
-          // This indicates incorrect usage of backtest() - throw error instead of returning partial result
+          // backtest() was given a window shorter than the wait (the orchestrator sizes it as
+          // the wait plus a replay window, so this is a caller's mistake): the entry is
+          // cancelled by timeout at the window's last candle and the run goes on — an error
+          // thrown here would end the process.
           const bufferCandlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
-          // For scheduled signal that has NOT activated: buffer + wait time only (no lifetime yet)
           const requiredCandlesCount = bufferCandlesCount + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + 1;
-          throw new Error(
-            str.newline(
-              `ClientStrategy backtest: Insufficient candle data for scheduled signal (not yet activated). ` +
-              `Signal scheduled at ${new Date(scheduled.scheduledAt).toISOString()}, ` +
-              `last candle at ${new Date(lastCandleTimestamp).toISOString()}. ` +
-              `Elapsed: ${Math.floor(elapsedTime / 60000)}min of ${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES}min wait time. ` +
-              `Provided ${candles.length} candles, but need at least ${requiredCandlesCount} candles. ` +
-              `\nBreakdown: ` +
-              `${bufferCandlesCount} buffer (VWAP) + ` +
-              `${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES} wait (for activation) = ${requiredCandlesCount} total. ` +
-              `\nBuffer explanation: VWAP calculation requires ${GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT} candles, ` +
-              `so first ${bufferCandlesCount} candles are skipped during scheduled phase processing. ` +
-              `Provide complete candle range: [scheduledAt - ${bufferCandlesCount}min, scheduledAt + ${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES}min].`
-            )
-          );
+          const message = "ClientStrategy backtest: insufficient candle data for a scheduled signal not yet activated, cancelling the entry by timeout at the window's last candle";
+          const payload = {
+            symbol: this.params.execution.context.symbol,
+            signalId: scheduled.id,
+            scheduledAt: new Date(scheduled.scheduledAt).toISOString(),
+            lastCandle: new Date(lastCandleTimestamp).toISOString(),
+            elapsedMinutes: Math.floor(elapsedTime / 60000),
+            waitMinutes: GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES,
+            provided: candles.length,
+            required: requiredCandlesCount,
+          };
+          this.params.logger.warn(message, payload);
+          console.warn(message, payload);
         }
 
         // Timeout reached - cancel the scheduled signal

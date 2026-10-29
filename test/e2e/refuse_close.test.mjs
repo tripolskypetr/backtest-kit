@@ -327,15 +327,18 @@ test("REFUSED CLOSE: transient refusals exhausted (CC_ORDER_CLOSE_RETRY_ATTEMPTS
   });
 });
 
-test("REFUSED CLOSE: a refusal of the frame-end close is fatal on every watch — there is no next candle to retry on", async ({ pass, fail }) => {
+test("REFUSED CLOSE: a refusal of the frame-end close is forced on every watch — there is no next candle to retry on, the exhaustion goes to the exit bus and the run goes on", async ({ pass, fail }) => {
   // hold 600 outruns the 6h frame: the position is closed by time_expired on the frame end;
-  // the gate refuses that single attempt and the backtest dies instead of leaving the position open
+  // the gate refuses that single attempt and the close is forced (close attempts exhausted),
+  // the exit event is raised once — the backtest neither dies nor leaves the position open
   const results = await runOnWatches("frame-end", { signal: long(600), refuse: first });
   const oracle = results["1m"];
-  if (oracle.close.length !== 0 || !oracle.fatal || oracle.exitCode !== -1) return fail(`1m: expected no close and a fatal exit, got close=${JSON.stringify(oracle.close)} exitCode=${oracle.exitCode} fatal=${oracle.fatal}`);
+  if (oracle.fatal || oracle.exitCode !== null) return fail(`1m: the run must not die, got exitCode=${oracle.exitCode} fatal=${oracle.fatal}`);
+  if (oracle.close.length !== 1 || oracle.close[0].reason !== "time_expired") return fail(`1m: expected the forced time_expired close, got ${JSON.stringify(oracle.close)}`);
   if (oracle.attempts.length !== 1 || oracle.reasons.join() !== "time_expired") return fail(`1m: expected a single refused time_expired attempt on the frame end, got ${oracle.attempts.join(",")} (${oracle.reasons.join()})`);
-  if (differs(results, (r) => ({ attempts: r.attempts, close: r.close, exitCode: r.exitCode, reasons: r.reasons }), fail, "frame end")) return;
-  pass(`frame-end time_expired refused@${oracle.attempts[0].split("@")[1]} → fatal exit, no close, on ${WATCHES.join("/")}`);
+  if (oracle.exits.length !== 1 || !oracle.exits[0].includes("close attempts exhausted")) return fail(`1m: expected one exit event about the exhausted close attempts, got ${JSON.stringify(oracle.exits)}`);
+  if (differs(results, (r) => ({ attempts: r.attempts, close: r.close, exits: r.exits, fatal: r.fatal, exitCode: r.exitCode, reasons: r.reasons }), fail, "frame end")) return;
+  pass(`frame-end time_expired refused@${oracle.attempts[0].split("@")[1]} → forced close@${oracle.close[0].at}, one exit event, no fatal, on ${WATCHES.join("/")}`);
 });
 
 test("REFUSED CLOSE: the refused candle is still observed on every watch — the active ping and the partial-loss levels fire on it", async ({ pass, fail }) => {
